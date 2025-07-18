@@ -17,26 +17,73 @@ ls -la
 
 ## 🚀 **Quick Setup (5 minutes)**
 
+### **Option A: Automated Bootstrap (Recommended)**
+
+Run our interactive bootstrap script that handles everything:
+
+```bash
+# From the Brooklyn repository
+bun run bootstrap
+
+# Or run directly
+bun scripts/bootstrap-brooklyn.ts
+```
+
+The bootstrap script will:
+- ✅ Detect your OS and set appropriate paths
+- ✅ Install or configure Brooklyn MCP server
+- ✅ Configure Claude Code integration automatically
+- ✅ Install global `brooklyn-server` command
+- ✅ Test the server connection
+
+**After bootstrap completes, skip to Step 4 below!**
+
+### **Option B: Manual Setup**
+
 ### **Step 1: Read the Welcome Guide**
 Start here: **[docs/welcome.md](docs/welcome.md)**
 
 This guide has everything you need - from installation to your first automation workflow.
 
-### **Step 2: Install & Start Server**
+### **Step 2: Get Server Started**
+
+**🚨 IMPORTANT**: Brooklyn server needs to be running before you can connect!
+
+**If you have access to the Brooklyn repository:**
 ```bash
-# Install dependencies
+# Navigate to Brooklyn repo
+cd /path/to/fulmen-mcp-forge-brooklyn
+
+# Install dependencies (first time only)
 bun install
 
-# Set up browsers
+# Set up browsers (first time only)
 bun run setup
 
 # Start the server
 bun run server:start
 ```
 
+**If you DON'T have access to the Brooklyn repository:**
+```bash
+# Ask your team lead or Brooklyn administrator to start the server
+# The server runs on port 50000 by default
+# You'll need to know the server's location for Claude Code configuration
+```
+
+**Server Status Check:**
+```bash
+# Check if server is running (if you have repo access)
+bun run server:status
+
+# Or check if port 50000 is active
+lsof -i :50000
+```
+
 You'll see something like:
 ```
 Server started successfully with PID 12345
+Brooklyn MCP Server running on port 50000
 Logs are written to: /Users/you/.local/share/fulmen-brooklyn/logs/server.log
 ```
 
@@ -95,6 +142,31 @@ Close the browser
 - **[Welcome Guide](welcome.md)** - Comprehensive onboarding
 
 ## 🔧 **Server Management**
+
+### Using Brooklyn CLI (Recommended)
+
+After running the bootstrap script, you can manage Brooklyn from anywhere:
+
+```bash
+# Global CLI commands (work from any directory)
+brooklyn-server start       # Start the server
+brooklyn-server stop        # Stop the server
+brooklyn-server restart     # Restart the server
+brooklyn-server status      # Check server status
+brooklyn-server logs        # View server logs
+brooklyn-server logs --recent  # View recent logs only
+brooklyn-server cleanup     # Clean up resources
+brooklyn-server info        # Show Brooklyn installation info
+
+# Get help for any command
+brooklyn-server --help
+brooklyn-server logs --help
+```
+
+### Direct Repository Commands
+
+If you're working from the Brooklyn repository:
+
 ```bash
 # Check server status
 bun run server:status
@@ -107,6 +179,9 @@ bun run server:stop
 
 # Restart server
 bun run server:restart
+
+# Install CLI locally (for this project only)
+bun run install
 ```
 
 ## 🌟 **Pro Tips**

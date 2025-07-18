@@ -169,6 +169,38 @@ brooklyn_status detail=full
 ```
 
 ### Server Management
+
+#### Brooklyn CLI (Global Management)
+
+Brooklyn includes a powerful CLI for server management from anywhere:
+
+```bash
+# Install CLI (project-local)
+bun run install
+
+# Global server management
+brooklyn-server start       # Start the server
+brooklyn-server stop        # Stop the server
+brooklyn-server restart     # Restart the server
+brooklyn-server status      # Check server status
+brooklyn-server logs        # View server logs (continuous)
+brooklyn-server logs --recent  # View recent logs only
+brooklyn-server cleanup     # Clean up resources
+brooklyn-server info        # Show installation information
+
+# Comprehensive help available
+brooklyn-server --help
+```
+
+**Installation Options:**
+- **Project-local**: `bun run install` - CLI manages this specific Brooklyn instance
+- **User-wide**: Use bootstrap script for system-wide installation
+- **Deprovisioning**: `bun run bootstrap:remove` to uninstall completely
+
+#### Direct Repository Commands
+
+From the Brooklyn repository directory:
+
 ```bash
 # Start server
 bun run server:start

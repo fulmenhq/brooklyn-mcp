@@ -8,6 +8,27 @@ Brooklyn is an enterprise-ready MCP (Model Context Protocol) server that provide
 
 ## Quick Start
 
+### Bootstrap Script (Recommended)
+
+For new installations, use the automated bootstrap script:
+
+```bash
+# Interactive installation
+bun run bootstrap
+
+# Install command
+bun run bootstrap:install
+
+# Remove installation
+bun run bootstrap:remove
+```
+
+The bootstrap script will:
+- ✅ Detect your OS and set appropriate paths
+- ✅ Configure Claude Code integration automatically
+- ✅ Install global `brooklyn-server` command
+- ✅ Set up and test the server connection
+
 ### Starting the Server
 
 ```bash
@@ -23,6 +44,39 @@ bun run server:start
 bun run server:status
 bun run server:stop
 ```
+
+### Brooklyn CLI (Global Management)
+
+Brooklyn includes a built-in CLI that can be installed locally or globally:
+
+```bash
+# Install CLI for current project
+bun run install
+
+# Global server management (works from anywhere)
+brooklyn-server start       # Start the server
+brooklyn-server stop        # Stop the server
+brooklyn-server restart     # Restart the server
+brooklyn-server status      # Check server status
+brooklyn-server logs        # View server logs (continuous)
+brooklyn-server logs --recent  # View recent logs only
+brooklyn-server cleanup     # Clean up resources
+brooklyn-server info        # Show installation information
+
+# Get comprehensive help
+brooklyn-server --help
+brooklyn-server logs --help
+```
+
+**CLI Installation Types:**
+- **Project-local**: `bun run install` (manages this specific Brooklyn instance)
+- **User-wide**: Use bootstrap script (`bun run bootstrap`) for system-wide installation
+- **Multiple instances**: Each Brooklyn installation can have its own CLI
+
+**Deprovisioning:**
+- **Remove CLI**: `bun run bootstrap:remove` 
+- **Check installation**: `brooklyn-server info`
+- **Verify removal**: CLI commands will no longer work
 
 ### Basic Configuration
 

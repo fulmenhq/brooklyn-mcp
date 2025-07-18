@@ -503,6 +503,7 @@ const troubleshooting = await callTool("brooklyn_troubleshooting");
 
 ## What's Next?
 
+- [Brooklyn CLI](./brooklyn-cli.md) - Command-line interface for server management
 - [Advanced Features](./advanced-features.md) - Complex automation scenarios
 - [Team Management](./team-management.md) - Multi-team configuration
 - [Security Guide](./security.md) - Security best practices

@@ -16,6 +16,31 @@ Brooklyn is a Model Context Protocol (MCP) server that provides AI developers an
 
 ### Installation
 
+#### Option A: Automated Bootstrap (Recommended)
+
+Run our interactive bootstrap script that handles everything:
+
+```bash
+# Clone the repository
+git clone https://github.com/3leaps/fulmen-mcp-forge-brooklyn.git
+cd fulmen-mcp-forge-brooklyn
+
+# Install dependencies
+bun install
+
+# Run the bootstrap script
+bun run bootstrap
+
+# The script will:
+# ✅ Detect your OS and set appropriate paths
+# ✅ Install or configure Brooklyn MCP server
+# ✅ Configure Claude Code integration automatically
+# ✅ Install global `brooklyn-server` command
+# ✅ Test the server connection
+```
+
+#### Option B: Manual Installation
+
 ```bash
 # Clone the repository
 git clone https://github.com/3leaps/fulmen-mcp-forge-brooklyn.git
@@ -29,6 +54,19 @@ bun run setup
 
 # Start the server
 bun run server:start
+```
+
+#### Bootstrap Script Commands
+
+```bash
+# Install Brooklyn (interactive)
+bun run bootstrap
+
+# Install Brooklyn (explicit)
+bun run bootstrap:install
+
+# Remove Brooklyn installation
+bun run bootstrap:remove
 ```
 
 ### Connect to Claude
@@ -124,25 +162,44 @@ brooklyn_troubleshooting issue=connection_failed
 
 ## 🛠️ Server Management
 
-### Development
+### Brooklyn CLI (Recommended)
+
+Brooklyn includes a built-in CLI for easy server management from anywhere:
+
+```bash
+# Install Brooklyn CLI globally
+bun run install
+
+# Global server management (works from anywhere)
+brooklyn-server start       # Start the server
+brooklyn-server stop        # Stop the server
+brooklyn-server restart     # Restart the server
+brooklyn-server status      # Check server status
+brooklyn-server logs        # View server logs (continuous)
+brooklyn-server logs --recent  # View recent logs only
+brooklyn-server cleanup     # Clean up resources
+brooklyn-server info        # Show installation information
+
+# Get comprehensive help
+brooklyn-server --help
+```
+
+**CLI Installation Options:**
+- **Project-local**: `bun run install` (CLI manages this specific Brooklyn instance)
+- **User-wide**: Use bootstrap script for system-wide installation
+- **Deprovisioning**: `bun run bootstrap:remove` to uninstall completely
+
+### Development Commands
 
 ```bash
 # Start development server
 bun run dev
 
-# Start server (production)
+# Direct server management (from repo)
 bun run server:start
-
-# Stop server
 bun run server:stop
-
-# Check server status
 bun run server:status
-
-# Clean up resources
 bun run server:cleanup
-
-# View server logs
 bun run server:logs:recent
 ```
 
