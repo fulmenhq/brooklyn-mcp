@@ -1,0 +1,166 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Production builds
+/dist
+/build
+*.tsbuildinfo
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Playwright Test artifacts
+playwright-report/
+test-results/
+
+# E2E test screenshots (except snapshots)
+tests/e2e/screenshots/
+
+# Lighthouse reports
+lighthouse-reports/
+
+# GitHub Actions local simulation (act)
+.env.local
+.actrc.local
+
+# Temporary folders
+tmp/
+temp/
+
+# Debug and temporary files
+debug-*.js
+debug-*.ts
+*.debug.js
+*.debug.ts
+test-debug-*
+
+# Bun
+.bun
+
+# AI IDE Chat Rules and Configurations
+# Excludes files related to AI assistant chat rules, sessions, or configurations
+# to prevent storing sensitive or ephemeral data in the repository.
+
+# substaile standards (managed via tool)
+docs/substaile/
+# fulmen standards (managed via tool)
+docs/fulmen/
+
+# Cline (VS Code AI Assistant)
+.clinerules             # Cline rules file or folder for project standards
+cline_mcp_settings.json # MCP server configuration
+.cline/                 # Potential Cline cache or session data
+cline.json              # Potential Cline configuration
+
+# Claude (Anthropic)
+CLAUDE.md
+CLAUDE.local.md
+claude.json
+.claude/
+
+# Windsurf v8+
+.windsurfrules/
+.windsurf/rules/
+windsurf.config.json
+
+# Cursor
+.cursor/
+.cursorignore
+cursor.json
+
+# GitHub Copilot
+.copilot/
+copilot.json
+
+# IntelliJ AI Assistant
+.idea/ai-assistant.xml
+ai-assistant.json
+
+# General AI Chat Files
+.ai/
+ai-config.json
+chat-rules.md
+.chat/
+*.ai-session
+prompts/
+
+# IDE-Specific AI Configurations
+.vscode/ai-settings.json
+.zed/ai.json
+.fleet/ai-config.json
+
+# Plans folders
+project_management/
+plans/
+.plans/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.production
+.env.development
+.env.test
+# Keep example env files for reference
+!.env.example
+
+# Brooklyn-specific ignores
+# Browser automation artifacts
+screenshots/
+test-artifacts/
+browser-cache/
+browser-profiles/
+
+# MCP server artifacts
+mcp-logs/
+server-logs/
+audit-logs/
+
+# Team-specific configurations (sensitive)
+configs/teams/*/secrets/
+configs/teams/*/private/
+
+# Performance testing
+performance-reports/
+load-test-results/
+
+# Plugin development
+plugins/dev/
+plugins/sandbox/

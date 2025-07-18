@@ -1,0 +1,67 @@
+{
+  "name": "fulmen-mcp-forge-brooklyn",
+  "version": "1.0.0",
+  "description": "Enterprise-ready MCP server for browser automation with multi-team support",
+  "type": "module",
+  "private": true,
+  "main": "dist/index.js",
+  "module": "src/index.ts",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target node",
+    "setup": "bun install && bunx playwright install",
+    "start": "bun run dist/index.js",
+    "server:start": "bun scripts/server-management.ts start",
+    "server:stop": "bun scripts/server-management.ts stop",
+    "server:status": "bun scripts/server-management.ts status",
+    "server:cleanup": "bun scripts/server-management.ts cleanup",
+    "test": "vitest run",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest --coverage",
+    "test:e2e": "vitest run tests/e2e",
+    "lint": "biome check . && prettier --check \"**/*.{json,md,yaml,yml}\"",
+    "lint:fix": "biome check --write . && prettier --write \"**/*.{json,md,yaml,yml}\"",
+    "format:code": "biome format --write . && prettier --write \"**/*.{json,md,yaml,yml}\"",
+    "typecheck": "tsc --noEmit",
+    "check:file": "bun scripts/check-file.ts",
+    "check:file:fix": "bun scripts/check-file.ts --fix",
+    "version:get": "bun scripts/version.ts get",
+    "version:set": "bun scripts/version.ts set",
+    "version:bump": "bun scripts/version.ts bump",
+    "version:sync": "bun scripts/version.ts sync",
+    "check:versions": "bun scripts/check-versions.ts",
+    "check:versions:fix": "bun scripts/check-versions.ts --fix",
+    "clean": "rm -rf dist",
+    "prepare": "bun run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.5.0",
+    "playwright": "^1.40.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.8.3",
+    "@types/bun": "latest",
+    "@types/node": "latest",
+    "typescript": "^5.0.0",
+    "vitest": "^2.0.0",
+    "@vitest/coverage-v8": "^2.0.0",
+    "chalk": "^5.3.0",
+    "dotenv": "^16.0.0",
+    "prettier": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "bun": ">=1.0.0"
+  },
+  "keywords": [
+    "mcp",
+    "browser-automation",
+    "playwright",
+    "typescript",
+    "bun",
+    "fulmen",
+    "enterprise"
+  ],
+  "author": "3leaps Fulmen Team",
+  "license": "MIT"
+}

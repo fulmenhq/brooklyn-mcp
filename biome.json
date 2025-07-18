@@ -1,0 +1,94 @@
+{
+  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "organizeImports": {
+    "enabled": true
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "complexity": {
+        "noBannedTypes": "error",
+        "noForEach": "warn",
+        "noStaticOnlyClass": "error",
+        "useOptionalChain": "error",
+        "useSimplifiedLogicExpression": "error",
+        "useLiteralKeys": "off",
+        "noExcessiveCognitiveComplexity": {
+          "level": "error",
+          "options": {
+            "maxAllowedComplexity": 22
+          }
+        }
+      },
+      "correctness": {
+        "noUnusedVariables": "error",
+        "noUndeclaredVariables": "error"
+      },
+      "style": {
+        "noNonNullAssertion": "error",
+        "useConst": "error",
+        "useDefaultParameterLast": "error",
+        "useTemplate": "error",
+        "noParameterAssign": "error"
+      },
+      "suspicious": {
+        "noExplicitAny": "error",
+        "noConsoleLog": "warn"
+      }
+    }
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "ignore": ["*.md", "*.yml", "*.yaml"]
+  },
+  "files": {
+    "ignoreUnknown": true,
+    "include": [
+      "src/**/*.ts",
+      "src/**/*.tsx",
+      "src/**/*.js",
+      "scripts/**/*.ts",
+      "tests/**/*.ts",
+      "*.config.{ts,js,mjs,cjs}",
+      "*.ts"
+    ],
+    "ignore": [
+      ".DS_Store",
+      "*.log",
+      "*.temp",
+      "node_modules",
+      "dist",
+      "**/*.gen.ts",
+      "**/*.gen.js",
+      "*.json",
+      "*.md",
+      "*.yaml",
+      "*.yml"
+    ]
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "jsxQuoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "all"
+    },
+    "globals": ["BufferEncoding", "describe", "it", "expect", "vi", "Bun"]
+  },
+  "overrides": [
+    {
+      "include": ["scripts/**/*.ts", "scripts/**/*.js"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsoleLog": "off"
+          }
+        }
+      }
+    }
+  ]
+}
