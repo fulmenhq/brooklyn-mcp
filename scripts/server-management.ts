@@ -16,7 +16,7 @@ const execAsync = promisify(exec);
 const SERVER_NAME = "fulmen-brooklyn";
 const PID_FILE = join(homedir(), ".local", "share", SERVER_NAME, "server.pid");
 const LOG_FILE = join(homedir(), ".local", "share", SERVER_NAME, "logs", "server.log");
-const STARTUP_TIMEOUT = 10000; // 10 seconds
+const _STARTUP_TIMEOUT = 10000; // 10 seconds
 
 // Ensure directories exist
 import { mkdirSync } from "node:fs";

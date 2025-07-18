@@ -158,17 +158,17 @@ export class OnboardingTools {
 
     switch (name) {
       case "brooklyn_status":
-        return await this.getStatus(args);
+        return await OnboardingTools.getStatus(args);
       case "brooklyn_capabilities":
-        return await this.getCapabilities(args);
+        return await OnboardingTools.getCapabilities(args);
       case "brooklyn_getting_started":
-        return await this.getGettingStarted(args);
+        return await OnboardingTools.getGettingStarted(args);
       case "brooklyn_examples":
-        return await this.getExamples(args);
+        return await OnboardingTools.getExamples(args);
       case "brooklyn_team_setup":
-        return await this.getTeamSetup(args);
+        return await OnboardingTools.getTeamSetup(args);
       case "brooklyn_troubleshooting":
-        return await this.getTroubleshooting(args);
+        return await OnboardingTools.getTroubleshooting(args);
       default:
         throw new Error(`Unknown onboarding tool: ${name}`);
     }

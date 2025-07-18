@@ -4,7 +4,7 @@
  */
 
 export class SecurityMiddleware {
-  async validateRequest(request: unknown): Promise<void> {
+  async validateRequest(_request: unknown): Promise<void> {
     // TODO: Implement request validation
   }
 }

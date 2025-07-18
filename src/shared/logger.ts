@@ -69,7 +69,7 @@ export function initLogger(options: LoggerOptions = {}): void {
   // Set defaults
   const level = options.level || "info";
   const name = options.name || buildConfig.serviceName;
-  const useStderr = options.useStderr || false;
+  const useStderr = options.useStderr;
   const logFile = options.logFile;
   const maxSize = options.maxSize || 10 * 1024 * 1024; // 10MB
   const maxFiles = options.maxFiles || 5;

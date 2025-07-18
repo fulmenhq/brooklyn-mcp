@@ -91,7 +91,10 @@ export class MCPServer {
           ],
         };
       } catch (error) {
-        logger.error("Tool call failed", { tool: name, error: error instanceof Error ? error.message : String(error) });
+        logger.error("Tool call failed", {
+          tool: name,
+          error: error instanceof Error ? error.message : String(error),
+        });
         return {
           content: [
             {
@@ -231,13 +234,13 @@ export class MCPServer {
     try {
       switch (name) {
         case "launch_browser":
-          return await this.browserPool.launchBrowser(args as any);
+          return await this.browserPool.launchBrowser(args as unknown);
         case "navigate":
-          return await this.browserPool.navigate(args as any);
+          return await this.browserPool.navigate(args as unknown);
         case "screenshot":
-          return await this.browserPool.screenshot(args as any);
+          return await this.browserPool.screenshot(args as unknown);
         case "close_browser":
-          return await this.browserPool.closeBrowser(args as any);
+          return await this.browserPool.closeBrowser(args as unknown);
         default:
           throw new Error(`Unknown core tool: ${name}`);
       }

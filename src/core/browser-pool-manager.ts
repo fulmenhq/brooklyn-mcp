@@ -12,22 +12,22 @@ export class BrowserPoolManager {
     // TODO: Cleanup browser pool
   }
 
-  async launchBrowser(args: unknown): Promise<unknown> {
+  async launchBrowser(_args: unknown): Promise<unknown> {
     // TODO: Implement browser launch
     return { browserId: "stub-browser-id" };
   }
 
-  async navigate(args: unknown): Promise<unknown> {
+  async navigate(_args: unknown): Promise<unknown> {
     // TODO: Implement navigation
     return { success: true };
   }
 
-  async screenshot(args: unknown): Promise<unknown> {
+  async screenshot(_args: unknown): Promise<unknown> {
     // TODO: Implement screenshot
     return { data: "stub-screenshot-data" };
   }
 
-  async closeBrowser(args: unknown): Promise<unknown> {
+  async closeBrowser(_args: unknown): Promise<unknown> {
     // TODO: Implement browser close
     return { success: true };
   }

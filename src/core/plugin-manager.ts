@@ -111,7 +111,7 @@ export class PluginManager implements IPluginManager {
 
   async validatePlugin(plugin: WebPilotPlugin): Promise<boolean> {
     // Basic validation
-    if (!plugin.name || !plugin.version || !plugin.team) {
+    if (!(plugin.name && plugin.version && plugin.team)) {
       throw new Error("Plugin must have name, version, and team");
     }
 
@@ -121,7 +121,7 @@ export class PluginManager implements IPluginManager {
 
     // Validate tool schemas
     for (const tool of plugin.tools) {
-      if (!tool.name || !tool.description || !tool.inputSchema) {
+      if (!(tool.name && tool.description && tool.inputSchema)) {
         throw new Error(`Invalid tool definition in plugin ${plugin.name}`);
       }
     }
@@ -129,7 +129,7 @@ export class PluginManager implements IPluginManager {
     return true;
   }
 
-  async handleToolCall(toolName: string, args: unknown): Promise<unknown> {
+  async handleToolCall(toolName: string, _args: unknown): Promise<unknown> {
     const plugin = this.toolRegistry.get(toolName);
     if (!plugin) {
       throw new Error(`Tool not found: ${toolName}`);
