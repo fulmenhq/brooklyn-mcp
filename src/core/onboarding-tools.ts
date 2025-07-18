@@ -6,8 +6,15 @@
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { config } from "../shared/config.js";
 import { logger } from "../shared/logger.js";
+import type { BrowserPoolManager } from "./browser-pool-manager.js";
 
 export class OnboardingTools {
+  private static browserPool: BrowserPoolManager | null = null;
+
+  static setBrowserPool(pool: BrowserPoolManager): void {
+    OnboardingTools.browserPool = pool;
+  }
+
   static getTools(): Tool[] {
     return [
       {
@@ -208,12 +215,13 @@ export class OnboardingTools {
         memory: process.memoryUsage(),
         cpu_usage: process.cpuUsage(),
       },
-      // TODO: Add browser pool status
-      browser_pool: {
-        total_browsers: 0,
-        available_browsers: 0,
-        active_teams: 0,
-      },
+      browser_pool: OnboardingTools.browserPool
+        ? await OnboardingTools.browserPool.getStatus()
+        : {
+            total_browsers: 0,
+            available_browsers: 0,
+            active_teams: 0,
+          },
     };
 
     return fullStatus;

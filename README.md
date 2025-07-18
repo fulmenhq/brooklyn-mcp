@@ -6,6 +6,8 @@ Brooklyn is a Model Context Protocol (MCP) server that provides AI developers an
 
 ## 🚀 Quick Start
 
+**New to Brooklyn?** Start here: **[docs/hello_brooklyn.md](docs/hello_brooklyn.md)** - Your 5-minute setup guide!
+
 ### Prerequisites
 
 - **Bun** (>= 1.0.0) - [Install Bun](https://bun.sh)
@@ -139,6 +141,9 @@ bun run server:status
 
 # Clean up resources
 bun run server:cleanup
+
+# View server logs
+bun run server:logs:recent
 ```
 
 ### Quality Assurance
@@ -301,6 +306,23 @@ brooklyn/
 - **Test Coverage**: 90%+ critical paths, 80%+ business logic
 - **File-level Validation**: Every modified file must pass `bun run check:file`
 
+## 📚 Documentation
+
+### Complete Documentation
+
+For detailed information about Brooklyn MCP server:
+
+- **[Development Guide](docs/development/index.md)** - Server management, configuration, and troubleshooting
+- **[User Guide](docs/user-guide/index.md)** - Getting started with browser automation
+- **[Advanced Features](docs/user-guide/advanced-features.md)** - Complex automation scenarios
+- **[Team Management](docs/user-guide/team-management.md)** - Multi-team configuration and workflows
+
+### Quick Links
+
+- **Server Management**: [docs/development/index.md](docs/development/index.md)
+- **Browser Automation**: [docs/user-guide/index.md](docs/user-guide/index.md)
+- **Team Setup**: [docs/user-guide/team-management.md](docs/user-guide/team-management.md)
+
 ## 🆘 Support
 
 ### Getting Help
@@ -309,8 +331,11 @@ brooklyn/
 # Built-in troubleshooting
 brooklyn_troubleshooting issue=general
 
-# Check server logs
+# Check server logs (follows continuously)
 bun run server:logs
+
+# Check recent logs (last 20 lines)
+bun run server:logs:recent
 
 # Get examples
 brooklyn_examples task=all
@@ -318,8 +343,7 @@ brooklyn_examples task=all
 
 ### Communication Channels
 
-- **Slack Integration**: Coming soon
-- **Mattermost Integration**: Coming soon
+- **Documentation**: See [docs/](docs/) directory for comprehensive guides
 - **GitHub Issues**: [Report issues](https://github.com/3leaps/fulmen-mcp-forge-brooklyn/issues)
 
 ## 📜 License

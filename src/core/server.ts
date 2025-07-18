@@ -10,6 +10,7 @@ import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { config } from "../shared/config.js";
 import { logger } from "../shared/logger.js";
 import { BrowserPoolManager } from "./browser-pool-manager.js";
+import { OnboardingTools } from "./onboarding-tools.js";
 import { PluginManager } from "./plugin-manager.js";
 import { SecurityMiddleware } from "./security-middleware.js";
 
@@ -52,10 +53,11 @@ export class MCPServer {
     // Set up core tool handlers
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
       const coreTools = await this.getCoreTools();
+      const onboardingTools = OnboardingTools.getTools();
       const pluginTools = this.pluginManager.getAllTools();
 
       return {
-        tools: [...coreTools, ...pluginTools],
+        tools: [...coreTools, ...onboardingTools, ...pluginTools],
       };
     });
 
@@ -76,6 +78,10 @@ export class MCPServer {
         // Check if it's a core tool
         if (this.isCoreTools(name)) {
           result = await this.handleCoreTool(name, args);
+        }
+        // Check if it's an onboarding tool
+        else if (this.isOnboardingTools(name)) {
+          result = await OnboardingTools.handleTool(name, args);
         }
         // Delegate to plugin manager
         else {
@@ -109,6 +115,9 @@ export class MCPServer {
 
     // Initialize browser pool
     await this.browserPool.initialize();
+
+    // Connect onboarding tools to browser pool
+    OnboardingTools.setBrowserPool(this.browserPool);
 
     // Load plugins
     await this.pluginManager.loadPlugins();
@@ -228,6 +237,18 @@ export class MCPServer {
   private isCoreTools(toolName: string): boolean {
     const coreTools = ["launch_browser", "navigate", "screenshot", "close_browser"];
     return coreTools.includes(toolName);
+  }
+
+  private isOnboardingTools(toolName: string): boolean {
+    const onboardingTools = [
+      "brooklyn_status",
+      "brooklyn_capabilities",
+      "brooklyn_getting_started",
+      "brooklyn_examples",
+      "brooklyn_team_setup",
+      "brooklyn_troubleshooting",
+    ];
+    return onboardingTools.includes(toolName);
   }
 
   private async handleCoreTool(name: string, args: unknown): Promise<unknown> {

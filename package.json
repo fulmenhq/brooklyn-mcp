@@ -17,6 +17,7 @@
     "server:status": "bun scripts/server-management.ts status",
     "server:cleanup": "bun scripts/server-management.ts cleanup",
     "server:logs": "bun scripts/server-management.ts logs",
+    "server:logs:recent": "bun scripts/server-management.ts logs --recent",
     "test": "vitest run",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest --coverage",

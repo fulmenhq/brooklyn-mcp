@@ -227,23 +227,37 @@ async function cleanup(): Promise<void> {
 /**
  * Tail server logs
  */
-async function tailLogs(): Promise<void> {
+async function tailLogs(recent = false): Promise<void> {
   if (!existsSync(LOG_FILE)) {
     console.log("No log file found");
     return;
   }
 
-  console.log(`Tailing logs from ${LOG_FILE}...`);
-  console.log("Press Ctrl+C to stop");
+  if (recent) {
+    // Show recent logs and exit
+    console.log(`Recent logs from ${LOG_FILE}:`);
+    console.log("----------------------------------------");
+    const tail = spawn("tail", ["-20", LOG_FILE], {
+      stdio: "inherit",
+    });
 
-  const tail = spawn("tail", ["-f", LOG_FILE], {
-    stdio: "inherit",
-  });
+    tail.on("close", (code) => {
+      process.exit(code || 0);
+    });
+  } else {
+    // Follow logs continuously
+    console.log(`Tailing logs from ${LOG_FILE}...`);
+    console.log("Press Ctrl+C to stop");
 
-  process.on("SIGINT", () => {
-    tail.kill();
-    process.exit(0);
-  });
+    const tail = spawn("tail", ["-f", LOG_FILE], {
+      stdio: "inherit",
+    });
+
+    process.on("SIGINT", () => {
+      tail.kill();
+      process.exit(0);
+    });
+  }
 }
 
 /**
@@ -269,7 +283,8 @@ async function main(): Promise<void> {
       await cleanup();
       break;
     case "logs":
-      await tailLogs();
+      const isRecent = process.argv.includes("--recent");
+      await tailLogs(isRecent);
       break;
     default:
       console.log("Usage: bun scripts/server-management.ts <command>");
@@ -280,7 +295,7 @@ async function main(): Promise<void> {
       console.log("  restart   - Restart the server");
       console.log("  status    - Show server status");
       console.log("  cleanup   - Clean up server resources");
-      console.log("  logs      - Tail server logs");
+      console.log("  logs      - Tail server logs (use --recent for last 20 lines)");
       console.log("");
       console.log("Environment variables:");
       console.log("  WEBPILOT_LOG_LEVEL   - Log level (debug, info, warn, error)");
