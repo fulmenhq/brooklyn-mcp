@@ -234,13 +234,13 @@ export class MCPServer {
     try {
       switch (name) {
         case "launch_browser":
-          return await this.browserPool.launchBrowser(args as unknown);
+          return await this.browserPool.launchBrowser(args as any);
         case "navigate":
-          return await this.browserPool.navigate(args as unknown);
+          return await this.browserPool.navigate(args as any);
         case "screenshot":
-          return await this.browserPool.screenshot(args as unknown);
+          return await this.browserPool.screenshot(args as any);
         case "close_browser":
-          return await this.browserPool.closeBrowser(args as unknown);
+          return await this.browserPool.closeBrowser(args as any);
         default:
           throw new Error(`Unknown core tool: ${name}`);
       }
