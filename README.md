@@ -63,16 +63,19 @@ Launch a chromium browser for team 'demo'
 ## 🎯 Use Cases
 
 ### AI Development
+
 - **Smart Web Automation**: Let Claude navigate websites and extract data
 - **Dynamic Testing**: Generate and run tests based on UI changes
 - **Form Automation**: Automate complex form filling and submission
 
 ### E2E Testing
+
 - **Cross-Browser Testing**: Chromium, Firefox, and WebKit support
 - **Visual Regression**: Screenshot comparison and validation
 - **Test Orchestration**: AI-driven test execution and debugging
 
 ### Team Workflows
+
 - **Multi-Team Isolation**: Separate browser pools and configurations
 - **Resource Management**: Intelligent browser pooling and cleanup
 - **Security Controls**: Domain allowlisting and access controls
@@ -239,11 +242,11 @@ cp .env.example .env
 
 ## 🎭 Browser Support
 
-| Browser | Status | Use Cases |
-|---------|--------|-----------|
-| **Chromium** | ✅ Full Support | AI development, general automation |
-| **Firefox** | ✅ Full Support | Cross-browser testing, compatibility |
-| **WebKit** | ✅ Full Support | Safari simulation, mobile testing |
+| Browser      | Status          | Use Cases                            |
+| ------------ | --------------- | ------------------------------------ |
+| **Chromium** | ✅ Full Support | AI development, general automation   |
+| **Firefox**  | ✅ Full Support | Cross-browser testing, compatibility |
+| **WebKit**   | ✅ Full Support | Safari simulation, mobile testing    |
 
 ## 📊 Monitoring
 

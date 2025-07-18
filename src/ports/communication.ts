@@ -7,8 +7,8 @@ export interface CommunicationProvider {
   name: string;
   sendMessage(channel: string, message: string): Promise<void>;
   sendNotification(user: string, message: string): Promise<void>;
-  sendStatusUpdate(channel: string, status: BrooklynStatus): Promise<void>;
-  sendErrorAlert(channel: string, error: BrooklynError): Promise<void>;
+  sendStatusUpdate(channel: string, status: BrooklenStatus): Promise<void>;
+  sendErrorAlert(channel: string, error: BrooklenError): Promise<void>;
 }
 
 export interface BrooklenStatus {

@@ -4,11 +4,8 @@
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import type {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-  Tool,
-} from "@modelcontextprotocol/sdk/types.js";
+import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 
 import { config } from "../shared/config.js";
 import { logger } from "../shared/logger.js";
@@ -70,16 +67,41 @@ export class MCPServer {
         args,
       });
 
-      // Apply security middleware
-      await this.security.validateRequest(request);
+      try {
+        // Apply security middleware
+        await this.security.validateRequest(request);
 
-      // Check if it's a core tool
-      if (this.isCoreTools(name)) {
-        return await this.handleCoreTool(name, args);
+        let result: unknown;
+
+        // Check if it's a core tool
+        if (this.isCoreTools(name)) {
+          result = await this.handleCoreTool(name, args);
+        }
+        // Delegate to plugin manager
+        else {
+          result = await this.pluginManager.handleToolCall(name, args);
+        }
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: typeof result === "string" ? result : JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error) {
+        logger.error("Tool call failed", { tool: name, error: error instanceof Error ? error.message : String(error) });
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+          isError: true,
+        };
       }
-
-      // Delegate to plugin manager
-      return await this.pluginManager.handleToolCall(name, args);
     });
 
     // Initialize browser pool

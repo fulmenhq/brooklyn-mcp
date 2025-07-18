@@ -5,9 +5,19 @@
 
 import { createServer } from "./core/server";
 import { config } from "./shared/config";
-import { logger } from "./shared/logger";
+import { getLogger, initLogger } from "./shared/logger";
 
 async function main(): Promise<void> {
+  // Initialize logger with file logging
+  initLogger({
+    level: (process.env["WEBPILOT_LOG_LEVEL"] as "debug" | "info" | "warn" | "error") || "info",
+    format: "pretty",
+    useStderr: false,
+    logFile: process.env["WEBPILOT_LOG_FILE"] || "server.log",
+  });
+
+  const logger = getLogger("main");
+
   try {
     logger.info("Starting Fulmen MCP Brooklyn server", {
       version: config.version,
@@ -30,11 +40,13 @@ async function main(): Promise<void> {
 
 // Handle graceful shutdown
 process.on("SIGINT", () => {
+  const logger = getLogger("shutdown");
   logger.info("Received SIGINT, shutting down gracefully");
   process.exit(0);
 });
 
 process.on("SIGTERM", () => {
+  const logger = getLogger("shutdown");
   logger.info("Received SIGTERM, shutting down gracefully");
   process.exit(0);
 });
