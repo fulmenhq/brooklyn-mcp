@@ -84,7 +84,7 @@ Close the browser
 # Test different viewport sizes
 Launch browsers with different viewports:
 - Desktop: 1920x1080
-- Laptop: 1366x768  
+- Laptop: 1366x768
 - Tablet: 768x1024
 - Mobile: 375x667
 ```
@@ -102,12 +102,14 @@ Test same URL in chromium, firefox, and webkit
 ## Available Tools
 
 ### Core Browser Automation
+
 - `launch_browser` - Launch new browser instance
 - `navigate` - Navigate to URL
 - `screenshot` - Capture page screenshot
 - `close_browser` - Close browser instance
 
 ### Echo Team Onboarding
+
 - `brooklyn_status` - Server status and health
 - `brooklyn_capabilities` - List all available tools
 - `brooklyn_getting_started` - Step-by-step guide
@@ -118,11 +120,13 @@ Test same URL in chromium, firefox, and webkit
 ## Integration Verification
 
 ### ✅ Tests Passing
+
 - 16 unit tests passing
 - 11 functional integration tests passing
 - Echo team specific functionality verified
 
 ### ✅ Server Features
+
 - Multi-browser support (Chromium, Firefox, WebKit)
 - Team isolation with Echo team ID
 - Resource management (10 concurrent browsers)
@@ -131,6 +135,7 @@ Test same URL in chromium, firefox, and webkit
 - Cross-platform compatibility
 
 ### ✅ Documentation
+
 - Complete user guide with examples
 - Advanced features documentation
 - Team management guide
@@ -140,6 +145,7 @@ Test same URL in chromium, firefox, and webkit
 ## Domain Configuration for Echo Team
 
 Recommended domain allowlist for Echo team:
+
 - `*.blossflow.com` - Production Blossflow sites
 - `*.staging.blossflow.com` - Staging environments
 - `localhost:*` - Local development
@@ -194,4 +200,4 @@ brooklyn_examples task=all
 ---
 
 **Brooklyn MCP Server - Bridging AI and Browser Automation**
-*Built with 💙 by the 3leaps Team*
+_Built with 💙 by the 3leaps Team_

@@ -192,6 +192,7 @@ brooklyn-server --help
 ```
 
 **CLI Installation Options:**
+
 - **Project-local**: `bun run install` (CLI manages this specific Brooklyn instance)
 - **User-wide**: Use bootstrap script for system-wide installation
 - **Deprovisioning**: `bun run bootstrap:remove` to uninstall completely

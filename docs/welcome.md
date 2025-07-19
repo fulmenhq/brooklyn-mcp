@@ -9,6 +9,7 @@ Brooklyn is a Model Context Protocol (MCP) server that bridges the gap between A
 ### Prerequisites
 
 Before getting started, ensure you have:
+
 - **Bun** (>= 1.0.0) - [Install Bun](https://bun.sh)
 - **Node.js** (>= 18.0.0) - For compatibility
 - **Claude Code** - [Install Claude Code](https://claude.ai/code)
@@ -36,6 +37,7 @@ bun run server:start
 This is the critical step to connect Brooklyn to your Claude Code environment:
 
 **Step 1:** Locate your Claude Code configuration file:
+
 - **macOS/Linux:** `~/.config/claude/claude_desktop_config.json`
 - **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
 
@@ -108,12 +110,14 @@ brooklyn_getting_started use_case=ai_development team_id=your-team-name
 ## 🛠️ Available Tools
 
 ### Core Browser Automation
+
 - **`launch_browser`** - Launch new browser instance (Chromium, Firefox, WebKit)
 - **`navigate`** - Navigate to any URL with custom wait conditions
 - **`screenshot`** - Capture full-page or viewport screenshots
 - **`close_browser`** - Clean up browser resources
 
 ### Self-Service Onboarding
+
 - **`brooklyn_status`** - Server health and resource usage
 - **`brooklyn_capabilities`** - Complete tool inventory
 - **`brooklyn_getting_started`** - Personalized setup guide
@@ -124,21 +128,25 @@ brooklyn_getting_started use_case=ai_development team_id=your-team-name
 ## 🎨 Common Use Cases
 
 ### For AI Developers
+
 - **Smart Web Scraping** - Let Claude navigate and extract data
 - **Dynamic Testing** - Generate tests based on UI changes
 - **Content Generation** - Screenshot websites for documentation
 
 ### For UX Teams
+
 - **Responsive Design Testing** - Test across multiple viewport sizes
 - **Visual Regression** - Compare designs before/after changes
 - **Performance Monitoring** - Track page load times
 
 ### For QA Teams
+
 - **Cross-Browser Testing** - Test in Chromium, Firefox, and WebKit
 - **Automated Regression** - Run test suites across browsers
 - **CI/CD Integration** - Automated testing in pipelines
 
 ### For Monitoring Teams
+
 - **Website Health Checks** - Monitor uptime and performance
 - **Error Detection** - Capture screenshots of errors
 - **Performance Benchmarking** - Track metrics over time
@@ -146,17 +154,20 @@ brooklyn_getting_started use_case=ai_development team_id=your-team-name
 ## 📚 Learn More
 
 ### Essential Documentation
+
 - **[User Guide](user-guide/index.md)** - Complete browser automation guide
 - **[Advanced Features](user-guide/advanced-features.md)** - Complex automation patterns
 - **[Team Management](user-guide/team-management.md)** - Multi-team configuration
 
 ### Development Resources
+
 - **[Development Guide](development/index.md)** - Server management and troubleshooting
 - **[API Reference](../README.md#available-commands)** - Complete command reference
 
 ## 🆘 Need Help?
 
 ### Built-in Help System
+
 ```bash
 # Get help with common issues
 brooklyn_troubleshooting issue=general
@@ -193,6 +204,7 @@ brooklyn-server --help
 ```
 
 **Installation Options:**
+
 - **Project-local**: `bun run install` - CLI manages this specific Brooklyn instance
 - **User-wide**: Use bootstrap script for system-wide installation
 - **Deprovisioning**: `bun run bootstrap:remove` to uninstall completely
@@ -221,16 +233,19 @@ bun run server:stop
 ### Common Issues & Solutions
 
 **Problem:** Brooklyn won't connect to Claude Code
+
 - **Solution:** Check server is running with `bun run server:status`
 - **Solution:** Verify Claude configuration file path is correct
 - **Solution:** Test with `brooklyn_status` command
 
 **Problem:** Browser won't launch
+
 - **Solution:** Install browsers with `bun run setup`
 - **Solution:** Check resource usage with `brooklyn_status detail=full`
 - **Solution:** Verify sufficient system resources (2GB+ RAM)
 
 **Problem:** Navigation fails
+
 - **Solution:** Check URL format and accessibility
 - **Solution:** Verify domain allowlist configuration
 - **Solution:** Test with longer timeout settings
@@ -255,6 +270,7 @@ bun run server:stop
 Brooklyn is designed to make browser automation accessible, reliable, and powerful. Whether you're testing user interfaces, monitoring websites, or building AI-powered web interactions, Brooklyn provides the foundation you need.
 
 **Key Features:**
+
 - ✅ **Multi-browser support** - Chromium, Firefox, WebKit
 - ✅ **AI-friendly** - Seamless Claude integration
 - ✅ **Team-oriented** - Multi-team isolation and management
@@ -273,10 +289,11 @@ Brooklyn is designed to make browser automation accessible, reliable, and powerf
 
 ---
 
-*Built with 💙 by the 3leaps Team*  
-*Part of the [Fulmen Ecosystem](https://github.com/3leaps/fulmen-ecosystem)*
+_Built with 💙 by the 3leaps Team_  
+_Part of the [Fulmen Ecosystem](https://github.com/3leaps/fulmen-ecosystem)_
 
 ### Quick Links
+
 - [Complete User Guide](user-guide/index.md)
 - [Advanced Features](user-guide/advanced-features.md)
 - [Team Management](user-guide/team-management.md)

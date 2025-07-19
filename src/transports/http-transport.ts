@@ -16,8 +16,15 @@ export class HTTPTransport implements Transport {
   readonly name = "http";
   readonly type = TransportType.HTTP;
 
-  private readonly logger = getLogger("http-transport");
+  private logger: ReturnType<typeof getLogger> | null = null;
   private readonly config: HTTPConfig;
+
+  private getLogger() {
+    if (!this.logger) {
+      this.logger = getLogger("http-transport");
+    }
+    return this.logger;
+  }
 
   private server: HTTPServer | null = null;
   private running = false;
@@ -33,7 +40,7 @@ export class HTTPTransport implements Transport {
    * Initialize the HTTP transport
    */
   async initialize(): Promise<void> {
-    this.logger.info("Initializing HTTP transport", {
+    this.getLogger().info("Initializing HTTP transport", {
       port: this.config.options.port,
       host: this.config.options.host || "localhost",
     });
@@ -45,7 +52,7 @@ export class HTTPTransport implements Transport {
       try {
         await this.handleRequest(req, res);
       } catch (error) {
-        this.logger.error("HTTP request error", {
+        this.getLogger().error("HTTP request error", {
           url: req.url,
           method: req.method,
           error: error instanceof Error ? error.message : String(error),
@@ -66,12 +73,12 @@ export class HTTPTransport implements Transport {
 
     // Handle server errors
     this.server.on("error", (error) => {
-      this.logger.error("HTTP server error", {
+      this.getLogger().error("HTTP server error", {
         error: error.message,
       });
     });
 
-    this.logger.info("HTTP transport initialized");
+    this.getLogger().info("HTTP transport initialized");
   }
 
   /**
@@ -79,7 +86,7 @@ export class HTTPTransport implements Transport {
    */
   async start(): Promise<void> {
     if (this.running) {
-      this.logger.warn("HTTP transport already running");
+      this.getLogger().warn("HTTP transport already running");
       return;
     }
 
@@ -87,7 +94,7 @@ export class HTTPTransport implements Transport {
       throw new Error("HTTP transport not initialized");
     }
 
-    this.logger.info("Starting HTTP transport");
+    this.getLogger().info("Starting HTTP transport");
 
     return new Promise((resolve, reject) => {
       if (!this.server) {
@@ -97,7 +104,7 @@ export class HTTPTransport implements Transport {
 
       this.server.listen(this.config.options.port, this.config.options.host || "localhost", () => {
         this.running = true;
-        this.logger.info("HTTP transport started", {
+        this.getLogger().info("HTTP transport started", {
           port: this.config.options.port,
           host: this.config.options.host || "localhost",
         });
@@ -105,7 +112,7 @@ export class HTTPTransport implements Transport {
       });
 
       this.server.on("error", (error) => {
-        this.logger.error("Failed to start HTTP transport", {
+        this.getLogger().error("Failed to start HTTP transport", {
           error: error.message,
         });
         this.running = false;
@@ -119,16 +126,16 @@ export class HTTPTransport implements Transport {
    */
   async stop(): Promise<void> {
     if (!this.running) {
-      this.logger.warn("HTTP transport not running");
+      this.getLogger().warn("HTTP transport not running");
       return;
     }
 
     if (!this.server) {
-      this.logger.warn("HTTP server not initialized");
+      this.getLogger().warn("HTTP server not initialized");
       return;
     }
 
-    this.logger.info("Stopping HTTP transport");
+    this.getLogger().info("Stopping HTTP transport");
 
     return new Promise((resolve, reject) => {
       if (!this.server) {
@@ -138,13 +145,13 @@ export class HTTPTransport implements Transport {
 
       this.server.close((error) => {
         if (error) {
-          this.logger.error("Error stopping HTTP transport", {
+          this.getLogger().error("Error stopping HTTP transport", {
             error: error.message,
           });
           reject(error);
         } else {
           this.running = false;
-          this.logger.info("HTTP transport stopped");
+          this.getLogger().info("HTTP transport stopped");
           resolve();
         }
       });
@@ -163,7 +170,7 @@ export class HTTPTransport implements Transport {
    */
   setToolListHandler(handler: ToolListHandler): void {
     this.toolListHandler = handler;
-    this.logger.debug("Tool list handler set");
+    this.getLogger().debug("Tool list handler set");
   }
 
   /**
@@ -171,7 +178,7 @@ export class HTTPTransport implements Transport {
    */
   setToolCallHandler(handler: ToolCallHandler): void {
     this.toolCallHandler = handler;
-    this.logger.debug("Tool call handler set");
+    this.getLogger().debug("Tool call handler set");
   }
 
   /**
@@ -181,7 +188,7 @@ export class HTTPTransport implements Transport {
     const url = new URL(req.url || "/", `http://${req.headers.host}`);
     const method = req.method?.toUpperCase();
 
-    this.logger.debug("HTTP request", {
+    this.getLogger().debug("HTTP request", {
       method,
       path: url.pathname,
       query: Object.fromEntries(url.searchParams),
@@ -220,7 +227,7 @@ export class HTTPTransport implements Transport {
   /**
    * Handle health check endpoint
    */
-  private async handleHealthCheck(req: any, res: any): Promise<void> {
+  private async handleHealthCheck(_req: any, res: any): Promise<void> {
     res.statusCode = 200;
     res.setHeader("Content-Type", "application/json");
     res.end(
@@ -235,7 +242,7 @@ export class HTTPTransport implements Transport {
   /**
    * Handle status endpoint
    */
-  private async handleStatus(req: any, res: any): Promise<void> {
+  private async handleStatus(_req: any, res: any): Promise<void> {
     res.statusCode = 200;
     res.setHeader("Content-Type", "application/json");
     res.end(
@@ -257,7 +264,7 @@ export class HTTPTransport implements Transport {
   /**
    * Handle tool list endpoint
    */
-  private async handleToolList(req: any, res: any): Promise<void> {
+  private async handleToolList(_req: any, res: any): Promise<void> {
     if (!this.toolListHandler) {
       res.statusCode = 503;
       res.setHeader("Content-Type", "application/json");
@@ -306,7 +313,7 @@ export class HTTPTransport implements Transport {
       const body = await this.parseRequestBody(req);
 
       // Validate request format
-      if (!body.params || !body.params.name) {
+      if (!body.params?.name) {
         res.statusCode = 400;
         res.setHeader("Content-Type", "application/json");
         res.end(
@@ -346,7 +353,7 @@ export class HTTPTransport implements Transport {
   /**
    * Handle dashboard endpoint
    */
-  private async handleDashboard(req: any, res: any): Promise<void> {
+  private async handleDashboard(_req: any, res: any): Promise<void> {
     const html = `
 <!DOCTYPE html>
 <html>
@@ -428,7 +435,7 @@ export class HTTPTransport implements Transport {
         try {
           const parsed = body ? JSON.parse(body) : {};
           resolve(parsed);
-        } catch (error) {
+        } catch (_error) {
           reject(new Error("Invalid JSON in request body"));
         }
       });

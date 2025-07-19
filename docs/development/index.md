@@ -24,6 +24,7 @@ bun run bootstrap:remove
 ```
 
 The bootstrap script will:
+
 - ✅ Detect your OS and set appropriate paths
 - ✅ Configure Claude Code integration automatically
 - ✅ Install global `brooklyn-server` command
@@ -69,12 +70,14 @@ brooklyn-server logs --help
 ```
 
 **CLI Installation Types:**
+
 - **Project-local**: `bun run install` (manages this specific Brooklyn instance)
 - **User-wide**: Use bootstrap script (`bun run bootstrap`) for system-wide installation
 - **Multiple instances**: Each Brooklyn installation can have its own CLI
 
 **Deprovisioning:**
-- **Remove CLI**: `bun run bootstrap:remove` 
+
+- **Remove CLI**: `bun run bootstrap:remove`
 - **Check installation**: `brooklyn-server info`
 - **Verify removal**: CLI commands will no longer work
 

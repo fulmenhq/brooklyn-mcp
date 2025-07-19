@@ -101,8 +101,14 @@ async function startServer(): Promise<void> {
     },
   });
 
+  // Check if PID is available
+  if (!serverProcess.pid) {
+    console.error("Failed to get server process PID");
+    process.exit(1);
+  }
+
   // Write PID file
-  writePid(serverProcess.pid!);
+  writePid(serverProcess.pid);
 
   // Detach from parent process
   serverProcess.unref();
@@ -110,7 +116,7 @@ async function startServer(): Promise<void> {
   // Wait a moment and check if server started successfully
   await new Promise((resolve) => setTimeout(resolve, 2000));
 
-  if (isProcessRunning(serverProcess.pid!)) {
+  if (isProcessRunning(serverProcess.pid)) {
     console.log(`Server started successfully with PID ${serverProcess.pid}`);
     console.log(`Logs are written to: ${LOG_FILE}`);
   } else {
@@ -282,10 +288,11 @@ async function main(): Promise<void> {
     case "cleanup":
       await cleanup();
       break;
-    case "logs":
+    case "logs": {
       const isRecent = process.argv.includes("--recent");
       await tailLogs(isRecent);
       break;
+    }
     default:
       console.log("Usage: bun scripts/server-management.ts <command>");
       console.log("");

@@ -15,7 +15,15 @@ import { getLogger } from "../shared/logger.js";
 import { HTTPTransport } from "./http-transport.js";
 import { MCPStdioTransport } from "./mcp-stdio-transport.js";
 
-const logger = getLogger("transport-factory");
+// Logger will be created lazily after logging is initialized
+let logger: ReturnType<typeof getLogger> | null = null;
+
+function getTransportLogger() {
+  if (!logger) {
+    logger = getLogger("transport-factory");
+  }
+  return logger;
+}
 
 /**
  * Create MCP stdio transport
@@ -23,7 +31,7 @@ const logger = getLogger("transport-factory");
 const createMCPStdioTransport: TransportFactory = async (
   config: TransportConfig,
 ): Promise<Transport> => {
-  logger.debug("Creating MCP stdio transport");
+  getTransportLogger().debug("Creating MCP stdio transport");
   return new MCPStdioTransport(config as MCPStdioConfig);
 };
 
@@ -33,7 +41,7 @@ const createMCPStdioTransport: TransportFactory = async (
 const createHTTPTransport: TransportFactory = async (
   config: TransportConfig,
 ): Promise<Transport> => {
-  logger.debug("Creating HTTP transport", {
+  getTransportLogger().debug("Creating HTTP transport", {
     port: (config as HTTPConfig).options?.port,
   });
   return new HTTPTransport(config as HTTPConfig);
@@ -43,12 +51,12 @@ const createHTTPTransport: TransportFactory = async (
  * Register all transport factories
  */
 export function registerTransports(): void {
-  logger.info("Registering transport factories");
+  getTransportLogger().info("Registering transport factories");
 
   TransportRegistry.register(TransportType.MCP_STDIO, createMCPStdioTransport);
   TransportRegistry.register(TransportType.HTTP, createHTTPTransport);
 
-  logger.info("Transport factories registered", {
+  getTransportLogger().info("Transport factories registered", {
     types: TransportRegistry.getAvailableTypes(),
   });
 }

@@ -3,8 +3,8 @@
  * Supports both pretty and JSON output with correlation IDs
  */
 
-import { createWriteStream, existsSync, mkdirSync } from "fs";
-import { dirname } from "path";
+import { createWriteStream, existsSync, mkdirSync } from "node:fs";
+import { dirname } from "node:path";
 import type { BrooklynConfig } from "../core/config.js";
 
 /**
@@ -186,9 +186,9 @@ export class StructuredLogger {
     const merged = { ...this.globalContext, ...context };
 
     // Remove special fields that have dedicated properties
-    delete merged.correlationId;
-    delete merged.transport;
-    delete merged["error"];
+    merged.correlationId = undefined;
+    merged.transport = undefined;
+    merged["error"] = undefined;
 
     return Object.keys(merged).length > 0 ? merged : undefined;
   }
@@ -220,7 +220,7 @@ export class StructuredLogger {
    */
   private formatEntry(entry: LogEntry, format: "pretty" | "json"): string {
     if (format === "json") {
-      return JSON.stringify(entry) + "\n";
+      return `${JSON.stringify(entry)}\n`;
     }
 
     // Pretty format
@@ -253,7 +253,7 @@ export class StructuredLogger {
       }
     }
 
-    return formatted + "\n";
+    return `${formatted}\n`;
   }
 
   /**
@@ -321,7 +321,7 @@ export class StructuredLogger {
    * Close all file streams
    */
   close(): void {
-    for (const [filePath, stream] of this.fileStreams) {
+    for (const [_filePath, stream] of this.fileStreams) {
       if (stream && typeof stream.end === "function") {
         stream.end();
       }

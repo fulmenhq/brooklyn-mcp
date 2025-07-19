@@ -5,14 +5,24 @@
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import type { PluginManager as IPluginManager, WebPilotPlugin } from "../ports/plugin.js";
 import { config } from "../shared/config.js";
-import { logger } from "../shared/logger.js";
+import { getLogger } from "../shared/logger.js";
+
+// ARCHITECTURE FIX: Lazy logger initialization
+let logger: ReturnType<typeof getLogger> | null = null;
+
+function ensureLogger() {
+  if (!logger) {
+    logger = getLogger("plugin-manager");
+  }
+  return logger;
+}
 
 export class PluginManager implements IPluginManager {
   private plugins = new Map<string, WebPilotPlugin>();
   private toolRegistry = new Map<string, WebPilotPlugin>();
 
   async register(plugin: WebPilotPlugin): Promise<void> {
-    logger.info("Registering plugin", {
+    ensureLogger().info("Registering plugin", {
       name: plugin.name,
       version: plugin.version,
       team: plugin.team,
@@ -36,7 +46,7 @@ export class PluginManager implements IPluginManager {
       try {
         await plugin.setup();
       } catch (error) {
-        logger.error("Plugin setup failed", {
+        ensureLogger().error("Plugin setup failed", {
           plugin: plugin.name,
           error: error instanceof Error ? error.message : String(error),
         });
@@ -50,7 +60,7 @@ export class PluginManager implements IPluginManager {
       this.toolRegistry.set(tool.name, plugin);
     }
 
-    logger.info("Plugin registered successfully", {
+    ensureLogger().info("Plugin registered successfully", {
       name: plugin.name,
       toolCount: plugin.tools.length,
     });
@@ -62,14 +72,14 @@ export class PluginManager implements IPluginManager {
       throw new Error(`Plugin not found: ${pluginName}`);
     }
 
-    logger.info("Unregistering plugin", { name: pluginName });
+    ensureLogger().info("Unregistering plugin", { name: pluginName });
 
     // Run plugin teardown
     if (plugin.teardown) {
       try {
         await plugin.teardown();
       } catch (error) {
-        logger.error("Plugin teardown failed", {
+        ensureLogger().error("Plugin teardown failed", {
           plugin: pluginName,
           error: error instanceof Error ? error.message : String(error),
         });
@@ -84,7 +94,7 @@ export class PluginManager implements IPluginManager {
     // Remove plugin
     this.plugins.delete(pluginName);
 
-    logger.info("Plugin unregistered successfully", { name: pluginName });
+    ensureLogger().info("Plugin unregistered successfully", { name: pluginName });
   }
 
   getPlugins(): WebPilotPlugin[] {
@@ -135,7 +145,7 @@ export class PluginManager implements IPluginManager {
       throw new Error(`Tool not found: ${toolName}`);
     }
 
-    logger.debug("Delegating tool call to plugin", {
+    ensureLogger().debug("Delegating tool call to plugin", {
       tool: toolName,
       plugin: plugin.name,
     });
@@ -147,30 +157,30 @@ export class PluginManager implements IPluginManager {
   }
 
   async loadPlugins(): Promise<void> {
-    logger.info("Loading plugins from config path", {
+    ensureLogger().info("Loading plugins from config path", {
       path: config.configPath,
     });
 
     // TODO: Implement plugin loading from file system
     // For now, we'll just log that no plugins were loaded
-    logger.info("No plugins loaded (plugin loading not yet implemented)");
+    ensureLogger().info("No plugins loaded (plugin loading not yet implemented)");
   }
 
   async cleanup(): Promise<void> {
-    logger.info("Cleaning up plugin manager");
+    ensureLogger().info("Cleaning up plugin manager");
 
     const pluginNames = Array.from(this.plugins.keys());
     for (const pluginName of pluginNames) {
       try {
         await this.unregister(pluginName);
       } catch (error) {
-        logger.error("Failed to unregister plugin during cleanup", {
+        ensureLogger().error("Failed to unregister plugin during cleanup", {
           plugin: pluginName,
           error: error instanceof Error ? error.message : String(error),
         });
       }
     }
 
-    logger.info("Plugin manager cleanup complete");
+    ensureLogger().info("Plugin manager cleanup complete");
   }
 }

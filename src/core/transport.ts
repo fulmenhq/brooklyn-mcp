@@ -99,11 +99,11 @@ export class TransportRegistry {
   private static factories = new Map<TransportType, TransportFactory>();
 
   static register(type: TransportType, factory: TransportFactory): void {
-    this.factories.set(type, factory);
+    TransportRegistry.factories.set(type, factory);
   }
 
   static async create(config: TransportConfig): Promise<Transport> {
-    const factory = this.factories.get(config.type);
+    const factory = TransportRegistry.factories.get(config.type);
     if (!factory) {
       throw new Error(`Unknown transport type: ${config.type}`);
     }
@@ -111,6 +111,6 @@ export class TransportRegistry {
   }
 
   static getAvailableTypes(): TransportType[] {
-    return Array.from(this.factories.keys());
+    return Array.from(TransportRegistry.factories.keys());
   }
 }

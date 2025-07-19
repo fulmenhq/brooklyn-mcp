@@ -27,8 +27,15 @@ export class MCPStdioTransport implements Transport {
   readonly name = "mcp-stdio";
   readonly type = TransportType.MCP_STDIO;
 
-  private readonly logger = getLogger("mcp-stdio-transport");
+  private logger: ReturnType<typeof getLogger> | null = null;
   private readonly config: MCPStdioConfig;
+
+  private getLogger() {
+    if (!this.logger) {
+      this.logger = getLogger("mcp-stdio-transport");
+    }
+    return this.logger;
+  }
 
   private server: Server;
   private transport: StdioServerTransport | null = null;
@@ -59,7 +66,7 @@ export class MCPStdioTransport implements Transport {
    * Initialize the MCP transport
    */
   async initialize(): Promise<void> {
-    this.logger.info("Initializing MCP stdio transport");
+    this.getLogger().info("Initializing MCP stdio transport");
 
     // Set up MCP request handlers
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -67,7 +74,7 @@ export class MCPStdioTransport implements Transport {
         throw new Error("Tool list handler not set");
       }
 
-      this.logger.debug("MCP tool list request received");
+      this.getLogger().debug("MCP tool list request received");
       return await this.toolListHandler();
     });
 
@@ -76,14 +83,14 @@ export class MCPStdioTransport implements Transport {
         throw new Error("Tool call handler not set");
       }
 
-      this.logger.debug("MCP tool call request received", {
+      this.getLogger().debug("MCP tool call request received", {
         tool: request.params.name,
       });
 
       return await this.toolCallHandler(request);
     });
 
-    this.logger.info("MCP stdio transport initialized");
+    this.getLogger().info("MCP stdio transport initialized");
   }
 
   /**
@@ -92,11 +99,11 @@ export class MCPStdioTransport implements Transport {
    */
   async start(): Promise<void> {
     if (this.running) {
-      this.logger.warn("MCP stdio transport already running");
+      this.getLogger().warn("MCP stdio transport already running");
       return;
     }
 
-    this.logger.info("Starting MCP stdio transport");
+    this.getLogger().info("Starting MCP stdio transport");
 
     try {
       // Create stdio transport
@@ -106,12 +113,12 @@ export class MCPStdioTransport implements Transport {
       await this.server.connect(this.transport);
 
       this.running = true;
-      this.logger.info("MCP stdio transport started successfully");
+      this.getLogger().info("MCP stdio transport started successfully");
 
       // Note: MCP server will now handle requests via stdin/stdout
       // The process will stay alive until stdin is closed or process is terminated
     } catch (error) {
-      this.logger.error("Failed to start MCP stdio transport", {
+      this.getLogger().error("Failed to start MCP stdio transport", {
         error: error instanceof Error ? error.message : String(error),
       });
       this.running = false;
@@ -125,11 +132,11 @@ export class MCPStdioTransport implements Transport {
    */
   async stop(): Promise<void> {
     if (!this.running) {
-      this.logger.warn("MCP stdio transport not running");
+      this.getLogger().warn("MCP stdio transport not running");
       return;
     }
 
-    this.logger.info("Stopping MCP stdio transport");
+    this.getLogger().info("Stopping MCP stdio transport");
 
     try {
       // For stdio transport, we typically don't explicitly "stop"
@@ -139,9 +146,9 @@ export class MCPStdioTransport implements Transport {
       this.running = false;
       this.transport = null;
 
-      this.logger.info("MCP stdio transport stopped");
+      this.getLogger().info("MCP stdio transport stopped");
     } catch (error) {
-      this.logger.error("Error stopping MCP stdio transport", {
+      this.getLogger().error("Error stopping MCP stdio transport", {
         error: error instanceof Error ? error.message : String(error),
       });
       throw error;
@@ -160,7 +167,7 @@ export class MCPStdioTransport implements Transport {
    */
   setToolListHandler(handler: ToolListHandler): void {
     this.toolListHandler = handler;
-    this.logger.debug("Tool list handler set");
+    this.getLogger().debug("Tool list handler set");
   }
 
   /**
@@ -168,7 +175,7 @@ export class MCPStdioTransport implements Transport {
    */
   setToolCallHandler(handler: ToolCallHandler): void {
     this.toolCallHandler = handler;
-    this.logger.debug("Tool call handler set");
+    this.getLogger().debug("Tool call handler set");
   }
 
   /**
@@ -177,6 +184,6 @@ export class MCPStdioTransport implements Transport {
   updateServerInfo(name: string, version: string): void {
     // Note: MCP SDK doesn't allow updating server info after creation
     // This would need to be set during construction in a real implementation
-    this.logger.debug("Server info update requested", { name, version });
+    this.getLogger().debug("Server info update requested", { name, version });
   }
 }

@@ -10,7 +10,15 @@ import type { Browser, BrowserContext, Page } from "playwright";
 import { config } from "../shared/config.js";
 import { getLogger } from "../shared/logger.js";
 
-const logger = getLogger("browser-pool");
+// ARCHITECTURE FIX: Lazy logger initialization to avoid circular dependency
+let logger: ReturnType<typeof getLogger> | null = null;
+
+function ensureLogger() {
+  if (!logger) {
+    logger = getLogger("browser-pool");
+  }
+  return logger;
+}
 
 // Browser session interface
 interface BrowserSession {
@@ -69,7 +77,7 @@ export class BrowserPoolManager {
   }
 
   async initialize(): Promise<void> {
-    logger.info("Initializing browser pool", {
+    ensureLogger().info("Initializing browser pool", {
       maxBrowsers: this.maxBrowsers,
       cleanupInterval: this.cleanupIntervalMs,
       maxIdleTime: this.maxIdleTime,
@@ -78,15 +86,15 @@ export class BrowserPoolManager {
     // Start cleanup interval
     this.cleanupInterval = setInterval(() => {
       this.cleanupIdleSessions().catch((error) => {
-        logger.error("Failed to cleanup idle sessions", { error });
+        ensureLogger().error("Failed to cleanup idle sessions", { error });
       });
     }, this.cleanupIntervalMs);
 
-    logger.info("Browser pool initialized successfully");
+    ensureLogger().info("Browser pool initialized successfully");
   }
 
   async cleanup(): Promise<void> {
-    logger.info("Cleaning up browser pool", { activeSessions: this.sessions.size });
+    ensureLogger().info("Cleaning up browser pool", { activeSessions: this.sessions.size });
 
     // Clear cleanup interval
     if (this.cleanupInterval) {
@@ -102,7 +110,7 @@ export class BrowserPoolManager {
     await Promise.allSettled(closePromises);
     this.sessions.clear();
 
-    logger.info("Browser pool cleanup completed");
+    ensureLogger().info("Browser pool cleanup completed");
   }
 
   async launchBrowser(args: LaunchBrowserArgs): Promise<{
@@ -121,7 +129,7 @@ export class BrowserPoolManager {
       timeout = 30000,
     } = args;
 
-    logger.info("Launching browser", {
+    ensureLogger().info("Launching browser", {
       teamId,
       browserType,
       headless,
@@ -203,7 +211,7 @@ export class BrowserPoolManager {
 
       this.sessions.set(browserId, session);
 
-      logger.info("Browser launched successfully", {
+      ensureLogger().info("Browser launched successfully", {
         browserId,
         browserType,
         teamId,
@@ -218,7 +226,7 @@ export class BrowserPoolManager {
         viewport,
       };
     } catch (error) {
-      logger.error("Failed to launch browser", {
+      ensureLogger().error("Failed to launch browser", {
         browserId,
         browserType,
         error: error instanceof Error ? error.message : String(error),
@@ -238,7 +246,7 @@ export class BrowserPoolManager {
   }> {
     const { browserId, url, timeout = 30000, waitUntil = "domcontentloaded" } = args;
 
-    logger.info("Navigating browser", { browserId, url, waitUntil });
+    ensureLogger().info("Navigating browser", { browserId, url, waitUntil });
 
     const session = this.sessions.get(browserId);
     if (!session) {
@@ -265,7 +273,7 @@ export class BrowserPoolManager {
       const title = await session.page.title();
       const finalUrl = session.page.url();
 
-      logger.info("Navigation completed", {
+      ensureLogger().info("Navigation completed", {
         browserId,
         url: finalUrl,
         title,
@@ -282,7 +290,7 @@ export class BrowserPoolManager {
       };
     } catch (error) {
       const loadTime = Date.now() - startTime;
-      logger.error("Navigation failed", {
+      ensureLogger().error("Navigation failed", {
         browserId,
         url,
         loadTime,
@@ -302,7 +310,7 @@ export class BrowserPoolManager {
   }> {
     const { browserId, fullPage = false, quality = 90, type = "png", clip } = args;
 
-    logger.info("Taking screenshot", { browserId, fullPage, type, quality });
+    ensureLogger().info("Taking screenshot", { browserId, fullPage, type, quality });
 
     const session = this.sessions.get(browserId);
     if (!session) {
@@ -328,7 +336,7 @@ export class BrowserPoolManager {
         height: document.documentElement.scrollHeight,
       }));
 
-      logger.info("Screenshot captured", {
+      ensureLogger().info("Screenshot captured", {
         browserId,
         format: type,
         fileSize: buffer.length,
@@ -342,7 +350,7 @@ export class BrowserPoolManager {
         fileSize: buffer.length,
       };
     } catch (error) {
-      logger.error("Screenshot failed", {
+      ensureLogger().error("Screenshot failed", {
         browserId,
         error: error instanceof Error ? error.message : String(error),
       });
@@ -358,7 +366,7 @@ export class BrowserPoolManager {
   }> {
     const { browserId, force = false } = args;
 
-    logger.info("Closing browser", { browserId, force });
+    ensureLogger().info("Closing browser", { browserId, force });
 
     const session = this.sessions.get(browserId);
     if (!session) {
@@ -369,7 +377,7 @@ export class BrowserPoolManager {
       await this.closeBrowserSession(session, force);
       this.sessions.delete(browserId);
 
-      logger.info("Browser closed successfully", {
+      ensureLogger().info("Browser closed successfully", {
         browserId,
         remainingSessions: this.sessions.size,
       });
@@ -379,7 +387,7 @@ export class BrowserPoolManager {
         browserId,
       };
     } catch (error) {
-      logger.error("Failed to close browser", {
+      ensureLogger().error("Failed to close browser", {
         browserId,
         error: error instanceof Error ? error.message : String(error),
       });
@@ -421,7 +429,7 @@ export class BrowserPoolManager {
         await session.page.close();
       }
     } catch (error) {
-      logger.warn("Failed to close page", {
+      ensureLogger().warn("Failed to close page", {
         sessionId: session.id,
         error: error instanceof Error ? error.message : String(error),
       });
@@ -432,7 +440,7 @@ export class BrowserPoolManager {
         await session.context.close();
       }
     } catch (error) {
-      logger.warn("Failed to close context", {
+      ensureLogger().warn("Failed to close context", {
         sessionId: session.id,
         error: error instanceof Error ? error.message : String(error),
       });
@@ -444,7 +452,7 @@ export class BrowserPoolManager {
       }
     } catch (error) {
       if (force) {
-        logger.warn("Force closing browser despite error", {
+        ensureLogger().warn("Force closing browser despite error", {
           sessionId: session.id,
           error: error instanceof Error ? error.message : String(error),
         });
@@ -466,7 +474,7 @@ export class BrowserPoolManager {
     }
 
     if (sessionsToCleanup.length > 0) {
-      logger.info("Cleaning up idle sessions", {
+      ensureLogger().info("Cleaning up idle sessions", {
         count: sessionsToCleanup.length,
         sessions: sessionsToCleanup,
       });
@@ -478,7 +486,7 @@ export class BrowserPoolManager {
             await this.closeBrowserSession(session, true);
             this.sessions.delete(sessionId);
           } catch (error) {
-            logger.error("Failed to cleanup idle session", {
+            ensureLogger().error("Failed to cleanup idle session", {
               sessionId,
               error: error instanceof Error ? error.message : String(error),
             });

@@ -3,12 +3,20 @@
  * Supports environment variables, config files, and CLI overrides
  */
 
-import { existsSync, readFileSync } from "fs";
-import { homedir } from "os";
-import { join } from "path";
+import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { getLogger } from "../shared/logger.js";
 
-const logger = getLogger("config");
+// ARCHITECTURE FIX: Lazy logger initialization to avoid circular dependency
+let logger: ReturnType<typeof getLogger> | null = null;
+
+function ensureLogger() {
+  if (!logger) {
+    logger = getLogger("config");
+  }
+  return logger;
+}
 
 /**
  * Core Brooklyn configuration
@@ -116,7 +124,7 @@ export class ConfigManager {
       return this.config;
     }
 
-    logger.info("Loading Brooklyn configuration");
+    ensureLogger().info("Loading Brooklyn configuration");
 
     // Load configuration sources
     this.sources = {
@@ -136,7 +144,7 @@ export class ConfigManager {
     // Ensure directories exist
     await this.ensureDirectories(this.config);
 
-    logger.info("Configuration loaded successfully", {
+    ensureLogger().info("Configuration loaded successfully", {
       serviceName: this.config.serviceName,
       version: this.config.version,
       teamId: this.config.teamId,
@@ -177,7 +185,7 @@ export class ConfigManager {
     this.config = this.mergeDeep(this.config, updates);
     this.validateConfiguration(this.config!);
 
-    logger.debug("Configuration updated", { updates });
+    ensureLogger().debug("Configuration updated", { updates });
   }
 
   /**
@@ -346,13 +354,13 @@ export class ConfigManager {
       const { config: dotenvConfig } = await import("dotenv");
       dotenvConfig();
 
-      logger.debug("Loaded .env file");
+      ensureLogger().debug("Loaded .env file");
 
       // After loading .env, re-read environment variables
       return this.loadFromEnvironment();
     } catch {
       // .env not available (packaged binary) - this is fine
-      logger.debug("No .env file found (expected for packaged binary)");
+      ensureLogger().debug("No .env file found (expected for packaged binary)");
       return undefined;
     }
   }
@@ -371,19 +379,19 @@ export class ConfigManager {
     for (const configPath of configPaths) {
       if (existsSync(configPath)) {
         try {
-          logger.debug("Loading config file", { path: configPath });
+          ensureLogger().debug("Loading config file", { path: configPath });
 
           const content = readFileSync(configPath, "utf8");
 
           if (configPath.endsWith(".json")) {
             return JSON.parse(content);
-          } else if (configPath.endsWith(".yaml") || configPath.endsWith(".yml")) {
+          }
+          if (configPath.endsWith(".yaml") || configPath.endsWith(".yml")) {
             // TODO: Add YAML support if needed
-            logger.warn("YAML config files not yet supported", { path: configPath });
-            continue;
+            ensureLogger().warn("YAML config files not yet supported", { path: configPath });
           }
         } catch (error) {
-          logger.warn("Failed to load config file", {
+          ensureLogger().warn("Failed to load config file", {
             path: configPath,
             error: error instanceof Error ? error.message : String(error),
           });
@@ -468,7 +476,7 @@ export class ConfigManager {
    * Ensure required directories exist
    */
   private async ensureDirectories(config: BrooklynConfig): Promise<void> {
-    const { mkdirSync } = await import("fs");
+    const { mkdirSync } = await import("node:fs");
 
     const directories = [
       config.paths.config,
@@ -482,7 +490,7 @@ export class ConfigManager {
       try {
         mkdirSync(dir, { recursive: true });
       } catch (error) {
-        logger.warn("Failed to create directory", {
+        ensureLogger().warn("Failed to create directory", {
           directory: dir,
           error: error instanceof Error ? error.message : String(error),
         });

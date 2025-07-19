@@ -30,6 +30,7 @@ bun scripts/bootstrap-brooklyn.ts
 ```
 
 The bootstrap script will:
+
 - ✅ Detect your OS and set appropriate paths
 - ✅ Install or configure Brooklyn MCP server
 - ✅ Configure Claude Code integration automatically
@@ -41,6 +42,7 @@ The bootstrap script will:
 ### **Option B: Manual Setup**
 
 ### **Step 1: Read the Welcome Guide**
+
 Start here: **[docs/welcome.md](docs/welcome.md)**
 
 This guide has everything you need - from installation to your first automation workflow.
@@ -50,6 +52,7 @@ This guide has everything you need - from installation to your first automation 
 **🚨 IMPORTANT**: Brooklyn server needs to be running before you can connect!
 
 **If you have access to the Brooklyn repository:**
+
 ```bash
 # Navigate to Brooklyn repo
 cd /path/to/fulmen-mcp-forge-brooklyn
@@ -65,6 +68,7 @@ bun run server:start
 ```
 
 **If you DON'T have access to the Brooklyn repository:**
+
 ```bash
 # Ask your team lead or Brooklyn administrator to start the server
 # The server runs on port 50000 by default
@@ -72,6 +76,7 @@ bun run server:start
 ```
 
 **Server Status Check:**
+
 ```bash
 # Check if server is running (if you have repo access)
 bun run server:status
@@ -81,6 +86,7 @@ lsof -i :50000
 ```
 
 You'll see something like:
+
 ```
 Server started successfully with PID 12345
 Brooklyn MCP Server running on port 50000
@@ -88,6 +94,7 @@ Logs are written to: /Users/you/.local/share/fulmen-brooklyn/logs/server.log
 ```
 
 ### **Step 3: Connect to Claude Code**
+
 Add Brooklyn to your Claude Code configuration:
 
 **File**: `~/.config/claude/claude_desktop_config.json` (macOS/Linux) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows)
@@ -107,7 +114,9 @@ Add Brooklyn to your Claude Code configuration:
 **Important**: Replace `/absolute/path/to/fulmen-mcp-forge-brooklyn` with the actual path to your Brooklyn repository root!
 
 ### **Step 4: Test with Claude**
+
 Restart Claude Code, then try:
+
 ```bash
 brooklyn_status
 ```
@@ -115,12 +124,14 @@ brooklyn_status
 You should see Brooklyn's status and capabilities!
 
 ## 🎯 **Your First Automation**
+
 Try this in Claude Code:
+
 ```bash
 # Launch a browser
 Launch a chromium browser for team 'your-team-name'
 
-# Navigate to a website  
+# Navigate to a website
 Navigate to https://example.com
 
 # Take a screenshot
@@ -131,11 +142,13 @@ Close the browser
 ```
 
 ## 🆘 **Need Help?**
+
 - **Server issues**: `bun run server:logs:recent`
 - **Built-in help**: `brooklyn_troubleshooting issue=general`
 - **Examples**: `brooklyn_examples task=basic_navigation`
 
 ## 📚 **More Resources**
+
 - **[Complete User Guide](user-guide/index.md)** - Everything about browser automation
 - **[Team Management](user-guide/team-management.md)** - Multi-team setup
 - **[Development Guide](development/index.md)** - Server management
@@ -185,6 +198,7 @@ bun run install
 ```
 
 ## 🌟 **Pro Tips**
+
 1. **Always work from repo root** - Commands expect to be run from the main directory
 2. **Use absolute paths** - When configuring Claude Code, use the full path to your repo
 3. **Test connection first** - Always run `brooklyn_status` to verify everything works
@@ -194,5 +208,5 @@ bun run install
 
 ---
 
-*Built with 💙 by the 3leaps Team*  
-*Part of the [Fulmen Ecosystem](https://github.com/3leaps/fulmen-ecosystem)*
+_Built with 💙 by the 3leaps Team_  
+_Part of the [Fulmen Ecosystem](https://github.com/3leaps/fulmen-ecosystem)_

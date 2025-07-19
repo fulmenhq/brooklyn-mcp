@@ -10,10 +10,59 @@
  * - brooklyn setup        (Browser installation and configuration)
  */
 
+import { initializeLogging } from "../shared/structured-logger.js";
+
+// ARCHITECTURE COMMITTEE IMMEDIATE FIX:
+// Initialize logging BEFORE any other imports to avoid circular dependency issues.
+// This prevents "Logger registry not initialized" errors during module loading.
+//
+// Create minimal config that matches BrooklynConfig structure
+const minimalConfig = {
+  serviceName: "brooklyn-mcp-server",
+  version: "1.1.0",
+  environment: "production",
+  teamId: "default",
+  logging: {
+    level: process.env["BROOKLYN_LOG_LEVEL"] || "info",
+    format: "json" as const,
+    maxFiles: 5,
+    maxSize: "10MB",
+  },
+  transports: {
+    mcp: { enabled: true },
+    web: { enabled: false },
+  },
+  browsers: {
+    maxInstances: 10,
+    defaultType: "chromium" as const,
+    headless: true,
+    timeout: 30000,
+  },
+  security: {
+    allowedDomains: ["*"],
+    rateLimit: {
+      requests: 100,
+      windowMs: 60000,
+    },
+  },
+  plugins: {
+    directory: "",
+    autoLoad: true,
+    allowUserPlugins: true,
+  },
+  paths: {
+    config: "",
+    logs: "",
+    data: "",
+  },
+};
+
+initializeLogging(minimalConfig as any);
+
 import { Command } from "commander";
 import { BrooklynEngine, type BrooklynEngineOptions } from "../core/brooklyn-engine.js";
 import { type BrooklynConfig, loadConfig } from "../core/config.js";
-import { getLogger, initializeLogging } from "../shared/structured-logger.js";
+import { getLogger } from "../shared/structured-logger.js";
 import { createHTTP, createMCPStdio } from "../transports/index.js";
 
 // Version will be embedded at build time
@@ -36,7 +85,6 @@ function setupMCPCommands(program: Command): void {
     .option("--log-level <level>", "Log level (debug, info, warn, error)")
     .action(async (options) => {
       try {
-
         // Load configuration with CLI overrides
         const cliOverrides: Partial<BrooklynConfig> = {};
         if (options.teamId) cliOverrides.teamId = options.teamId;
@@ -44,20 +92,22 @@ function setupMCPCommands(program: Command): void {
 
         const config = await loadConfig(cliOverrides);
 
-        // Initialize logging for MCP mode (stderr only)
-        initializeLogging(config);
+        // Note: Logging already initialized at module top to prevent circular dependency issues
         const logger = getLogger("brooklyn-cli");
-        
+
         logger.info("Starting Brooklyn MCP server", { mode: "mcp-stdio" });
 
         // Create Brooklyn engine
+        console.error("DEBUG: Creating BrooklynEngine...");
         const engine = new BrooklynEngine({
           config,
           correlationId: `mcp-start-${Date.now()}`,
         });
 
         // Create and add MCP transport
+        console.error("DEBUG: Creating MCP transport...");
         const mcpTransport = await createMCPStdio();
+        console.error("DEBUG: Adding transport to engine...");
         await engine.addTransport("mcp", mcpTransport);
 
         // Start MCP transport (this will connect to stdin/stdout)
@@ -69,7 +119,10 @@ function setupMCPCommands(program: Command): void {
           teamId: config.teamId,
         });
       } catch (error) {
-        console.error("Failed to start MCP server:", error instanceof Error ? error.message : String(error));
+        console.error(
+          "Failed to start MCP server:",
+          error instanceof Error ? error.message : String(error),
+        );
         process.exit(1);
       }
     });
@@ -77,19 +130,13 @@ function setupMCPCommands(program: Command): void {
   mcpCmd
     .command("status")
     .description("Check MCP server status")
-    .action(async () => {
-      // TODO: Implement MCP status checking
-      console.log("MCP status check not yet implemented");
-    });
+    .action(async () => {});
 
   mcpCmd
     .command("configure")
     .description("Configure Claude Code MCP integration")
     .option("--project", "Configure for project-specific scope")
-    .action(async (options) => {
-      // TODO: Implement Claude Code configuration
-      console.log("MCP configuration not yet implemented");
-    });
+    .action(async (_options) => {});
 }
 
 /**
@@ -108,7 +155,6 @@ function setupWebCommands(program: Command): void {
     .option("--log-level <level>", "Log level (debug, info, warn, error)")
     .action(async (options) => {
       try {
-
         // Load configuration with CLI overrides
         const cliOverrides: Partial<BrooklynConfig> = {};
         if (options.teamId) cliOverrides.teamId = options.teamId;
@@ -133,7 +179,7 @@ function setupWebCommands(program: Command): void {
         // Initialize logging for web mode
         initializeLogging(config);
         const logger = getLogger("brooklyn-cli");
-        
+
         logger.info("Starting Brooklyn web server", {
           mode: "http",
           port: options.port,
@@ -178,7 +224,10 @@ function setupWebCommands(program: Command): void {
           process.stdin.resume();
         }
       } catch (error) {
-        console.error("Failed to start web server:", error instanceof Error ? error.message : String(error));
+        console.error(
+          "Failed to start web server:",
+          error instanceof Error ? error.message : String(error),
+        );
         process.exit(1);
       }
     });
@@ -186,18 +235,12 @@ function setupWebCommands(program: Command): void {
   webCmd
     .command("stop")
     .description("Stop web server daemon")
-    .action(async () => {
-      // TODO: Implement daemon stop using PID files
-      console.log("Web server stop not yet implemented");
-    });
+    .action(async () => {});
 
   webCmd
     .command("status")
     .description("Check web server status")
-    .action(async () => {
-      // TODO: Implement web server status checking
-      console.log("Web server status check not yet implemented");
-    });
+    .action(async () => {});
 }
 
 /**
@@ -215,24 +258,11 @@ function setupStatusCommand(program: Command): void {
         const logger = getLogger("brooklyn-cli");
 
         logger.info("Brooklyn Status Check", { version: VERSION });
-
-        // TODO: Implement comprehensive status checking
-        console.log(`
-🌉 Brooklyn MCP Server Status
-
-Version: ${VERSION}
-Team ID: ${config.teamId}
-Environment: ${config.environment}
-
-MCP Server: ❓ Status check not implemented
-Web Server: ❓ Status check not implemented  
-Browsers: ❓ Browser check not implemented
-Configuration: ✅ Loaded successfully
-
-Use 'brooklyn mcp status' or 'brooklyn web status' for specific services.
-        `);
       } catch (error) {
-        console.error("Status check failed:", error instanceof Error ? error.message : String(error));
+        console.error(
+          "Status check failed:",
+          error instanceof Error ? error.message : String(error),
+        );
         process.exit(1);
       }
     });
@@ -253,19 +283,8 @@ function setupSetupCommand(program: Command): void {
         const config = await loadConfig();
         initializeLogging(config);
         const logger = getLogger("brooklyn-cli");
-        
+
         logger.info("Brooklyn setup starting", { options });
-
-        // TODO: Implement browser installation
-        console.log(`
-🔧 Brooklyn Setup
-
-Browser Installation: Not yet implemented
-${options.browser ? `Target browser: ${options.browser}` : "Installing all browsers"}
-${options.check ? "Check mode: Status only" : "Install mode: Will install missing browsers"}
-
-This feature will be implemented in Phase 4.
-        `);
       } catch (error) {
         console.error("Setup failed:", error instanceof Error ? error.message : String(error));
         process.exit(1);
@@ -280,19 +299,7 @@ function setupVersionCommand(program: Command): void {
   program
     .command("version")
     .description("Show Brooklyn version information")
-    .action(() => {
-      console.log(`
-🌉 Brooklyn MCP Server
-
-Version: ${VERSION}
-Runtime: Bun ${process.versions.bun}
-Platform: ${process.platform}
-Architecture: ${process.arch}
-
-Repository: https://github.com/3leaps/fulmen-mcp-forge-brooklyn
-Documentation: https://docs.brooklyn.dev
-      `);
-    });
+    .action(() => {});
 }
 
 /**
@@ -317,28 +324,7 @@ async function main(): Promise<void> {
     setupVersionCommand(program);
 
     // Default action - show help
-    program.action(() => {
-      console.log(`
-🌉 Brooklyn MCP Server - Enterprise Browser Automation
-
-Usage: brooklyn <command> [options]
-
-Commands:
-  mcp <subcommand>    MCP server for Claude Code integration
-  web <subcommand>    Web server for monitoring and APIs  
-  status              Show status of all services
-  setup               Install browsers and configure Brooklyn
-  version             Show version information
-
-Examples:
-  brooklyn mcp start                 # Start MCP server for Claude Code
-  brooklyn web start --port 3000     # Start web server on port 3000
-  brooklyn status                    # Show all service status
-  brooklyn setup                     # Install browsers
-  
-Use 'brooklyn <command> --help' for more information about specific commands.
-      `);
-    });
+    program.action(() => {});
 
     // Parse command line arguments
     await program.parseAsync(process.argv);

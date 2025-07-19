@@ -107,7 +107,7 @@ Once installed, the CLI works from any directory:
 cd ~/Documents
 brooklyn-server status
 
-cd ~/projects/other-project  
+cd ~/projects/other-project
 brooklyn-server logs --recent
 
 # No need to navigate to Brooklyn directory
@@ -123,28 +123,30 @@ $ brooklyn-server status
 
 Possible solutions:
 1. Reinstall Brooklyn using the bootstrap script
-2. Check if Brooklyn was moved or deleted  
+2. Check if Brooklyn was moved or deleted
 3. Run the bootstrap script to reconfigure
 ```
 
 ## Installation Types Comparison
 
-| Feature | Project-Local | User-Wide |
-|---------|---------------|-----------|
-| **Command** | `bun run install` | `bun run bootstrap` |
-| **Scope** | Single Brooklyn instance | System-wide |
-| **Claude Setup** | Manual | Automatic |
-| **Multiple Instances** | ✅ Each project gets own CLI | ❌ One per user |
-| **Team Sharing** | ✅ Team can share same setup | ❌ Per-user installation |
+| Feature                | Project-Local                | User-Wide                |
+| ---------------------- | ---------------------------- | ------------------------ |
+| **Command**            | `bun run install`            | `bun run bootstrap`      |
+| **Scope**              | Single Brooklyn instance     | System-wide              |
+| **Claude Setup**       | Manual                       | Automatic                |
+| **Multiple Instances** | ✅ Each project gets own CLI | ❌ One per user          |
+| **Team Sharing**       | ✅ Team can share same setup | ❌ Per-user installation |
 
 ### Use Cases
 
 **Project-Local** is ideal for:
+
 - Development teams working on Brooklyn
 - Testing new Brooklyn versions
 - Multiple Brooklyn instances on same machine
 
 **User-Wide** is ideal for:
+
 - End users consuming Brooklyn
 - Single Brooklyn installation per user
 - Simplified setup with Claude Code integration
@@ -182,7 +184,7 @@ You can have multiple Brooklyn installations, each with its own CLI:
 cd ~/projects/brooklyn-a
 bun run install
 
-# Install CLI for project B  
+# Install CLI for project B
 cd ~/projects/brooklyn-b
 bun run install
 
@@ -266,6 +268,7 @@ $ brooklyn-server status
 ```
 
 **Solutions**:
+
 1. Reinstall CLI: `bun run install`
 2. Use bootstrap script: `bun run bootstrap:remove` then `bun run bootstrap`
 3. Check Brooklyn location: Verify Brooklyn repository still exists
@@ -287,8 +290,8 @@ The CLI uses a template-based build system:
 
 ```typescript
 // Template variables replaced during build
-const BROOKLYN_PATH = "{{BROOKLYN_PATH}}";  // Becomes actual path
-const BROOKLYN_VERSION = "{{BROOKLYN_VERSION}}";  // Becomes version
+const BROOKLYN_PATH = "{{BROOKLYN_PATH}}"; // Becomes actual path
+const BROOKLYN_VERSION = "{{BROOKLYN_VERSION}}"; // Becomes version
 ```
 
 ### Self-Contained Design

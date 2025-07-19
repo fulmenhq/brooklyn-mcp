@@ -15,10 +15,10 @@
  *   bun run bootstrap
  */
 
-import { execSync } from "child_process";
-import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
-import { homedir, platform, type } from "os";
-import { dirname, join, resolve } from "path";
+import { execSync } from "node:child_process";
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { homedir, platform, type } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { Command } from "commander";
 import inquirer from "inquirer";
 
@@ -161,28 +161,27 @@ async function getBrooklynPath(
       installationType: "user",
       brooklynPath,
     };
-  } else {
-    const { projectPath } = await inquirer.prompt([
-      {
-        type: "input",
-        name: "projectPath",
-        message: "Enter Brooklyn repository path:",
-        default: process.cwd(),
-        validate: (input: string) => {
-          if (!existsSync(join(input, "package.json"))) {
-            return "Brooklyn repository not found at this path";
-          }
-          return true;
-        },
-      },
-    ]);
-
-    return {
-      installationType: "project",
-      projectPath,
-      brooklynPath: projectPath,
-    };
   }
+  const { projectPath } = await inquirer.prompt([
+    {
+      type: "input",
+      name: "projectPath",
+      message: "Enter Brooklyn repository path:",
+      default: process.cwd(),
+      validate: (input: string) => {
+        if (!existsSync(join(input, "package.json"))) {
+          return "Brooklyn repository not found at this path";
+        }
+        return true;
+      },
+    },
+  ]);
+
+  return {
+    installationType: "project",
+    projectPath,
+    brooklynPath: projectPath,
+  };
 }
 
 /**
@@ -260,7 +259,7 @@ async function configureClaudeCode(config: BootstrapConfig): Promise<void> {
       const configText = readFileSync(config.claudeConfigPath, "utf8");
       claudeConfig = JSON.parse(configText);
       log.info("Loaded existing Claude configuration");
-    } catch (error) {
+    } catch (_error) {
       log.warn("Failed to parse existing Claude config, creating new one");
       claudeConfig = {};
     }
@@ -320,7 +319,7 @@ async function installGlobalCommand(config: BootstrapConfig): Promise<void> {
 
   // Copy built CLI to global bin
   const cliTargetPath = join(config.globalBinPath, "brooklyn-server");
-  const { copyFileSync } = require("fs");
+  const { copyFileSync } = require("node:fs");
   copyFileSync(cliSourcePath, cliTargetPath);
   chmodSync(cliTargetPath, 0o755);
 
@@ -353,7 +352,7 @@ async function testConnection(config: BootstrapConfig): Promise<void> {
   try {
     execSync("bun run server:status", { stdio: "pipe" });
     log.info("Server is already running");
-  } catch (error) {
+  } catch (_error) {
     log.info("Starting Brooklyn server...");
     execSync("bun run server:start", { stdio: "inherit" });
   }
@@ -415,7 +414,7 @@ async function removeBrooklyn(): Promise<void> {
       const claudeConfig = JSON.parse(configText);
 
       if (claudeConfig.mcpServers?.["brooklyn"]) {
-        delete claudeConfig.mcpServers["brooklyn"];
+        claudeConfig.mcpServers["brooklyn"] = undefined;
         writeFileSync(env.claudeConfigPath, JSON.stringify(claudeConfig, null, 2));
         log.success("Removed Brooklyn from Claude Code configuration");
       }

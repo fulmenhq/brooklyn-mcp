@@ -3,6 +3,7 @@
 ## Overview
 
 Brooklyn operates as a unified binary that supports two distinct modes:
+
 - **MCP Mode**: For Claude Code integration (stdin/stdout communication)
 - **Web Mode**: For monitoring, APIs, and browser management (HTTP server)
 
@@ -34,6 +35,7 @@ brooklyn mcp configure
 ```
 
 This command:
+
 1. Detects your Claude Code installation
 2. Adds Brooklyn to your MCP servers configuration
 3. Points to the installed binary (not the development directory)
@@ -44,6 +46,7 @@ This command:
 If you prefer manual configuration, add this to your Claude Code settings:
 
 **macOS/Linux** (`~/.config/claude/claude_desktop_config.json`):
+
 ```json
 {
   "mcpServers": {
@@ -60,6 +63,7 @@ If you prefer manual configuration, add this to your Claude Code settings:
 ```
 
 **Windows** (`%APPDATA%\Claude\claude_desktop_config.json`):
+
 ```json
 {
   "mcpServers": {
@@ -95,6 +99,7 @@ brooklyn mcp status
 ### Understanding the Modes
 
 **MCP Mode (Claude Code)**:
+
 - Started automatically by Claude Code when needed
 - Communicates via stdin/stdout using MCP protocol
 - No persistent process - starts/stops with Claude Code
@@ -102,6 +107,7 @@ brooklyn mcp status
 - Designed for AI tool integration
 
 **Web Mode (Monitoring & APIs)**:
+
 - Started manually by users
 - Runs as HTTP server on configurable port
 - Can run as foreground process or daemon
@@ -121,12 +127,14 @@ brooklyn web start --port 3000
 ```
 
 The modes share:
+
 - Browser pool (prevents resource duplication)
 - Configuration settings
 - Log collection system
 - Security policies
 
 The modes differ in:
+
 - Communication protocol (stdin/stdout vs HTTP)
 - Lifecycle management (Claude-managed vs user-managed)
 - Primary use case (AI tools vs human/system APIs)
@@ -178,11 +186,13 @@ brooklyn mcp status
 ### MCP Mode Issues
 
 **Brooklyn tools not appearing in Claude Code**:
+
 1. Restart Claude Code after configuration
 2. Check logs: `brooklyn logs --mcp`
 3. Validate config: `brooklyn mcp status`
 
 **Connection errors**:
+
 1. Ensure binary path is absolute in config
 2. Check file permissions on brooklyn binary
 3. Verify no stdout contamination in logs
@@ -190,6 +200,7 @@ brooklyn mcp status
 ### Binary Path Issues
 
 **"Command not found" errors**:
+
 1. Use full path to binary in MCP config
 2. Don't use shell expansions (~, $HOME)
 3. Verify binary exists: `ls -la ~/.local/bin/brooklyn`

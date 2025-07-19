@@ -7,8 +7,8 @@
  * The CLI will know where Brooklyn is installed and can manage it from anywhere.
  */
 
-import { chmodSync, existsSync, readFileSync, writeFileSync } from "fs";
-import { join, resolve } from "path";
+import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 
 // ANSI color codes
 const colors = {
@@ -94,7 +94,7 @@ function testCLI(config: BuildConfig): void {
   log.title("Testing CLI");
 
   try {
-    const { execSync } = require("child_process");
+    const { execSync } = require("node:child_process");
     const result = execSync(`"${config.outputPath}" --version`, {
       encoding: "utf8",
       cwd: config.brooklynPath,
@@ -102,8 +102,8 @@ function testCLI(config: BuildConfig): void {
 
     log.success("CLI test passed");
     log.info(`Version output: ${result.trim()}`);
-  } catch (error: any) {
-    log.error(`CLI test failed: ${error.message}`);
+  } catch (error) {
+    log.error(`CLI test failed: ${error instanceof Error ? error.message : String(error)}`);
     throw error;
   }
 }
@@ -118,7 +118,7 @@ function main(): void {
     // Ensure dist directory exists
     const distDir = join(config.brooklynPath, "dist");
     if (!existsSync(distDir)) {
-      require("fs").mkdirSync(distDir, { recursive: true });
+      require("node:fs").mkdirSync(distDir, { recursive: true });
     }
 
     buildCLI(config);
@@ -141,8 +141,8 @@ ${colors.bold}Installation:${colors.reset}
 Use the bootstrap script to install this CLI globally:
 ${colors.cyan}bun run install${colors.reset}
 `);
-  } catch (error: any) {
-    log.error(`Build failed: ${error.message}`);
+  } catch (error) {
+    log.error(`Build failed: ${error instanceof Error ? error.message : String(error)}`);
     process.exit(1);
   }
 }
