@@ -19,7 +19,7 @@ import { createHTTP, createMCPStdio } from "../transports/index.js";
 // Version will be embedded at build time
 const VERSION = "{{VERSION}}";
 
-const logger = getLogger("brooklyn-cli");
+// Logger will be initialized after configuration is loaded
 
 /**
  * MCP command group - Claude Code integration
@@ -36,7 +36,6 @@ function setupMCPCommands(program: Command): void {
     .option("--log-level <level>", "Log level (debug, info, warn, error)")
     .action(async (options) => {
       try {
-        logger.info("Starting Brooklyn MCP server", { mode: "mcp-stdio" });
 
         // Load configuration with CLI overrides
         const cliOverrides: Partial<BrooklynConfig> = {};
@@ -47,6 +46,9 @@ function setupMCPCommands(program: Command): void {
 
         // Initialize logging for MCP mode (stderr only)
         initializeLogging(config);
+        const logger = getLogger("brooklyn-cli");
+        
+        logger.info("Starting Brooklyn MCP server", { mode: "mcp-stdio" });
 
         // Create Brooklyn engine
         const engine = new BrooklynEngine({
@@ -67,9 +69,7 @@ function setupMCPCommands(program: Command): void {
           teamId: config.teamId,
         });
       } catch (error) {
-        logger.error("Failed to start MCP server", {
-          error: error instanceof Error ? error.message : String(error),
-        });
+        console.error("Failed to start MCP server:", error instanceof Error ? error.message : String(error));
         process.exit(1);
       }
     });
@@ -108,11 +108,6 @@ function setupWebCommands(program: Command): void {
     .option("--log-level <level>", "Log level (debug, info, warn, error)")
     .action(async (options) => {
       try {
-        logger.info("Starting Brooklyn web server", {
-          mode: "http",
-          port: options.port,
-          daemon: options.daemon,
-        });
 
         // Load configuration with CLI overrides
         const cliOverrides: Partial<BrooklynConfig> = {};
@@ -137,6 +132,13 @@ function setupWebCommands(program: Command): void {
 
         // Initialize logging for web mode
         initializeLogging(config);
+        const logger = getLogger("brooklyn-cli");
+        
+        logger.info("Starting Brooklyn web server", {
+          mode: "http",
+          port: options.port,
+          daemon: options.daemon,
+        });
 
         // Create Brooklyn engine
         const engine = new BrooklynEngine({
@@ -176,9 +178,7 @@ function setupWebCommands(program: Command): void {
           process.stdin.resume();
         }
       } catch (error) {
-        logger.error("Failed to start web server", {
-          error: error instanceof Error ? error.message : String(error),
-        });
+        console.error("Failed to start web server:", error instanceof Error ? error.message : String(error));
         process.exit(1);
       }
     });
@@ -212,6 +212,7 @@ function setupStatusCommand(program: Command): void {
         // Load configuration
         const config = await loadConfig();
         initializeLogging(config);
+        const logger = getLogger("brooklyn-cli");
 
         logger.info("Brooklyn Status Check", { version: VERSION });
 
@@ -231,9 +232,7 @@ Configuration: ✅ Loaded successfully
 Use 'brooklyn mcp status' or 'brooklyn web status' for specific services.
         `);
       } catch (error) {
-        logger.error("Status check failed", {
-          error: error instanceof Error ? error.message : String(error),
-        });
+        console.error("Status check failed:", error instanceof Error ? error.message : String(error));
         process.exit(1);
       }
     });
@@ -250,6 +249,11 @@ function setupSetupCommand(program: Command): void {
     .option("--check", "Check installation status only")
     .action(async (options) => {
       try {
+        // Load minimal config for logging
+        const config = await loadConfig();
+        initializeLogging(config);
+        const logger = getLogger("brooklyn-cli");
+        
         logger.info("Brooklyn setup starting", { options });
 
         // TODO: Implement browser installation
@@ -263,9 +267,7 @@ ${options.check ? "Check mode: Status only" : "Install mode: Will install missin
 This feature will be implemented in Phase 4.
         `);
       } catch (error) {
-        logger.error("Setup failed", {
-          error: error instanceof Error ? error.message : String(error),
-        });
+        console.error("Setup failed:", error instanceof Error ? error.message : String(error));
         process.exit(1);
       }
     });
@@ -341,10 +343,7 @@ Use 'brooklyn <command> --help' for more information about specific commands.
     // Parse command line arguments
     await program.parseAsync(process.argv);
   } catch (error) {
-    const errorLogger = getLogger("brooklyn-cli-error");
-    errorLogger.error("CLI execution failed", {
-      error: error instanceof Error ? error.message : String(error),
-    });
+    console.error("CLI execution failed:", error instanceof Error ? error.message : String(error));
     process.exit(1);
   }
 }
