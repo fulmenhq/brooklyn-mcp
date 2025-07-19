@@ -7,18 +7,18 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 
-import type { 
-  Transport, 
-  TransportType, 
-  ToolListHandler, 
+import type {
+  MCPStdioConfig,
   ToolCallHandler,
-  MCPStdioConfig 
+  ToolListHandler,
+  Transport,
 } from "../core/transport.js";
+import { TransportType } from "../core/transport.js";
 import { getLogger } from "../shared/logger.js";
 
 /**
  * MCP stdin/stdout transport for Claude Code integration
- * 
+ *
  * CRITICAL: This transport communicates via stdin/stdout using JSON-RPC.
  * NEVER write to stdout directly - it will corrupt the MCP protocol.
  * All logging must go to stderr or files only.
@@ -26,20 +26,20 @@ import { getLogger } from "../shared/logger.js";
 export class MCPStdioTransport implements Transport {
   readonly name = "mcp-stdio";
   readonly type = TransportType.MCP_STDIO;
-  
+
   private readonly logger = getLogger("mcp-stdio-transport");
   private readonly config: MCPStdioConfig;
-  
+
   private server: Server;
   private transport: StdioServerTransport | null = null;
   private running = false;
-  
+
   private toolListHandler?: ToolListHandler;
   private toolCallHandler?: ToolCallHandler;
 
   constructor(config: MCPStdioConfig) {
     this.config = config;
-    
+
     // Initialize MCP Server
     // Note: Server name and version will be provided by Brooklyn engine
     this.server = new Server(
@@ -51,7 +51,7 @@ export class MCPStdioTransport implements Transport {
         capabilities: {
           tools: {}, // Brooklyn provides tools
         },
-      }
+      },
     );
   }
 
@@ -60,13 +60,13 @@ export class MCPStdioTransport implements Transport {
    */
   async initialize(): Promise<void> {
     this.logger.info("Initializing MCP stdio transport");
-    
+
     // Set up MCP request handlers
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
       if (!this.toolListHandler) {
         throw new Error("Tool list handler not set");
       }
-      
+
       this.logger.debug("MCP tool list request received");
       return await this.toolListHandler();
     });
@@ -75,14 +75,14 @@ export class MCPStdioTransport implements Transport {
       if (!this.toolCallHandler) {
         throw new Error("Tool call handler not set");
       }
-      
+
       this.logger.debug("MCP tool call request received", {
         tool: request.params.name,
       });
-      
+
       return await this.toolCallHandler(request);
     });
-    
+
     this.logger.info("MCP stdio transport initialized");
   }
 
@@ -97,20 +97,19 @@ export class MCPStdioTransport implements Transport {
     }
 
     this.logger.info("Starting MCP stdio transport");
-    
+
     try {
       // Create stdio transport
       this.transport = new StdioServerTransport();
-      
+
       // Connect to stdin/stdout
       await this.server.connect(this.transport);
-      
+
       this.running = true;
       this.logger.info("MCP stdio transport started successfully");
-      
+
       // Note: MCP server will now handle requests via stdin/stdout
       // The process will stay alive until stdin is closed or process is terminated
-      
     } catch (error) {
       this.logger.error("Failed to start MCP stdio transport", {
         error: error instanceof Error ? error.message : String(error),
@@ -131,17 +130,16 @@ export class MCPStdioTransport implements Transport {
     }
 
     this.logger.info("Stopping MCP stdio transport");
-    
+
     try {
       // For stdio transport, we typically don't explicitly "stop"
       // The connection is managed by the parent process (Claude Code)
       // But we can clean up our state
-      
+
       this.running = false;
       this.transport = null;
-      
+
       this.logger.info("MCP stdio transport stopped");
-      
     } catch (error) {
       this.logger.error("Error stopping MCP stdio transport", {
         error: error instanceof Error ? error.message : String(error),

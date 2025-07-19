@@ -3,24 +3,26 @@
  * Central location for creating and managing transport instances
  */
 
-import type { 
-  Transport, 
-  TransportConfig, 
-  TransportFactory,
+import type {
+  HTTPConfig,
   MCPStdioConfig,
-  HTTPConfig
+  Transport,
+  TransportConfig,
+  TransportFactory,
 } from "../core/transport.js";
-import { TransportType, TransportRegistry } from "../core/transport.js";
-import { MCPStdioTransport } from "./mcp-stdio-transport.js";
-import { HTTPTransport } from "./http-transport.js";
+import { TransportRegistry, TransportType } from "../core/transport.js";
 import { getLogger } from "../shared/logger.js";
+import { HTTPTransport } from "./http-transport.js";
+import { MCPStdioTransport } from "./mcp-stdio-transport.js";
 
 const logger = getLogger("transport-factory");
 
 /**
  * Create MCP stdio transport
  */
-const createMCPStdioTransport: TransportFactory = async (config: TransportConfig): Promise<Transport> => {
+const createMCPStdioTransport: TransportFactory = async (
+  config: TransportConfig,
+): Promise<Transport> => {
   logger.debug("Creating MCP stdio transport");
   return new MCPStdioTransport(config as MCPStdioConfig);
 };
@@ -28,9 +30,11 @@ const createMCPStdioTransport: TransportFactory = async (config: TransportConfig
 /**
  * Create HTTP transport
  */
-const createHTTPTransport: TransportFactory = async (config: TransportConfig): Promise<Transport> => {
-  logger.debug("Creating HTTP transport", { 
-    port: (config as HTTPConfig).options?.port 
+const createHTTPTransport: TransportFactory = async (
+  config: TransportConfig,
+): Promise<Transport> => {
+  logger.debug("Creating HTTP transport", {
+    port: (config as HTTPConfig).options?.port,
   });
   return new HTTPTransport(config as HTTPConfig);
 };
@@ -40,10 +44,10 @@ const createHTTPTransport: TransportFactory = async (config: TransportConfig): P
  */
 export function registerTransports(): void {
   logger.info("Registering transport factories");
-  
+
   TransportRegistry.register(TransportType.MCP_STDIO, createMCPStdioTransport);
   TransportRegistry.register(TransportType.HTTP, createHTTPTransport);
-  
+
   logger.info("Transport factories registered", {
     types: TransportRegistry.getAvailableTypes(),
   });
@@ -64,7 +68,7 @@ export async function createMCPStdio(): Promise<Transport> {
     type: TransportType.MCP_STDIO,
     options: {},
   };
-  
+
   return createTransport(config);
 }
 
@@ -81,7 +85,7 @@ export async function createHTTP(port: number, host?: string, cors = true): Prom
       rateLimiting: false, // TODO: Implement rate limiting
     },
   };
-  
+
   return createTransport(config);
 }
 

@@ -4,13 +4,8 @@
  */
 
 import type { Server as HTTPServer } from "node:http";
-import type { 
-  Transport, 
-  TransportType, 
-  ToolListHandler, 
-  ToolCallHandler,
-  HTTPConfig 
-} from "../core/transport.js";
+import type { HTTPConfig, ToolCallHandler, ToolListHandler, Transport } from "../core/transport.js";
+import { TransportType } from "../core/transport.js";
 import { getLogger } from "../shared/logger.js";
 
 /**
@@ -20,13 +15,13 @@ import { getLogger } from "../shared/logger.js";
 export class HTTPTransport implements Transport {
   readonly name = "http";
   readonly type = TransportType.HTTP;
-  
+
   private readonly logger = getLogger("http-transport");
   private readonly config: HTTPConfig;
-  
+
   private server: HTTPServer | null = null;
   private running = false;
-  
+
   private toolListHandler?: ToolListHandler;
   private toolCallHandler?: ToolCallHandler;
 
@@ -42,10 +37,10 @@ export class HTTPTransport implements Transport {
       port: this.config.options.port,
       host: this.config.options.host || "localhost",
     });
-    
+
     // Create HTTP server
     const { createServer } = await import("node:http");
-    
+
     this.server = createServer(async (req, res) => {
       try {
         await this.handleRequest(req, res);
@@ -55,25 +50,27 @@ export class HTTPTransport implements Transport {
           method: req.method,
           error: error instanceof Error ? error.message : String(error),
         });
-        
+
         if (!res.headersSent) {
           res.statusCode = 500;
           res.setHeader("Content-Type", "application/json");
-          res.end(JSON.stringify({
-            error: "Internal server error",
-            message: error instanceof Error ? error.message : "Unknown error"
-          }));
+          res.end(
+            JSON.stringify({
+              error: "Internal server error",
+              message: error instanceof Error ? error.message : "Unknown error",
+            }),
+          );
         }
       }
     });
-    
+
     // Handle server errors
     this.server.on("error", (error) => {
       this.logger.error("HTTP server error", {
         error: error.message,
       });
     });
-    
+
     this.logger.info("HTTP transport initialized");
   }
 
@@ -91,25 +88,21 @@ export class HTTPTransport implements Transport {
     }
 
     this.logger.info("Starting HTTP transport");
-    
+
     return new Promise((resolve, reject) => {
       if (!this.server) {
         reject(new Error("Server not initialized"));
         return;
       }
 
-      this.server.listen(
-        this.config.options.port,
-        this.config.options.host || "localhost",
-        () => {
-          this.running = true;
-          this.logger.info("HTTP transport started", {
-            port: this.config.options.port,
-            host: this.config.options.host || "localhost",
-          });
-          resolve();
-        }
-      );
+      this.server.listen(this.config.options.port, this.config.options.host || "localhost", () => {
+        this.running = true;
+        this.logger.info("HTTP transport started", {
+          port: this.config.options.port,
+          host: this.config.options.host || "localhost",
+        });
+        resolve();
+      });
 
       this.server.on("error", (error) => {
         this.logger.error("Failed to start HTTP transport", {
@@ -136,7 +129,7 @@ export class HTTPTransport implements Transport {
     }
 
     this.logger.info("Stopping HTTP transport");
-    
+
     return new Promise((resolve, reject) => {
       if (!this.server) {
         resolve();
@@ -187,7 +180,7 @@ export class HTTPTransport implements Transport {
   private async handleRequest(req: any, res: any): Promise<void> {
     const url = new URL(req.url || "/", `http://${req.headers.host}`);
     const method = req.method?.toUpperCase();
-    
+
     this.logger.debug("HTTP request", {
       method,
       path: url.pathname,
@@ -230,11 +223,13 @@ export class HTTPTransport implements Transport {
   private async handleHealthCheck(req: any, res: any): Promise<void> {
     res.statusCode = 200;
     res.setHeader("Content-Type", "application/json");
-    res.end(JSON.stringify({
-      status: "healthy",
-      timestamp: new Date().toISOString(),
-      transport: "http",
-    }));
+    res.end(
+      JSON.stringify({
+        status: "healthy",
+        timestamp: new Date().toISOString(),
+        transport: "http",
+      }),
+    );
   }
 
   /**
@@ -243,18 +238,20 @@ export class HTTPTransport implements Transport {
   private async handleStatus(req: any, res: any): Promise<void> {
     res.statusCode = 200;
     res.setHeader("Content-Type", "application/json");
-    res.end(JSON.stringify({
-      transport: {
-        name: this.name,
-        type: this.type,
-        running: this.running,
-        config: {
-          port: this.config.options.port,
-          host: this.config.options.host || "localhost",
+    res.end(
+      JSON.stringify({
+        transport: {
+          name: this.name,
+          type: this.type,
+          running: this.running,
+          config: {
+            port: this.config.options.port,
+            host: this.config.options.host || "localhost",
+          },
         },
-      },
-      timestamp: new Date().toISOString(),
-    }));
+        timestamp: new Date().toISOString(),
+      }),
+    );
   }
 
   /**
@@ -264,9 +261,11 @@ export class HTTPTransport implements Transport {
     if (!this.toolListHandler) {
       res.statusCode = 503;
       res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify({
-        error: "Tool list handler not available",
-      }));
+      res.end(
+        JSON.stringify({
+          error: "Tool list handler not available",
+        }),
+      );
       return;
     }
 
@@ -278,10 +277,12 @@ export class HTTPTransport implements Transport {
     } catch (error) {
       res.statusCode = 500;
       res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify({
-        error: "Failed to get tool list",
-        message: error instanceof Error ? error.message : "Unknown error",
-      }));
+      res.end(
+        JSON.stringify({
+          error: "Failed to get tool list",
+          message: error instanceof Error ? error.message : "Unknown error",
+        }),
+      );
     }
   }
 
@@ -292,24 +293,28 @@ export class HTTPTransport implements Transport {
     if (!this.toolCallHandler) {
       res.statusCode = 503;
       res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify({
-        error: "Tool call handler not available",
-      }));
+      res.end(
+        JSON.stringify({
+          error: "Tool call handler not available",
+        }),
+      );
       return;
     }
 
     try {
       // Parse request body
       const body = await this.parseRequestBody(req);
-      
+
       // Validate request format
       if (!body.params || !body.params.name) {
         res.statusCode = 400;
         res.setHeader("Content-Type", "application/json");
-        res.end(JSON.stringify({
-          error: "Invalid request format",
-          message: "Request must include params.name",
-        }));
+        res.end(
+          JSON.stringify({
+            error: "Invalid request format",
+            message: "Request must include params.name",
+          }),
+        );
         return;
       }
 
@@ -326,14 +331,15 @@ export class HTTPTransport implements Transport {
       res.statusCode = 200;
       res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify(result));
-      
     } catch (error) {
       res.statusCode = 500;
       res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify({
-        error: "Tool call failed",
-        message: error instanceof Error ? error.message : "Unknown error",
-      }));
+      res.end(
+        JSON.stringify({
+          error: "Tool call failed",
+          message: error instanceof Error ? error.message : "Unknown error",
+        }),
+      );
     }
   }
 
@@ -399,10 +405,12 @@ export class HTTPTransport implements Transport {
   private async handleNotFound(req: any, res: any): Promise<void> {
     res.statusCode = 404;
     res.setHeader("Content-Type", "application/json");
-    res.end(JSON.stringify({
-      error: "Not found",
-      message: `Path ${req.url} not found`,
-    }));
+    res.end(
+      JSON.stringify({
+        error: "Not found",
+        message: `Path ${req.url} not found`,
+      }),
+    );
   }
 
   /**
@@ -411,11 +419,11 @@ export class HTTPTransport implements Transport {
   private parseRequestBody(req: any): Promise<any> {
     return new Promise((resolve, reject) => {
       let body = "";
-      
+
       req.on("data", (chunk: Buffer) => {
         body += chunk.toString();
       });
-      
+
       req.on("end", () => {
         try {
           const parsed = body ? JSON.parse(body) : {};
@@ -424,7 +432,7 @@ export class HTTPTransport implements Transport {
           reject(new Error("Invalid JSON in request body"));
         }
       });
-      
+
       req.on("error", (error: Error) => {
         reject(error);
       });

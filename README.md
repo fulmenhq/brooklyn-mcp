@@ -1,6 +1,13 @@
-# Brooklyn - Fulmen MCP Browser Automation Platform
+# Brooklyn - Fulmen MCP Browser Automation Platform ⚡
+
+[![Developer Spark Enabled](https://img.shields.io/badge/Developer%20Spark-Enabled%20⚡-brightgreen?style=for-the-badge&logo=lightning&logoColor=white)](docs/fulmen/spark/README.md)
+[![Brooklyn Forge](https://img.shields.io/badge/Brooklyn-Forge%20🌉-blue?style=for-the-badge&logo=bridge&logoColor=white)](docs/fulmen/forges/fulmen-brooklyn-forge-principles.md)
+[![TypeScript Spark](https://img.shields.io/badge/TypeScript%20Spark-Enabled%20⚡-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](docs/fulmen/spark/README.md)
+[![Architecture Approved](https://img.shields.io/badge/Architecture-Committee%20Approved%20🏆-gold?style=for-the-badge&logo=award&logoColor=white)](docs/fulmen/spark/README.md)
 
 **Enterprise-ready MCP server for browser automation with multi-team support**
+
+> **⚡ 15-minute onboarding**: Read [CLAUDE.md 5-minute section](CLAUDE.md#5-minute-team-onboarding-start-here-first) for instant productivity
 
 Brooklyn is a Model Context Protocol (MCP) server that provides AI developers and teams with powerful browser automation capabilities. Built on the Fulmen ecosystem principles, Brooklyn serves as a bridge between AI models and web browsers, enabling seamless automation, testing, and monitoring workflows.
 

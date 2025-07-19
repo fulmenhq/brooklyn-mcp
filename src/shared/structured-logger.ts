@@ -76,7 +76,7 @@ export class StructuredLogger {
   constructor(name: string, config: LoggerConfig) {
     this.name = name;
     this.config = config;
-    
+
     // Initialize file streams
     this.initializeFileOutputs();
   }
@@ -96,10 +96,10 @@ export class StructuredLogger {
       ...this.config,
       correlationId: context.correlationId || this.config.correlationId,
     };
-    
+
     const child = new StructuredLogger(this.name, childConfig);
     child.setGlobalContext({ ...this.globalContext, ...context });
-    
+
     return child;
   }
 
@@ -143,7 +143,7 @@ export class StructuredLogger {
         stack: error.stack,
       },
     };
-    
+
     this.log(LogLevel.ERROR, message, errorContext);
   }
 
@@ -168,9 +168,9 @@ export class StructuredLogger {
     };
 
     // Handle error object separately
-    if (context?.error) {
-      entry.error = context.error as any;
-      delete entry.context?.error;
+    if (context?.["error"]) {
+      entry["error"] = context["error"] as any;
+      delete entry.context?.["error"];
     }
 
     // Output to all configured outputs
@@ -184,12 +184,12 @@ export class StructuredLogger {
    */
   private mergeContext(context?: LogContext): Record<string, unknown> | undefined {
     const merged = { ...this.globalContext, ...context };
-    
+
     // Remove special fields that have dedicated properties
     delete merged.correlationId;
     delete merged.transport;
-    delete merged.error;
-    
+    delete merged["error"];
+
     return Object.keys(merged).length > 0 ? merged : undefined;
   }
 
@@ -198,7 +198,10 @@ export class StructuredLogger {
    */
   private writeToOutput(entry: LogEntry, output: LogOutput): void {
     // Check output-specific log level
-    if (output.level !== undefined && LogLevel[entry.level as keyof typeof LogLevel] < output.level) {
+    if (
+      output.level !== undefined &&
+      LogLevel[entry.level as keyof typeof LogLevel] < output.level
+    ) {
       return;
     }
 
@@ -224,24 +227,24 @@ export class StructuredLogger {
     const timestamp = entry.timestamp.replace("T", " ").replace("Z", "");
     const level = entry.level.padEnd(5);
     const logger = entry.logger.padEnd(20);
-    
+
     let formatted = `${timestamp} [${level}] [${logger}] ${entry.message}`;
-    
+
     // Add correlation ID if present
     if (entry.correlationId) {
       formatted += ` [${entry.correlationId}]`;
     }
-    
+
     // Add transport if present
     if (entry.transport) {
       formatted += ` (${entry.transport})`;
     }
-    
+
     // Add context if present
     if (entry.context && Object.keys(entry.context).length > 0) {
       formatted += ` ${JSON.stringify(entry.context)}`;
     }
-    
+
     // Add error if present
     if (entry.error) {
       formatted += `\nError: ${entry.error.name}: ${entry.error.message}`;
@@ -249,27 +252,31 @@ export class StructuredLogger {
         formatted += `\nStack: ${entry.error.stack}`;
       }
     }
-    
+
     return formatted + "\n";
   }
 
   /**
    * Write to console output
    */
-  private writeToConsole(formatted: string, target: "stdout" | "stderr" | undefined, level: string): void {
+  private writeToConsole(
+    formatted: string,
+    target: "stdout" | "stderr" | undefined,
+    level: string,
+  ): void {
     // For MCP mode, NEVER write to stdout as it corrupts the protocol
     const isMCPMode = this.globalContext.transport === "mcp-stdio";
-    
+
     if (isMCPMode && target === "stdout") {
       // Redirect stdout to stderr in MCP mode
       process.stderr.write(formatted);
       return;
     }
-    
+
     // Default target based on log level
     const defaultTarget = level === "ERROR" || level === "WARN" ? "stderr" : "stdout";
     const actualTarget = target || defaultTarget;
-    
+
     if (actualTarget === "stderr") {
       process.stderr.write(formatted);
     } else {
@@ -282,19 +289,19 @@ export class StructuredLogger {
    */
   private writeToFile(formatted: string, filePath: string): void {
     let stream = this.fileStreams.get(filePath);
-    
+
     if (!stream) {
       // Ensure directory exists
       const dir = dirname(filePath);
       if (!existsSync(dir)) {
         mkdirSync(dir, { recursive: true });
       }
-      
+
       // Create write stream
       stream = createWriteStream(filePath, { flags: "a" });
       this.fileStreams.set(filePath, stream);
     }
-    
+
     stream.write(formatted);
   }
 
@@ -327,10 +334,11 @@ export class StructuredLogger {
  * Create logger configuration from Brooklyn config
  */
 export function createLoggerConfig(config: BrooklynConfig, transport?: string): LoggerConfig {
-  const level = LogLevel[config.logging.level.toUpperCase() as keyof typeof LogLevel] ?? LogLevel.INFO;
-  
+  const level =
+    LogLevel[config.logging.level.toUpperCase() as keyof typeof LogLevel] ?? LogLevel.INFO;
+
   const outputs: LogOutput[] = [];
-  
+
   // Console output (stderr for MCP mode to avoid stdout contamination)
   const isMCPMode = transport === "mcp-stdio";
   outputs.push({
@@ -339,7 +347,7 @@ export function createLoggerConfig(config: BrooklynConfig, transport?: string): 
     format: config.logging.format,
     level: level,
   });
-  
+
   // File output if specified
   if (config.logging.file) {
     outputs.push({
@@ -349,7 +357,7 @@ export function createLoggerConfig(config: BrooklynConfig, transport?: string): 
       level: LogLevel.DEBUG, // File logs capture everything
     });
   }
-  
+
   return {
     level,
     format: config.logging.format,
@@ -376,26 +384,26 @@ class LoggerRegistry {
    */
   getLogger(name: string, transport?: string): StructuredLogger {
     const key = transport ? `${name}:${transport}` : name;
-    
+
     let logger = this.loggers.get(key);
     if (!logger) {
       if (!this.defaultConfig) {
         throw new Error("Logger registry not initialized. Call initialize() first.");
       }
-      
-      const config = transport ? 
-        createLoggerConfig({ logging: this.defaultConfig } as any, transport) : 
-        this.defaultConfig;
-      
+
+      const config = transport
+        ? createLoggerConfig({ logging: this.defaultConfig } as any, transport)
+        : this.defaultConfig;
+
       logger = new StructuredLogger(name, config);
-      
+
       if (transport) {
         logger.setGlobalContext({ transport });
       }
-      
+
       this.loggers.set(key, logger);
     }
-    
+
     return logger;
   }
 

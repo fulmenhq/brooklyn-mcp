@@ -3,7 +3,7 @@
  * Supports environment variables, config files, and CLI overrides
  */
 
-import { readFileSync, existsSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
 import { getLogger } from "../shared/logger.js";
@@ -18,10 +18,10 @@ export interface BrooklynConfig {
   serviceName: string;
   version: string;
   environment: "development" | "production" | "test";
-  
+
   // Team configuration
   teamId: string;
-  
+
   // Transport configuration
   transports: {
     mcp: {
@@ -35,7 +35,7 @@ export interface BrooklynConfig {
       rateLimiting: boolean;
     };
   };
-  
+
   // Browser management
   browsers: {
     maxInstances: number;
@@ -44,7 +44,7 @@ export interface BrooklynConfig {
     timeout: number;
     installPath?: string; // Custom browser installation path
   };
-  
+
   // Security
   security: {
     allowedDomains: string[];
@@ -53,7 +53,7 @@ export interface BrooklynConfig {
       windowMs: number;
     };
   };
-  
+
   // Logging
   logging: {
     level: "debug" | "info" | "warn" | "error";
@@ -62,14 +62,14 @@ export interface BrooklynConfig {
     maxFiles?: number;
     maxSize?: string;
   };
-  
+
   // Plugins
   plugins: {
     directory: string;
     autoLoad: boolean;
     allowUserPlugins: boolean;
   };
-  
+
   // Paths
   paths: {
     config: string;
@@ -175,7 +175,7 @@ export class ConfigManager {
     }
 
     this.config = this.mergeDeep(this.config, updates);
-    this.validateConfiguration(this.config);
+    this.validateConfiguration(this.config!);
 
     logger.debug("Configuration updated", { updates });
   }
@@ -192,7 +192,7 @@ export class ConfigManager {
       version: "1.0.0", // Will be replaced at build time
       environment: "production",
       teamId: "default",
-      
+
       transports: {
         mcp: {
           enabled: true,
@@ -205,14 +205,14 @@ export class ConfigManager {
           rateLimiting: false,
         },
       },
-      
+
       browsers: {
         maxInstances: 10,
         defaultType: "chromium",
         headless: true,
         timeout: 30000,
       },
-      
+
       security: {
         allowedDomains: ["*"],
         rateLimit: {
@@ -220,20 +220,20 @@ export class ConfigManager {
           windowMs: 60000, // 1 minute
         },
       },
-      
+
       logging: {
         level: "info",
         format: "pretty",
         maxFiles: 5,
         maxSize: "10MB",
       },
-      
+
       plugins: {
         directory: join(brooklynDir, "plugins"),
         autoLoad: true,
         allowUserPlugins: true,
       },
-      
+
       paths: {
         config: brooklynDir,
         logs: join(brooklynDir, "logs"),
@@ -252,84 +252,84 @@ export class ConfigManager {
     const config: any = {};
 
     // Service configuration
-    if (env.BROOKLYN_SERVICE_NAME) config.serviceName = env.BROOKLYN_SERVICE_NAME;
-    if (env.BROOKLYN_VERSION) config.version = env.BROOKLYN_VERSION;
-    if (env.BROOKLYN_ENV) config.environment = env.BROOKLYN_ENV;
-    if (env.BROOKLYN_TEAM_ID) config.teamId = env.BROOKLYN_TEAM_ID;
+    if (env["BROOKLYN_SERVICE_NAME"]) config.serviceName = env["BROOKLYN_SERVICE_NAME"];
+    if (env["BROOKLYN_VERSION"]) config.version = env["BROOKLYN_VERSION"];
+    if (env["BROOKLYN_ENV"]) config.environment = env["BROOKLYN_ENV"];
+    if (env["BROOKLYN_TEAM_ID"]) config.teamId = env["BROOKLYN_TEAM_ID"];
 
     // Transport configuration
-    if (env.BROOKLYN_MCP_ENABLED !== undefined) {
-      config.transports = { mcp: { enabled: env.BROOKLYN_MCP_ENABLED === "true" } };
+    if (env["BROOKLYN_MCP_ENABLED"] !== undefined) {
+      config.transports = { mcp: { enabled: env["BROOKLYN_MCP_ENABLED"] === "true" } };
     }
-    if (env.BROOKLYN_HTTP_ENABLED !== undefined) {
+    if (env["BROOKLYN_HTTP_ENABLED"] !== undefined) {
       config.transports = config.transports || {};
       config.transports.http = config.transports.http || {};
-      config.transports.http.enabled = env.BROOKLYN_HTTP_ENABLED === "true";
+      config.transports.http.enabled = env["BROOKLYN_HTTP_ENABLED"] === "true";
     }
-    if (env.BROOKLYN_PORT) {
+    if (env["BROOKLYN_PORT"]) {
       config.transports = config.transports || {};
       config.transports.http = config.transports.http || {};
-      config.transports.http.port = parseInt(env.BROOKLYN_PORT, 10);
+      config.transports.http.port = Number.parseInt(env["BROOKLYN_PORT"], 10);
     }
-    if (env.BROOKLYN_HOST) {
+    if (env["BROOKLYN_HOST"]) {
       config.transports = config.transports || {};
       config.transports.http = config.transports.http || {};
-      config.transports.http.host = env.BROOKLYN_HOST;
+      config.transports.http.host = env["BROOKLYN_HOST"];
     }
 
     // Browser configuration
-    if (env.BROOKLYN_MAX_BROWSERS) {
-      config.browsers = { maxInstances: parseInt(env.BROOKLYN_MAX_BROWSERS, 10) };
+    if (env["BROOKLYN_MAX_BROWSERS"]) {
+      config.browsers = { maxInstances: Number.parseInt(env["BROOKLYN_MAX_BROWSERS"], 10) };
     }
-    if (env.BROOKLYN_BROWSER_TYPE) {
+    if (env["BROOKLYN_BROWSER_TYPE"]) {
       config.browsers = config.browsers || {};
-      config.browsers.defaultType = env.BROOKLYN_BROWSER_TYPE as any;
+      config.browsers.defaultType = env["BROOKLYN_BROWSER_TYPE"] as any;
     }
-    if (env.BROOKLYN_HEADLESS !== undefined) {
+    if (env["BROOKLYN_HEADLESS"] !== undefined) {
       config.browsers = config.browsers || {};
-      config.browsers.headless = env.BROOKLYN_HEADLESS === "true";
+      config.browsers.headless = env["BROOKLYN_HEADLESS"] === "true";
     }
-    if (env.BROOKLYN_BROWSER_TIMEOUT) {
+    if (env["BROOKLYN_BROWSER_TIMEOUT"]) {
       config.browsers = config.browsers || {};
-      config.browsers.timeout = parseInt(env.BROOKLYN_BROWSER_TIMEOUT, 10);
+      config.browsers.timeout = Number.parseInt(env["BROOKLYN_BROWSER_TIMEOUT"], 10);
     }
-    if (env.BROOKLYN_BROWSER_PATH) {
+    if (env["BROOKLYN_BROWSER_PATH"]) {
       config.browsers = config.browsers || {};
-      config.browsers.installPath = env.BROOKLYN_BROWSER_PATH;
+      config.browsers.installPath = env["BROOKLYN_BROWSER_PATH"];
     }
 
     // Security configuration
-    if (env.BROOKLYN_ALLOWED_DOMAINS) {
+    if (env["BROOKLYN_ALLOWED_DOMAINS"]) {
       config.security = {
-        allowedDomains: env.BROOKLYN_ALLOWED_DOMAINS.split(",").map(d => d.trim()),
+        allowedDomains: env["BROOKLYN_ALLOWED_DOMAINS"].split(",").map((d) => d.trim()),
       };
     }
-    if (env.BROOKLYN_RATE_LIMIT_REQUESTS) {
+    if (env["BROOKLYN_RATE_LIMIT_REQUESTS"]) {
       config.security = config.security || {};
       config.security.rateLimit = config.security.rateLimit || {};
-      config.security.rateLimit.requests = parseInt(env.BROOKLYN_RATE_LIMIT_REQUESTS, 10);
+      config.security.rateLimit.requests = Number.parseInt(env["BROOKLYN_RATE_LIMIT_REQUESTS"], 10);
     }
 
     // Logging configuration
-    if (env.BROOKLYN_LOG_LEVEL) {
-      config.logging = { level: env.BROOKLYN_LOG_LEVEL as any };
+    if (env["BROOKLYN_LOG_LEVEL"]) {
+      config.logging = { level: env["BROOKLYN_LOG_LEVEL"] as any };
     }
-    if (env.BROOKLYN_LOG_FORMAT) {
+    if (env["BROOKLYN_LOG_FORMAT"]) {
       config.logging = config.logging || {};
-      config.logging.format = env.BROOKLYN_LOG_FORMAT as any;
+      config.logging.format = env["BROOKLYN_LOG_FORMAT"] as any;
     }
-    if (env.BROOKLYN_LOG_FILE) {
+    if (env["BROOKLYN_LOG_FILE"]) {
       config.logging = config.logging || {};
-      config.logging.file = env.BROOKLYN_LOG_FILE;
+      config.logging.file = env["BROOKLYN_LOG_FILE"];
     }
 
     // Path configuration
     const pathConfig: any = {};
-    if (env.BROOKLYN_CONFIG_DIR) pathConfig.config = env.BROOKLYN_CONFIG_DIR;
-    if (env.BROOKLYN_LOG_DIR) pathConfig.logs = env.BROOKLYN_LOG_DIR;
-    if (env.BROOKLYN_PLUGIN_DIR) pathConfig.plugins = env.BROOKLYN_PLUGIN_DIR;
-    if (env.BROOKLYN_BROWSER_DIR) pathConfig.browsers = env.BROOKLYN_BROWSER_DIR;
-    if (env.BROOKLYN_PID_DIR) pathConfig.pids = env.BROOKLYN_PID_DIR;
+    if (env["BROOKLYN_CONFIG_DIR"]) pathConfig.config = env["BROOKLYN_CONFIG_DIR"];
+    if (env["BROOKLYN_LOG_DIR"]) pathConfig.logs = env["BROOKLYN_LOG_DIR"];
+    if (env["BROOKLYN_PLUGIN_DIR"]) pathConfig.plugins = env["BROOKLYN_PLUGIN_DIR"];
+    if (env["BROOKLYN_BROWSER_DIR"]) pathConfig.browsers = env["BROOKLYN_BROWSER_DIR"];
+    if (env["BROOKLYN_PID_DIR"]) pathConfig.pids = env["BROOKLYN_PID_DIR"];
     if (Object.keys(pathConfig).length > 0) {
       config.paths = pathConfig;
     }
@@ -345,9 +345,9 @@ export class ConfigManager {
       // Try to load dotenv, but don't fail if it's not available
       const { config: dotenvConfig } = await import("dotenv");
       dotenvConfig();
-      
+
       logger.debug("Loaded .env file");
-      
+
       // After loading .env, re-read environment variables
       return this.loadFromEnvironment();
     } catch {
@@ -372,9 +372,9 @@ export class ConfigManager {
       if (existsSync(configPath)) {
         try {
           logger.debug("Loading config file", { path: configPath });
-          
+
           const content = readFileSync(configPath, "utf8");
-          
+
           if (configPath.endsWith(".json")) {
             return JSON.parse(content);
           } else if (configPath.endsWith(".yaml") || configPath.endsWith(".yml")) {
@@ -414,7 +414,7 @@ export class ConfigManager {
    */
   private mergeDeep(target: any, source: any): any {
     const result = { ...target };
-    
+
     for (const key in source) {
       if (source[key] && typeof source[key] === "object" && !Array.isArray(source[key])) {
         result[key] = this.mergeDeep(result[key] || {}, source[key]);
@@ -422,7 +422,7 @@ export class ConfigManager {
         result[key] = source[key];
       }
     }
-    
+
     return result;
   }
 
@@ -439,7 +439,11 @@ export class ConfigManager {
 
     // Validate transport configuration
     if (config.transports.http.enabled) {
-      if (!config.transports.http.port || config.transports.http.port < 1 || config.transports.http.port > 65535) {
+      if (
+        !config.transports.http.port ||
+        config.transports.http.port < 1 ||
+        config.transports.http.port > 65535
+      ) {
         errors.push("Invalid HTTP port");
       }
     }
@@ -465,7 +469,7 @@ export class ConfigManager {
    */
   private async ensureDirectories(config: BrooklynConfig): Promise<void> {
     const { mkdirSync } = await import("fs");
-    
+
     const directories = [
       config.paths.config,
       config.paths.logs,

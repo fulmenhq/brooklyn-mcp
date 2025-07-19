@@ -3,15 +3,15 @@
  * Transport-agnostic business logic for browser automation
  */
 
-import type { Tool, CallToolRequest, CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import type { Transport, ToolListHandler, ToolCallHandler } from "./transport.js";
+import type { CallToolRequest, CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
+import type { ToolCallHandler, ToolListHandler, Transport } from "./transport.js";
 
 import { getLogger } from "../shared/structured-logger.js";
 import { BrowserPoolManager } from "./browser-pool-manager.js";
+import type { BrooklynConfig } from "./config.js";
 import { OnboardingTools } from "./onboarding-tools.js";
 import { PluginManager } from "./plugin-manager.js";
 import { SecurityMiddleware } from "./security-middleware.js";
-import type { BrooklynConfig } from "./config.js";
 
 /**
  * Brooklyn engine initialization options
@@ -39,24 +39,24 @@ export interface BrooklynContext {
 export class BrooklynEngine {
   private readonly logger = getLogger("brooklyn-engine");
   private readonly config: BrooklynConfig;
-  
+
   private pluginManager: PluginManager;
   private browserPool: BrowserPoolManager;
   private security: SecurityMiddleware;
-  
+
   private transports = new Map<string, Transport>();
   private isInitialized = false;
 
   constructor(options: BrooklynEngineOptions) {
     this.config = options.config;
-    
+
     // Set global context if correlation ID provided
     if (options.correlationId) {
       this.logger.setGlobalContext({ correlationId: options.correlationId });
     }
-    
+
     this.pluginManager = new PluginManager();
-    this.browserPool = new BrowserPoolManager(this.config.browsers);
+    this.browserPool = new BrowserPoolManager();
     this.security = new SecurityMiddleware();
   }
 
@@ -102,7 +102,7 @@ export class BrooklynEngine {
 
     // Initialize transport
     await transport.initialize();
-    
+
     this.transports.set(name, transport);
     this.logger.info("Transport added", { name, type: transport.type });
   }
@@ -145,25 +145,23 @@ export class BrooklynEngine {
       await this.initialize();
     }
 
-    const startPromises = Array.from(this.transports.entries()).map(
-      async ([name, transport]) => {
-        try {
-          await transport.start();
-          this.logger.info("Transport started", { name, type: transport.type });
-        } catch (error) {
-          this.logger.error("Failed to start transport", { 
-            name, 
-            error: error instanceof Error ? error.message : String(error) 
-          });
-          throw error;
-        }
+    const startPromises = Array.from(this.transports.entries()).map(async ([name, transport]) => {
+      try {
+        await transport.start();
+        this.logger.info("Transport started", { name, type: transport.type });
+      } catch (error) {
+        this.logger.error("Failed to start transport", {
+          name,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        throw error;
       }
-    );
+    });
 
     await Promise.all(startPromises);
-    this.logger.info("All transports started", { 
+    this.logger.info("All transports started", {
       count: this.transports.size,
-      transports: Array.from(this.transports.keys())
+      transports: Array.from(this.transports.keys()),
     });
   }
 
@@ -174,10 +172,8 @@ export class BrooklynEngine {
     this.logger.info("Shutting down Brooklyn engine");
 
     // Stop all transports
-    const stopPromises = Array.from(this.transports.values()).map(
-      transport => transport.stop().catch(error => 
-        this.logger.error("Error stopping transport", { error })
-      )
+    const stopPromises = Array.from(this.transports.values()).map((transport) =>
+      transport.stop().catch((error) => this.logger.error("Error stopping transport", { error })),
     );
     await Promise.all(stopPromises);
 
@@ -196,13 +192,11 @@ export class BrooklynEngine {
    * Get engine status
    */
   getStatus() {
-    const transportStatus = Array.from(this.transports.entries()).map(
-      ([name, transport]) => ({
-        name,
-        type: transport.type,
-        running: transport.isRunning(),
-      })
-    );
+    const transportStatus = Array.from(this.transports.entries()).map(([name, transport]) => ({
+      name,
+      type: transport.type,
+      running: transport.isRunning(),
+    }));
 
     return {
       initialized: this.isInitialized,
@@ -210,13 +204,10 @@ export class BrooklynEngine {
         serviceName: this.config.serviceName,
         version: this.config.version,
         teamId: this.config.teamId,
-        maxBrowsers: this.config.maxBrowsers,
+        maxBrowsers: this.config.browsers.maxInstances,
       },
       transports: transportStatus,
-      browserPool: {
-        ...this.browserPool.getStats(),
-        metrics: this.browserPool.getResourceMetrics(),
-      },
+      browserPool: this.browserPool.getStatus(),
       plugins: {
         loaded: this.pluginManager.getAllTools().length,
       },
@@ -229,10 +220,10 @@ export class BrooklynEngine {
   private createToolListHandler(transportName: string): ToolListHandler {
     return async () => {
       const correlationId = this.generateCorrelationId();
-      
-      this.logger.debug("Tool list requested", { 
+
+      this.logger.debug("Tool list requested", {
         transport: transportName,
-        correlationId 
+        correlationId,
       });
 
       try {
@@ -241,11 +232,11 @@ export class BrooklynEngine {
         const pluginTools = this.pluginManager.getAllTools();
 
         const allTools = [...coreTools, ...onboardingTools, ...pluginTools];
-        
-        this.logger.debug("Tool list generated", { 
+
+        this.logger.debug("Tool list generated", {
           transport: transportName,
           correlationId,
-          toolCount: allTools.length 
+          toolCount: allTools.length,
         });
 
         return { tools: allTools };
@@ -319,7 +310,7 @@ export class BrooklynEngine {
           tool: name,
           error: error instanceof Error ? error.message : String(error),
         });
-        
+
         return {
           content: [
             {
@@ -453,10 +444,14 @@ export class BrooklynEngine {
   /**
    * Handle core tool execution
    */
-  private async handleCoreTool(name: string, args: unknown, context: BrooklynContext): Promise<unknown> {
-    this.logger.debug("Executing core tool", { 
-      tool: name, 
-      correlationId: context.correlationId 
+  private async handleCoreTool(
+    name: string,
+    args: unknown,
+    context: BrooklynContext,
+  ): Promise<unknown> {
+    this.logger.debug("Executing core tool", {
+      tool: name,
+      correlationId: context.correlationId,
     });
 
     try {

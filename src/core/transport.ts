@@ -3,7 +3,12 @@
  * Supports both MCP stdin/stdout and HTTP transports
  */
 
-import type { Tool, CallToolRequest, CallToolResult, ListToolsResult } from "@modelcontextprotocol/sdk/types.js";
+import type {
+  CallToolRequest,
+  CallToolResult,
+  ListToolsResult,
+  Tool,
+} from "@modelcontextprotocol/sdk/types.js";
 
 /**
  * Transport abstraction interface
@@ -12,27 +17,27 @@ import type { Tool, CallToolRequest, CallToolResult, ListToolsResult } from "@mo
 export interface Transport {
   readonly name: string;
   readonly type: TransportType;
-  
+
   /**
    * Initialize the transport
    */
   initialize(): Promise<void>;
-  
+
   /**
    * Start listening for requests
    */
   start(): Promise<void>;
-  
+
   /**
    * Stop the transport
    */
   stop(): Promise<void>;
-  
+
   /**
    * Check if transport is running
    */
   isRunning(): boolean;
-  
+
   /**
    * Set request handlers
    */
@@ -92,11 +97,11 @@ export type TransportFactory = (config: TransportConfig) => Promise<Transport>;
  */
 export class TransportRegistry {
   private static factories = new Map<TransportType, TransportFactory>();
-  
+
   static register(type: TransportType, factory: TransportFactory): void {
     this.factories.set(type, factory);
   }
-  
+
   static async create(config: TransportConfig): Promise<Transport> {
     const factory = this.factories.get(config.type);
     if (!factory) {
@@ -104,7 +109,7 @@ export class TransportRegistry {
     }
     return factory(config);
   }
-  
+
   static getAvailableTypes(): TransportType[] {
     return Array.from(this.factories.keys());
   }
