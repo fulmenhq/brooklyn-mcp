@@ -486,6 +486,49 @@ top -p $(cat ~/.local/share/fulmen-brooklyn/server.pid)
 watch -n 1 'ls -lh ~/.local/share/fulmen-brooklyn/logs/'
 ```
 
+## CLI Help Text Maintenance
+
+Brooklyn uses fenced code blocks in documentation to provide CLI help text. This ensures single source of truth between documentation and CLI help.
+
+### Adding Help Text
+
+Use specially named fenced blocks in markdown files:
+
+````markdown
+```help-text-command-name
+Your help text here
+Formatted for terminal display
+```
+````
+
+### Naming Convention
+
+Help text blocks use the pattern: `help-text-{command}-{section}`
+
+Examples:
+- `help-text-mcp-setup` - MCP configuration steps
+- `help-text-mcp-troubleshooting` - MCP troubleshooting guide  
+- `help-text-web-start` - Web server startup help
+
+### Guidelines
+
+1. **Keep it concise** - CLI help should be scannable
+2. **Use consistent indentation** - 2 spaces for sub-items
+3. **Include repository link** - Point to full documentation
+4. **Terminal-friendly** - No markdown formatting inside fenced blocks
+5. **Action-oriented** - Focus on what user should do
+
+### Build Process
+
+The build process extracts these blocks to `src/generated/help/` (gitignored):
+
+```bash
+scripts/extract-help-text.ts  # Extracts fenced blocks
+src/generated/help/           # Generated CLI help content
+```
+
+Help text is embedded in the Brooklyn binary at build time for fast CLI response.
+
 ## Contributing
 
 ### Code Standards

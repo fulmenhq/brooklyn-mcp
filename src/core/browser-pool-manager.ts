@@ -397,6 +397,72 @@ export class BrowserPoolManager {
     }
   }
 
+  /**
+   * List all active browsers
+   */
+  async listActiveBrowsers(): Promise<{
+    browsers: Array<{
+      browserId: string;
+      browserType: string;
+      headless: boolean;
+      launchedAt: Date;
+      currentUrl?: string;
+      teamId?: string;
+      isActive: boolean;
+    }>;
+  }> {
+    const browsers = Array.from(this.sessions.values()).map((session) => ({
+      browserId: session.id,
+      browserType: "chromium", // TODO: Track actual browser type
+      headless: true, // TODO: Track actual headless mode
+      launchedAt: session.createdAt,
+      currentUrl: session.page.url(),
+      teamId: session.teamId,
+      isActive: session.isActive,
+    }));
+
+    return { browsers };
+  }
+
+  /**
+   * Navigate browser back in history
+   */
+  async goBack(args: { browserId: string }): Promise<{
+    browserId: string;
+    status: string;
+    url?: string;
+  }> {
+    const session = this.sessions.get(args.browserId);
+    if (!session) {
+      throw new Error(`Browser with ID ${args.browserId} not found`);
+    }
+
+    try {
+      session.lastUsed = new Date();
+
+      // Navigate back in history
+      await session.page.goBack();
+      const url = session.page.url();
+
+      ensureLogger().info("Browser navigated back", {
+        browserId: args.browserId,
+        url,
+      });
+
+      return {
+        browserId: args.browserId,
+        status: "navigated_back",
+        url,
+      };
+    } catch (error) {
+      ensureLogger().error("Go back failed", {
+        browserId: args.browserId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  }
+
   // Get browser pool status
   getStatus(): {
     activeSessions: number;

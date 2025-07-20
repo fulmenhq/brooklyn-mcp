@@ -10,7 +10,12 @@
  * - brooklyn setup        (Browser installation and configuration)
  */
 
+import { HELP_TEXT } from "../generated/help/index.js";
 import { initializeLogging } from "../shared/structured-logger.js";
+
+// Debug: Check if HELP_TEXT is available at module level
+console.error("MODULE DEBUG: HELP_TEXT imported:", typeof HELP_TEXT);
+console.error("MODULE DEBUG: HELP_TEXT keys:", Object.keys(HELP_TEXT || {}));
 
 // ARCHITECTURE COMMITTEE IMMEDIATE FIX:
 // Initialize logging BEFORE any other imports to avoid circular dependency issues.
@@ -78,6 +83,29 @@ function setupMCPCommands(program: Command): void {
     .command("mcp")
     .description("MCP server commands for Claude Code integration");
 
+  // Debug: Check if HELP_TEXT is loaded
+  console.error("DEBUG: HELP_TEXT keys:", Object.keys(HELP_TEXT));
+  console.error("DEBUG: mcp-setup content:", HELP_TEXT["mcp-setup"]?.substring(0, 50) + "...");
+
+  // Override helpInformation method to append custom help (Architecture Team recommendation)
+  const originalHelp = mcpCmd.helpInformation;
+  mcpCmd.helpInformation = function () {
+    console.error("DEBUG: helpInformation called");
+    return (
+      originalHelp.call(this) +
+      `
+
+Quick Setup:
+${HELP_TEXT["mcp-setup"]}
+
+Troubleshooting:
+${HELP_TEXT["mcp-troubleshooting"]}
+
+For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
+`
+    );
+  };
+
   mcpCmd
     .command("start")
     .description("Start MCP server (stdin/stdout mode for Claude Code)")
@@ -130,7 +158,18 @@ function setupMCPCommands(program: Command): void {
   mcpCmd
     .command("status")
     .description("Check MCP server status")
-    .action(async () => {});
+    .action(async () => {
+      try {
+        const { getServerStatus } = await import("../../scripts/server-management.js");
+        await getServerStatus();
+      } catch (error) {
+        console.error(
+          "Failed to get MCP server status:",
+          error instanceof Error ? error.message : String(error),
+        );
+        process.exit(1);
+      }
+    });
 
   mcpCmd
     .command("configure")
@@ -235,12 +274,34 @@ function setupWebCommands(program: Command): void {
   webCmd
     .command("stop")
     .description("Stop web server daemon")
-    .action(async () => {});
+    .action(async () => {
+      try {
+        const { stopServerProcess } = await import("../../scripts/server-management.js");
+        await stopServerProcess();
+      } catch (error) {
+        console.error(
+          "Failed to stop server:",
+          error instanceof Error ? error.message : String(error),
+        );
+        process.exit(1);
+      }
+    });
 
   webCmd
     .command("status")
     .description("Check web server status")
-    .action(async () => {});
+    .action(async () => {
+      try {
+        const { getServerStatus } = await import("../../scripts/server-management.js");
+        await getServerStatus();
+      } catch (error) {
+        console.error(
+          "Failed to get server status:",
+          error instanceof Error ? error.message : String(error),
+        );
+        process.exit(1);
+      }
+    });
 }
 
 /**
@@ -284,12 +345,117 @@ function setupSetupCommand(program: Command): void {
         initializeLogging(config);
         const logger = getLogger("brooklyn-cli");
 
-        logger.info("Brooklyn setup starting", { options });
+        if (options.check) {
+          await checkBrowserInstallation(options.browser);
+        } else {
+          await setupBrowsers(options.browser);
+        }
+
+        logger.info("Brooklyn setup completed", { options });
       } catch (error) {
         console.error("Setup failed:", error instanceof Error ? error.message : String(error));
         process.exit(1);
       }
     });
+}
+
+/**
+ * Check browser installation status
+ */
+async function checkBrowserInstallation(browserType?: string): Promise<void> {
+  const { chromium, firefox, webkit } = await import("playwright");
+  const logger = getLogger("brooklyn-setup");
+
+  const browsersToCheck = browserType ? [browserType] : ["chromium", "firefox", "webkit"];
+  const results: Record<string, { installed: boolean; error?: string }> = {};
+
+  for (const browser of browsersToCheck) {
+    try {
+      switch (browser) {
+        case "chromium": {
+          const browserInstance = await chromium.launch({ headless: true });
+          await browserInstance.close();
+          results[browser] = { installed: true };
+          break;
+        }
+        case "firefox": {
+          const browserInstance = await firefox.launch({ headless: true });
+          await browserInstance.close();
+          results[browser] = { installed: true };
+          break;
+        }
+        case "webkit": {
+          const browserInstance = await webkit.launch({ headless: true });
+          await browserInstance.close();
+          results[browser] = { installed: true };
+          break;
+        }
+        default:
+          results[browser] = { installed: false, error: "Unknown browser type" };
+      }
+    } catch (error) {
+      results[browser] = {
+        installed: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  // Display results
+  console.log("\nBrowser Installation Status:");
+  console.log("============================");
+
+  let allInstalled = true;
+  for (const [browser, result] of Object.entries(results)) {
+    const status = result.installed ? "✅ INSTALLED" : "❌ NOT INSTALLED";
+    console.log(`${browser.toUpperCase()}: ${status}`);
+    if (!result.installed && result.error) {
+      console.log(`   Error: ${result.error}`);
+    }
+    if (!result.installed) allInstalled = false;
+  }
+
+  if (allInstalled) {
+    console.log("\n🎉 All browsers are ready for automation!");
+    logger.info("Browser validation passed", { browsers: browsersToCheck });
+  } else {
+    console.log("\n💡 Run 'brooklyn setup' to install missing browsers");
+    logger.warn("Browser validation failed", { results });
+    process.exit(1);
+  }
+}
+
+/**
+ * Setup browsers for Brooklyn
+ */
+async function setupBrowsers(browserType?: string): Promise<void> {
+  const logger = getLogger("brooklyn-setup");
+
+  console.log("Installing browsers for Brooklyn automation...");
+
+  try {
+    const { execSync } = await import("node:child_process");
+
+    if (browserType) {
+      console.log(`Installing ${browserType}...`);
+      execSync(`bunx playwright install ${browserType}`, { stdio: "inherit" });
+    } else {
+      console.log("Installing all browsers (chromium, firefox, webkit)...");
+      execSync("bunx playwright install", { stdio: "inherit" });
+    }
+
+    console.log("\n✅ Browser installation completed!");
+
+    // Verify installation
+    await checkBrowserInstallation(browserType);
+
+    logger.info("Browser setup completed", { browserType });
+  } catch (error) {
+    logger.error("Browser setup failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
 }
 
 /**

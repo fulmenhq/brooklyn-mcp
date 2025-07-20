@@ -26,58 +26,55 @@ After installation, the `brooklyn` command is available system-wide (assuming `~
 
 ## MCP Configuration for Claude Code
 
-### Automatic Configuration
+### Quick Setup (Recommended)
 
-The simplest way to configure Claude Code:
+Use the Claude Code CLI to add Brooklyn:
+
+```help-text-mcp-setup
+Add Brooklyn for all your projects (user-wide):
+  claude mcp add -s user brooklyn brooklyn mcp start
+
+Alternative - add for current project only:
+  claude mcp add brooklyn brooklyn mcp start
+
+Verify configuration:
+  claude mcp list
+  claude mcp get brooklyn
+
+For troubleshooting, see: https://github.com/fulmenhq/fulmen-mcp-brooklyn
+```
+
+### With Environment Variables
+
+Add Brooklyn with team-specific configuration:
 
 ```bash
-brooklyn mcp configure
+# Add with environment variables
+claude mcp add -s user brooklyn brooklyn mcp start \
+  -e BROOKLYN_TEAM_ID=your-team \
+  -e BROOKLYN_LOG_LEVEL=info
 ```
 
-This command:
+### Configuration Scopes
 
-1. Detects your Claude Code installation
-2. Adds Brooklyn to your MCP servers configuration
-3. Points to the installed binary (not the development directory)
-4. Validates the configuration
+Brooklyn supports different configuration scopes:
 
-### Manual Configuration
+```bash
+# User-wide (recommended for individual use)
+claude mcp add -s user brooklyn brooklyn mcp start
 
-If you prefer manual configuration, add this to your Claude Code settings:
+# Project-specific (for team collaboration)
+claude mcp add -s project brooklyn brooklyn mcp start
 
-**macOS/Linux** (`~/.config/claude/claude_desktop_config.json`):
-
-```json
-{
-  "mcpServers": {
-    "brooklyn": {
-      "command": "/home/username/.local/bin/brooklyn",
-      "args": ["mcp", "start"],
-      "env": {
-        "BROOKLYN_TEAM_ID": "your-team",
-        "BROOKLYN_LOG_LEVEL": "info"
-      }
-    }
-  }
-}
+# Local (private to current project directory)
+claude mcp add brooklyn brooklyn mcp start
 ```
 
-**Windows** (`%APPDATA%\Claude\claude_desktop_config.json`):
+### Legacy Manual Configuration (Not Recommended)
 
-```json
-{
-  "mcpServers": {
-    "brooklyn": {
-      "command": "C:\\Users\\username\\AppData\\Local\\Brooklyn\\brooklyn.exe",
-      "args": ["mcp", "start"],
-      "env": {
-        "BROOKLYN_TEAM_ID": "your-team",
-        "BROOKLYN_LOG_LEVEL": "info"
-      }
-    }
-  }
-}
-```
+**⚠️ WARNING**: Manual JSON configuration is for Claude Desktop app only, not Claude Code CLI.
+
+If you must use manual configuration for some reason, see the [Legacy Configuration Guide](../legacy/claude-desktop-config.md).
 
 ### Configuration Scopes
 
@@ -185,17 +182,19 @@ brooklyn mcp status
 
 ### MCP Mode Issues
 
-**Brooklyn tools not appearing in Claude Code**:
+```help-text-mcp-troubleshooting
+Brooklyn tools not appearing in Claude Code:
+  1. Restart Claude Code completely
+  2. Check configuration: claude mcp get brooklyn
+  3. Verify binary exists: which brooklyn
 
-1. Restart Claude Code after configuration
-2. Check logs: `brooklyn logs --mcp`
-3. Validate config: `brooklyn mcp status`
+Connection errors:
+  1. Ensure Brooklyn installed: brooklyn --version
+  2. Test MCP directly: brooklyn mcp start --help
+  3. Check Claude Code logs
 
-**Connection errors**:
-
-1. Ensure binary path is absolute in config
-2. Check file permissions on brooklyn binary
-3. Verify no stdout contamination in logs
+Need help? Visit: https://github.com/fulmenhq/fulmen-mcp-brooklyn
+```
 
 ### Binary Path Issues
 

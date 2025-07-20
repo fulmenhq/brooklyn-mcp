@@ -8,7 +8,7 @@
   "module": "src/index.ts",
   "scripts": {
     "dev": "bun run --watch src/index.ts",
-    "build": "mkdir -p dist && bun build src/cli/brooklyn.ts --outfile dist/brooklyn --target node --external playwright --external @playwright/test --external electron && chmod +x dist/brooklyn",
+    "build": "bun scripts/extract-help-text.ts && mkdir -p dist && bun build src/cli/brooklyn.ts --outfile dist/brooklyn --target node --external playwright --external @playwright/test --external electron && chmod +x dist/brooklyn",
     "setup": "bun install && bunx playwright install",
     "start": "bun run src/cli/brooklyn.ts mcp start",
     "server:start": "bun scripts/server-management.ts start",

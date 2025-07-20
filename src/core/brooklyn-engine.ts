@@ -9,9 +9,11 @@ import type { ToolCallHandler, ToolListHandler, Transport } from "./transport.js
 import { getLogger } from "../shared/logger.js";
 import { BrowserPoolManager } from "./browser-pool-manager.js";
 import type { BrooklynConfig } from "./config.js";
+import { ToolDiscoveryService } from "./discovery/tool-discovery-service.js";
 import { OnboardingTools } from "./onboarding-tools.js";
 import { PluginManager } from "./plugin-manager.js";
 import { SecurityMiddleware } from "./security-middleware.js";
+import type { EnhancedTool } from "./tool-definitions.js";
 
 /**
  * Brooklyn engine initialization options
@@ -50,6 +52,7 @@ export class BrooklynEngine {
   private pluginManager: PluginManager;
   private browserPool: BrowserPoolManager;
   private security: SecurityMiddleware;
+  private discovery: ToolDiscoveryService;
 
   private transports = new Map<string, Transport>();
   private isInitialized = false;
@@ -66,8 +69,78 @@ export class BrooklynEngine {
     console.error("DEBUG: Creating BrowserPoolManager...");
     this.browserPool = new BrowserPoolManager();
     console.error("DEBUG: Creating SecurityMiddleware...");
-    this.security = new SecurityMiddleware();
+    this.security = new SecurityMiddleware({
+      allowedDomains: this.config.security.allowedDomains,
+      rateLimiting: this.config.security.rateLimit,
+      maxBrowsers: this.config.browsers.maxInstances,
+      teamIsolation: true,
+    });
+
+    console.error("DEBUG: Creating ToolDiscoveryService...");
+    this.discovery = new ToolDiscoveryService({
+      version: this.config.version,
+      serverName: "Brooklyn MCP Server",
+      description: "Enterprise-ready browser automation platform with AI-friendly tool discovery",
+      capabilities: [
+        "browser-automation",
+        "screenshot-capture",
+        "web-navigation",
+        "content-extraction",
+        "form-automation",
+      ],
+      categories: [],
+    });
+
+    // Register standard categories
+    this.registerStandardCategories();
+
     console.error("DEBUG: BrooklynEngine constructor complete");
+  }
+
+  /**
+   * Register standard tool categories
+   */
+  private registerStandardCategories(): void {
+    const categories = [
+      {
+        id: "browser-lifecycle",
+        name: "Browser Lifecycle",
+        description: "Tools for managing browser instances",
+        icon: "🌐",
+      },
+      {
+        id: "navigation",
+        name: "Navigation",
+        description: "Tools for navigating web pages",
+        icon: "🧭",
+      },
+      {
+        id: "content-capture",
+        name: "Content Capture",
+        description: "Tools for capturing page content",
+        icon: "📸",
+      },
+      {
+        id: "interaction",
+        name: "Interaction",
+        description: "Tools for interacting with page elements",
+        icon: "🖱️",
+      },
+      {
+        id: "discovery",
+        name: "Discovery",
+        description: "Tools for discovering and understanding available capabilities",
+        icon: "🔍",
+      },
+      {
+        id: "onboarding",
+        name: "Onboarding",
+        description: "Tools for getting started with Brooklyn",
+        icon: "🚀",
+      },
+    ];
+
+    categories.forEach((category) => this.discovery.registerCategory(category));
   }
 
   /**
@@ -91,11 +164,80 @@ export class BrooklynEngine {
     // Connect onboarding tools to browser pool
     OnboardingTools.setBrowserPool(this.browserPool);
 
+    // Register all tools with discovery service
+    await this.registerAllTools();
+
     // Load plugins
     await this.pluginManager.loadPlugins();
 
     this.isInitialized = true;
     this.getLogger().info("Brooklyn engine initialized successfully");
+  }
+
+  /**
+   * Register all tools with the discovery service
+   */
+  private async registerAllTools(): Promise<void> {
+    try {
+      // Register enhanced core tools
+      const { getAllTools } = await import("./tool-definitions.js");
+      const enhancedTools = getAllTools();
+      this.discovery.registerTools(enhancedTools);
+
+      // Register onboarding tools as enhanced tools
+      const onboardingTools = OnboardingTools.getTools();
+      const enhancedOnboarding: EnhancedTool[] = onboardingTools.map((tool) => ({
+        ...tool,
+        category: "onboarding",
+        examples: [],
+        errors: [],
+      }));
+      this.discovery.registerTools(enhancedOnboarding);
+
+      this.getLogger().info("Registered tools with discovery service", {
+        coreTools: enhancedTools.length,
+        onboardingTools: enhancedOnboarding.length,
+        totalTools: this.discovery.getMetadata().totalTools,
+      });
+    } catch (error) {
+      this.getLogger().warn("Failed to register enhanced tools, using basic tools", { error });
+
+      // Register basic tools as fallback
+      const basicTools = this.getBasicCoreTools();
+      const enhancedBasic: EnhancedTool[] = basicTools.map((tool) => ({
+        ...tool,
+        category: this.inferCategory(tool.name),
+        examples: [],
+        errors: [],
+      }));
+      this.discovery.registerTools(enhancedBasic);
+    }
+  }
+
+  /**
+   * Infer category from tool name
+   */
+  private inferCategory(toolName: string): string {
+    if (toolName.includes("browser") || toolName.includes("launch") || toolName.includes("close")) {
+      return "browser-lifecycle";
+    }
+    if (toolName.includes("navigate") || toolName.includes("go_")) {
+      return "navigation";
+    }
+    if (
+      toolName.includes("screenshot") ||
+      toolName.includes("pdf") ||
+      toolName.includes("content")
+    ) {
+      return "content-capture";
+    }
+    if (toolName.includes("click") || toolName.includes("type") || toolName.includes("select")) {
+      return "interaction";
+    }
+    if (toolName.includes("brooklyn_")) {
+      return "discovery";
+    }
+    return "general";
   }
 
   /**
@@ -239,16 +381,31 @@ export class BrooklynEngine {
       });
 
       try {
-        const coreTools = await this.getCoreTools();
-        const onboardingTools = OnboardingTools.getTools();
-        const pluginTools = this.pluginManager.getAllTools();
+        // Get all tools from discovery service (already includes plugin tools)
+        const allTools = this.discovery.getMCPTools();
 
-        const allTools = [...coreTools, ...onboardingTools, ...pluginTools];
+        // Also add any plugin tools not yet registered with discovery
+        const pluginTools = this.pluginManager.getAllTools();
+        const discoveredToolNames = new Set(allTools.map((t) => t.name));
+
+        for (const pluginTool of pluginTools) {
+          if (!discoveredToolNames.has(pluginTool.name)) {
+            allTools.push(pluginTool);
+            // Register with discovery for future use
+            this.discovery.registerTool({
+              ...pluginTool,
+              category: "plugin",
+              examples: [],
+              errors: [],
+            });
+          }
+        }
 
         this.getLogger().debug("Tool list generated", {
           transport: transportName,
           correlationId,
           toolCount: allTools.length,
+          categories: this.discovery.getCategories().map((c) => c.id),
         });
 
         return { tools: allTools };
@@ -287,8 +444,11 @@ export class BrooklynEngine {
           transport: transportName,
         };
 
-        // Apply security middleware
-        await this.security.validateRequest(request);
+        // Apply security middleware with context
+        await this.security.validateRequest(request, {
+          teamId: this.config.teamId,
+          userId: context.userId,
+        });
 
         let result: unknown;
 
@@ -337,94 +497,95 @@ export class BrooklynEngine {
   }
 
   /**
-   * Get core tools
+   * Get core tools from enhanced tool definitions
    */
   private async getCoreTools(): Promise<Tool[]> {
+    try {
+      const { getAllTools } = await import("./tool-definitions.js");
+      const enhancedTools = getAllTools();
+
+      // Convert enhanced tools to MCP Tool format
+      return enhancedTools.map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        inputSchema: tool.inputSchema,
+      }));
+    } catch (error) {
+      // Fallback to basic tools if enhanced definitions not available yet
+      this.getLogger().warn("Enhanced tool definitions not available, using basic tools", {
+        error,
+      });
+      return this.getBasicCoreTools();
+    }
+  }
+
+  /**
+   * Get basic core tools (fallback)
+   */
+  private getBasicCoreTools(): Tool[] {
     return [
       {
         name: "launch_browser",
-        description: "Launch a new browser instance",
+        description: "Launch a new browser instance (Chromium, Firefox, or WebKit)",
         inputSchema: {
           type: "object",
           properties: {
-            type: {
+            browserType: {
               type: "string",
               enum: ["chromium", "firefox", "webkit"],
-              description: "Browser type to launch",
+              default: "chromium",
             },
             headless: {
               type: "boolean",
-              description: "Run browser in headless mode",
               default: true,
             },
-            teamId: {
-              type: "string",
-              description: "Team identifier for access control",
-            },
           },
-          required: ["type", "teamId"],
         },
       },
       {
-        name: "navigate",
-        description: "Navigate to a URL",
+        name: "navigate_to_url",
+        description: "Navigate browser to a specific URL",
         inputSchema: {
           type: "object",
           properties: {
-            browserId: {
-              type: "string",
-              description: "Browser instance ID",
-            },
-            url: {
-              type: "string",
-              description: "URL to navigate to",
-            },
-            waitUntil: {
-              type: "string",
-              enum: ["load", "domcontentloaded", "networkidle"],
-              description: "Wait condition",
-              default: "load",
-            },
+            browserId: { type: "string" },
+            url: { type: "string" },
           },
           required: ["browserId", "url"],
         },
       },
       {
-        name: "screenshot",
-        description: "Take a screenshot of the page",
+        name: "take_screenshot",
+        description: "Capture a screenshot of the current page",
         inputSchema: {
           type: "object",
           properties: {
-            browserId: {
-              type: "string",
-              description: "Browser instance ID",
-            },
-            fullPage: {
-              type: "boolean",
-              description: "Capture full page",
-              default: false,
-            },
-            quality: {
-              type: "number",
-              description: "Image quality (0-100)",
-              default: 80,
-            },
+            browserId: { type: "string" },
+            fullPage: { type: "boolean", default: false },
           },
           required: ["browserId"],
         },
       },
       {
-        name: "close_browser",
-        description: "Close a browser instance",
+        name: "brooklyn_list_tools",
+        description: "List all available Brooklyn tools organized by category",
         inputSchema: {
           type: "object",
           properties: {
-            browserId: {
-              type: "string",
-              description: "Browser instance ID",
-            },
+            category: { type: "string" },
+            includeExamples: { type: "boolean", default: true },
           },
-          required: ["browserId"],
+        },
+      },
+      {
+        name: "brooklyn_tool_help",
+        description: "Get detailed help and examples for a specific tool",
+        inputSchema: {
+          type: "object",
+          properties: {
+            toolName: { type: "string" },
+          },
+          required: ["toolName"],
         },
       },
     ];
@@ -434,7 +595,20 @@ export class BrooklynEngine {
    * Check if tool is a core tool
    */
   private isCoreTools(toolName: string): boolean {
-    const coreTools = ["launch_browser", "navigate", "screenshot", "close_browser"];
+    const coreTools = [
+      // Browser lifecycle
+      "launch_browser",
+      "close_browser",
+      "list_active_browsers",
+      // Navigation
+      "navigate_to_url",
+      "go_back",
+      // Content capture
+      "take_screenshot",
+      // Discovery
+      "brooklyn_list_tools",
+      "brooklyn_tool_help",
+    ];
     return coreTools.includes(toolName);
   }
 
@@ -468,14 +642,30 @@ export class BrooklynEngine {
 
     try {
       switch (name) {
+        // Browser lifecycle tools
         case "launch_browser":
           return await this.browserPool.launchBrowser(args as any);
-        case "navigate":
-          return await this.browserPool.navigate(args as any);
-        case "screenshot":
-          return await this.browserPool.screenshot(args as any);
         case "close_browser":
           return await this.browserPool.closeBrowser(args as any);
+        case "list_active_browsers":
+          return await this.browserPool.listActiveBrowsers();
+
+        // Navigation tools
+        case "navigate_to_url":
+          return await this.browserPool.navigate(args as any);
+        case "go_back":
+          return await this.browserPool.goBack(args as any);
+
+        // Content capture tools
+        case "take_screenshot":
+          return await this.browserPool.screenshot(args as any);
+
+        // Discovery tools
+        case "brooklyn_list_tools":
+          return await this.handleListTools(args as any);
+        case "brooklyn_tool_help":
+          return await this.handleToolHelp(args as any);
+
         default:
           throw new Error(`Unknown core tool: ${name}`);
       }
@@ -487,6 +677,91 @@ export class BrooklynEngine {
       });
       throw error;
     }
+  }
+
+  /**
+   * Handle brooklyn_list_tools discovery tool
+   */
+  private async handleListTools(args: {
+    category?: string;
+    includeExamples?: boolean;
+  }): Promise<unknown> {
+    if (args.category) {
+      const tools = this.discovery.getToolsByCategory(args.category);
+      return {
+        category: args.category,
+        tools: tools.map((tool) => ({
+          name: tool.name,
+          description: tool.description,
+          examples: args.includeExamples ? tool.examples : undefined,
+        })),
+        count: tools.length,
+      };
+    } else {
+      const categories = this.discovery.getCategories();
+      const metadata = this.discovery.getMetadata();
+
+      return {
+        serverName: metadata.serverName,
+        version: metadata.version,
+        description: metadata.description,
+        categories: categories.map((cat) => ({
+          id: cat.id,
+          name: cat.name,
+          description: cat.description,
+          icon: cat.icon,
+        })),
+        totalTools: metadata.totalTools,
+        toolsByCategory: categories.map((category) => ({
+          category: category.id,
+          name: category.name,
+          tools: this.discovery.getToolsByCategory(category.id).map((tool) => tool.name),
+          count: this.discovery.getToolsByCategory(category.id).length,
+        })),
+        capabilities: metadata.capabilities,
+        lastUpdated: metadata.lastUpdated,
+      };
+    }
+  }
+
+  /**
+   * Handle brooklyn_tool_help discovery tool
+   */
+  private async handleToolHelp(args: { toolName: string }): Promise<unknown> {
+    const tool = this.discovery.getTool(args.toolName);
+    if (!tool) {
+      // Try searching for the tool
+      const searchResults = this.discovery.searchTools(args.toolName);
+      if (searchResults.length > 0) {
+        const suggestions = searchResults.slice(0, 3).map((r) => r.tool.name);
+        throw new Error(
+          `Tool '${args.toolName}' not found. Did you mean one of: ${suggestions.join(", ")}?`,
+        );
+      }
+      throw new Error(`Tool '${args.toolName}' not found`);
+    }
+
+    // Get category info
+    const category = this.discovery.getCategory(tool.category);
+
+    return {
+      name: tool.name,
+      description: tool.description,
+      category: {
+        id: tool.category,
+        name: category?.name || tool.category,
+        description: category?.description,
+      },
+      inputSchema: tool.inputSchema,
+      examples: tool.examples || [],
+      errors: tool.errors || [],
+      // Add related tools
+      relatedTools: this.discovery
+        .getToolsByCategory(tool.category)
+        .filter((t) => t.name !== tool.name)
+        .slice(0, 3)
+        .map((t) => ({ name: t.name, description: t.description })),
+    };
   }
 
   /**

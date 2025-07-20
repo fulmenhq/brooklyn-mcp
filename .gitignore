@@ -8,6 +8,9 @@ node_modules/
 /build
 *.tsbuildinfo
 
+# Generated help content
+src/generated/
+
 # IDEs and editors
 .vscode/
 .idea/

@@ -129,7 +129,7 @@ async function startServer(): Promise<void> {
 /**
  * Stop the server
  */
-async function stopServer(): Promise<void> {
+export async function stopServerProcess(): Promise<void> {
   const pid = getPid();
 
   if (!pid) {
@@ -183,7 +183,7 @@ async function stopServer(): Promise<void> {
  */
 async function restartServer(): Promise<void> {
   console.log("Restarting server...");
-  await stopServer();
+  await stopServerProcess();
   await new Promise((resolve) => setTimeout(resolve, 1000));
   await startServer();
 }
@@ -191,7 +191,7 @@ async function restartServer(): Promise<void> {
 /**
  * Get server status
  */
-async function getStatus(): Promise<void> {
+export async function getServerStatus(): Promise<void> {
   const pid = getPid();
 
   if (!pid) {
@@ -224,7 +224,7 @@ async function cleanup(): Promise<void> {
   console.log("Cleaning up server resources...");
 
   // Stop server if running
-  await stopServer();
+  await stopServerProcess();
 
   // Additional cleanup tasks
   console.log("Cleanup completed");
@@ -277,13 +277,13 @@ async function main(): Promise<void> {
       await startServer();
       break;
     case "stop":
-      await stopServer();
+      await stopServerProcess();
       break;
     case "restart":
       await restartServer();
       break;
     case "status":
-      await getStatus();
+      await getServerStatus();
       break;
     case "cleanup":
       await cleanup();
