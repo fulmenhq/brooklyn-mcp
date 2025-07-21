@@ -51,9 +51,11 @@ That's it! The [5-minute onboarding section](CLAUDE.md#5-minute-team-onboarding-
 ### Brooklyn Team Achievements
 
 - **⚡ Implementation Time**: 2 hours (following maintainer guide)
+- **🔄 Planning Innovation**: Team-specific directory structure pioneered
 - **🎯 Target Metrics**: <15 min onboarding, 70%+ refit reduction
 - **🏆 Architecture Status**: Committee approved and ecosystem endorsed
 - **📈 Success Rate**: 100% maintainer guide compliance validated
+- **🌟 Process Innovation**: Team-isolated planning files for workflow continuity
 
 ### Technology Stack
 
@@ -70,6 +72,7 @@ That's it! The [5-minute onboarding section](CLAUDE.md#5-minute-team-onboarding-
 
 - **[5-Minute Onboarding](CLAUDE.md#5-minute-team-onboarding-start-here-first)**: Your fastest path to productivity
 - **[Team Roster](.plans/TEAM-ROSTER.md)**: Find your role and current sprint focus
+- **[Team Planning](.plans/active/)**: Team-specific planning files and context
 - **[Critical Standards](docs/substaile/codex/typescript/typescript-coding.md)**: Zero-tolerance rules that prevent 70% of common mistakes
 
 ### For Maintainers
@@ -98,6 +101,7 @@ That's it! The [5-minute onboarding section](CLAUDE.md#5-minute-team-onboarding-
 **Key Success Factors**:
 
 - ✅ **Foundation Setup**: Team roster with template variables
+- ✅ **Team-Specific Planning**: Revolutionary `.plans/active/<teamname>/` structure
 - ✅ **Strategic Integration**: 5-minute onboarding pattern
 - ✅ **Compliance Framework**: Session memory + error linking
 - ✅ **Brooklyn Specificity**: MCP browser automation focus

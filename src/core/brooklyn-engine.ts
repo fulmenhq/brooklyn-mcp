@@ -140,7 +140,9 @@ export class BrooklynEngine {
       },
     ];
 
-    categories.forEach((category) => this.discovery.registerCategory(category));
+    for (const category of categories) {
+      this.discovery.registerCategory(category);
+    }
   }
 
   /**
@@ -697,31 +699,30 @@ export class BrooklynEngine {
         })),
         count: tools.length,
       };
-    } else {
-      const categories = this.discovery.getCategories();
-      const metadata = this.discovery.getMetadata();
-
-      return {
-        serverName: metadata.serverName,
-        version: metadata.version,
-        description: metadata.description,
-        categories: categories.map((cat) => ({
-          id: cat.id,
-          name: cat.name,
-          description: cat.description,
-          icon: cat.icon,
-        })),
-        totalTools: metadata.totalTools,
-        toolsByCategory: categories.map((category) => ({
-          category: category.id,
-          name: category.name,
-          tools: this.discovery.getToolsByCategory(category.id).map((tool) => tool.name),
-          count: this.discovery.getToolsByCategory(category.id).length,
-        })),
-        capabilities: metadata.capabilities,
-        lastUpdated: metadata.lastUpdated,
-      };
     }
+    const categories = this.discovery.getCategories();
+    const metadata = this.discovery.getMetadata();
+
+    return {
+      serverName: metadata.serverName,
+      version: metadata.version,
+      description: metadata.description,
+      categories: categories.map((cat) => ({
+        id: cat.id,
+        name: cat.name,
+        description: cat.description,
+        icon: cat.icon,
+      })),
+      totalTools: metadata.totalTools,
+      toolsByCategory: categories.map((category) => ({
+        category: category.id,
+        name: category.name,
+        tools: this.discovery.getToolsByCategory(category.id).map((tool) => tool.name),
+        count: this.discovery.getToolsByCategory(category.id).length,
+      })),
+      capabilities: metadata.capabilities,
+      lastUpdated: metadata.lastUpdated,
+    };
   }
 
   /**

@@ -14,9 +14,7 @@ import { HELP_TEXT } from "../generated/help/index.js";
 import { buildConfig } from "../shared/build-config.js";
 import { initializeLogging } from "../shared/structured-logger.js";
 
-// Debug: Check if HELP_TEXT is available at module level
-console.error("MODULE DEBUG: HELP_TEXT imported:", typeof HELP_TEXT);
-console.error("MODULE DEBUG: HELP_TEXT keys:", Object.keys(HELP_TEXT || {}));
+import { getLogger } from "../shared/structured-logger.js";
 
 // ARCHITECTURE COMMITTEE IMMEDIATE FIX:
 // Initialize logging BEFORE any other imports to avoid circular dependency issues.
@@ -65,6 +63,14 @@ const minimalConfig = {
 
 initializeLogging(minimalConfig as any);
 
+const earlyLogger = getLogger("brooklyn-cli-early");
+
+// Debug: Check if HELP_TEXT is available at module level
+earlyLogger.debug("HELP_TEXT imported", { type: typeof HELP_TEXT });
+earlyLogger.debug("HELP_TEXT keys", { keys: Object.keys(HELP_TEXT || {}) });
+
+// Duplicate configuration removed - using the one from above
+
 import { Command } from "commander";
 import { BrooklynEngine, type BrooklynEngineOptions } from "../core/brooklyn-engine.js";
 import { type BrooklynConfig, loadConfig } from "../core/config.js";
@@ -72,7 +78,7 @@ import { getLogger } from "../shared/structured-logger.js";
 import { createHTTP, createMCPStdio } from "../transports/index.js";
 
 // Version embedded at build time from VERSION file
-const VERSION = "1.1.4";
+const VERSION = "1.1.6";
 
 // Logger will be initialized after configuration is loaded
 
@@ -84,17 +90,17 @@ function setupMCPCommands(program: Command): void {
     .command("mcp")
     .description("MCP server commands for Claude Code integration");
 
+  const logger = getLogger("brooklyn-cli");
+
   // Debug: Check if HELP_TEXT is loaded
-  console.error("DEBUG: HELP_TEXT keys:", Object.keys(HELP_TEXT));
-  console.error("DEBUG: mcp-setup content:", HELP_TEXT["mcp-setup"]?.substring(0, 50) + "...");
+  logger.debug("HELP_TEXT keys", { keys: Object.keys(HELP_TEXT) });
+  logger.debug("mcp-setup content", { content: `${HELP_TEXT["mcp-setup"]?.substring(0, 50)}...` });
 
   // Override helpInformation method to append custom help (Architecture Team recommendation)
   const originalHelp = mcpCmd.helpInformation;
   mcpCmd.helpInformation = function () {
-    console.error("DEBUG: helpInformation called");
-    return (
-      originalHelp.call(this) +
-      `
+    logger.debug("helpInformation called");
+    return `${originalHelp.call(this)}
 
 Quick Setup:
 ${HELP_TEXT["mcp-setup"]}
@@ -103,8 +109,7 @@ Troubleshooting:
 ${HELP_TEXT["mcp-troubleshooting"]}
 
 For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
-`
-    );
+`;
   };
 
   mcpCmd
@@ -112,6 +117,8 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
     .description("Start MCP server (stdin/stdout mode for Claude Code)")
     .option("--team-id <teamId>", "Team identifier")
     .option("--log-level <level>", "Log level (debug, info, warn, error)")
+    .option("--dev-mode", "Enable development mode with named pipes")
+    .option("--pipes-prefix <prefix>", "Named pipes prefix (dev mode only)", "/tmp/brooklyn-dev")
     .action(async (options) => {
       try {
         // Load configuration with CLI overrides
@@ -124,29 +131,57 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
         // Note: Logging already initialized at module top to prevent circular dependency issues
         const logger = getLogger("brooklyn-cli");
 
-        logger.info("Starting Brooklyn MCP server", { mode: "mcp-stdio" });
+        const mode = options.devMode ? "dev-pipes" : "mcp-stdio";
+        logger.info("Starting Brooklyn MCP server", { mode });
 
-        // Create Brooklyn engine
-        console.error("DEBUG: Creating BrooklynEngine...");
-        const engine = new BrooklynEngine({
-          config,
-          correlationId: `mcp-start-${Date.now()}`,
-        });
+        // Handle development mode with named pipes
+        if (options.devMode) {
+          const { setupDevMode } = await import("../core/dev-mode.js");
+          const { inputPipe, outputPipe, processInfo } = await setupDevMode(options.pipesPrefix);
 
-        // Create and add MCP transport
-        console.error("DEBUG: Creating MCP transport...");
-        const mcpTransport = await createMCPStdio();
-        console.error("DEBUG: Adding transport to engine...");
-        await engine.addTransport("mcp", mcpTransport);
+          logger.info("Development mode enabled", {
+            inputPipe,
+            outputPipe,
+            processId: processInfo.processId,
+            pipesPrefix: options.pipesPrefix,
+          });
 
-        // Start MCP transport (this will connect to stdin/stdout)
-        await engine.startTransport("mcp");
+          // Create Brooklyn engine with dev mode config
+          const engine = new BrooklynEngine({
+            config: { ...config, devMode: true },
+            correlationId: `dev-${Date.now()}`,
+          });
 
-        // Process will stay alive until stdin is closed by Claude Code
-        logger.info("MCP server started successfully", {
-          transport: "stdio",
-          teamId: config.teamId,
-        });
+          // Create MCP transport with named pipes
+          const mcpTransport = await createMCPStdio({ inputPipe, outputPipe });
+          await engine.addTransport("dev-mcp", mcpTransport);
+          await engine.startTransport("dev-mcp");
+
+          logger.info("Development MCP server started", {
+            mode: "named-pipes",
+            teamId: config.teamId,
+            pipesInfo: processInfo,
+          });
+        } else {
+          // Standard MCP mode
+          const engine = new BrooklynEngine({
+            config,
+            correlationId: `mcp-start-${Date.now()}`,
+          });
+
+          // Create and add MCP transport
+          const mcpTransport = await createMCPStdio();
+          await engine.addTransport("mcp", mcpTransport);
+
+          // Start MCP transport (this will connect to stdin/stdout)
+          await engine.startTransport("mcp");
+
+          // Process will stay alive until stdin is closed by Claude Code
+          logger.info("MCP server started successfully", {
+            transport: "stdio",
+            teamId: config.teamId,
+          });
+        }
       } catch (error) {
         console.error(
           "Failed to start MCP server:",
@@ -177,6 +212,112 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
     .description("Configure Claude Code MCP integration")
     .option("--project", "Configure for project-specific scope")
     .action(async (_options) => {});
+
+  // MCP Development Mode Commands (Architecture Committee approved - internal use only)
+  setupMCPDevCommands(mcpCmd);
+}
+
+/**
+ * MCP Development Mode Commands (Architecture Committee approved - internal use only)
+ * Hidden from main help unless --internal flag is used
+ */
+function setupMCPDevCommands(mcpCmd: Command): void {
+  const { MCPDevManager } = require("../core/mcp-dev-manager.js");
+  const devManager = new MCPDevManager();
+
+  // Hidden commands for internal development (Architecture Committee guidance)
+  const devStartCmd = mcpCmd
+    .command("dev-start")
+    .description("Start MCP development mode with named pipes (internal use only)")
+    .option("--team-id <teamId>", "Team identifier for development")
+    .action(async (options) => {
+      try {
+        // Set team ID if provided
+        if (options.teamId) {
+          process.env["BROOKLYN_DEV_TEAM_ID"] = options.teamId;
+        }
+        await devManager.start();
+      } catch (error) {
+        console.error(
+          "Failed to start MCP development mode:",
+          error instanceof Error ? error.message : String(error),
+        );
+        process.exit(1);
+      }
+    });
+
+  const devStopCmd = mcpCmd
+    .command("dev-stop")
+    .description("Stop MCP development mode (internal use only)")
+    .action(async () => {
+      try {
+        await devManager.stop();
+      } catch (error) {
+        console.error(
+          "Failed to stop MCP development mode:",
+          error instanceof Error ? error.message : String(error),
+        );
+        process.exit(1);
+      }
+    });
+
+  const devRestartCmd = mcpCmd
+    .command("dev-restart")
+    .description("Restart MCP development mode (internal use only)")
+    .action(async () => {
+      try {
+        await devManager.restart();
+      } catch (error) {
+        console.error(
+          "Failed to restart MCP development mode:",
+          error instanceof Error ? error.message : String(error),
+        );
+        process.exit(1);
+      }
+    });
+
+  const devStatusCmd = mcpCmd
+    .command("dev-status")
+    .description("Show MCP development mode status (internal use only)")
+    .action(async () => {
+      try {
+        await devManager.status();
+      } catch (error) {
+        console.error(
+          "Failed to get MCP development mode status:",
+          error instanceof Error ? error.message : String(error),
+        );
+        process.exit(1);
+      }
+    });
+
+  const devCleanupCmd = mcpCmd
+    .command("dev-cleanup")
+    .description("Clean up MCP development mode resources (internal use only)")
+    .action(async () => {
+      try {
+        await devManager.cleanup();
+        console.log("✅ MCP development mode cleanup completed");
+      } catch (error) {
+        console.error(
+          "Failed to cleanup MCP development mode:",
+          error instanceof Error ? error.message : String(error),
+        );
+        process.exit(1);
+      }
+    });
+
+  // Hide these commands from main help (Architecture Committee requirement)
+  // Only show when --internal flag is present
+  const isInternal = process.argv.includes("--internal");
+  if (!isInternal) {
+    // Use the correct Commander.js method to hide commands
+    (devStartCmd as any).hidden = true;
+    (devStopCmd as any).hidden = true;
+    (devRestartCmd as any).hidden = true;
+    (devStatusCmd as any).hidden = true;
+    (devCleanupCmd as any).hidden = true;
+  }
 }
 
 /**
@@ -403,24 +544,24 @@ async function checkBrowserInstallation(browserType?: string): Promise<void> {
   }
 
   // Display results
-  console.log("\nBrowser Installation Status:");
-  console.log("============================");
+  console.info("\nBrowser Installation Status:");
+  console.info("============================");
 
   let allInstalled = true;
   for (const [browser, result] of Object.entries(results)) {
     const status = result.installed ? "✅ INSTALLED" : "❌ NOT INSTALLED";
-    console.log(`${browser.toUpperCase()}: ${status}`);
+    console.info(`${browser.toUpperCase()}: ${status}`);
     if (!result.installed && result.error) {
-      console.log(`   Error: ${result.error}`);
+      console.info(`   Error: ${result.error}`);
     }
     if (!result.installed) allInstalled = false;
   }
 
   if (allInstalled) {
-    console.log("\n🎉 All browsers are ready for automation!");
+    console.info("\n🎉 All browsers are ready for automation!");
     logger.info("Browser validation passed", { browsers: browsersToCheck });
   } else {
-    console.log("\n💡 Run 'brooklyn setup' to install missing browsers");
+    console.info("\n💡 Run 'brooklyn setup' to install missing browsers");
     logger.warn("Browser validation failed", { results });
     process.exit(1);
   }
@@ -432,20 +573,20 @@ async function checkBrowserInstallation(browserType?: string): Promise<void> {
 async function setupBrowsers(browserType?: string): Promise<void> {
   const logger = getLogger("brooklyn-setup");
 
-  console.log("Installing browsers for Brooklyn automation...");
+  console.info("Installing browsers for Brooklyn automation...");
 
   try {
     const { execSync } = await import("node:child_process");
 
     if (browserType) {
-      console.log(`Installing ${browserType}...`);
+      console.info(`Installing ${browserType}...`);
       execSync(`bunx playwright install ${browserType}`, { stdio: "inherit" });
     } else {
-      console.log("Installing all browsers (chromium, firefox, webkit)...");
+      console.info("Installing all browsers (chromium, firefox, webkit)...");
       execSync("bunx playwright install", { stdio: "inherit" });
     }
 
-    console.log("\n✅ Browser installation completed!");
+    console.info("\n✅ Browser installation completed!");
 
     // Verify installation
     await checkBrowserInstallation(browserType);

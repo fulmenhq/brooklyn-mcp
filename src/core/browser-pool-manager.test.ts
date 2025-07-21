@@ -28,9 +28,12 @@ vi.mock("../shared/config.js", () => ({
 // Mock logger
 vi.mock("../shared/logger.js", () => ({
   getLogger: vi.fn(() => ({
+    trace: vi.fn(),
+    debug: vi.fn(),
     info: vi.fn(),
-    error: vi.fn(),
     warn: vi.fn(),
+    error: vi.fn(),
+    fatal: vi.fn(),
   })),
 }));
 
@@ -253,9 +256,11 @@ describe("BrowserPoolManager", () => {
       expect(result).toMatchObject({
         format: "png",
         dimensions: { width: 1920, height: 1080 },
-        fileSize: mockBuffer.length,
+        fileSize: expect.any(Number),
+        returnFormat: "file",
       });
-      expect(result.data).toBeTruthy();
+      expect(result.filePath).toBeTruthy();
+      expect(result.auditId).toBeTruthy();
     });
 
     it("should throw error for non-existent browser", async () => {

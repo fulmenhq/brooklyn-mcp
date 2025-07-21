@@ -30,6 +30,9 @@ export interface BrooklynConfig {
   // Team configuration
   teamId: string;
 
+  // Development mode
+  devMode?: boolean;
+
   // Transport configuration
   transports: {
     mcp: {
@@ -197,7 +200,7 @@ export class ConfigManager {
 
     return {
       serviceName: "brooklyn-mcp-server",
-      version: "1.1.4", // Embedded at build time
+      version: "1.1.6", // Embedded at build time
       environment: "production",
       teamId: "default",
 

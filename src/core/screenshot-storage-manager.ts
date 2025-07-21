@@ -653,7 +653,7 @@ export class ScreenshotStorageManager {
           const files = await readdir(tagPath, { withFileTypes: true });
 
           for (const file of files) {
-            if (!file.isFile() || (!file.name.endsWith(".png") && !file.name.endsWith(".jpeg"))) {
+            if (!file.isFile() || !(file.name.endsWith(".png") || file.name.endsWith(".jpeg"))) {
               continue;
             }
 
@@ -739,7 +739,7 @@ export class ScreenshotStorageManager {
           const files = await readdir(tagPath, { withFileTypes: true });
 
           for (const file of files) {
-            if (!file.isFile() || (!file.name.endsWith(".png") && !file.name.endsWith(".jpeg"))) {
+            if (!file.isFile() || !(file.name.endsWith(".png") || file.name.endsWith(".jpeg"))) {
               continue;
             }
 

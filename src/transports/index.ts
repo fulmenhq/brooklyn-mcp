@@ -69,12 +69,21 @@ export async function createTransport(config: TransportConfig): Promise<Transpor
 }
 
 /**
- * Create MCP stdio transport with default configuration
+ * Create MCP stdio transport with optional pipe configuration for development mode
  */
-export async function createMCPStdio(): Promise<Transport> {
+export async function createMCPStdio(pipeOptions?: {
+  inputPipe?: string;
+  outputPipe?: string;
+}): Promise<Transport> {
   const config: MCPStdioConfig = {
     type: TransportType.MCP_STDIO,
-    options: {},
+    options: pipeOptions
+      ? {
+          inputPipe: pipeOptions.inputPipe,
+          outputPipe: pipeOptions.outputPipe,
+          devMode: true,
+        }
+      : {},
   };
 
   return createTransport(config);

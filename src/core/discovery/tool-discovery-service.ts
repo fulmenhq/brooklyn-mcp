@@ -71,7 +71,9 @@ export class ToolDiscoveryService {
    * Register multiple tools
    */
   registerTools(tools: EnhancedTool[]): void {
-    tools.forEach((tool) => this.registerTool(tool));
+    for (const tool of tools) {
+      this.registerTool(tool);
+    }
   }
 
   /**
@@ -262,12 +264,12 @@ export class ToolDiscoveryService {
     doc += `**Last Updated**: ${this.metadata.lastUpdated}\n\n`;
 
     // Table of contents
-    doc += `## Categories\n\n`;
+    doc += "## Categories\n\n";
     for (const category of this.categories.values()) {
       const toolCount = this.getToolsByCategory(category.id).length;
       doc += `- [${category.name}](#${category.id}) (${toolCount} tools)\n`;
     }
-    doc += `\n`;
+    doc += "\n";
 
     // Tools by category
     for (const category of this.categories.values()) {

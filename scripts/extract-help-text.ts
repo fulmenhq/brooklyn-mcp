@@ -49,8 +49,8 @@ async function extractHelpBlocks(filePath: string): Promise<HelpBlock[]> {
   const content = await readFile(filePath, "utf-8");
   const blocks: HelpBlock[] = [];
 
-  let match;
-  while ((match = HELP_BLOCK_REGEX.exec(content)) !== null) {
+  let match: RegExpExecArray | null = HELP_BLOCK_REGEX.exec(content);
+  while (match !== null) {
     const [, name, blockContent] = match;
     if (name && blockContent) {
       blocks.push({
@@ -59,6 +59,7 @@ async function extractHelpBlocks(filePath: string): Promise<HelpBlock[]> {
         source: filePath,
       });
     }
+    match = HELP_BLOCK_REGEX.exec(content);
   }
 
   return blocks;
@@ -91,7 +92,9 @@ async function generateHelpFiles(blocks: HelpBlock[]): Promise<void> {
   // Generate TypeScript module for importing
   const exportLines = Array.from(blockMap.keys()).map((name) => {
     const varName = name.replace(/-/g, "_").toUpperCase();
-    return `export const ${varName} = \`${blockMap.get(name)!.content.replace(/`/g, "\\`")}\`;`;
+    const block = blockMap.get(name);
+    if (!block) throw new Error(`Block not found: ${name}`);
+    return `export const ${varName} = \`${block.content.replace(/`/g, "\\`")}\`;`;
   });
 
   const tsContent = `// Auto-generated help text from markdown docs
@@ -148,7 +151,8 @@ async function main() {
     console.log("\n📋 Summary:");
     const uniqueNames = new Set(allBlocks.map((b) => b.name));
     for (const name of uniqueNames) {
-      const block = allBlocks.find((b) => b.name === name)!;
+      const block = allBlocks.find((b) => b.name === name);
+      if (!block) continue;
       console.log(`  ${name}: ${block.source}`);
     }
   } catch (error) {

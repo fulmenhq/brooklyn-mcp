@@ -104,22 +104,15 @@ export function initLogger(options: LoggerOptions = {}): void {
   // Create transport array
   const transportArray: WinstonLogger["transports"] = [];
 
-  // Console transport
+  // Console transport - always use stderr to avoid interfering with stdio
   const consoleTransportOptions: {
     format: ReturnType<typeof format.combine>;
     stream?: NodeJS.WriteStream;
     stderrLevels?: string[];
   } = {
     format: logFormat,
+    stream: process.stderr,
   };
-
-  // When useStderr is true, force all output to stderr
-  if (useStderr) {
-    consoleTransportOptions.stream = process.stderr;
-  } else {
-    // Default behavior: errors and warnings to stderr, others to stdout
-    consoleTransportOptions.stderrLevels = ["error", "warn"];
-  }
 
   transportArray.push(new transports.Console(consoleTransportOptions));
 

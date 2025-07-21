@@ -4,13 +4,27 @@
  * Unified file check script for Brooklyn MCP server
  *
  * Runs type checking, linting, and formatting for a single file in sequence.
- * Adapted from fulmen-portal-forge for Brooklyn's specific needs.
+ * Uses temporary TypeScript configuration to validate files in isolation
+ * while preserving project-wide settings and path aliases.
+ *
+ * Adapted from fulmen ecosystem patterns for Brooklyn's specific needs:
+ * - Bun runtime optimized
+ * - MCP protocol file handling
+ * - Browser automation TypeScript patterns
+ * - JSX support for React components
  *
  * Usage:
  *   bun scripts/check-file.ts <file-path> [--fix]
  *
  * Example:
  *   bun scripts/check-file.ts src/core/server.ts --fix
+ *   bun scripts/check-file.ts src/components/Dashboard.tsx --fix
+ *
+ * The temporary config approach ensures:
+ * - File-level validation without full project compilation
+ * - Proper path alias resolution from main tsconfig.json
+ * - JSX handling for React components (.tsx files)
+ * - Preservation of project-specific compiler options
  */
 
 import { spawn } from "node:child_process";
@@ -41,10 +55,11 @@ if (!existsSync(filePath)) {
   process.exit(1);
 }
 
-// Determine file type
+// Determine file type and JSX requirements
 const isTypeScript = filePath.endsWith(".ts") || filePath.endsWith(".tsx");
 const isJavaScript = filePath.endsWith(".js") || filePath.endsWith(".jsx");
 const isCodeFile = isTypeScript || isJavaScript;
+const isReactComponent = filePath.endsWith(".tsx") || filePath.endsWith(".jsx");
 
 /**
  * Execute a command and return the result
@@ -97,23 +112,30 @@ async function runTypeCheck(): Promise<boolean> {
   const relativeFilePath = path.relative(projectRoot, filePath);
   const normalizedRelativeFilePath = relativeFilePath.split(path.sep).join(path.posix.sep);
 
+  // Create temporary TypeScript configuration for file-level checking
+  // Inherits all settings from main tsconfig.json while targeting specific file
   const tempConfigContent = {
     extends: "./tsconfig.json",
     include: [normalizedRelativeFilePath],
-    compilerOptions: {
-      noEmit: true,
-    },
+    // Don't override compilerOptions - inherit from main config for consistency
   };
 
   let tsExitCode = 0;
+  let tsStdout = "";
+  let tsStderr = "";
 
   try {
     writeFileSync(tempConfigPath, JSON.stringify(tempConfigContent, null, 2));
-    const command = `bunx tsc -p ${tempConfigPath}`;
-    [tsExitCode] = await runCommand(command);
+    
+    // Add JSX flag for React components to ensure proper compilation
+    const jsxFlag = isReactComponent ? "--jsx react-jsx" : "";
+    const command = `bunx tsc -p ${tempConfigPath} ${jsxFlag}`.trim().replace(/\s\s+/g, " ");
+    
+    [tsExitCode, tsStdout, tsStderr] = await runCommand(command);
 
     if (tsExitCode !== 0) {
-      console.error(chalk.red("❌ Type checking failed"));
+      console.error(chalk.red("❌ Type checking failed:"));
+      console.error(tsStdout || tsStderr); // Show actual TypeScript errors
       return false;
     }
 
@@ -135,9 +157,10 @@ async function runTypeCheck(): Promise<boolean> {
 async function runLinting(): Promise<boolean> {
   console.log(chalk.blue("\n🧹 Linting..."));
 
+  // Use explicit package name for better robustness
   const lintCommand = shouldFix
-    ? `bunx biome check --write "${filePath}"`
-    : `bunx biome check "${filePath}"`;
+    ? `bunx @biomejs/biome check --write "${filePath}"`
+    : `bunx @biomejs/biome check "${filePath}"`;
 
   const [lintExitCode, lintStdout, lintStderr] = await runCommand(lintCommand);
 
@@ -157,9 +180,10 @@ async function runLinting(): Promise<boolean> {
 async function runFormatting(): Promise<boolean> {
   console.log(chalk.blue("\n💅 Formatting..."));
 
+  // Use explicit package name for better robustness
   const formatCommand = shouldFix
-    ? `bunx biome format --write "${filePath}"`
-    : `bunx biome format "${filePath}"`;
+    ? `bunx @biomejs/biome format --write "${filePath}"`
+    : `bunx @biomejs/biome format "${filePath}"`;
 
   const [fmtExitCode, fmtStdout, fmtStderr] = await runCommand(formatCommand);
 

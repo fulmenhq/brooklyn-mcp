@@ -333,17 +333,16 @@ export class StructuredLogger {
 /**
  * Create logger configuration from Brooklyn config
  */
-export function createLoggerConfig(config: BrooklynConfig, transport?: string): LoggerConfig {
+export function createLoggerConfig(config: BrooklynConfig): LoggerConfig {
   const level =
     LogLevel[config.logging.level.toUpperCase() as keyof typeof LogLevel] ?? LogLevel.INFO;
 
   const outputs: LogOutput[] = [];
 
-  // Console output (stderr for MCP mode to avoid stdout contamination)
-  const isMCPMode = transport === "mcp-stdio";
+  // Console output (always stderr to avoid interfering with stdio)
   outputs.push({
     type: "console",
-    target: isMCPMode ? "stderr" : "stdout",
+    target: "stderr",
     format: config.logging.format,
     level: level,
   });
@@ -392,7 +391,7 @@ class LoggerRegistry {
       }
 
       const config = transport
-        ? createLoggerConfig({ logging: this.defaultConfig } as any, transport)
+        ? createLoggerConfig({ logging: this.defaultConfig } as any)
         : this.defaultConfig;
 
       logger = new StructuredLogger(name, config);

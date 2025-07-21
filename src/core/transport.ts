@@ -70,7 +70,10 @@ export interface TransportConfig {
 export interface MCPStdioConfig extends TransportConfig {
   type: TransportType.MCP_STDIO;
   options?: {
-    // No additional options for stdio
+    // Development mode with named pipes
+    inputPipe?: string;
+    outputPipe?: string;
+    devMode?: boolean;
   };
 }
 

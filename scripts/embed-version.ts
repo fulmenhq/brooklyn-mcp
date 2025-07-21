@@ -79,12 +79,12 @@ async function updateFile(
         `✅ Version ${version} embedded in ${fileConfig.description} (${path.basename(fileConfig.path)})`,
       );
       return true;
-    } else {
-      console.warn(
-        `⚠️  Pattern not found in ${fileConfig.description} (${path.basename(fileConfig.path)})`,
-      );
-      return false;
     }
+
+    console.warn(
+      `⚠️  Pattern not found in ${fileConfig.description} (${path.basename(fileConfig.path)})`,
+    );
+    return false;
   } catch (error) {
     console.error(`❌ Error updating ${fileConfig.description}:`, error);
     return false;

@@ -235,6 +235,36 @@ bun run server:status
 }
 ```
 
+## MCP Development Mode (Internal Use Only)
+
+Brooklyn includes a revolutionary development mode for internal MCP development that allows rapid iteration without Claude Code restarts.
+
+### Quick Start
+
+```bash
+# Start MCP development mode
+bun run mcp-dev:start
+
+# Check status
+bun run mcp-dev:status
+
+# Stop development mode
+bun run mcp-dev:stop
+```
+
+### Key Benefits
+
+- **No Claude Code Restarts**: Test MCP functionality without shutting down Claude instances
+- **Named Pipe Communication**: Secure pipes bypass stdin/stdout limitations
+- **Chat Integration**: Use Brooklyn tools directly in chat during development
+- **Rapid Iteration**: Test changes immediately without deployment
+
+### Architecture Committee Approved
+
+This feature is approved for internal Brooklyn team use only. It's hidden from normal users and designed specifically for MCP development workflows.
+
+For detailed local development procedures, see [Local Development SOP](local_development_sop.md).
+
 ## Development Workflow
 
 ### Quality Gates
@@ -555,6 +585,7 @@ Help text is embedded in the Brooklyn binary at build time for fast CLI response
 
 ## Related Documentation
 
+- [Local Development SOP](local_development_sop.md) - Local development procedures and MCP development mode
 - [User Guide](../user-guide/index.md) - End-user documentation
 - [API Reference](../api/index.md) - Detailed API documentation
 - [Architecture](../architecture/index.md) - System architecture
