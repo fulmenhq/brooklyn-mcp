@@ -197,7 +197,7 @@ export class ConfigManager {
 
     return {
       serviceName: "brooklyn-mcp-server",
-      version: "1.0.0", // Will be replaced at build time
+      version: "1.1.4", // Embedded at build time
       environment: "production",
       teamId: "default",
 

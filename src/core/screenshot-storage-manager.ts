@@ -337,18 +337,18 @@ export class ScreenshotStorageManager {
    */
   async getScreenshotPath(filename: string, instanceId?: string, tag?: string): Promise<string> {
     const actualInstanceId = instanceId || this.instanceId;
-    
+
     // If tag not provided, search across all tags for this instance
     if (!tag) {
       const searchResults = await this.findScreenshot({
         instanceId: actualInstanceId,
       });
-      
-      const match = searchResults.find(result => result.filename === filename);
+
+      const match = searchResults.find((result) => result.filename === filename);
       if (!match) {
         throw new Error(`Screenshot file not found: ${filename}`);
       }
-      
+
       return match.filePath;
     }
 
@@ -471,7 +471,10 @@ export class ScreenshotStorageManager {
   private generateUserTag(providedTag?: string): string {
     if (providedTag) {
       // Slugify provided tag
-      return providedTag.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-");
+      return providedTag
+        .toLowerCase()
+        .replace(/[^a-z0-9-]/g, "-")
+        .replace(/-+/g, "-");
     }
 
     // Generate random three-word slug (Architecture Committee guidance)
@@ -510,8 +513,8 @@ export class ScreenshotStorageManager {
       /\.\.\//, // Directory traversal
       /\.\.\\/, // Windows directory traversal
       /\0/, // Null bytes
-      /\/\.\./,  // More traversal patterns
-      /\\\.\./,  // Windows traversal
+      /\/\.\./, // More traversal patterns
+      /\\\.\./, // Windows traversal
     ];
 
     const fieldsToCheck = [
@@ -650,7 +653,7 @@ export class ScreenshotStorageManager {
           const files = await readdir(tagPath, { withFileTypes: true });
 
           for (const file of files) {
-            if (!file.isFile() || !file.name.endsWith(".png") && !file.name.endsWith(".jpeg")) {
+            if (!file.isFile() || (!file.name.endsWith(".png") && !file.name.endsWith(".jpeg"))) {
               continue;
             }
 
@@ -659,7 +662,7 @@ export class ScreenshotStorageManager {
 
             if (fileStat.mtime < cutoffDate) {
               const metadataPath = filePath.replace(/\.(png|jpeg)$/, ".metadata.json");
-              
+
               // Delete screenshot and metadata
               await unlink(filePath);
               if (existsSync(metadataPath)) {
@@ -711,7 +714,7 @@ export class ScreenshotStorageManager {
       }
 
       const instances = await readdir(instancesDir, { withFileTypes: true });
-      stats.instanceCount = instances.filter(i => i.isDirectory()).length;
+      stats.instanceCount = instances.filter((i) => i.isDirectory()).length;
 
       for (const instanceDir of instances) {
         if (!instanceDir.isDirectory()) continue;

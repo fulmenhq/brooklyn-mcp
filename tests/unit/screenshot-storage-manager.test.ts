@@ -3,28 +3,28 @@
  * Architecture Committee approved file storage implementation
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { existsSync, rmSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  ScreenshotStorageManager,
-  StorageSecurityError,
-  StorageQuotaError,
   type ScreenshotMetadata,
+  ScreenshotStorageManager,
+  StorageQuotaError,
+  StorageSecurityError,
 } from "../../src/core/screenshot-storage-manager.js";
 
 describe("ScreenshotStorageManager", () => {
   let storageManager: ScreenshotStorageManager;
   let testBaseDir: string;
   let testBuffer: Buffer;
-  
+
   beforeEach(() => {
     // Use temporary directory for tests
     testBaseDir = join(tmpdir(), `brooklyn-test-${Date.now()}`);
-    
+
     storageManager = new ScreenshotStorageManager({
       baseDirectory: testBaseDir,
       maxFileSize: 10 * 1024 * 1024, // 10MB for tests
@@ -34,7 +34,7 @@ describe("ScreenshotStorageManager", () => {
         teamLimit: 100 * 1024 * 1024, // 100MB team limit
       },
     });
-    
+
     // Create test buffer (simulated PNG screenshot)
     testBuffer = Buffer.from("fake-png-data-for-testing");
   });
@@ -56,7 +56,7 @@ describe("ScreenshotStorageManager", () => {
           sessionId: "test-session-1",
           browserId: "browser-123",
           teamId: "test-team",
-        }
+        },
       );
 
       // Verify result structure (Architecture Committee v2)
@@ -76,7 +76,7 @@ describe("ScreenshotStorageManager", () => {
 
       // Verify file was created
       expect(existsSync(result.filePath)).toBe(true);
-      
+
       // Verify file content
       const savedContent = await readFile(result.filePath);
       expect(savedContent.equals(testBuffer)).toBe(true);
@@ -84,10 +84,10 @@ describe("ScreenshotStorageManager", () => {
       // Verify metadata file was created
       const metadataPath = result.filePath.replace(/\.png$/, ".metadata.json");
       expect(existsSync(metadataPath)).toBe(true);
-      
+
       const metadataContent = await readFile(metadataPath, "utf-8");
       const metadata: ScreenshotMetadata = JSON.parse(metadataContent);
-      
+
       expect(metadata).toMatchObject({
         sessionId: "test-session-1",
         browserId: "browser-123",
@@ -113,7 +113,7 @@ describe("ScreenshotStorageManager", () => {
           format: "jpeg",
           quality: 95,
           fullPage: true,
-        }
+        },
       );
 
       expect(result.format).toBe("jpeg");
@@ -132,12 +132,12 @@ describe("ScreenshotStorageManager", () => {
           {
             sessionId: "concurrent-session",
             browserId: `browser-${i}`,
-          }
-        )
+          },
+        ),
       );
 
       const results = await Promise.all(savePromises);
-      const filenames = results.map(r => r.filename);
+      const filenames = results.map((r) => r.filename);
 
       // All filenames should be unique
       const uniqueFilenames = new Set(filenames);
@@ -145,7 +145,9 @@ describe("ScreenshotStorageManager", () => {
 
       // All should follow the pattern
       for (const filename of filenames) {
-        expect(filename).toMatch(/^screenshot-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-[a-f0-9-]+\.png$/);
+        expect(filename).toMatch(
+          /^screenshot-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-[a-f0-9-]+\.png$/,
+        );
       }
     });
 
@@ -158,7 +160,7 @@ describe("ScreenshotStorageManager", () => {
           browserId: "browser-789",
           teamId: "team-alpha",
           tag: "alpha-test",
-        }
+        },
       );
 
       const result2 = await storageManager.saveScreenshot(
@@ -169,7 +171,7 @@ describe("ScreenshotStorageManager", () => {
           browserId: "browser-789",
           teamId: "team-beta",
           tag: "beta-test",
-        }
+        },
       );
 
       // Verify separate instance and tag directories exist
@@ -177,7 +179,7 @@ describe("ScreenshotStorageManager", () => {
       expect(result1.filePath).toContain("alpha-test");
       expect(result2.filePath).toContain("instances/");
       expect(result2.filePath).toContain("beta-test");
-      
+
       expect(existsSync(result1.filePath)).toBe(true);
       expect(existsSync(result2.filePath)).toBe(true);
     });
@@ -189,7 +191,7 @@ describe("ScreenshotStorageManager", () => {
         {
           sessionId: "default-session",
           browserId: "browser-default",
-        }
+        },
       );
 
       // Should use instance-based directory with auto-generated tag
@@ -208,8 +210,8 @@ describe("ScreenshotStorageManager", () => {
           {
             sessionId: "size-test",
             browserId: "browser-size",
-          }
-        )
+          },
+        ),
       ).rejects.toThrow(StorageQuotaError);
     });
   });
@@ -224,8 +226,8 @@ describe("ScreenshotStorageManager", () => {
           {
             sessionId: "../../../malicious-session",
             browserId: "malicious-browser",
-          }
-        )
+          },
+        ),
       ).rejects.toThrow(StorageSecurityError);
     });
 
@@ -237,8 +239,8 @@ describe("ScreenshotStorageManager", () => {
           {
             sessionId: "session\0malicious",
             browserId: "null-browser",
-          }
-        )
+          },
+        ),
       ).rejects.toThrow(StorageSecurityError);
     });
 
@@ -251,8 +253,8 @@ describe("ScreenshotStorageManager", () => {
             sessionId: "windows-session",
             browserId: "windows-browser",
             teamId: "..\\..\\windows\\malicious",
-          }
-        )
+          },
+        ),
       ).rejects.toThrow(StorageSecurityError);
     });
 
@@ -266,7 +268,7 @@ describe("ScreenshotStorageManager", () => {
           browserId: "valid-browser",
           teamId: "valid-team",
           tag: "valid-tag-123",
-        }
+        },
       );
 
       // Verify the file was created successfully
@@ -285,7 +287,7 @@ describe("ScreenshotStorageManager", () => {
           sessionId: "delete-session",
           browserId: "delete-browser",
           teamId: "delete-team",
-        }
+        },
       );
 
       // Verify files exist
@@ -297,7 +299,7 @@ describe("ScreenshotStorageManager", () => {
       await storageManager.deleteScreenshot(
         result.filename,
         result.metadata.instanceId,
-        result.metadata.tag
+        result.metadata.tag,
       );
 
       // Verify files are deleted
@@ -307,11 +309,9 @@ describe("ScreenshotStorageManager", () => {
 
     it("should handle deletion of non-existent files gracefully", async () => {
       // Should throw error for non-existent files (Architecture Committee v2)
-      await expect(
-        storageManager.deleteScreenshot(
-          "non-existent.png"
-        )
-      ).rejects.toThrow("Screenshot file not found");
+      await expect(storageManager.deleteScreenshot("non-existent.png")).rejects.toThrow(
+        "Screenshot file not found",
+      );
     });
 
     it("should return correct file path for existing screenshots", async () => {
@@ -322,24 +322,22 @@ describe("ScreenshotStorageManager", () => {
           sessionId: "path-session",
           browserId: "path-browser",
           teamId: "path-team",
-        }
+        },
       );
 
       const retrievedPath = await storageManager.getScreenshotPath(
         result.filename,
         result.metadata.instanceId,
-        result.metadata.tag
+        result.metadata.tag,
       );
 
       expect(retrievedPath).toBe(result.filePath);
     });
 
     it("should throw error for non-existent screenshot files", async () => {
-      await expect(
-        storageManager.getScreenshotPath(
-          "non-existent-screenshot.png"
-        )
-      ).rejects.toThrow("Screenshot file not found");
+      await expect(storageManager.getScreenshotPath("non-existent-screenshot.png")).rejects.toThrow(
+        "Screenshot file not found",
+      );
     });
   });
 
@@ -367,12 +365,12 @@ describe("ScreenshotStorageManager", () => {
           sessionId: "cleanup-session",
           browserId: "cleanup-browser",
           teamId: "cleanup-team",
-        }
+        },
       );
 
       // Cleanup should not throw (implementation is placeholder for Wave 1)
       await expect(
-        storageManager.cleanupSession("cleanup-session", "cleanup-team")
+        storageManager.cleanupSession("cleanup-session", "cleanup-team"),
       ).resolves.not.toThrow();
     });
   });
@@ -388,7 +386,7 @@ describe("ScreenshotStorageManager", () => {
           {
             sessionId: "error-session",
             browserId: "error-browser",
-          }
+          },
         );
         expect.fail("Should have thrown an error");
       } catch (error) {
@@ -406,7 +404,7 @@ describe("ScreenshotStorageManager", () => {
             sessionId: "security-session",
             browserId: "security-browser",
             teamId: "../../../malicious-team",
-          }
+          },
         );
         expect.fail("Should have thrown an error");
       } catch (error) {
@@ -430,7 +428,7 @@ describe("ScreenshotStorageManager", () => {
           format: "jpeg",
           quality: 85,
           fullPage: true,
-        }
+        },
       );
 
       const metadata = result.metadata;
@@ -470,21 +468,21 @@ describe("ScreenshotStorageManager", () => {
         {
           sessionId: "hash-session-1",
           browserId: "hash-browser-1",
-        }
+        },
       );
 
       const result2 = await storageManager.saveScreenshot(
         testBuffer, // Same buffer
         { width: 1920, height: 1080 },
         {
-          sessionId: "hash-session-2", 
+          sessionId: "hash-session-2",
           browserId: "hash-browser-2",
-        }
+        },
       );
 
       // Hashes should be identical for same content
       expect(result1.hash).toBe(result2.hash);
-      
+
       // But filenames and audit IDs should be different
       expect(result1.filename).not.toBe(result2.filename);
       expect(result1.auditId).not.toBe(result2.auditId);

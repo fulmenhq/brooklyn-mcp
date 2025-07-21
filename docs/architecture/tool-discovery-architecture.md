@@ -9,6 +9,7 @@ This document outlines how AI assistants (Claude Code via MCP, other AIs via web
 ### 1. MCP Mode (Claude Code)
 
 **Automatic Discovery via MCP Protocol:**
+
 - Claude Code calls `tools/list` to get available tools
 - Each tool includes:
   - Name (semantic, AI-friendly)
@@ -17,6 +18,7 @@ This document outlines how AI assistants (Claude Code via MCP, other AIs via web
   - Examples (optional but recommended)
 
 **Current Implementation:**
+
 ```typescript
 // In brooklyn-engine.ts
 async handleToolListRequest(): Promise<Tool[]> {
@@ -38,17 +40,21 @@ async handleToolListRequest(): Promise<Tool[]> {
 ```
 GET /tools
 ```
+
 Returns list of all available tools with metadata
 
 ```
 GET /tools/{toolName}
 ```
+
 Returns detailed information about a specific tool
 
 ```
 GET /capabilities
 ```
+
 Returns high-level capability categories:
+
 - Browser Management
 - Navigation & Interaction
 - Content Extraction
@@ -58,12 +64,14 @@ Returns high-level capability categories:
 ### 3. Self-Documenting Tools
 
 **Onboarding Tools (Already Implemented):**
+
 - `brooklyn_status` - Current server status
 - `brooklyn_capabilities` - What Brooklyn can do
 - `brooklyn_getting_started` - Quick start guide
 - `brooklyn_examples` - Example tool usage
 
 **Recommended Additions:**
+
 - `brooklyn_list_tools` - Categorized tool listing
 - `brooklyn_tool_help` - Get help for specific tool
 - `brooklyn_use_cases` - Common automation scenarios
@@ -71,6 +79,7 @@ Returns high-level capability categories:
 ## Tool Naming Convention
 
 **Semantic, Action-Oriented Names:**
+
 ```
 verb_noun_modifier
 
@@ -83,6 +92,7 @@ Examples:
 ```
 
 **Avoid:**
+
 - Technical jargon (e.g., `executePlaywrightCommand`)
 - Ambiguous names (e.g., `process`, `handle`)
 - Implementation details (e.g., `callBrowserPoolManager`)
@@ -90,37 +100,44 @@ Examples:
 ## Tool Categories
 
 ### 1. Browser Lifecycle
+
 - launch_browser
 - close_browser
 - list_active_browsers
 
 ### 2. Navigation
+
 - navigate_to_url
 - go_back
 - go_forward
 - reload_page
 
 ### 3. Content Capture
+
 - take_screenshot
 - save_as_pdf
 - get_page_content
 
 ### 4. Interaction
+
 - click_element
 - type_text
 - select_option
 - hover_element
 
 ### 5. Data Extraction
+
 - get_element_text
 - get_element_attribute
 - extract_table_data
 
 ### 6. Form Automation
+
 - fill_form
 - submit_form
 
 ### 7. Wait & Sync
+
 - wait_for_element
 - wait_for_text
 - wait_for_url
@@ -134,26 +151,26 @@ interface ToolDocumentation {
   name: string;
   category: string;
   description: string;
-  
+
   // What this tool does
   purpose: string;
-  
+
   // When to use this tool
   useCases: string[];
-  
+
   // Example requests
   examples: {
     description: string;
     input: any;
     expectedOutput: any;
   }[];
-  
+
   // Common errors and solutions
   troubleshooting?: {
     error: string;
     solution: string;
   }[];
-  
+
   // Related tools
   seeAlso?: string[];
 }

@@ -4,6 +4,8 @@
  */
 
 import type { Config } from "../ports/config";
+import { buildConfig } from "./build-config";
+
 // Template variables for service identity
 const templateVars = {
   SERVICE_NAME: "fulmen-brooklyn",
@@ -45,7 +47,7 @@ export const config: Config = {
   // Service identity
   serviceName: templateVars.SERVICE_NAME,
   displayName: templateVars.DISPLAY_NAME,
-  version: getEnvVar("WEBPILOT_VERSION", "1.0.0"),
+  version: buildConfig.version,
 
   // Environment
   environment: getEnvVar("WEBPILOT_ENV", "development"),

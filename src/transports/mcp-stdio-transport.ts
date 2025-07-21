@@ -52,7 +52,7 @@ export class MCPStdioTransport implements Transport {
     this.server = new Server(
       {
         name: "brooklyn-mcp-server", // Default, will be overridden
-        version: "1.0.0", // Default, will be overridden
+        version: "1.1.4", // Embedded at build time
       },
       {
         capabilities: {

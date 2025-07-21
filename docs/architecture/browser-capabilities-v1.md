@@ -53,8 +53,10 @@ This document outlines the browser automation capabilities that Brooklyn should 
 - Full page or viewport capture
 - PNG/JPEG format with quality control
 - Clip to specific regions
-- Return base64 encoded data
-- Include metadata (dimensions, file size)
+- **File-based storage** (v1.1.4+) - returns file paths instead of base64
+- Include metadata (dimensions, file size, audit ID)
+- Enterprise path validation and team isolation
+- Configurable return format (file/url/base64_thumbnail)
 
 **get_page_content**
 
@@ -68,7 +70,8 @@ This document outlines the browser automation capabilities that Brooklyn should 
 - Full page PDF generation
 - Print-friendly formatting
 - Custom page size and margins
-- Return base64 encoded data
+- **File-based storage** (v1.1.4+) - returns file paths instead of base64
+- Enterprise audit trail and team isolation
 
 ### 4. Element Interaction
 

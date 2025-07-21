@@ -9,6 +9,8 @@
 
 > **⚡ 15-minute onboarding**: Read [CLAUDE.md 5-minute section](CLAUDE.md#5-minute-team-onboarding-start-here-first) for instant productivity
 
+🎯 **Latest**: v1.1.4 introduces **file-based screenshots** eliminating MCP token limitations and enabling enterprise-scale browser automation workflows.
+
 Brooklyn is a Model Context Protocol (MCP) server that provides AI developers and teams with powerful browser automation capabilities. Built on the Fulmen ecosystem principles, Brooklyn serves as a bridge between AI models and web browsers, enabling seamless automation, testing, and monitoring workflows.
 
 ## 🚀 Quick Start
@@ -138,8 +140,8 @@ launch_browser type=chromium headless=true teamId=my-team
 # Navigate to a website
 navigate browserId=browser_123 url=https://example.com
 
-# Take a screenshot
-screenshot browserId=browser_123 fullPage=true
+# Take a screenshot (v1.1.4+ returns file paths, not base64)
+screenshot browserId=browser_123 fullPage=true returnFormat=file
 
 # Close browser
 close_browser browserId=browser_123
@@ -309,6 +311,7 @@ cp .env.example .env
 - **Resource Limits**: Per-team browser and memory limits
 - **Audit Logging**: Complete audit trail of all automation activities
 - **Secure Contexts**: Isolated browser contexts for each team
+- **File-based Storage**: Screenshots stored with path validation and team isolation (v1.1.4+)
 
 ## 🎭 Browser Support
 
@@ -338,6 +341,7 @@ curl http://localhost:3000/version
 - **Structured Logging**: All activities logged with team attribution
 - **Metrics Collection**: Resource usage, performance, and error rates
 - **Distributed Tracing**: OpenTelemetry integration (optional)
+- **File Storage Metrics**: Screenshot storage analytics and audit trails (v1.1.4+)
 
 ## 🔧 Development
 

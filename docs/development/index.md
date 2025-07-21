@@ -506,8 +506,9 @@ Formatted for terminal display
 Help text blocks use the pattern: `help-text-{command}-{section}`
 
 Examples:
+
 - `help-text-mcp-setup` - MCP configuration steps
-- `help-text-mcp-troubleshooting` - MCP troubleshooting guide  
+- `help-text-mcp-troubleshooting` - MCP troubleshooting guide
 - `help-text-web-start` - Web server startup help
 
 ### Guidelines

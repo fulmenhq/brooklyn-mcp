@@ -9,14 +9,16 @@ This document defines the standards for implementing tools in the Brooklyn MCP s
 ### Format: `verb_noun_modifier`
 
 **Examples:**
+
 - `launch_browser` - Clear action and target
 - `navigate_to_url` - Specific navigation action
 - `take_screenshot` - Capture action
 - `fill_form_fields` - Specific form action
 
 **Avoid:**
+
 - Technical jargon: `executePlaywrightCommand` ❌
-- Ambiguous names: `process`, `handle` ❌  
+- Ambiguous names: `process`, `handle` ❌
 - Implementation details: `callBrowserPoolManager` ❌
 - Overly generic: `do_action` ❌
 
@@ -36,7 +38,7 @@ export interface EnhancedTool extends Tool {
   name: string;
   description: string;
   inputSchema: any; // JSON Schema
-  
+
   // Enhanced fields
   category: string;
   examples?: ToolExample[];
@@ -49,19 +51,22 @@ export interface EnhancedTool extends Tool {
 ### 1. Clear Description
 
 **Good:**
+
 ```typescript
-description: "Launch a new browser instance (Chromium, Firefox, or WebKit) with optional configuration"
+description: "Launch a new browser instance (Chromium, Firefox, or WebKit) with optional configuration";
 ```
 
 **Bad:**
+
 ```typescript
-description: "Browser launch" // Too vague
-description: "This tool launches a browser" // Redundant
+description: "Browser launch"; // Too vague
+description: "This tool launches a browser"; // Redundant
 ```
 
 ### 2. Comprehensive Input Schema
 
 Use JSON Schema with:
+
 - Clear property descriptions
 - Proper types and constraints
 - Sensible defaults
@@ -78,7 +83,7 @@ inputSchema: {
       default: "chromium"
     },
     headless: {
-      type: "boolean", 
+      type: "boolean",
       description: "Run browser in headless mode",
       default: true
     }
@@ -98,21 +103,21 @@ examples: [
     input: {
       browserType: "chromium",
       headless: true,
-      viewport: { width: 1920, height: 1080 }
+      viewport: { width: 1920, height: 1080 },
     },
     expectedOutput: {
       browserId: "browser-123",
-      status: "launched"
-    }
+      status: "launched",
+    },
   },
   {
     description: "Launch visible Firefox for debugging",
     input: {
-      browserType: "firefox", 
-      headless: false
-    }
-  }
-]
+      browserType: "firefox",
+      headless: false,
+    },
+  },
+];
 ```
 
 ### 4. Common Error Scenarios
@@ -124,14 +129,14 @@ errors: [
   {
     code: "BROWSER_LAUNCH_FAILED",
     message: "Failed to launch browser",
-    solution: "Ensure browsers are installed via 'brooklyn setup'"
+    solution: "Ensure browsers are installed via 'brooklyn setup'",
   },
   {
     code: "DOMAIN_NOT_ALLOWED",
     message: "URL domain is not in allowlist",
-    solution: "Add domain to BROOKLYN_ALLOWED_DOMAINS"
-  }
-]
+    solution: "Add domain to BROOKLYN_ALLOWED_DOMAINS",
+  },
+];
 ```
 
 ## Implementation Pattern
@@ -143,10 +148,10 @@ errors: [
 async launchBrowser(args: LaunchBrowserArgs): Promise<LaunchBrowserResult> {
   // 1. Validate inputs
   this.validateBrowserType(args.browserType);
-  
+
   // 2. Check permissions/limits
   await this.security.checkBrowserLimit();
-  
+
   // 3. Execute with proper error handling
   try {
     const browser = await this.pool.launch({
@@ -154,10 +159,10 @@ async launchBrowser(args: LaunchBrowserArgs): Promise<LaunchBrowserResult> {
       headless: args.headless ?? true,
       // ... other options
     });
-    
+
     // 4. Track resources
     this.trackBrowser(browser.id);
-    
+
     // 5. Return structured result
     return {
       browserId: browser.id,
@@ -181,11 +186,11 @@ private transformError(error: unknown): Error {
   if (error instanceof BrowserLimitError) {
     return new Error("Maximum browser limit reached. Close unused browsers or increase BROOKLYN_MAX_BROWSERS");
   }
-  
+
   if (error instanceof PlaywrightError && error.message.includes("executable doesn't exist")) {
     return new Error("Browser not installed. Run 'brooklyn setup' to install browsers");
   }
-  
+
   // Log technical error, return friendly message
   this.logger.error("Browser launch failed", { error });
   return new Error("Failed to launch browser. Check logs for details");
@@ -198,7 +203,7 @@ Tools MUST belong to one of these standard categories:
 
 - `browser-lifecycle` - Launch, close, manage browsers
 - `navigation` - URL navigation, history control
-- `content-capture` - Screenshots, PDFs, content extraction  
+- `content-capture` - Screenshots, PDFs, content extraction
 - `interaction` - Click, type, form interactions
 - `data-extraction` - Structured data extraction
 - `wait-sync` - Waiting for conditions
@@ -216,7 +221,7 @@ Navigation tools MUST validate domains:
 async navigate(args: NavigateArgs): Promise<NavigateResult> {
   // Always validate domain first
   await this.security.validateDomain(args.url);
-  
+
   // Then navigate
   await page.goto(args.url);
 }
@@ -250,25 +255,25 @@ Each tool MUST have:
 ```typescript
 describe("launch_browser", () => {
   it("should validate browser type", async () => {
-    await expect(launchBrowser({ browserType: "invalid" }))
-      .rejects.toThrow("Invalid browser type");
+    await expect(launchBrowser({ browserType: "invalid" })).rejects.toThrow("Invalid browser type");
   });
-  
+
   it("should launch browser successfully", async () => {
     const result = await launchBrowser({ browserType: "chromium" });
     expect(result.browserId).toBeDefined();
     expect(result.status).toBe("launched");
   });
-  
+
   it("should enforce browser limit", async () => {
     // Launch max browsers
     for (let i = 0; i < MAX_BROWSERS; i++) {
       await launchBrowser({ browserType: "chromium" });
     }
-    
+
     // Next should fail
-    await expect(launchBrowser({ browserType: "chromium" }))
-      .rejects.toThrow("Maximum browser limit reached");
+    await expect(launchBrowser({ browserType: "chromium" })).rejects.toThrow(
+      "Maximum browser limit reached",
+    );
   });
 });
 ```
@@ -280,12 +285,12 @@ describe("launch_browser", () => {
 ```typescript
 /**
  * Launch a new browser instance
- * 
+ *
  * @param args - Browser launch configuration
  * @param args.browserType - Browser engine (chromium, firefox, webkit)
  * @param args.headless - Run in headless mode (default: true)
  * @returns Browser instance details including ID for subsequent operations
- * 
+ *
  * @throws {BrowserLimitError} When max browser limit reached
  * @throws {BrowserNotInstalledError} When browser executable not found
  */
@@ -295,6 +300,7 @@ async launchBrowser(args: LaunchBrowserArgs): Promise<LaunchBrowserResult>
 ### Tool Definition Documentation
 
 The `description` field should be a single, clear sentence that:
+
 - States what the tool does
 - Mentions key options/variants
 - Avoids redundancy
@@ -319,7 +325,7 @@ When updating tools:
 Every tool is automatically registered with the discovery service, which provides:
 
 - Categorized listing via `brooklyn_list_tools`
-- Detailed help via `brooklyn_tool_help`  
+- Detailed help via `brooklyn_tool_help`
 - Search functionality
 - Documentation generation
 - OpenAPI spec generation

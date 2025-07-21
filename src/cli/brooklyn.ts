@@ -11,6 +11,7 @@
  */
 
 import { HELP_TEXT } from "../generated/help/index.js";
+import { buildConfig } from "../shared/build-config.js";
 import { initializeLogging } from "../shared/structured-logger.js";
 
 // Debug: Check if HELP_TEXT is available at module level
@@ -24,7 +25,7 @@ console.error("MODULE DEBUG: HELP_TEXT keys:", Object.keys(HELP_TEXT || {}));
 // Create minimal config that matches BrooklynConfig structure
 const minimalConfig = {
   serviceName: "brooklyn-mcp-server",
-  version: "1.1.0",
+  version: buildConfig.version,
   environment: "production",
   teamId: "default",
   logging: {
@@ -70,8 +71,8 @@ import { type BrooklynConfig, loadConfig } from "../core/config.js";
 import { getLogger } from "../shared/structured-logger.js";
 import { createHTTP, createMCPStdio } from "../transports/index.js";
 
-// Version will be embedded at build time
-const VERSION = "{{VERSION}}";
+// Version embedded at build time from VERSION file
+const VERSION = "1.1.4";
 
 // Logger will be initialized after configuration is loaded
 

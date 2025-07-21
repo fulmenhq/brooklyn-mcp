@@ -213,6 +213,66 @@ When configuring Brooklyn:
 3. **Rate Limiting**: Adjust `BROOKLYN_RATE_LIMIT` for your needs
 4. **Headless Mode**: Use `BROOKLYN_HEADLESS=true` in production
 
+## Version Updates
+
+### Critical: Complete Session Restart Required
+
+**IMPORTANT**: When updating Brooklyn binary versions, Claude Code requires **complete session restart** to recognize the new version.
+
+### Version Update Procedure
+
+```bash
+# 1. Update Brooklyn binary
+cd /path/to/fulmen-mcp-forge-brooklyn
+bun run version:bump:patch    # Updates VERSION file
+bun run build                 # Build with new version
+bun run install              # Install updated binary globally
+brooklyn --version           # Verify version updated
+
+# 2. MCP Configuration Cleanup
+claude mcp remove brooklyn
+
+# 3. CRITICAL: Kill any running Brooklyn processes
+ps aux | grep brooklyn
+kill -9 [pid]  # Kill all brooklyn processes
+# Note: MCP removal does NOT automatically kill running processes
+
+# 4. Re-add MCP Configuration
+claude mcp add -s user brooklyn brooklyn mcp start
+
+# 5. COMPLETE CLAUDE SESSION RESTART (Required!)
+# Close ALL Claude Code sessions on the machine
+# Then restart Claude sessions - only then will new version be recognized
+```
+
+### Why Complete Restart is Required
+
+Claude Code caches MCP binary references at session initialization. Simply restarting the MCP server or removing/re-adding configurations is insufficient.
+
+**Impact**:
+
+- Must halt work on all other projects using Claude
+- Version updates become expensive operations requiring coordination
+
+### Version Verification
+
+After complete restart:
+
+```bash
+# In new Claude session, test Brooklyn version
+# Should show updated version in MCP response
+brooklyn_status  # Check "version" field
+```
+
+### Development Workflow Considerations
+
+- **Plan updates during dedicated time blocks**
+- **Coordinate with other project work**
+- **Consider batching multiple changes** before version update
+- **Document team communication** around version update windows
+
+For detailed procedures, see: [docs/development/local_development_sop.md](../development/local_development_sop.md)
+
 ## Next Steps
 
 1. Install browsers: `brooklyn setup`

@@ -286,7 +286,8 @@ export const contentCaptureTools: EnhancedTool[] = [
         },
         tag: {
           type: "string",
-          description: "User-provided tag for organizing screenshots (auto-generated if not provided)",
+          description:
+            "User-provided tag for organizing screenshots (auto-generated if not provided)",
         },
         instanceId: {
           type: "string",
