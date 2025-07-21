@@ -9,8 +9,8 @@ export interface EnhancedTool extends Tool {
   category: string;
   examples?: Array<{
     description: string;
-    input: any;
-    expectedOutput?: any;
+    input: unknown;
+    expectedOutput?: unknown;
   }>;
   errors?: Array<{
     code: string;
@@ -229,7 +229,8 @@ export const contentCaptureTools: EnhancedTool[] = [
   {
     name: "take_screenshot",
     category: "content-capture",
-    description: "Capture a screenshot of the current page or specific element",
+    description:
+      "Capture a screenshot and store as file to avoid MCP token limits (Architecture Committee approved)",
     inputSchema: {
       type: "object",
       properties: {
@@ -246,43 +247,124 @@ export const contentCaptureTools: EnhancedTool[] = [
           type: "string",
           description: "CSS selector of element to capture (optional)",
         },
-        format: {
+        type: {
           type: "string",
           enum: ["png", "jpeg"],
           description: "Screenshot format",
           default: "png",
+        },
+        quality: {
+          type: "number",
+          description: "JPEG quality (1-100, ignored for PNG)",
+          minimum: 1,
+          maximum: 100,
+          default: 90,
+        },
+        returnFormat: {
+          type: "string",
+          enum: ["file", "url", "base64_thumbnail"],
+          description:
+            "How to return the screenshot data (file=path, url=HTTP endpoint, base64_thumbnail=small preview)",
+          default: "file",
+        },
+        teamId: {
+          type: "string",
+          description: "Team identifier for directory isolation and quotas",
+        },
+        sessionId: {
+          type: "string",
+          description: "Session identifier for organizing screenshots",
+        },
+        encryption: {
+          type: "boolean",
+          description: "Encrypt screenshot at rest (enterprise mode)",
+          default: true,
+        },
+        outputPath: {
+          type: "string",
+          description: "Custom output path (advanced usage, validated for security)",
         },
       },
       required: ["browserId"],
     },
     examples: [
       {
-        description: "Capture full page screenshot",
+        description: "Capture full page screenshot with file storage (recommended)",
         input: {
           browserId: "browser-123",
           fullPage: true,
-          format: "png",
+          type: "png",
+          returnFormat: "file",
+          teamId: "blossom-team",
+          sessionId: "test-session-1",
         },
         expectedOutput: {
-          status: "captured",
+          filePath:
+            "/Users/user/.brooklyn/screenshots/blossom-team/sessions/test-session-1/screenshot-2025-01-20T12-00-00-uuid.png",
+          filename: "screenshot-2025-01-20T12-00-00-uuid.png",
           format: "png",
-          size: { width: 1920, height: 3000 },
-          dataUrl: "data:image/png;base64,...",
+          dimensions: { width: 1920, height: 3000 },
+          fileSize: 245760,
+          auditId: "audit-uuid-123",
+          returnFormat: "file",
         },
       },
       {
-        description: "Capture specific element",
+        description: "Capture with base64 thumbnail for backward compatibility",
         input: {
           browserId: "browser-123",
-          selector: "#main-content",
-          format: "jpeg",
+          returnFormat: "base64_thumbnail",
+          teamId: "echo-team",
         },
         expectedOutput: {
-          status: "captured",
-          format: "jpeg",
-          selector: "#main-content",
-          dataUrl: "data:image/jpeg;base64,...",
+          filePath:
+            "/Users/user/.brooklyn/screenshots/echo-team/sessions/browser-session-browser-123/screenshot-2025-01-20T12-01-00-uuid.png",
+          filename: "screenshot-2025-01-20T12-01-00-uuid.png",
+          format: "png",
+          dimensions: { width: 1280, height: 720 },
+          fileSize: 98304,
+          auditId: "audit-uuid-456",
+          returnFormat: "base64_thumbnail",
+          data: "iVBORw0KGgoAAAANSUhEUgAA...", // Small thumbnail only
         },
+      },
+      {
+        description: "High quality JPEG for documentation",
+        input: {
+          browserId: "browser-123",
+          type: "jpeg",
+          quality: 95,
+          fullPage: true,
+          teamId: "documentation-team",
+          sessionId: "docs-capture-1",
+        },
+        expectedOutput: {
+          filePath:
+            "/Users/user/.brooklyn/screenshots/documentation-team/sessions/docs-capture-1/screenshot-2025-01-20T12-02-00-uuid.jpeg",
+          filename: "screenshot-2025-01-20T12-02-00-uuid.jpeg",
+          format: "jpeg",
+          dimensions: { width: 1920, height: 4200 },
+          fileSize: 512000,
+          auditId: "audit-uuid-789",
+          returnFormat: "file",
+        },
+      },
+    ],
+    errors: [
+      {
+        code: "BROWSER_NOT_FOUND",
+        message: "Browser session not found",
+        solution: "Check browserId or launch a new browser first",
+      },
+      {
+        code: "STORAGE_QUOTA_EXCEEDED",
+        message: "Screenshot storage quota exceeded",
+        solution: "Clean up old screenshots or increase quota limits",
+      },
+      {
+        code: "PATH_TRAVERSAL_DETECTED",
+        message: "Security violation in output path",
+        solution: "Use relative paths within allowed directories only",
       },
     ],
   },

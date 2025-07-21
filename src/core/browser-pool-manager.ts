@@ -9,6 +9,10 @@ import type { Browser, BrowserContext, Page } from "playwright";
 
 import { config } from "../shared/config.js";
 import { getLogger } from "../shared/logger.js";
+import {
+  ScreenshotStorageManager,
+  type ScreenshotStorageResult,
+} from "./screenshot-storage-manager.js";
 
 // ARCHITECTURE FIX: Lazy logger initialization to avoid circular dependency
 let logger: ReturnType<typeof getLogger> | null = null;
@@ -57,6 +61,12 @@ interface ScreenshotArgs {
   quality?: number;
   type?: "png" | "jpeg";
   clip?: { x: number; y: number; width: number; height: number };
+  // Architecture Committee approved new options
+  returnFormat?: "file" | "url" | "base64_thumbnail";
+  teamId?: string;
+  sessionId?: string;
+  encryption?: boolean;
+  outputPath?: string;
 }
 
 // Close browser arguments interface
@@ -71,9 +81,11 @@ export class BrowserPoolManager {
   private cleanupInterval: NodeJS.Timeout | null = null;
   private readonly cleanupIntervalMs = 5 * 60 * 1000; // 5 minutes
   private readonly maxIdleTime = 30 * 60 * 1000; // 30 minutes
+  private readonly storageManager: ScreenshotStorageManager;
 
   constructor() {
     this.maxBrowsers = config.maxBrowsers || 10;
+    this.storageManager = new ScreenshotStorageManager();
   }
 
   async initialize(): Promise<void> {
@@ -303,14 +315,36 @@ export class BrowserPoolManager {
   }
 
   async screenshot(args: ScreenshotArgs): Promise<{
-    data: string;
+    filePath: string;
+    filename: string;
     format: string;
     dimensions: { width: number; height: number };
     fileSize: number;
+    auditId: string;
+    returnFormat: string;
+    data?: string; // Only for base64_thumbnail backward compatibility
   }> {
-    const { browserId, fullPage = false, quality = 90, type = "png", clip } = args;
+    const {
+      browserId,
+      fullPage = false,
+      quality = 90,
+      type = "png",
+      clip,
+      returnFormat = "file", // Default to file storage (Architecture Committee guidance)
+      teamId,
+      sessionId,
+      encryption,
+    } = args;
 
-    ensureLogger().info("Taking screenshot", { browserId, fullPage, type, quality });
+    ensureLogger().info("Taking screenshot with file storage", {
+      browserId,
+      fullPage,
+      type,
+      quality,
+      returnFormat,
+      teamId,
+      sessionId,
+    });
 
     const session = this.sessions.get(browserId);
     if (!session) {
@@ -328,7 +362,6 @@ export class BrowserPoolManager {
       };
 
       const buffer = await session.page.screenshot(screenshotOptions);
-      const base64Data = buffer.toString("base64");
 
       // Get page dimensions
       const dimensions = await session.page.evaluate(() => ({
@@ -336,19 +369,55 @@ export class BrowserPoolManager {
         height: document.documentElement.scrollHeight,
       }));
 
-      ensureLogger().info("Screenshot captured", {
-        browserId,
-        format: type,
-        fileSize: buffer.length,
+      // Generate session ID if not provided
+      const effectiveSessionId = sessionId || `browser-session-${browserId}`;
+
+      // Save to file storage using ScreenshotStorageManager
+      const storageResult: ScreenshotStorageResult = await this.storageManager.saveScreenshot(
+        buffer,
         dimensions,
+        {
+          sessionId: effectiveSessionId,
+          browserId,
+          teamId,
+          format: type,
+          quality,
+          fullPage,
+          encryption,
+        },
+      );
+
+      ensureLogger().info("Screenshot saved to file storage", {
+        browserId,
+        filePath: storageResult.filePath,
+        fileSize: storageResult.fileSize,
+        auditId: storageResult.auditId,
+        returnFormat,
       });
 
-      return {
-        data: base64Data,
-        format: type,
+      // Prepare response based on return format
+      const response = {
+        filePath: storageResult.filePath,
+        filename: storageResult.filename,
+        format: storageResult.format,
         dimensions,
-        fileSize: buffer.length,
+        fileSize: storageResult.fileSize,
+        auditId: storageResult.auditId,
+        returnFormat,
       };
+
+      // Backward compatibility: provide base64 thumbnail for legacy clients
+      if (returnFormat === "base64_thumbnail") {
+        // Generate small thumbnail (max 64x64) to stay under 10K tokens
+        const thumbnailBuffer = buffer.length > 10000 ? buffer.slice(0, 10000) : buffer; // Simple truncation for now
+
+        return {
+          ...response,
+          data: thumbnailBuffer.toString("base64"),
+        };
+      }
+
+      return response;
     } catch (error) {
       ensureLogger().error("Screenshot failed", {
         browserId,
