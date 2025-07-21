@@ -59,15 +59,20 @@ describe("ScreenshotStorageManager", () => {
         }
       );
 
-      // Verify result structure
+      // Verify result structure (Architecture Committee v2)
       expect(result).toMatchObject({
-        filePath: expect.stringContaining("test-team/sessions/test-session-1"),
+        filePath: expect.stringContaining("instances/"),
         filename: expect.stringMatching(/^screenshot-.*\.png$/),
         auditId: expect.any(String),
         fileSize: testBuffer.length,
         format: "png",
         hash: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
       });
+
+      // Verify new structure: instances/{instanceId}/{tag}/
+      expect(result.filePath).toMatch(/instances\/[a-f0-9]+\/[a-z-]+\/screenshot-.*\.png$/);
+      expect(result.metadata.instanceId).toBeDefined();
+      expect(result.metadata.tag).toBeDefined();
 
       // Verify file was created
       expect(existsSync(result.filePath)).toBe(true);
@@ -90,6 +95,8 @@ describe("ScreenshotStorageManager", () => {
         format: "png",
         fileSize: testBuffer.length,
         auditId: result.auditId,
+        instanceId: expect.any(String),
+        tag: expect.any(String),
         options: {
           encrypted: false, // Wave 1: No encryption
         },
@@ -113,6 +120,8 @@ describe("ScreenshotStorageManager", () => {
       expect(result.filename).toMatch(/\.jpeg$/);
       expect(result.metadata.options.quality).toBe(95);
       expect(result.metadata.options.fullPage).toBe(true);
+      expect(result.metadata.instanceId).toBeDefined();
+      expect(result.metadata.tag).toBeDefined();
     });
 
     it("should generate unique filenames for concurrent saves", async () => {
@@ -140,36 +149,40 @@ describe("ScreenshotStorageManager", () => {
       }
     });
 
-    it("should create team isolation directories", async () => {
-      await storageManager.saveScreenshot(
+    it("should create instance and tag isolation directories", async () => {
+      const result1 = await storageManager.saveScreenshot(
         testBuffer,
         { width: 1920, height: 1080 },
         {
           sessionId: "isolation-session",
           browserId: "browser-789",
           teamId: "team-alpha",
+          tag: "alpha-test",
         }
       );
 
-      await storageManager.saveScreenshot(
+      const result2 = await storageManager.saveScreenshot(
         testBuffer,
         { width: 1920, height: 1080 },
         {
           sessionId: "isolation-session",
           browserId: "browser-789",
           teamId: "team-beta",
+          tag: "beta-test",
         }
       );
 
-      // Verify separate team directories exist
-      const alphaDir = join(testBaseDir, "team-alpha", "sessions", "isolation-session");
-      const betaDir = join(testBaseDir, "team-beta", "sessions", "isolation-session");
+      // Verify separate instance and tag directories exist
+      expect(result1.filePath).toContain("instances/");
+      expect(result1.filePath).toContain("alpha-test");
+      expect(result2.filePath).toContain("instances/");
+      expect(result2.filePath).toContain("beta-test");
       
-      expect(existsSync(alphaDir)).toBe(true);
-      expect(existsSync(betaDir)).toBe(true);
+      expect(existsSync(result1.filePath)).toBe(true);
+      expect(existsSync(result2.filePath)).toBe(true);
     });
 
-    it("should handle default team when no teamId provided", async () => {
+    it("should auto-generate tag when no tag provided", async () => {
       const result = await storageManager.saveScreenshot(
         testBuffer,
         { width: 1920, height: 1080 },
@@ -179,7 +192,10 @@ describe("ScreenshotStorageManager", () => {
         }
       );
 
-      expect(result.filePath).toContain("default/sessions/default-session");
+      // Should use instance-based directory with auto-generated tag
+      expect(result.filePath).toContain("instances/");
+      expect(result.metadata.tag).toMatch(/^[a-z]+-[a-z]+-[a-z]+$/); // Three-word slug pattern
+      expect(result.metadata.instanceId).toBeDefined();
     });
 
     it("should reject files exceeding size limit", async () => {
@@ -199,8 +215,8 @@ describe("ScreenshotStorageManager", () => {
   });
 
   describe("security path validation", () => {
-    it("should prevent path traversal attacks", async () => {
-      // Path validation happens during file operations, let's test it during save
+    it("should prevent path traversal attacks in sessionId", async () => {
+      // Security validation now happens on input parameters (Architecture Committee v2)
       await expect(
         storageManager.saveScreenshot(
           testBuffer,
@@ -240,8 +256,8 @@ describe("ScreenshotStorageManager", () => {
       ).rejects.toThrow(StorageSecurityError);
     });
 
-    it("should allow valid filenames", async () => {
-      // First save a file to test with
+    it("should allow valid input parameters", async () => {
+      // This should not throw any security errors
       const result = await storageManager.saveScreenshot(
         testBuffer,
         { width: 1920, height: 1080 },
@@ -249,17 +265,14 @@ describe("ScreenshotStorageManager", () => {
           sessionId: "valid-session",
           browserId: "valid-browser",
           teamId: "valid-team",
+          tag: "valid-tag-123",
         }
       );
 
-      // Then retrieve it - should not throw
-      const path = await storageManager.getScreenshotPath(
-        result.filename,
-        "valid-session",
-        "valid-team"
-      );
-
-      expect(path).toBe(result.filePath);
+      // Verify the file was created successfully
+      expect(existsSync(result.filePath)).toBe(true);
+      expect(result.metadata.sessionId).toBe("valid-session");
+      expect(result.metadata.tag).toBe("valid-tag-123");
     });
   });
 
@@ -280,11 +293,11 @@ describe("ScreenshotStorageManager", () => {
       expect(existsSync(result.filePath)).toBe(true);
       expect(existsSync(metadataPath)).toBe(true);
 
-      // Delete screenshot
+      // Delete screenshot using new API (Architecture Committee v2)
       await storageManager.deleteScreenshot(
         result.filename,
-        "delete-session",
-        "delete-team"
+        result.metadata.instanceId,
+        result.metadata.tag
       );
 
       // Verify files are deleted
@@ -293,14 +306,12 @@ describe("ScreenshotStorageManager", () => {
     });
 
     it("should handle deletion of non-existent files gracefully", async () => {
-      // Should not throw error for non-existent files
+      // Should throw error for non-existent files (Architecture Committee v2)
       await expect(
         storageManager.deleteScreenshot(
-          "non-existent.png",
-          "session",
-          "team"
+          "non-existent.png"
         )
-      ).resolves.not.toThrow();
+      ).rejects.toThrow("Screenshot file not found");
     });
 
     it("should return correct file path for existing screenshots", async () => {
@@ -316,8 +327,8 @@ describe("ScreenshotStorageManager", () => {
 
       const retrievedPath = await storageManager.getScreenshotPath(
         result.filename,
-        "path-session",
-        "path-team"
+        result.metadata.instanceId,
+        result.metadata.tag
       );
 
       expect(retrievedPath).toBe(result.filePath);
@@ -326,9 +337,7 @@ describe("ScreenshotStorageManager", () => {
     it("should throw error for non-existent screenshot files", async () => {
       await expect(
         storageManager.getScreenshotPath(
-          "non-existent-screenshot.png",
-          "session",
-          "team"
+          "non-existent-screenshot.png"
         )
       ).rejects.toThrow("Screenshot file not found");
     });
@@ -402,7 +411,7 @@ describe("ScreenshotStorageManager", () => {
         expect.fail("Should have thrown an error");
       } catch (error) {
         expect(error).toBeInstanceOf(StorageSecurityError);
-        expect((error as StorageSecurityError).message).toContain("Path traversal attempt detected");
+        expect((error as StorageSecurityError).message).toContain("Security violation in teamId");
         expect((error as StorageSecurityError).path).toBeDefined();
       }
     });
@@ -438,6 +447,8 @@ describe("ScreenshotStorageManager", () => {
         fileSize: testBuffer.length,
         hash: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
         auditId: expect.any(String),
+        instanceId: expect.any(String),
+        tag: expect.any(String),
         options: {
           fullPage: true,
           quality: 85,

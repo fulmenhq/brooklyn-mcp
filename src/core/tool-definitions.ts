@@ -284,6 +284,14 @@ export const contentCaptureTools: EnhancedTool[] = [
           type: "string",
           description: "Custom output path (advanced usage, validated for security)",
         },
+        tag: {
+          type: "string",
+          description: "User-provided tag for organizing screenshots (auto-generated if not provided)",
+        },
+        instanceId: {
+          type: "string",
+          description: "Override instance detection (advanced usage)",
+        },
       },
       required: ["browserId"],
     },
@@ -347,6 +355,28 @@ export const contentCaptureTools: EnhancedTool[] = [
           fileSize: 512000,
           auditId: "audit-uuid-789",
           returnFormat: "file",
+        },
+      },
+      {
+        description: "Organized screenshot with custom tag for multi-instance management",
+        input: {
+          browserId: "browser-456",
+          type: "png",
+          tag: "ui-testing-sprint-3",
+          teamId: "qa-team",
+          sessionId: "automated-tests",
+        },
+        expectedOutput: {
+          filePath:
+            "/Users/user/.brooklyn/screenshots/instances/abc123def456/ui-testing-sprint-3/screenshot-2025-01-20T12-03-00-uuid.png",
+          filename: "screenshot-2025-01-20T12-03-00-uuid.png",
+          format: "png",
+          dimensions: { width: 1280, height: 720 },
+          fileSize: 156000,
+          auditId: "audit-uuid-abc",
+          returnFormat: "file",
+          instanceId: "abc123def456",
+          tag: "ui-testing-sprint-3",
         },
       },
     ],
