@@ -14,8 +14,6 @@ import { HELP_TEXT } from "../generated/help/index.js";
 import { buildConfig } from "../shared/build-config.js";
 import { initializeLogging } from "../shared/structured-logger.js";
 
-import { getLogger } from "../shared/structured-logger.js";
-
 // ARCHITECTURE COMMITTEE IMMEDIATE FIX:
 // Initialize logging BEFORE any other imports to avoid circular dependency issues.
 // This prevents "Logger registry not initialized" errors during module loading.
@@ -297,7 +295,8 @@ function setupMCPDevCommands(mcpCmd: Command): void {
     .action(async () => {
       try {
         await devManager.cleanup();
-        console.log("✅ MCP development mode cleanup completed");
+        // User-facing success message goes to stdout for CLI interaction
+        console.info("✅ MCP development mode cleanup completed");
       } catch (error) {
         console.error(
           "Failed to cleanup MCP development mode:",

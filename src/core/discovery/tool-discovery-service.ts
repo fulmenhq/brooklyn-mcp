@@ -161,6 +161,7 @@ export class ToolDiscoveryService {
   /**
    * Search tools by query
    */
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Complex search logic, refactor planned for future
   searchTools(query: string): ToolSearchResult[] {
     const searchTerms = query.toLowerCase().split(/\s+/);
     const results: ToolSearchResult[] = [];
@@ -286,7 +287,7 @@ export class ToolDiscoveryService {
 
         // Examples
         if (tool.examples && tool.examples.length > 0) {
-          doc += `**Examples**:\n\n`;
+          doc += "**Examples**:\n\n";
           for (const example of tool.examples) {
             doc += `*${example.description}*\n`;
             doc += `\`\`\`json\n${JSON.stringify(example.input, null, 2)}\n\`\`\`\n\n`;
@@ -295,12 +296,12 @@ export class ToolDiscoveryService {
 
         // Errors
         if (tool.errors && tool.errors.length > 0) {
-          doc += `**Common Errors**:\n\n`;
+          doc += "**Common Errors**:\n\n";
           for (const error of tool.errors) {
             doc += `- **${error.code}**: ${error.message}\n`;
             doc += `  - *Solution*: ${error.solution}\n`;
           }
-          doc += `\n`;
+          doc += "\n";
         }
       }
     }
@@ -319,9 +320,9 @@ export class ToolDiscoveryService {
         description: this.metadata.description,
         version: this.metadata.version,
       },
-      paths: {} as any,
+      paths: {} as Record<string, unknown>,
       components: {
-        schemas: {} as any,
+        schemas: {} as Record<string, unknown>,
       },
     };
 

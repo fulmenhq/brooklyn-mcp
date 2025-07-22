@@ -2,24 +2,20 @@
 
 ## Introduction
 
-Brooklyn uses a dual logging system to provide consistent, configurable logging across the application. This guide covers how to use the logging system, configure it, and best practices for developers. Telemetry features are planned for future releases to enable metrics collection and monitoring; currently, the focus is on logging.
+Brooklyn uses a unified structured logging system to provide consistent, configurable logging across the application. This guide covers how to use the logging system, configure it, and best practices for developers. Telemetry features are planned for future releases to enable metrics collection and monitoring; currently, the focus is on logging.
 
 ## Logger Architecture
 
-Brooklyn has two logging systems:
+Brooklyn uses a **Structured Logger** (`src/shared/structured-logger.ts`) for all logging needs:
 
-1. **Winston Logger** (`src/shared/logger.ts`) - Legacy winston-based logger
-   - Use for: Older modules, compatibility with existing code
-   - Import: `import { getLogger } from "../shared/logger.js"`
+- **Import**: `import { getLogger } from "../shared/structured-logger.js"`
+- **Features**: Built-in MCP mode detection, automatic stderr routing, transport-aware logging
+- **MCP Protocol Compliance**: Ensures zero stdout contamination for pure JSON-RPC protocol
 
-2. **Structured Logger** (`src/shared/structured-logger.ts`) - New MCP-aware logger  
-   - Use for: New code, MCP transport modules, CLI tools
-   - Import: `import { getLogger } from "../shared/structured-logger.js"`
-   - Features: Built-in MCP mode detection, automatic stderr routing
+**Migration Note**: Legacy Winston logger removed in v1.1.6; all code now uses structured-logger.ts.
 
-**Recommendation**: Use Structured Logger for all new development.
+The logging system supports:
 
-Both systems support:
 - Multiple log levels (debug, info, warn, error).
 - Structured output (JSON or pretty-printed).
 - Output to console (stderr to avoid stdio interference) and files with rotation.
@@ -29,7 +25,7 @@ This setup ensures logs do not interfere with MCP stdio communications or local 
 
 ## Configuration
 
-Logging is initialized via `initLogger` or `initializeLogging` with options from `BrooklynConfig`. Key options include:
+Logging is initialized via `initializeLogging` with options from `BrooklynConfig`. Key options include:
 
 - **level**: Minimum log level ("debug", "info", "warn", "error").
 - **format**: Output format ("json", "pretty", "compact").
@@ -38,15 +34,41 @@ Logging is initialized via `initLogger` or `initializeLogging` with options from
 - **maxSize** / **maxFiles**: File rotation limits (default: 10MB, 5 files).
 
 Example initialization:
+
 ```typescript
-initLogger({
-  level: "debug",
-  format: "pretty",
-  useStderr: true,
-  logFile: "brooklyn.log",
-  maxSize: 10 * 1024 * 1024,
-  maxFiles: 5,
-});
+import { initializeLogging } from "../shared/structured-logger.js";
+
+// Initialize with Brooklyn config
+const brooklynConfig = {
+  serviceName: "brooklyn-mcp-server",
+  version: "1.1.6",
+  environment: "production" as const,
+  teamId: "default",
+  logging: {
+    level: "debug" as const,
+    format: "pretty" as const,
+    file: "brooklyn.log",
+    maxSize: "10MB",
+    maxFiles: 5,
+  },
+  // Other config sections...
+  transports: {
+    mcp: { enabled: true },
+    http: { enabled: false, port: 3000, host: "localhost", cors: true, rateLimiting: false },
+  },
+  browsers: { maxInstances: 10, defaultType: "chromium" as const, headless: true, timeout: 30000 },
+  security: { allowedDomains: ["*"], rateLimit: { requests: 100, windowMs: 60000 } },
+  plugins: { directory: "./plugins", autoLoad: false, allowUserPlugins: false },
+  paths: {
+    config: "~/.brooklyn",
+    logs: "~/.brooklyn/logs",
+    plugins: "~/.brooklyn/plugins",
+    browsers: "~/.brooklyn/browsers",
+    pids: "~/.brooklyn/pids",
+  },
+};
+
+initializeLogging(brooklynConfig);
 ```
 
 Logs are written to stderr for console and a configurable file path for persistent storage.
@@ -54,9 +76,11 @@ Logs are written to stderr for console and a configurable file path for persiste
 ## Using the Logger
 
 ### Getting a Logger Instance
+
 Use `getLogger` to create a context-specific logger:
+
 ```typescript
-import { getLogger } from "../shared/logger.js";
+import { getLogger } from "../shared/structured-logger.js";
 
 const logger = getLogger("my-module");
 ```
@@ -64,6 +88,7 @@ const logger = getLogger("my-module");
 This creates a child logger with the module name for context.
 
 ### Logging Methods
+
 - `logger.trace(msg, meta?)`: For fine-grained tracing (maps to debug).
 - `logger.debug(msg, meta?)`: Detailed debug info.
 - `logger.info(msg, meta?)`: General information.
@@ -74,13 +99,16 @@ This creates a child logger with the module name for context.
 `meta` is an optional object for structured data (e.g., `{ userId: 123, errorCode: "AUTH_FAIL" }`).
 
 Example:
+
 ```typescript
 logger.info("User logged in", { userId: 123, sessionId: "abc456" });
 logger.error("Database connection failed", { error: err.message });
 ```
 
 ### Structured Logging
+
 All logs include:
+
 - Timestamp (RFC3339 format).
 - Level.
 - Module name.
@@ -92,6 +120,7 @@ In "json" format, output is a single JSON object per line.
 ## MCP Mode Behavior
 
 When the logger detects MCP mode (transport === "mcp-stdio"):
+
 - ALL output automatically redirected to stderr
 - stdout is reserved for MCP protocol messages
 - This prevents corruption of MCP communication
@@ -101,13 +130,15 @@ The structured logger automatically detects MCP mode through transport context.
 ## Environment-Specific Logging
 
 ### Development Mode
+
 ```typescript
 // CLI tools and dev scripts - user-friendly output
 this.logger.info("🚀 Starting Brooklyn MCP development mode");
 this.logger.warn("❌ Development mode already running", { processId });
 ```
 
-### Production Mode  
+### Production Mode
+
 ```typescript
 // Structured data for log aggregation
 logger.info("Brooklyn MCP development mode started", {
@@ -121,22 +152,24 @@ logger.info("Brooklyn MCP development mode started", {
 ## Error Handling Patterns
 
 ### With Error Objects
+
 ```typescript
 try {
   await riskyOperation();
 } catch (error) {
-  logger.error("Operation failed", { 
+  logger.error("Operation failed", {
     operation: "createNamedPipe",
     error: error instanceof Error ? error.message : String(error),
-    context: { inputPipe, outputPipe }
+    context: { inputPipe, outputPipe },
   });
 }
 ```
 
 ### With Stack Traces (Structured Logger)
+
 ```typescript
-logger.errorWithException("Critical failure", error, { 
-  correlationId: "mcp-dev-123" 
+logger.errorWithException("Critical failure", error, {
+  correlationId: "mcp-dev-123",
 });
 ```
 
@@ -161,6 +194,7 @@ vi.mock("../shared/logger.js", () => ({
 This prevents test output pollution and ensures tests pass regardless of log level.
 
 ## Best Practices
+
 - **Use Context**: Always use `getLogger("module-name")` for traceable logs.
 - **Structured Data**: Prefer metadata objects over string concatenation for better querying.
 - **Levels**: Use debug for dev details, info for normal ops, warn/error for issues.
@@ -171,7 +205,9 @@ This prevents test output pollution and ensures tests pass regardless of log lev
 - **Logger Choice**: Use Structured Logger for new code, Winston Logger for legacy compatibility.
 
 ## Telemetry
+
 Telemetry is not yet implemented but is planned for Phase 2. It will include:
+
 - Metrics collection (e.g., request counts, latencies).
 - Integration with tools like Prometheus or StatsD.
 - Configurable endpoints for exporting metrics.
@@ -181,21 +217,24 @@ For now, use logging for observability. Backlog items include integrating OpenTe
 ## Troubleshooting
 
 ### Common Issues
+
 - **No logs appearing**: Check initialization and log level configuration
 - **MCP protocol corruption**: Ensure no direct `console.log()` usage; all output must go to stderr
 - **File rotation not working**: Verify directory permissions and maxSize/maxFiles settings
 - **Tests failing with logger errors**: Ensure complete logger mocking in test files
 
 ### Debug Commands
+
 ```bash
 # Check logger initialization
 BROOKLYN_LOG_LEVEL=debug bun run test
 
-# Verify MCP mode detection  
+# Verify MCP mode detection
 BROOKLYN_DEV_VERBOSE=true bun run mcp-dev:start
 ```
 
 ### Performance Tips
+
 - Use debug level for verbose output in development only
 - Avoid logging in tight loops or hot paths
 - Consider log level filtering for production deployments

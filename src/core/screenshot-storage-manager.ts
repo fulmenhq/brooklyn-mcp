@@ -9,7 +9,7 @@ import { readFile, readdir, stat, unlink, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join, normalize, relative, resolve } from "node:path";
 
-import { getLogger } from "../shared/logger.js";
+import { getLogger } from "../shared/structured-logger.js";
 
 // Lazy logger initialization to avoid circular dependency
 let logger: ReturnType<typeof getLogger> | null = null;
@@ -620,6 +620,7 @@ export class ScreenshotStorageManager {
   /**
    * Clean up old files (Architecture Committee v2)
    */
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Complex file system operations, refactor planned
   async cleanupOldFiles(olderThanDays: number): Promise<void> {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
@@ -653,7 +654,7 @@ export class ScreenshotStorageManager {
           const files = await readdir(tagPath, { withFileTypes: true });
 
           for (const file of files) {
-            if (!file.isFile() || !(file.name.endsWith(".png") || file.name.endsWith(".jpeg"))) {
+            if (!(file.isFile() && (file.name.endsWith(".png") || file.name.endsWith(".jpeg")))) {
               continue;
             }
 
@@ -698,6 +699,7 @@ export class ScreenshotStorageManager {
   /**
    * Get storage statistics (Architecture Committee v2)
    */
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Complex statistics gathering, refactor planned
   async getStorageStats(): Promise<StorageStats> {
     const stats: StorageStats = {
       totalFiles: 0,
@@ -739,7 +741,7 @@ export class ScreenshotStorageManager {
           const files = await readdir(tagPath, { withFileTypes: true });
 
           for (const file of files) {
-            if (!file.isFile() || !(file.name.endsWith(".png") || file.name.endsWith(".jpeg"))) {
+            if (!(file.isFile() && (file.name.endsWith(".png") || file.name.endsWith(".jpeg")))) {
               continue;
             }
 
@@ -782,6 +784,7 @@ export class ScreenshotStorageManager {
   /**
    * Find screenshots by query (Architecture Committee v2)
    */
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Complex query processing, refactor planned
   async findScreenshot(query: ScreenshotQuery): Promise<ScreenshotResult[]> {
     const results: ScreenshotResult[] = [];
 
@@ -808,7 +811,7 @@ export class ScreenshotStorageManager {
           const files = await readdir(tagPath, { withFileTypes: true });
 
           for (const file of files) {
-            if (!file.isFile() || !file.name.endsWith(".metadata.json")) continue;
+            if (!(file.isFile() && file.name.endsWith(".metadata.json"))) continue;
 
             try {
               const metadataPath = join(tagPath, file.name);

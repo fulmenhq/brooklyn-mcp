@@ -4,7 +4,7 @@
  */
 
 import type { CallToolRequest } from "@modelcontextprotocol/sdk/types.js";
-import { getLogger } from "../shared/logger.js";
+import { getLogger } from "../shared/structured-logger.js";
 
 // Logger will be created lazily after logging is initialized
 let logger: ReturnType<typeof getLogger> | null = null;
@@ -157,9 +157,9 @@ export class SecurityMiddleware {
   /**
    * Validate domain access for navigation tools
    */
-  private async validateDomainAccess(toolName: string, args: any): Promise<void> {
-    if (toolName === "navigate_to_url" && args?.url) {
-      const url = String(args.url);
+  private async validateDomainAccess(toolName: string, args: unknown): Promise<void> {
+    if (toolName === "navigate_to_url" && args && typeof args === "object" && "url" in args) {
+      const url = String((args as { url: unknown }).url);
 
       // Skip validation for data URLs (used for testing)
       if (url.startsWith("data:")) {
@@ -206,7 +206,11 @@ export class SecurityMiddleware {
   /**
    * Validate team access and isolation
    */
-  private async validateTeamAccess(toolName: string, args: any, teamId?: string): Promise<void> {
+  private async validateTeamAccess(
+    toolName: string,
+    args: unknown,
+    teamId?: string,
+  ): Promise<void> {
     if (!this.config.teamIsolation) {
       return;
     }
@@ -223,9 +227,14 @@ export class SecurityMiddleware {
       }
 
       // Ensure team ID is consistent in args
-      if (args?.teamId && args.teamId !== teamId) {
+      if (
+        args &&
+        typeof args === "object" &&
+        "teamId" in args &&
+        (args as { teamId: unknown }).teamId !== teamId
+      ) {
         throw new SecurityError(
-          `Team ID mismatch: request teamId '${args.teamId}' does not match authenticated team '${teamId}'`,
+          `Team ID mismatch: request teamId '${(args as { teamId: unknown }).teamId}' does not match authenticated team '${teamId}'`,
           "TEAM_ID_MISMATCH",
         );
       }
@@ -239,12 +248,17 @@ export class SecurityMiddleware {
       "close_browser",
     ];
 
-    if (browserOperationTools.includes(toolName) && args?.browserId) {
+    if (
+      browserOperationTools.includes(toolName) &&
+      args &&
+      typeof args === "object" &&
+      "browserId" in args
+    ) {
       // TODO: Implement browser ownership validation
       // This would check that the browserId belongs to the requesting team
       ensureLogger().debug("Browser ownership validation", {
         tool: toolName,
-        browserId: args.browserId,
+        browserId: (args as { browserId: unknown }).browserId,
         teamId,
       });
     }
@@ -255,7 +269,7 @@ export class SecurityMiddleware {
    */
   private async validateResourceLimits(
     toolName: string,
-    args: any,
+    _args: unknown,
     clientId: string,
   ): Promise<void> {
     if (toolName === "launch_browser") {

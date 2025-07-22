@@ -13,7 +13,9 @@ import { homedir, platform } from "node:os";
 import { dirname, join } from "node:path";
 import { Command } from "commander";
 
-import { logger } from "../shared/logger.js";
+import { getLogger } from "../shared/structured-logger.js";
+
+const logger = getLogger("brooklyn-server");
 
 // Build-time configuration - will be replaced during build
 const BROOKLYN_PATH = "{{BROOKLYN_PATH}}";

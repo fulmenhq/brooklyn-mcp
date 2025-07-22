@@ -5,7 +5,7 @@
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import type { PluginManager as IPluginManager, WebPilotPlugin } from "../ports/plugin.js";
 import { config } from "../shared/config.js";
-import { getLogger } from "../shared/logger.js";
+import { getLogger } from "../shared/structured-logger.js";
 
 // ARCHITECTURE FIX: Lazy logger initialization
 let logger: ReturnType<typeof getLogger> | null = null;

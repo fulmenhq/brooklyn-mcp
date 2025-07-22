@@ -8,8 +8,18 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprot
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 
 import { config } from "../shared/config.js";
-import { logger } from "../shared/logger.js";
+import { getLogger } from "../shared/structured-logger.js";
 import { BrowserPoolManager } from "./browser-pool-manager.js";
+
+// Lazy logger initialization to avoid circular dependency
+let logger: ReturnType<typeof getLogger> | null = null;
+
+function ensureLogger() {
+  if (!logger) {
+    logger = getLogger("server");
+  }
+  return logger;
+}
 import { OnboardingTools } from "./onboarding-tools.js";
 import { PluginManager } from "./plugin-manager.js";
 import { SecurityMiddleware } from "./security-middleware.js";
@@ -45,7 +55,7 @@ export class MCPServer {
   }
 
   async initialize(): Promise<void> {
-    logger.info("Initializing MCP server", {
+    ensureLogger().info("Initializing MCP server", {
       service: config.serviceName,
       version: config.version,
     });
@@ -64,7 +74,7 @@ export class MCPServer {
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
 
-      logger.debug("Tool call received", {
+      ensureLogger().debug("Tool call received", {
         tool: name,
         args,
       });
@@ -97,7 +107,7 @@ export class MCPServer {
           ],
         };
       } catch (error) {
-        logger.error("Tool call failed", {
+        ensureLogger().error("Tool call failed", {
           tool: name,
           error: error instanceof Error ? error.message : String(error),
         });
@@ -122,17 +132,17 @@ export class MCPServer {
     // Load plugins
     await this.pluginManager.loadPlugins();
 
-    logger.info("MCP server initialized successfully");
+    ensureLogger().info("MCP server initialized successfully");
   }
 
   async start(): Promise<void> {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    logger.info("MCP server connected via stdio");
+    ensureLogger().info("MCP server connected via stdio");
   }
 
   async stop(): Promise<void> {
-    logger.info("Stopping MCP server");
+    ensureLogger().info("Stopping MCP server");
 
     // Clean up browser pool
     await this.browserPool.cleanup();
@@ -140,7 +150,7 @@ export class MCPServer {
     // Clean up plugins
     await this.pluginManager.cleanup();
 
-    logger.info("MCP server stopped");
+    ensureLogger().info("MCP server stopped");
   }
 
   private async getCoreTools(): Promise<Tool[]> {
@@ -266,7 +276,7 @@ export class MCPServer {
           throw new Error(`Unknown core tool: ${name}`);
       }
     } catch (error) {
-      logger.error("Core tool execution failed", {
+      ensureLogger().error("Core tool execution failed", {
         tool: name,
         error: error instanceof Error ? error.message : String(error),
       });

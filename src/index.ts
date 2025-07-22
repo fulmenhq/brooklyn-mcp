@@ -3,25 +3,23 @@
  * Enterprise-ready MCP server for browser automation
  */
 
+import { loadConfig } from "./core/config.js";
 import { createServer } from "./core/server";
-import { config } from "./shared/config";
-import { getLogger, initLogger } from "./shared/logger";
+import { getLogger, initializeLogging } from "./shared/structured-logger.js";
 
 async function main(): Promise<void> {
-  // Initialize logger with file logging
-  initLogger({
-    level: (process.env["WEBPILOT_LOG_LEVEL"] as "debug" | "info" | "warn" | "error") || "info",
-    format: "pretty",
-    useStderr: false,
-    logFile: process.env["WEBPILOT_LOG_FILE"] || "server.log",
-  });
+  // Load Brooklyn configuration
+  const brooklynConfig = await loadConfig();
+
+  // Initialize structured logging
+  initializeLogging(brooklynConfig);
 
   const logger = getLogger("main");
 
   try {
     logger.info("Starting Fulmen MCP Brooklyn server", {
-      version: config.version,
-      environment: config.environment,
+      version: brooklynConfig.version,
+      environment: brooklynConfig.environment,
     });
 
     const server = await createServer();
@@ -29,8 +27,7 @@ async function main(): Promise<void> {
     await server.start();
 
     logger.info("Server started successfully", {
-      port: config.port,
-      maxBrowsers: config.maxBrowsers,
+      browsers: brooklynConfig.browsers.maxInstances,
     });
   } catch (error) {
     logger.error("Failed to start server", { error });

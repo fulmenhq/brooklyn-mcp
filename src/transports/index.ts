@@ -11,7 +11,7 @@ import type {
   TransportFactory,
 } from "../core/transport.js";
 import { TransportRegistry, TransportType } from "../core/transport.js";
-import { getLogger } from "../shared/logger.js";
+import { getLogger } from "../shared/structured-logger.js";
 import { HTTPTransport } from "./http-transport.js";
 import { MCPStdioTransport } from "./mcp-stdio-transport.js";
 
@@ -65,6 +65,7 @@ export function registerTransports(): void {
  * Create transport from configuration
  */
 export async function createTransport(config: TransportConfig): Promise<Transport> {
+  ensureTransportsRegistered();
   return TransportRegistry.create(config);
 }
 
@@ -110,8 +111,16 @@ export async function createHTTP(port: number, host?: string, cors = true): Prom
  * Get available transport types
  */
 export function getAvailableTransports(): TransportType[] {
+  ensureTransportsRegistered();
   return TransportRegistry.getAvailableTypes();
 }
 
-// Auto-register transports when module is imported
-registerTransports();
+// Transports registered lazily when first used
+let transportsRegistered = false;
+
+function ensureTransportsRegistered(): void {
+  if (!transportsRegistered) {
+    registerTransports();
+    transportsRegistered = true;
+  }
+}

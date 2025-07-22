@@ -180,16 +180,18 @@ graph TD
 #### CLI Integration (Architecture Committee Guidance)
 
 **New Commands**: Integrated into main `brooklyn` CLI
+
 ```bash
 # Internal commands (hidden unless --internal flag used)
 brooklyn mcp dev-start      # Start MCP development mode
-brooklyn mcp dev-stop       # Stop MCP development mode  
+brooklyn mcp dev-stop       # Stop MCP development mode
 brooklyn mcp dev-restart    # Restart MCP development mode
 brooklyn mcp dev-status     # Show MCP development status
 brooklyn mcp dev-cleanup    # Clean up development resources
 ```
 
 **Package.json Scripts**: Easy access for developers
+
 ```bash
 bun run mcp-dev:start       # Convenience wrapper
 bun run mcp-dev:stop        # Convenience wrapper
@@ -201,12 +203,14 @@ bun run mcp-dev:cleanup     # Convenience wrapper
 #### Named Pipe Architecture
 
 **Security Features** (Architecture Committee requirements):
+
 - Secure permissions (0600) on all pipes
 - Configurable pipe directory via `BROOKLYN_DEV_PIPE_DIR`
 - Unique instance UUIDs prevent collisions
 - Auto-cleanup on process exit
 
 **Pipe Naming Convention**:
+
 ```bash
 # Current implementation (Architecture Committee approved)
 /tmp/brooklyn-mcp-dev-{uuid}-{timestamp}-in
@@ -218,6 +222,7 @@ bun run mcp-dev:cleanup     # Convenience wrapper
 ```
 
 **Process Management**:
+
 - Detached processes (returns control to caller)
 - PID file management in `~/.brooklyn/dev/pipes.json`
 - Graceful shutdown with SIGTERM/SIGKILL fallback
@@ -226,6 +231,7 @@ bun run mcp-dev:cleanup     # Convenience wrapper
 #### MCP Protocol Compliance
 
 **Full MCP JSON-RPC 2.0 Support**:
+
 ```typescript
 // Standard MCP request format maintained
 {
@@ -240,6 +246,7 @@ bun run mcp-dev:cleanup     # Convenience wrapper
 ```
 
 **Brooklyn Engine Integration**:
+
 - All production Brooklyn tools available
 - Same response formats as production MCP
 - Full browser automation capabilities
@@ -263,12 +270,13 @@ bun run mcp-dev:start
 #### Step 2: Development Testing
 
 **Chat Integration Ready**: Once helper functions are updated, you can use Brooklyn tools directly in chat:
+
 ```typescript
 // Future capability (helpers need MCP dev manager integration)
 const browser = await dev_launch_browser({ browserType: "chromium" });
-const screenshot = await dev_take_screenshot({ 
-  browserId: browser.browserId, 
-  returnFormat: "file" 
+const screenshot = await dev_take_screenshot({
+  browserId: browser.browserId,
+  returnFormat: "file",
 });
 ```
 
@@ -301,6 +309,7 @@ bun run build && bun run install
 #### MCP Dev Manager (`src/core/mcp-dev-manager.ts`)
 
 **Architecture Committee Approved Features**:
+
 - Configurable pipe directories
 - Secure pipe permissions (0600)
 - Process lifecycle management
@@ -310,19 +319,21 @@ bun run build && bun run install
 #### Process Architecture
 
 **Detached Process Model**: Follows server-management.ts pattern
+
 ```bash
 # Process spawning
 spawn("bun", [
-  "run", 
-  "src/cli/brooklyn.ts", 
-  "mcp", 
-  "start", 
+  "run",
+  "src/cli/brooklyn.ts",
+  "mcp",
+  "start",
   "--dev-mode",
   "--pipes-prefix", pipePath
 ])
 ```
 
 **Environment Integration**:
+
 - `BROOKLYN_DEV_INPUT_PIPE`: Input pipe path
 - `BROOKLYN_DEV_OUTPUT_PIPE`: Output pipe path
 - `BROOKLYN_DEV_PIPE_DIR`: Custom pipe directory
@@ -330,6 +341,7 @@ spawn("bun", [
 #### Development Mode Detection
 
 **Smart Pipe Usage**: `src/core/dev-mode.ts`
+
 ```typescript
 // Check if pipes provided by MCP dev manager
 const providedInputPipe = process.env["BROOKLYN_DEV_INPUT_PIPE"];
@@ -374,11 +386,12 @@ if (providedInputPipe && providedOutputPipe) {
 ✅ **Security**: Restrictive pipe permissions, process isolation  
 ✅ **Reliability**: Proper cleanup, signal handling, error management  
 ✅ **Maintainability**: Integrated into main CLI, standard patterns  
-✅ **Scalability**: Configurable, team-ready architecture  
+✅ **Scalability**: Configurable, team-ready architecture
 
 ### Version History
 
 **v1.1.6**: 🎉 **MCP Development Mode Fully Implemented**
+
 - Architecture Committee approved implementation
 - CLI integration complete
 - Named pipe architecture operational

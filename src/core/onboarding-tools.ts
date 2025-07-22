@@ -5,8 +5,18 @@
 
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { config } from "../shared/config.js";
-import { logger } from "../shared/logger.js";
+import { getLogger } from "../shared/structured-logger.js";
 import type { BrowserPoolManager } from "./browser-pool-manager.js";
+
+// Lazy logger initialization to avoid circular dependency
+let logger: ReturnType<typeof getLogger> | null = null;
+
+function ensureLogger() {
+  if (!logger) {
+    logger = getLogger("onboarding-tools");
+  }
+  return logger;
+}
 
 export class OnboardingTools {
   private static browserPool: BrowserPoolManager | null = null;
@@ -161,7 +171,7 @@ export class OnboardingTools {
   }
 
   static async handleTool(name: string, args: any): Promise<any> {
-    logger.debug("Handling onboarding tool", { tool: name, args });
+    ensureLogger().debug("Handling onboarding tool", { tool: name, args });
 
     switch (name) {
       case "brooklyn_status":

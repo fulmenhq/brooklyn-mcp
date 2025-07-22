@@ -96,12 +96,6 @@ describe("MCP Discovery Integration", () => {
         (tool: any) => tool.name === "brooklyn_list_tools" || tool.name === "brooklyn_tool_help",
       );
       expect(discoveryTools.length).toBeGreaterThan(0);
-
-      // Log tools for verification
-      console.log(
-        "Available tools:",
-        toolList.tools.map((t: any) => t.name),
-      );
     });
 
     it("should provide brooklyn_tool_help through MCP", async () => {

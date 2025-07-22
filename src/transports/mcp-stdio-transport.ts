@@ -3,10 +3,10 @@
  * Handles Claude Code integration via MCP protocol
  */
 
+import * as fs from "node:fs";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import * as fs from "node:fs";
 
 import type {
   MCPStdioConfig,
@@ -15,7 +15,7 @@ import type {
   Transport,
 } from "../core/transport.js";
 import { TransportType } from "../core/transport.js";
-import { getLogger } from "../shared/logger.js";
+import { getLogger } from "../shared/structured-logger.js";
 
 /**
  * MCP stdin/stdout transport for Claude Code integration
@@ -116,8 +116,8 @@ export class MCPStdioTransport implements Transport {
         });
 
         // Create pipe-based transport
-        const inputStream = fs.createReadStream(this.config.options.inputPipe);
-        const outputStream = fs.createWriteStream(this.config.options.outputPipe);
+        const _inputStream = fs.createReadStream(this.config.options.inputPipe);
+        const _outputStream = fs.createWriteStream(this.config.options.outputPipe);
 
         this.transport = new StdioServerTransport();
 

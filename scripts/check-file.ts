@@ -126,11 +126,11 @@ async function runTypeCheck(): Promise<boolean> {
 
   try {
     writeFileSync(tempConfigPath, JSON.stringify(tempConfigContent, null, 2));
-    
+
     // Add JSX flag for React components to ensure proper compilation
     const jsxFlag = isReactComponent ? "--jsx react-jsx" : "";
     const command = `bunx tsc -p ${tempConfigPath} ${jsxFlag}`.trim().replace(/\s\s+/g, " ");
-    
+
     [tsExitCode, tsStdout, tsStderr] = await runCommand(command);
 
     if (tsExitCode !== 0) {

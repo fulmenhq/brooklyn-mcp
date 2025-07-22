@@ -39,7 +39,7 @@ class MCPTestClient {
         cwd: process.cwd(),
       });
 
-      if (!this.process.stdout || !this.process.stdin) {
+      if (!(this.process.stdout && this.process.stdin)) {
         reject(new Error("Failed to create MCP process stdio"));
         return;
       }
@@ -54,7 +54,7 @@ class MCPTestClient {
           try {
             const message: MCPMessage = JSON.parse(line);
             this.handleMessage(message);
-          } catch (error) {
+          } catch (_error) {
             // Non-JSON output (logs, etc.) - ignore for protocol testing
           }
         }
@@ -117,7 +117,7 @@ class MCPTestClient {
       this.responsePromises.set(id, { resolve, reject });
 
       // Send request
-      this.process!.stdin!.write(JSON.stringify(request) + "\n");
+      this.process?.stdin?.write(`${JSON.stringify(request)}\n`);
 
       // Timeout after 10 seconds
       setTimeout(() => {
@@ -227,7 +227,7 @@ describe("MCP Protocol Integration", () => {
       const response = await client.sendRequest("invalid_method", {});
 
       expect(response.error).toBeDefined();
-      expect(response.error!.code).toBe(-32601); // Method not found
+      expect(response.error?.code).toBe(-32601); // Method not found
     });
 
     it("should handle malformed tool calls gracefully", async () => {

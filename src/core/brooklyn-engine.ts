@@ -6,7 +6,7 @@
 import type { CallToolRequest, CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
 import type { ToolCallHandler, ToolListHandler, Transport } from "./transport.js";
 
-import { getLogger } from "../shared/logger.js";
+import { getLogger } from "../shared/structured-logger.js";
 import { BrowserPoolManager } from "./browser-pool-manager.js";
 import type { BrooklynConfig } from "./config.js";
 import { ToolDiscoveryService } from "./discovery/tool-discovery-service.js";

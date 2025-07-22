@@ -6,7 +6,7 @@
 import type { Server as HTTPServer } from "node:http";
 import type { HTTPConfig, ToolCallHandler, ToolListHandler, Transport } from "../core/transport.js";
 import { TransportType } from "../core/transport.js";
-import { getLogger } from "../shared/logger.js";
+import { getLogger } from "../shared/structured-logger.js";
 
 /**
  * HTTP transport for web server mode

@@ -6,7 +6,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { getLogger } from "../shared/logger.js";
+import { getLogger } from "../shared/structured-logger.js";
 
 // ARCHITECTURE FIX: Lazy logger initialization to avoid circular dependency
 let logger: ReturnType<typeof getLogger> | null = null;

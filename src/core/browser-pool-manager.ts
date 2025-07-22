@@ -8,7 +8,7 @@ import { chromium, firefox, webkit } from "playwright";
 import type { Browser, BrowserContext, Page } from "playwright";
 
 import { config } from "../shared/config.js";
-import { getLogger } from "../shared/logger.js";
+import { getLogger } from "../shared/structured-logger.js";
 import {
   ScreenshotStorageManager,
   type ScreenshotStorageResult,
