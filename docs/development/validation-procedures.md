@@ -16,16 +16,17 @@ Brooklyn maintains zero-tolerance quality standards with specific justified exce
 
 These files contain `any` types that are justified due to the dynamic nature of MCP tool arguments:
 
-| File                               | Justification                                                          | Exception Type                                                          |
-| ---------------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `src/core/brooklyn-engine.ts`      | MCP tool arguments are runtime-dynamic from external Claude Code calls | `noExplicitAny`                                                         |
-| `src/core/onboarding-tools.ts`     | Onboarding tool handlers receive dynamic parameters from MCP protocol  | `noExplicitAny`                                                         |
-| `src/core/server.ts`               | Legacy MCP server with dynamic tool arguments                          | `noExplicitAny`                                                         |
-| `src/core/config.ts`               | Environment variable parsing with dynamic types and complex merging    | `noExplicitAny`, `noNonNullAssertion`, `noExcessiveCognitiveComplexity` |
-| `src/cli/brooklyn.ts`              | Configuration initialization with dynamic environment variables        | `noExplicitAny`                                                         |
-| `src/cli/brooklyn-server.ts`       | Claude Code configuration with CLI user interaction                    | `noExplicitAny`, `noConsoleLog`, `noForEach`, `noUnusedVariables`       |
-| `src/shared/structured-logger.ts`  | Winston logging with dynamic error objects                             | `noExplicitAny`, `noDelete`                                             |
-| `src/transports/http-transport.ts` | Node.js HTTP request/response objects (built-in any types)             | `noExplicitAny`                                                         |
+| File                                    | Justification                                                          | Exception Type                                                          |
+| --------------------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `src/core/brooklyn-engine.ts`           | MCP tool arguments are runtime-dynamic from external Claude Code calls | `noExplicitAny`                                                         |
+| `src/core/onboarding-tools.ts`          | Onboarding tool handlers receive dynamic parameters from MCP protocol  | `noExplicitAny`                                                         |
+| `src/core/server.ts`                    | Legacy MCP server with dynamic tool arguments                          | `noExplicitAny`                                                         |
+| `src/core/config.ts`                    | Environment variable parsing with dynamic types and complex merging    | `noExplicitAny`, `noNonNullAssertion`, `noExcessiveCognitiveComplexity` |
+| `src/cli/brooklyn.ts`                   | Configuration initialization with dynamic environment variables        | `noExplicitAny`                                                         |
+| `src/cli/brooklyn-server.ts`            | Claude Code configuration with CLI user interaction                    | `noExplicitAny`, `noConsoleLog`, `noForEach`, `noUnusedVariables`       |
+| `src/shared/structured-logger.ts`       | Winston logging with dynamic error objects                             | `noExplicitAny`, `noDelete`                                             |
+| `src/transports/http-transport.ts`      | Node.js HTTP request/response objects (built-in any types)             | `noExplicitAny`                                                         |
+| `src/transports/mcp-stdio-transport.ts` | Process stdin/stdout replacement for named pipe development mode       | `noExplicitAny`                                                         |
 
 **Technical Rationale**: MCP (Model Context Protocol) tools receive arguments from Claude Code that cannot be statically typed at compile time. The protocol requires runtime flexibility for tool parameters.
 
@@ -33,10 +34,10 @@ These files contain `any` types that are justified due to the dynamic nature of 
 
 These files use `any` types for mocking complex external dependencies:
 
-| File                                             | Justification                                                            | Exception Type  |
-| ------------------------------------------------ | ------------------------------------------------------------------------ | --------------- |
-| `src/core/browser-pool-manager.test.ts`          | Playwright browser/context/page interfaces are too complex to fully mock | `noExplicitAny` |
-| `tests/integration/echo-team-functional.test.ts` | Dynamic test result validation with variable structure                   | `noExplicitAny` |
+| File                                                   | Justification                                                            | Exception Type  |
+| ------------------------------------------------------ | ------------------------------------------------------------------------ | --------------- |
+| `src/core/browser-pool-manager.test.ts`                | Playwright browser/context/page interfaces are too complex to fully mock | `noExplicitAny` |
+| `tests/integration/team-onboarding-functional.test.ts` | Dynamic test result validation with variable structure                   | `noExplicitAny` |
 
 **Technical Rationale**: Playwright interfaces contain 20+ complex generic properties. Creating complete mock interfaces would be brittle and break with library updates. Using `any` for test mocks is standard practice.
 

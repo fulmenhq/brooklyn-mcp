@@ -21,14 +21,17 @@ This pattern is primarily for internal use by the Brooklyn development team but 
 - **Named Pipes**: Communication occurs over timestamped FIFO pipes (e.g., `/tmp/brooklyn-dev-in-{timestamp}`, `/tmp/brooklyn-dev-out-{timestamp}`).
   - Input pipe: Client writes MCP requests (JSON-RPC format).
   - Output pipe: Server writes responses.
-- **Process Management**: Commands for start, stop, restart, status, and cleanup, managed via PID files and signals.
-- **Helper Functions**: In `dev-helpers.ts` (or integrated), functions like `dev_launch_browser()` and `dev_take_screenshot()` provide a seamless interface for chat-based testing, returning the same data structures as production MCP tools.
+- **Enhanced MCP Transport**: Custom pipe-based MCP stdio transport that properly integrates pipe streams with the MCP SDK by temporarily replacing stdin/stdout during connection.
+- **Process Management**: Commands for start, stop, restart, status, and cleanup via `scripts/dev-brooklyn.ts` with PID files and signal handling.
+- **Full Tool Support**: All 21 Brooklyn tools available (15 core tools including element interaction functions + 6 onboarding tools) through the development mode.
 
 ### Key Files
 
 - **CLI Integration**: Handled in `src/cli/brooklyn.ts` via the `--dev-mode` flag on `mcp start`.
-- **Transport**: Uses a custom pipe-based transport that implements the MCP protocol.
-- **Configuration**: Pipe locations are configurable (default: `/tmp`), with auto-cleanup on exit to prevent residue.
+- **Enhanced Transport**: `src/transports/mcp-stdio-transport.ts` - Custom pipe-based MCP transport with proper stream integration.
+- **Dev Mode Core**: `src/core/dev-mode.ts` - Named pipe creation, process info management, and cleanup handlers.
+- **Management Script**: `scripts/dev-brooklyn.ts` - Process lifecycle management with start, stop, status, and test commands.
+- **Configuration**: Pipe locations configurable (default: `/tmp`), with automatic cleanup on exit and process monitoring.
 
 ### Security and Limitations
 
@@ -41,39 +44,43 @@ This pattern is primarily for internal use by the Brooklyn development team but 
 
 ### Starting Dev Mode
 
-Launch the dev server:
+Launch the dev server using the management script:
 
-```
-brooklyn mcp start --dev-mode --team-id=blossflow
-```
-
-- This creates pipes and a detached process.
-- Control returns immediately to the terminal.
-
-### Interacting via Chat or Scripts
-
-Use helper functions for tool calls:
-
-```typescript
-// In a chat context or script
-const browser = await dev_launch_browser({ browserType: "chromium", headless: true });
-const screenshot = await dev_take_screenshot({
-  browserId: browser.browserId,
-  returnFormat: "file",
-});
+```bash
+bun run dev:brooklyn:start
 ```
 
-- These send JSON-RPC requests over pipes and parse responses.
-- Full MCP methods are supported (e.g., `tools/call`).
+This creates named pipes and spawns a detached Brooklyn MCP server process. The server runs independently and can be managed through script commands.
 
 ### Management Commands
 
-- Status: `brooklyn mcp dev-status`
-- Stop: `brooklyn mcp dev-stop`
-- Restart: `brooklyn mcp dev-restart`
-- Cleanup: `brooklyn mcp dev-cleanup` (removes pipes/PID files)
+Brooklyn provides comprehensive development mode management:
 
-Note: These are hidden from main help output; use `--internal` to view.
+```bash
+# Process Management
+bun run dev:brooklyn:start    # Start development mode server
+bun run dev:brooklyn:stop     # Stop development mode server
+bun run dev:brooklyn:status   # Check server status and pipe health
+bun run dev:brooklyn:logs     # View server logs
+bun run dev:brooklyn:test     # Test MCP connection
+
+# Alternative: Direct CLI access
+brooklyn mcp start --dev-mode --team-id=<team>
+```
+
+### Available Tools in Dev Mode
+
+All 21 Brooklyn tools are available through the development server:
+
+**Core Tools (15)** - Including new element interaction functions:
+
+- Browser lifecycle: `launch_browser`, `close_browser`, `list_active_browsers`
+- Navigation: `navigate_to_url`, `go_back`
+- Element interaction: `click_element`, `fill_text`, `fill_form`, `wait_for_element`, `get_text_content`, `validate_element_presence`, `find_elements`
+- Content capture: `take_screenshot`
+- Discovery: `brooklyn_list_tools`, `brooklyn_tool_help`
+
+**Onboarding Tools (6)**: `brooklyn_status`, `brooklyn_capabilities`, `brooklyn_getting_started`, `brooklyn_examples`, `brooklyn_team_setup`, `brooklyn_troubleshooting`
 
 ### Development Workflow
 

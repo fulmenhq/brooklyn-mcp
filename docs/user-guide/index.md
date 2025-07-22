@@ -424,7 +424,7 @@ async function navigateWithRetry(browserId, url, maxRetries = 3) {
 ```javascript
 // Launch browser for your team
 const browser = await callTool("launch_browser", {
-  teamId: "echo-team",
+  teamId: "example-team",
   browserType: "chromium",
   headless: true,
 });

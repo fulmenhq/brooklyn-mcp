@@ -75,6 +75,54 @@ interface CloseBrowserArgs {
   force?: boolean;
 }
 
+// Element interaction arguments interfaces
+interface ClickElementArgs {
+  browserId: string;
+  selector: string;
+  waitForClickable?: boolean;
+  timeout?: number;
+}
+
+interface FillTextArgs {
+  browserId: string;
+  selector: string;
+  text: string;
+  clearFirst?: boolean;
+  timeout?: number;
+}
+
+interface FillFormArgs {
+  browserId: string;
+  fieldMapping: Record<string, string>;
+  timeout?: number;
+}
+
+interface WaitForElementArgs {
+  browserId: string;
+  selector: string;
+  state?: "attached" | "detached" | "visible" | "hidden";
+  timeout?: number;
+}
+
+interface GetTextContentArgs {
+  browserId: string;
+  selector: string;
+  timeout?: number;
+}
+
+interface ValidateElementPresenceArgs {
+  browserId: string;
+  selector: string;
+  shouldExist?: boolean;
+  timeout?: number;
+}
+
+interface FindElementsArgs {
+  browserId: string;
+  selector: string;
+  timeout?: number;
+}
+
 export class BrowserPoolManager {
   private sessions = new Map<string, BrowserSession>();
   private maxBrowsers: number;
@@ -558,6 +606,358 @@ export class BrowserPoolManager {
   }
 
   // Private helper methods
+  async clickElement(args: ClickElementArgs): Promise<{
+    success: boolean;
+    message: string;
+    selector: string;
+  }> {
+    const { browserId, selector, waitForClickable = true, timeout = 5000 } = args;
+
+    ensureLogger().info("Clicking element", { browserId, selector, waitForClickable, timeout });
+
+    const session = this.sessions.get(browserId);
+    if (!session) {
+      throw new Error(`Browser session not found: ${browserId}`);
+    }
+
+    session.lastUsed = new Date();
+
+    try {
+      if (waitForClickable) {
+        await session.page.waitForSelector(selector, {
+          state: "visible",
+          timeout,
+        });
+      }
+
+      await session.page.click(selector);
+
+      ensureLogger().info("Element clicked successfully", { browserId, selector });
+      return {
+        success: true,
+        message: "Element clicked successfully",
+        selector,
+      };
+    } catch (error) {
+      ensureLogger().error("Failed to click element", {
+        browserId,
+        selector,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw new Error(
+        `Failed to click element: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  async fillText(args: FillTextArgs): Promise<{
+    success: boolean;
+    message: string;
+    selector: string;
+    textLength: number;
+  }> {
+    const { browserId, selector, text, clearFirst = true, timeout = 5000 } = args;
+
+    ensureLogger().info("Filling text", {
+      browserId,
+      selector,
+      textLength: text.length,
+      clearFirst,
+    });
+
+    const session = this.sessions.get(browserId);
+    if (!session) {
+      throw new Error(`Browser session not found: ${browserId}`);
+    }
+
+    session.lastUsed = new Date();
+
+    try {
+      await session.page.waitForSelector(selector, { timeout });
+
+      if (clearFirst) {
+        await session.page.fill(selector, text);
+      } else {
+        await session.page.type(selector, text);
+      }
+
+      ensureLogger().info("Text filled successfully", {
+        browserId,
+        selector,
+        textLength: text.length,
+      });
+      return {
+        success: true,
+        message: "Text filled successfully",
+        selector,
+        textLength: text.length,
+      };
+    } catch (error) {
+      ensureLogger().error("Failed to fill text", {
+        browserId,
+        selector,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw new Error(
+        `Failed to fill text: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  async fillForm(args: FillFormArgs): Promise<{
+    success: boolean;
+    message: string;
+    fieldsProcessed: number;
+    results: Array<{ selector: string; success: boolean; textLength?: number; error?: string }>;
+  }> {
+    const { browserId, fieldMapping, timeout = 5000 } = args;
+    const fields = Object.entries(fieldMapping);
+
+    ensureLogger().info("Filling form", { browserId, fieldsCount: fields.length });
+
+    const session = this.sessions.get(browserId);
+    if (!session) {
+      throw new Error(`Browser session not found: ${browserId}`);
+    }
+
+    session.lastUsed = new Date();
+
+    const results: Array<{
+      selector: string;
+      success: boolean;
+      textLength?: number;
+      error?: string;
+    }> = [];
+    let successCount = 0;
+
+    for (const [selector, text] of fields) {
+      try {
+        await this.fillText({ browserId, selector, text, timeout });
+        results.push({ selector, success: true, textLength: text.length });
+        successCount++;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        results.push({ selector, success: false, error: errorMessage });
+        ensureLogger().warn("Failed to fill form field", {
+          browserId,
+          selector,
+          error: errorMessage,
+        });
+      }
+    }
+
+    const allSuccess = successCount === fields.length;
+    ensureLogger().info("Form filling completed", {
+      browserId,
+      fieldsProcessed: fields.length,
+      successCount,
+      allSuccess,
+    });
+
+    if (!allSuccess) {
+      throw new Error("Some form fields could not be filled");
+    }
+
+    return {
+      success: true,
+      message: "Form filled successfully",
+      fieldsProcessed: fields.length,
+      results,
+    };
+  }
+
+  async waitForElement(args: WaitForElementArgs): Promise<{
+    success: boolean;
+    message: string;
+    selector: string;
+    state: string;
+    waitTime: number;
+  }> {
+    const { browserId, selector, state = "visible", timeout = 30000 } = args;
+    const startTime = Date.now();
+
+    ensureLogger().info("Waiting for element", { browserId, selector, state, timeout });
+
+    const session = this.sessions.get(browserId);
+    if (!session) {
+      throw new Error(`Browser session not found: ${browserId}`);
+    }
+
+    session.lastUsed = new Date();
+
+    try {
+      await session.page.waitForSelector(selector, { state, timeout });
+      const waitTime = Date.now() - startTime;
+
+      ensureLogger().info("Element found", { browserId, selector, state, waitTime });
+      return {
+        success: true,
+        message: "Element found",
+        selector,
+        state,
+        waitTime,
+      };
+    } catch (error) {
+      const waitTime = Date.now() - startTime;
+      ensureLogger().error("Element wait timeout", {
+        browserId,
+        selector,
+        state,
+        waitTime,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw new Error(
+        `Element did not reach expected state within timeout: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  async getTextContent(args: GetTextContentArgs): Promise<{
+    success: boolean;
+    textContent: string;
+    selector: string;
+  }> {
+    const { browserId, selector, timeout = 5000 } = args;
+
+    ensureLogger().info("Getting text content", { browserId, selector });
+
+    const session = this.sessions.get(browserId);
+    if (!session) {
+      throw new Error(`Browser session not found: ${browserId}`);
+    }
+
+    session.lastUsed = new Date();
+
+    try {
+      await session.page.waitForSelector(selector, { timeout });
+      const textContent = await session.page.textContent(selector);
+
+      ensureLogger().info("Text content retrieved", {
+        browserId,
+        selector,
+        textLength: textContent?.length || 0,
+      });
+      return {
+        success: true,
+        textContent: textContent || "",
+        selector,
+      };
+    } catch (error) {
+      ensureLogger().error("Failed to get text content", {
+        browserId,
+        selector,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw new Error(
+        `Failed to get text content: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  async validateElementPresence(args: ValidateElementPresenceArgs): Promise<{
+    success: boolean;
+    elementExists: boolean;
+    message: string;
+    selector: string;
+  }> {
+    const { browserId, selector, shouldExist = true, timeout = 5000 } = args;
+
+    ensureLogger().info("Validating element presence", { browserId, selector, shouldExist });
+
+    const session = this.sessions.get(browserId);
+    if (!session) {
+      throw new Error(`Browser session not found: ${browserId}`);
+    }
+
+    session.lastUsed = new Date();
+
+    try {
+      const elementExists = await session.page
+        .waitForSelector(selector, { timeout, state: "attached" })
+        .then(() => true)
+        .catch(() => false);
+
+      const validationPassed = elementExists === shouldExist;
+
+      if (validationPassed) {
+        ensureLogger().info("Element validation passed", {
+          browserId,
+          selector,
+          elementExists,
+          shouldExist,
+        });
+        return {
+          success: true,
+          elementExists,
+          message: "Element validation passed",
+          selector,
+        };
+      }
+
+      const message = shouldExist
+        ? `Element should exist but was not found: ${selector}`
+        : `Element should not exist but was found: ${selector}`;
+      throw new Error(message);
+    } catch (error) {
+      ensureLogger().error("Element validation failed", {
+        browserId,
+        selector,
+        shouldExist,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  }
+
+  async findElements(args: FindElementsArgs): Promise<{
+    success: boolean;
+    elements: Array<{ selector: string; text: string }>;
+    count: number;
+  }> {
+    const { browserId, selector, timeout = 5000 } = args;
+
+    ensureLogger().info("Finding elements", { browserId, selector });
+
+    const session = this.sessions.get(browserId);
+    if (!session) {
+      throw new Error(`Browser session not found: ${browserId}`);
+    }
+
+    session.lastUsed = new Date();
+
+    try {
+      // Wait a short time for elements to potentially appear
+      await session.page.waitForTimeout(Math.min(timeout, 1000));
+
+      const elements = await session.page.$$(selector);
+      const elementData = await Promise.all(
+        elements.map(async (element, index) => {
+          const text = await element.textContent();
+          return {
+            selector: `${selector}:nth-child(${index + 1})`,
+            text: text || "",
+          };
+        }),
+      );
+
+      ensureLogger().info("Elements found", { browserId, selector, count: elements.length });
+      return {
+        success: true,
+        elements: elementData,
+        count: elements.length,
+      };
+    } catch (error) {
+      ensureLogger().error("Failed to find elements", {
+        browserId,
+        selector,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw new Error(
+        `Failed to find elements: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
   private async closeBrowserSession(session: BrowserSession, force = false): Promise<void> {
     try {
       if (session.page && !session.page.isClosed()) {

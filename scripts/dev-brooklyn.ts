@@ -12,8 +12,61 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { promisify } from "node:util";
+import type { BrooklynConfig } from "../src/core/config.js";
+import { getLogger, initializeLogging } from "../src/shared/structured-logger.js";
 
 const execAsync = promisify(exec);
+
+// Initialize structured logger for dev mode management
+const minimalConfig: BrooklynConfig = {
+  serviceName: "brooklyn-dev-manager",
+  version: "1.0.0",
+  environment: "development",
+  teamId: "dev-team",
+  transports: {
+    mcp: { enabled: false },
+    http: {
+      enabled: false,
+      port: 3000,
+      host: "localhost",
+      cors: false,
+      rateLimiting: false,
+    },
+  },
+  browsers: {
+    maxInstances: 5,
+    defaultType: "chromium",
+    headless: true,
+    timeout: 30000,
+  },
+  security: {
+    allowedDomains: ["*"],
+    rateLimit: {
+      requests: 100,
+      windowMs: 60000,
+    },
+  },
+  logging: {
+    level: (process.env["BROOKLYN_DEV_LOG_LEVEL"] as "debug" | "info" | "warn" | "error") || "info",
+    format: "json",
+    maxFiles: 3,
+    maxSize: "5MB",
+  },
+  plugins: {
+    directory: "",
+    autoLoad: false,
+    allowUserPlugins: false,
+  },
+  paths: {
+    config: "",
+    logs: "",
+    plugins: "",
+    browsers: "",
+    pids: "",
+  },
+};
+initializeLogging(minimalConfig);
+const logger = getLogger("dev-manager");
 
 interface DevProcessInfo {
   processId: number;
@@ -43,13 +96,21 @@ class DevBrooklynManager {
    * Start development Brooklyn process
    */
   async start(): Promise<void> {
-    console.log("🚀 Starting Brooklyn development mode...");
+    logger.info("🚀 Starting Brooklyn development mode...");
+
+    // Clean up stale resources if any
+    const existingInfo = this.loadProcessInfo();
+    if (existingInfo && !this.isProcessRunning(existingInfo.processId)) {
+      logger.info("🧹 Cleaning up stale resources from previous run...");
+      await this.cleanup();
+      logger.info("✅ Cleanup completed");
+    }
 
     // Check if already running
     if (this.isRunning()) {
       const info = this.loadProcessInfo();
-      console.log(`❌ Development mode already running (PID: ${info?.processId})`);
-      console.log("   Use 'bun run dev:brooklyn:stop' first, then try again.");
+      logger.info(`❌ Development mode already running (PID: ${info?.processId})`);
+      logger.info("   Use 'bun run dev:brooklyn:stop' first, then try again.");
       return;
     }
 
@@ -61,14 +122,14 @@ class DevBrooklynManager {
 
     try {
       // Create named pipes
-      console.log("📦 Creating named pipes...");
+      logger.info("📦 Creating named pipes...");
       await this.createNamedPipe(inputPipe);
       await this.createNamedPipe(outputPipe);
-      console.log(`   Input:  ${inputPipe}`);
-      console.log(`   Output: ${outputPipe}`);
+      logger.info(`   Input:  ${inputPipe}`);
+      logger.info(`   Output: ${outputPipe}`);
 
       // Start Brooklyn in development mode
-      console.log("🔧 Starting Brooklyn process...");
+      logger.info("🔧 Starting Brooklyn process...");
       const brooklynProcess = spawn(
         "bun",
         [
@@ -106,7 +167,7 @@ class DevBrooklynManager {
 
       // Handle process exit
       brooklynProcess.on("exit", (code) => {
-        console.log(`🔴 Brooklyn development process exited with code: ${code}`);
+        logger.info(`🔴 Brooklyn development process exited with code: ${code}`);
         this.cleanup();
       });
 
@@ -114,20 +175,22 @@ class DevBrooklynManager {
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       if (brooklynProcess.killed || brooklynProcess.exitCode !== null) {
-        console.log("❌ Failed to start Brooklyn development process");
+        logger.info("❌ Failed to start Brooklyn development process");
         return;
       }
 
-      console.log("✅ Brooklyn development mode started successfully!");
-      console.log(`   PID: ${brooklynProcess.pid}`);
-      console.log(`   Log: ${logFile}`);
-      console.log("");
-      console.log("📋 Next steps:");
-      console.log("   • Test connection: bun run dev:brooklyn:test");
-      console.log("   • View logs: bun run dev:brooklyn:logs");
-      console.log("   • Check status: bun run dev:brooklyn:status");
+      logger.info("✅ Brooklyn development mode started successfully!");
+      logger.info(`   PID: ${brooklynProcess.pid}`);
+      logger.info(`   Log: ${logFile}`);
+      logger.info("");
+      logger.info("📋 Next steps:");
+      logger.info("   • Test connection: bun run dev:brooklyn:test");
+      logger.info("   • View logs: bun run dev:brooklyn:logs");
+      logger.info("   • Check status: bun run dev:brooklyn:status");
     } catch (error) {
-      console.error("❌ Failed to start development mode:", error);
+      logger.error("❌ Failed to start development mode", {
+        error: error instanceof Error ? error.message : String(error),
+      });
       await this.cleanup();
       process.exit(1);
     }
@@ -137,17 +200,17 @@ class DevBrooklynManager {
    * Stop development Brooklyn process
    */
   async stop(): Promise<void> {
-    console.log("🛑 Stopping Brooklyn development mode...");
+    logger.info("🛑 Stopping Brooklyn development mode...");
 
     const info = this.loadProcessInfo();
     if (!info) {
-      console.log("❌ No development mode process found");
+      logger.info("❌ No development mode process found");
       return;
     }
 
     try {
       // Kill the process
-      console.log(`   Stopping process PID: ${info.processId}`);
+      logger.info(`   Stopping process PID: ${info.processId}`);
       process.kill(info.processId, "SIGTERM");
 
       // Wait for process to exit gracefully
@@ -156,15 +219,17 @@ class DevBrooklynManager {
       // Force kill if still running
       try {
         process.kill(info.processId, 0); // Check if still running
-        console.log("   Force killing process...");
+        logger.info("   Force killing process...");
         process.kill(info.processId, "SIGKILL");
       } catch {
         // Process already dead, that's good
       }
 
-      console.log("✅ Development mode stopped");
+      logger.info("✅ Development mode stopped");
     } catch (error) {
-      console.warn("⚠️  Process may have already stopped:", error);
+      logger.warn("⚠️  Process may have already stopped", {
+        error: error instanceof Error ? error.message : String(error),
+      });
     } finally {
       await this.cleanup();
     }
@@ -174,7 +239,7 @@ class DevBrooklynManager {
    * Restart development Brooklyn process
    */
   async restart(): Promise<void> {
-    console.log("🔄 Restarting Brooklyn development mode...");
+    logger.info("🔄 Restarting Brooklyn development mode...");
     await this.stop();
     await new Promise((resolve) => setTimeout(resolve, 1000));
     await this.start();
@@ -184,12 +249,12 @@ class DevBrooklynManager {
    * Show development mode status
    */
   async status(): Promise<void> {
-    console.log("📊 Brooklyn Development Mode Status");
-    console.log("=".repeat(40));
+    logger.info("📊 Brooklyn Development Mode Status");
+    logger.info("=".repeat(40));
 
     const info = this.loadProcessInfo();
     if (!info) {
-      console.log("❌ Development mode not running");
+      logger.info("❌ Development mode not running");
       return;
     }
 
@@ -197,16 +262,16 @@ class DevBrooklynManager {
     const inputExists = fs.existsSync(info.inputPipe);
     const outputExists = fs.existsSync(info.outputPipe);
 
-    console.log(`Process: ${isRunning ? "🟢 Running" : "🔴 Stopped"}`);
-    console.log(`PID: ${info.processId}`);
-    console.log(`Started: ${info.startTime}`);
-    console.log(`Input Pipe: ${inputExists ? "✅" : "❌"} ${info.inputPipe}`);
-    console.log(`Output Pipe: ${outputExists ? "✅" : "❌"} ${info.outputPipe}`);
-    console.log(`Log File: ${info.logFile}`);
+    logger.info(`Process: ${isRunning ? "🟢 Running" : "🔴 Stopped"}`);
+    logger.info(`PID: ${info.processId}`);
+    logger.info(`Started: ${info.startTime}`);
+    logger.info(`Input Pipe: ${inputExists ? "✅" : "❌"} ${info.inputPipe}`);
+    logger.info(`Output Pipe: ${outputExists ? "✅" : "❌"} ${info.outputPipe}`);
+    logger.info(`Log File: ${info.logFile}`);
 
     if (fs.existsSync(info.logFile)) {
       const stats = fs.statSync(info.logFile);
-      console.log(`Log Size: ${(stats.size / 1024).toFixed(1)} KB`);
+      logger.info(`Log Size: ${(stats.size / 1024).toFixed(1)} KB`);
     }
   }
 
@@ -216,24 +281,26 @@ class DevBrooklynManager {
   async logs(): Promise<void> {
     const info = this.loadProcessInfo();
     if (!info) {
-      console.log("❌ No development mode process found");
+      logger.info("❌ No development mode process found");
       return;
     }
 
     if (!fs.existsSync(info.logFile)) {
-      console.log("❌ Log file not found:", info.logFile);
+      logger.info("❌ Log file not found", { logFile: info.logFile });
       return;
     }
 
-    console.log("📄 Brooklyn Development Logs");
-    console.log("=".repeat(40));
+    logger.info("📄 Brooklyn Development Logs");
+    logger.info("=".repeat(40));
 
     try {
       // Show last 50 lines
       const { stdout } = await execAsync(`tail -50 "${info.logFile}"`);
-      console.log(stdout);
+      logger.info(stdout);
     } catch (error) {
-      console.error("❌ Failed to read logs:", error);
+      logger.error("❌ Failed to read logs", {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
@@ -241,33 +308,33 @@ class DevBrooklynManager {
    * Show pipe information
    */
   async pipes(): Promise<void> {
-    console.log("🔗 Brooklyn Development Pipes");
-    console.log("=".repeat(40));
+    logger.info("🔗 Brooklyn Development Pipes");
+    logger.info("=".repeat(40));
 
     const info = this.loadProcessInfo();
     if (!info) {
-      console.log("❌ No development mode process found");
+      logger.info("❌ No development mode process found");
       return;
     }
 
-    console.log(`Input Pipe:  ${info.inputPipe}`);
-    console.log(`Output Pipe: ${info.outputPipe}`);
-    console.log(`Prefix:      ${info.pipesPrefix}`);
+    logger.info(`Input Pipe:  ${info.inputPipe}`);
+    logger.info(`Output Pipe: ${info.outputPipe}`);
+    logger.info(`Prefix:      ${info.pipesPrefix}`);
 
     // Check pipe status
     const inputExists = fs.existsSync(info.inputPipe);
     const outputExists = fs.existsSync(info.outputPipe);
 
-    console.log("");
-    console.log("Status:");
-    console.log(`  Input:  ${inputExists ? "✅ Available" : "❌ Missing"}`);
-    console.log(`  Output: ${outputExists ? "✅ Available" : "❌ Missing"}`);
+    logger.info("");
+    logger.info("Status:");
+    logger.info(`  Input:  ${inputExists ? "✅ Available" : "❌ Missing"}`);
+    logger.info(`  Output: ${outputExists ? "✅ Available" : "❌ Missing"}`);
 
     if (inputExists && outputExists) {
-      console.log("");
-      console.log("💡 Claude-side usage:");
-      console.log("   const { sendToDevBrooklyn } = await import('./dev-helpers.js');");
-      console.log(
+      logger.info("");
+      logger.info("💡 Claude-side usage:");
+      logger.info("   const { sendToDevBrooklyn } = await import('./dev-helpers.js');");
+      logger.info(
         "   const result = await sendToDevBrooklyn('launch_browser', { browserType: 'chromium' });",
       );
     }
@@ -277,16 +344,16 @@ class DevBrooklynManager {
    * Test pipe communication
    */
   async test(): Promise<void> {
-    console.log("🧪 Testing Brooklyn development mode...");
+    logger.info("🧪 Testing Brooklyn development mode...");
 
     const info = this.loadProcessInfo();
     if (!info) {
-      console.log("❌ No development mode process found");
+      logger.info("❌ No development mode process found");
       return;
     }
 
     if (!this.isProcessRunning(info.processId)) {
-      console.log("❌ Development process not running");
+      logger.info("❌ Development process not running");
       return;
     }
 
@@ -294,18 +361,18 @@ class DevBrooklynManager {
     const outputExists = fs.existsSync(info.outputPipe);
 
     if (!(inputExists && outputExists)) {
-      console.log("❌ Pipes not available");
-      console.log(`   Input:  ${inputExists ? "✅" : "❌"}`);
-      console.log(`   Output: ${outputExists ? "✅" : "❌"}`);
+      logger.info("❌ Pipes not available");
+      logger.info(`   Input:  ${inputExists ? "✅" : "❌"}`);
+      logger.info(`   Output: ${outputExists ? "✅" : "❌"}`);
       return;
     }
 
-    console.log("✅ Development mode test passed!");
-    console.log("   Process: Running");
-    console.log("   Pipes: Available");
-    console.log("");
-    console.log("🚀 Ready for development! Try:");
-    console.log("   bun run dev:test:basic");
+    logger.info("✅ Development mode test passed!");
+    logger.info("   Process: Running");
+    logger.info("   Pipes: Available");
+    logger.info("");
+    logger.info("🚀 Ready for development! Try:");
+    logger.info("   bun run dev:test:basic");
   }
 
   /**
@@ -324,7 +391,9 @@ class DevBrooklynManager {
         fs.unlinkSync(info.outputPipe);
       }
     } catch (error) {
-      console.warn("⚠️  Error removing pipes:", error);
+      logger.warn("⚠️  Error removing pipes", {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     // Remove process info
@@ -467,24 +536,26 @@ async function main() {
       await manager.cleanup();
       break;
     default:
-      console.log("Brooklyn Development Mode Manager");
-      console.log("");
-      console.log("Usage:");
-      console.log("  bun run dev:brooklyn:start    Start development mode");
-      console.log("  bun run dev:brooklyn:stop     Stop development mode");
-      console.log("  bun run dev:brooklyn:restart  Restart development mode");
-      console.log("  bun run dev:brooklyn:status   Show status");
-      console.log("  bun run dev:brooklyn:logs     Show recent logs");
-      console.log("  bun run dev:brooklyn:pipes    Show pipe information");
-      console.log("  bun run dev:brooklyn:test     Test pipe communication");
-      console.log("  bun run dev:brooklyn:cleanup  Clean up resources");
+      logger.info("Brooklyn Development Mode Manager");
+      logger.info("");
+      logger.info("Usage:");
+      logger.info("  bun run dev:brooklyn:start    Start development mode");
+      logger.info("  bun run dev:brooklyn:stop     Stop development mode");
+      logger.info("  bun run dev:brooklyn:restart  Restart development mode");
+      logger.info("  bun run dev:brooklyn:status   Show status");
+      logger.info("  bun run dev:brooklyn:logs     Show recent logs");
+      logger.info("  bun run dev:brooklyn:pipes    Show pipe information");
+      logger.info("  bun run dev:brooklyn:test     Test pipe communication");
+      logger.info("  bun run dev:brooklyn:cleanup  Clean up resources");
       break;
   }
 }
 
 if (import.meta.main) {
   main().catch((error) => {
-    console.error("❌ Development mode error:", error);
+    logger.error("❌ Development mode error", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     process.exit(1);
   });
 }

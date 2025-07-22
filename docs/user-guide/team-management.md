@@ -18,7 +18,7 @@ Each team gets:
 ```javascript
 // Launch browser with team identification
 const browser = await callTool("launch_browser", {
-  teamId: "echo-team",
+  teamId: "example-team",
   browserType: "chromium",
   headless: true,
 });
@@ -30,7 +30,7 @@ const browser = await callTool("launch_browser", {
 
 ```bash
 # Team-specific configuration
-export WEBPILOT_TEAM_ID=echo-team
+export WEBPILOT_TEAM_ID=example-team
 export WEBPILOT_TEAM_MAX_BROWSERS=5
 export WEBPILOT_TEAM_TIMEOUT=30000
 ```
@@ -40,10 +40,10 @@ export WEBPILOT_TEAM_TIMEOUT=30000
 Create team-specific configuration files in the `configs/` directory:
 
 ```javascript
-// configs/echo-team.json
+// configs/example-team.json
 {
-  "teamId": "echo-team",
-  "displayName": "Echo Team - Blossflow",
+  "teamId": "example-team",
+  "displayName": "Example Team - Example Corp",
   "maxBrowsers": 5,
   "defaultBrowserType": "chromium",
   "defaultViewport": {
@@ -51,8 +51,8 @@ Create team-specific configuration files in the `configs/` directory:
     "height": 1080
   },
   "allowedDomains": [
-    "*.blossflow.com",
-    "*.staging.blossflow.com",
+    "*.example.com",
+    "*.staging.example.com",
     "localhost:*"
   ],
   "browserOptions": {
@@ -64,7 +64,7 @@ Create team-specific configuration files in the `configs/` directory:
 
 ## Team Usage Patterns
 
-### Echo Team (Blossflow)
+### Example Team (Example Corp)
 
 Primary use case: UX development and testing
 
@@ -75,7 +75,7 @@ async function echoTeamUxTest(pageUrl, viewports) {
 
   for (const viewport of viewports) {
     const browser = await callTool("launch_browser", {
-      teamId: "echo-team",
+      teamId: "example-team",
       browserType: "chromium",
       headless: true,
       viewport: viewport,
@@ -101,7 +101,7 @@ async function echoTeamUxTest(pageUrl, viewports) {
         loadTime: navResult.loadTime,
         title: navResult.title,
         screenshot: screenshot,
-        team: "echo-team",
+        team: "example-team",
       });
     } finally {
       await callTool("close_browser", {
@@ -375,7 +375,7 @@ async function generateTeamReport(timeRange = "1h") {
 // Team-specific domain validation
 function validateUrlForTeam(url, teamId) {
   const teamAllowlists = {
-    "echo-team": ["*.blossflow.com", "*.staging.blossflow.com", "localhost:*"],
+    "example-team": ["*.example.com", "*.staging.example.com", "localhost:*"],
     "qa-team": ["*.example.com", "*.test.com", "httpstat.us"],
     "data-team": ["*.api.com", "*.metrics.com", "*.analytics.com"],
   };
@@ -399,7 +399,7 @@ function validateUrlForTeam(url, teamId) {
 // Apply team-specific defaults
 function getTeamDefaults(teamId) {
   const defaults = {
-    "echo-team": {
+    "example-team": {
       browserType: "chromium",
       headless: true,
       viewport: { width: 1920, height: 1080 },
@@ -422,7 +422,7 @@ function getTeamDefaults(teamId) {
     },
   };
 
-  return defaults[teamId] || defaults["echo-team"];
+  return defaults[teamId] || defaults["example-team"];
 }
 
 // Launch browser with team defaults
@@ -584,8 +584,8 @@ async function onboardTeam(teamConfig) {
 // Generate team-specific documentation
 function generateTeamDocs(teamId) {
   const teamConfigs = {
-    "echo-team": {
-      name: "Echo Team - Blossflow",
+    "example-team": {
+      name: "Example Team - Example Corp",
       description: "UX development and testing",
       primaryUseCase: "Responsive design testing",
       supportedBrowsers: ["chromium"],

@@ -70,7 +70,7 @@ earlyLogger.debug("HELP_TEXT keys", { keys: Object.keys(HELP_TEXT || {}) });
 // Duplicate configuration removed - using the one from above
 
 import { Command } from "commander";
-import { BrooklynEngine, type BrooklynEngineOptions } from "../core/brooklyn-engine.js";
+import { BrooklynEngine } from "../core/brooklyn-engine.js";
 import { type BrooklynConfig, loadConfig } from "../core/config.js";
 import { getLogger } from "../shared/structured-logger.js";
 import { createHTTP, createMCPStdio } from "../transports/index.js";
@@ -552,24 +552,24 @@ async function checkBrowserInstallation(browserType?: string): Promise<void> {
   }
 
   // Display results
-  console.info("\nBrowser Installation Status:");
-  console.info("============================");
+  logger.info("Browser Installation Status");
+  logger.info("============================");
 
   let allInstalled = true;
   for (const [browser, result] of Object.entries(results)) {
     const status = result.installed ? "✅ INSTALLED" : "❌ NOT INSTALLED";
-    console.info(`${browser.toUpperCase()}: ${status}`);
+    logger.info(`${browser.toUpperCase()}: ${status}`);
     if (!result.installed && result.error) {
-      console.info(`   Error: ${result.error}`);
+      logger.info(`   Error: ${result.error}`);
     }
     if (!result.installed) allInstalled = false;
   }
 
   if (allInstalled) {
-    console.info("\n🎉 All browsers are ready for automation!");
+    logger.info("🎉 All browsers are ready for automation!");
     logger.info("Browser validation passed", { browsers: browsersToCheck });
   } else {
-    console.info("\n💡 Run 'brooklyn setup' to install missing browsers");
+    logger.info("💡 Run 'brooklyn setup' to install missing browsers");
     logger.warn("Browser validation failed", { results });
     process.exit(1);
   }
@@ -581,20 +581,20 @@ async function checkBrowserInstallation(browserType?: string): Promise<void> {
 async function setupBrowsers(browserType?: string): Promise<void> {
   const logger = getLogger("brooklyn-setup");
 
-  console.info("Installing browsers for Brooklyn automation...");
+  logger.info("Installing browsers for Brooklyn automation...");
 
   try {
     const { execSync } = await import("node:child_process");
 
     if (browserType) {
-      console.info(`Installing ${browserType}...`);
+      logger.info(`Installing ${browserType}...`);
       execSync(`bunx playwright install ${browserType}`, { stdio: "inherit" });
     } else {
-      console.info("Installing all browsers (chromium, firefox, webkit)...");
+      logger.info("Installing all browsers (chromium, firefox, webkit)...");
       execSync("bunx playwright install", { stdio: "inherit" });
     }
 
-    console.info("\n✅ Browser installation completed!");
+    logger.info("\n✅ Browser installation completed!");
 
     // Verify installation
     await checkBrowserInstallation(browserType);

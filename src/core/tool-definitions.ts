@@ -323,11 +323,11 @@ export const contentCaptureTools: EnhancedTool[] = [
         input: {
           browserId: "browser-123",
           returnFormat: "base64_thumbnail",
-          teamId: "echo-team",
+          teamId: "example-team",
         },
         expectedOutput: {
           filePath:
-            "/Users/user/.brooklyn/screenshots/echo-team/sessions/browser-session-browser-123/screenshot-2025-01-20T12-01-00-uuid.png",
+            "/Users/user/.brooklyn/screenshots/example-team/sessions/browser-session-browser-123/screenshot-2025-01-20T12-01-00-uuid.png",
           filename: "screenshot-2025-01-20T12-01-00-uuid.png",
           format: "png",
           dimensions: { width: 1280, height: 720 },
@@ -466,10 +466,429 @@ export const discoveryTools: EnhancedTool[] = [
 ];
 
 /**
+ * Interaction tools for form automation and UI testing
+ */
+export const interactionTools: EnhancedTool[] = [
+  {
+    name: "click_element",
+    category: "interaction",
+    description: "Click an element on the page using CSS selector",
+    inputSchema: {
+      type: "object",
+      properties: {
+        browserId: {
+          type: "string",
+          description: "ID of the browser instance",
+        },
+        selector: {
+          type: "string",
+          description: "CSS selector for element to click",
+        },
+        waitForClickable: {
+          type: "boolean",
+          description: "Wait for element to be clickable before clicking",
+          default: true,
+        },
+        timeout: {
+          type: "number",
+          description: "Timeout in milliseconds",
+          default: 5000,
+        },
+      },
+      required: ["browserId", "selector"],
+    },
+    examples: [
+      {
+        description: "Click a navigation tab",
+        input: {
+          browserId: "browser-123",
+          selector: "[data-testid='products-tab']",
+        },
+        expectedOutput: {
+          success: true,
+          message: "Element clicked successfully",
+          selector: "[data-testid='products-tab']",
+        },
+      },
+      {
+        description: "Click submit button with custom timeout",
+        input: {
+          browserId: "browser-123",
+          selector: "#submit-form-btn",
+          timeout: 10000,
+        },
+        expectedOutput: {
+          success: true,
+          message: "Element clicked successfully",
+          selector: "#submit-form-btn",
+        },
+      },
+    ],
+    errors: [
+      {
+        code: "ELEMENT_NOT_FOUND",
+        message: "Element not found with specified selector",
+        solution: "Verify the CSS selector and ensure element exists",
+      },
+      {
+        code: "ELEMENT_NOT_CLICKABLE",
+        message: "Element is not clickable (disabled, hidden, or covered)",
+        solution: "Wait for element to be enabled or use different selector",
+      },
+    ],
+  },
+  {
+    name: "fill_text",
+    category: "interaction",
+    description: "Fill text into an input field using CSS selector",
+    inputSchema: {
+      type: "object",
+      properties: {
+        browserId: {
+          type: "string",
+          description: "ID of the browser instance",
+        },
+        selector: {
+          type: "string",
+          description: "CSS selector for input element",
+        },
+        text: {
+          type: "string",
+          description: "Text to enter into the field",
+        },
+        clearFirst: {
+          type: "boolean",
+          description: "Clear existing text before filling",
+          default: true,
+        },
+        timeout: {
+          type: "number",
+          description: "Timeout in milliseconds",
+          default: 5000,
+        },
+      },
+      required: ["browserId", "selector", "text"],
+    },
+    examples: [
+      {
+        description: "Fill operator ID in login form",
+        input: {
+          browserId: "browser-123",
+          selector: "#operatorId",
+          text: "driver001",
+        },
+        expectedOutput: {
+          success: true,
+          message: "Text filled successfully",
+          selector: "#operatorId",
+          textLength: 9,
+        },
+      },
+      {
+        description: "Fill card number in Collect.js iframe",
+        input: {
+          browserId: "browser-123",
+          selector: "input[name='ccnumber']",
+          text: "4111111111111111",
+          clearFirst: true,
+        },
+        expectedOutput: {
+          success: true,
+          message: "Text filled successfully",
+          selector: "input[name='ccnumber']",
+          textLength: 16,
+        },
+      },
+    ],
+    errors: [
+      {
+        code: "ELEMENT_NOT_FOUND",
+        message: "Input element not found with specified selector",
+        solution: "Verify the CSS selector and ensure input element exists",
+      },
+      {
+        code: "ELEMENT_NOT_EDITABLE",
+        message: "Element is not editable (disabled or readonly)",
+        solution: "Ensure element is enabled and not readonly",
+      },
+    ],
+  },
+  {
+    name: "fill_form",
+    category: "interaction",
+    description: "Fill multiple form fields using a field mapping object",
+    inputSchema: {
+      type: "object",
+      properties: {
+        browserId: {
+          type: "string",
+          description: "ID of the browser instance",
+        },
+        fieldMapping: {
+          type: "object",
+          description: "Object mapping CSS selectors to their text values",
+          additionalProperties: {
+            type: "string",
+          },
+        },
+        timeout: {
+          type: "number",
+          description: "Timeout in milliseconds for each field",
+          default: 5000,
+        },
+      },
+      required: ["browserId", "fieldMapping"],
+    },
+    examples: [
+      {
+        description: "Fill user login form",
+        input: {
+          browserId: "browser-123",
+          fieldMapping: {
+            "#operatorId": "driver001",
+            "#password": "testpass123",
+          },
+        },
+        expectedOutput: {
+          success: true,
+          message: "Form filled successfully",
+          fieldsProcessed: 2,
+          results: [
+            { selector: "#operatorId", success: true, textLength: 9 },
+            { selector: "#password", success: true, textLength: 11 },
+          ],
+        },
+      },
+      {
+        description: "Fill order creation form",
+        input: {
+          browserId: "browser-123",
+          fieldMapping: {
+            "#customerId": "CUST-123",
+            "#amount": "150.00",
+            "#invoiceId": "INV-456",
+          },
+        },
+        expectedOutput: {
+          success: true,
+          message: "Form filled successfully",
+          fieldsProcessed: 3,
+          results: [
+            { selector: "#customerId", success: true, textLength: 8 },
+            { selector: "#amount", success: true, textLength: 6 },
+            { selector: "#invoiceId", success: true, textLength: 7 },
+          ],
+        },
+      },
+    ],
+    errors: [
+      {
+        code: "PARTIAL_FORM_FILL_FAILURE",
+        message: "Some form fields could not be filled",
+        solution: "Check individual field results and verify selectors",
+      },
+    ],
+  },
+  {
+    name: "wait_for_element",
+    category: "interaction",
+    description: "Wait for an element to appear on the page",
+    inputSchema: {
+      type: "object",
+      properties: {
+        browserId: {
+          type: "string",
+          description: "ID of the browser instance",
+        },
+        selector: {
+          type: "string",
+          description: "CSS selector for element to wait for",
+        },
+        state: {
+          type: "string",
+          enum: ["attached", "detached", "visible", "hidden"],
+          description: "Element state to wait for",
+          default: "visible",
+        },
+        timeout: {
+          type: "number",
+          description: "Timeout in milliseconds",
+          default: 30000,
+        },
+      },
+      required: ["browserId", "selector"],
+    },
+    examples: [
+      {
+        description: "Wait for success message",
+        input: {
+          browserId: "browser-123",
+          selector: "[data-testid='form-success']",
+          state: "visible",
+          timeout: 10000,
+        },
+        expectedOutput: {
+          success: true,
+          message: "Element found",
+          selector: "[data-testid='form-success']",
+          state: "visible",
+          waitTime: 2340,
+        },
+      },
+    ],
+    errors: [
+      {
+        code: "WAIT_TIMEOUT",
+        message: "Element did not reach expected state within timeout",
+        solution: "Increase timeout or verify element selector and expected state",
+      },
+    ],
+  },
+  {
+    name: "get_text_content",
+    category: "interaction",
+    description: "Extract text content from an element",
+    inputSchema: {
+      type: "object",
+      properties: {
+        browserId: {
+          type: "string",
+          description: "ID of the browser instance",
+        },
+        selector: {
+          type: "string",
+          description: "CSS selector for element",
+        },
+        timeout: {
+          type: "number",
+          description: "Timeout in milliseconds",
+          default: 5000,
+        },
+      },
+      required: ["browserId", "selector"],
+    },
+    examples: [
+      {
+        description: "Get success message text",
+        input: {
+          browserId: "browser-123",
+          selector: "[data-testid='success-message']",
+        },
+        expectedOutput: {
+          success: true,
+          textContent: "Form submitted successfully",
+          selector: "[data-testid='success-message']",
+        },
+      },
+    ],
+    errors: [
+      {
+        code: "ELEMENT_NOT_FOUND",
+        message: "Element not found with specified selector",
+        solution: "Verify the CSS selector and ensure element exists",
+      },
+    ],
+  },
+  {
+    name: "validate_element_presence",
+    category: "interaction",
+    description: "Check if an element exists on the page",
+    inputSchema: {
+      type: "object",
+      properties: {
+        browserId: {
+          type: "string",
+          description: "ID of the browser instance",
+        },
+        selector: {
+          type: "string",
+          description: "CSS selector for element",
+        },
+        shouldExist: {
+          type: "boolean",
+          description: "Whether element should exist (true) or not exist (false)",
+          default: true,
+        },
+        timeout: {
+          type: "number",
+          description: "Timeout in milliseconds",
+          default: 5000,
+        },
+      },
+      required: ["browserId", "selector"],
+    },
+    examples: [
+      {
+        description: "Validate error message is not present",
+        input: {
+          browserId: "browser-123",
+          selector: "[data-testid='form-error']",
+          shouldExist: false,
+        },
+        expectedOutput: {
+          success: true,
+          elementExists: false,
+          message: "Element validation passed",
+          selector: "[data-testid='form-error']",
+        },
+      },
+    ],
+  },
+  {
+    name: "find_elements",
+    category: "interaction",
+    description: "Find all elements matching a CSS selector",
+    inputSchema: {
+      type: "object",
+      properties: {
+        browserId: {
+          type: "string",
+          description: "ID of the browser instance",
+        },
+        selector: {
+          type: "string",
+          description: "CSS selector for elements",
+        },
+        timeout: {
+          type: "number",
+          description: "Timeout in milliseconds",
+          default: 5000,
+        },
+      },
+      required: ["browserId", "selector"],
+    },
+    examples: [
+      {
+        description: "Find all navigation tabs",
+        input: {
+          browserId: "browser-123",
+          selector: "[data-testid*='nav-tab']",
+        },
+        expectedOutput: {
+          success: true,
+          elements: [
+            { selector: "[data-testid='home-nav-tab']", text: "Home" },
+            { selector: "[data-testid='products-nav-tab']", text: "Products" },
+            { selector: "[data-testid='contact-nav-tab']", text: "Contact" },
+          ],
+          count: 3,
+        },
+      },
+    ],
+  },
+];
+
+/**
  * Get all tools with enhanced metadata
  */
 export function getAllTools(): EnhancedTool[] {
-  return [...browserLifecycleTools, ...navigationTools, ...contentCaptureTools, ...discoveryTools];
+  return [
+    ...browserLifecycleTools,
+    ...navigationTools,
+    ...interactionTools,
+    ...contentCaptureTools,
+    ...discoveryTools,
+  ];
 }
 
 /**

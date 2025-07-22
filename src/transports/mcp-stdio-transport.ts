@@ -115,17 +115,47 @@ export class MCPStdioTransport implements Transport {
           outputPipe: this.config.options.outputPipe,
         });
 
-        // Create pipe-based transport
-        const _inputStream = fs.createReadStream(this.config.options.inputPipe);
-        const _outputStream = fs.createWriteStream(this.config.options.outputPipe);
+        // Create pipe-based transport with proper stream handling
+        const inputStream = fs.createReadStream(this.config.options.inputPipe);
+        const outputStream = fs.createWriteStream(this.config.options.outputPipe);
 
+        // Create custom StdioServerTransport that uses our pipe streams
         this.transport = new StdioServerTransport();
 
-        // Override stdio with pipe streams
-        await this.server.connect(this.transport);
+        // Connect to server with custom streams by overriding the transport's streams
+        // We need to replace stdin/stdout with our pipe streams
+        const originalStdin = process.stdin;
+        const originalStdout = process.stdout;
 
-        // TODO: Need to properly handle pipe streams with MCP SDK
-        // For now, this is a placeholder for the pipe connection logic
+        try {
+          // Temporarily replace stdin/stdout with our pipe streams
+          (process as any).stdin = inputStream;
+          (process as any).stdout = outputStream;
+
+          await this.server.connect(this.transport);
+
+          this.getLogger().info("MCP server connected to named pipes successfully");
+        } finally {
+          // Restore original stdin/stdout
+          (process as any).stdin = originalStdin;
+          (process as any).stdout = originalStdout;
+        }
+
+        // Keep process alive by preventing pipe streams from ending the process
+        inputStream.on("end", () => {
+          this.getLogger().info("Input pipe ended, stopping transport");
+          this.stop().catch((err) =>
+            this.getLogger().error("Error stopping transport", { error: err }),
+          );
+        });
+
+        inputStream.on("error", (error) => {
+          this.getLogger().error("Input pipe error", { error });
+        });
+
+        outputStream.on("error", (error) => {
+          this.getLogger().error("Output pipe error", { error });
+        });
       } else {
         // Standard stdio transport
         this.transport = new StdioServerTransport();

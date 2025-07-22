@@ -99,7 +99,8 @@
         "src/cli/brooklyn.ts",
         "src/cli/brooklyn-server.ts",
         "src/shared/structured-logger.ts",
-        "src/transports/http-transport.ts"
+        "src/transports/http-transport.ts",
+        "src/transports/mcp-stdio-transport.ts"
       ],
       "linter": {
         "rules": {

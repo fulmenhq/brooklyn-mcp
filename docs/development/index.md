@@ -352,7 +352,7 @@ bun run version:sync
 ```typescript
 // Launch browser
 await browserPool.launchBrowser({
-  teamId: "echo-team",
+  teamId: "example-team",
   browserType: "chromium",
   headless: true,
   viewport: { width: 1920, height: 1080 },

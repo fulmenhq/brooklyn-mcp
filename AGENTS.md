@@ -1,0 +1,39 @@
+# AGENTS.md: Guidelines for Agentic Coding in fulmen-mcp-forge-brooklyn
+
+## Project Overview
+
+Brooklyn is a multi-team MCP server for browser automation using Bun, TypeScript, and Playwright. Follow fulmen ecosystem standards in docs/fulmen/.
+
+## Build/Lint/Test Commands
+
+- Build: bun run build
+- Lint: bun run lint
+- Typecheck: bun run typecheck
+- Test all: bun run test (vitest - NEVER bun test)
+- Test single file: bun run test path/to/test.ts
+- Test specific test: bun run test -t "test name"
+- Format: bun run format:code
+- File check: bun run check:file path/to/file.ts (mandatory after edits)
+- Check all: bun run check-all (run before commits)
+
+## Code Style Guidelines
+
+- **Imports**: Node built-ins → Third-party → Local (blank lines); use `import type`; absolute paths
+- **Formatting**: Biome & Prettier; double quotes for strings, backticks for templates only
+- **Types**: Strict TS; NO `any` (use unknown); optional chaining over !; Promise<Return | undefined>
+- **Naming**: camelCase vars/functions, PascalCase classes/types; \_ for unused params
+- **Error Handling**: Structured logging; try-catch for async; no silent failures; error boundaries
+- **General**: Template literals; process.env["VAR"]; single responsibility; JSDoc for APIs
+- **Testing**: AAA pattern; independent tests; 80%+ coverage; proper mocks; vitest only
+- **Security**: Domain validation, rate limiting, team isolation
+- **Cursor/Copilot Rules**: None found - follow above standards
+
+## Development Standards
+
+- Source-first: Review existing code before changes
+- Pattern consistency: Follow codebase patterns
+- Quality gates: All checks must pass; no bypassing
+- MCP Compliance: Strict protocol adherence
+- Resource Mgmt: Browser pooling, cleanup
+
+**Note**: Read source first, run quality gates before commits. See docs/substaile/codex/ for details. For onboarding, see CLAUDE.md.

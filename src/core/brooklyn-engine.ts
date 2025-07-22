@@ -598,6 +598,14 @@ export class BrooklynEngine {
       // Navigation
       "navigate_to_url",
       "go_back",
+      // Element interaction
+      "click_element",
+      "fill_text",
+      "fill_form",
+      "wait_for_element",
+      "get_text_content",
+      "validate_element_presence",
+      "find_elements",
       // Content capture
       "take_screenshot",
       // Discovery
@@ -650,6 +658,22 @@ export class BrooklynEngine {
           return await this.browserPool.navigate(args as any);
         case "go_back":
           return await this.browserPool.goBack(args as any);
+
+        // Element interaction tools
+        case "click_element":
+          return await this.browserPool.clickElement(args as any);
+        case "fill_text":
+          return await this.browserPool.fillText(args as any);
+        case "fill_form":
+          return await this.browserPool.fillForm(args as any);
+        case "wait_for_element":
+          return await this.browserPool.waitForElement(args as any);
+        case "get_text_content":
+          return await this.browserPool.getTextContent(args as any);
+        case "validate_element_presence":
+          return await this.browserPool.validateElementPresence(args as any);
+        case "find_elements":
+          return await this.browserPool.findElements(args as any);
 
         // Content capture tools
         case "take_screenshot":

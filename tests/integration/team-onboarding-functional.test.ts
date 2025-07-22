@@ -1,5 +1,5 @@
 /**
- * Functional test for Echo team integration with Brooklyn MCP server
+ * Functional test for team onboarding integration with Brooklyn MCP server
  * Tests the core functionality without requiring MCP transport
  */
 
@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BrowserPoolManager } from "../../src/core/browser-pool-manager";
 import { OnboardingTools } from "../../src/core/onboarding-tools";
 
-describe("Echo Team Functional Tests", () => {
+describe("Team Onboarding Functional Tests", () => {
   let mockBrowserPool: BrowserPoolManager;
 
   beforeEach(() => {
@@ -30,7 +30,7 @@ describe("Echo Team Functional Tests", () => {
     OnboardingTools.setBrowserPool(mockBrowserPool);
   });
 
-  it("should provide onboarding tools for Echo team", () => {
+  it("should provide onboarding tools for example team", () => {
     const tools = OnboardingTools.getTools();
     const toolNames = tools.map((tool) => tool.name);
 
@@ -57,10 +57,10 @@ describe("Echo Team Functional Tests", () => {
     expect(result.capabilities.browsers).toContain("webkit");
   });
 
-  it("should handle brooklyn_getting_started for Echo team", async () => {
+  it("should handle brooklyn_getting_started for example team", async () => {
     const result = await OnboardingTools.handleTool("brooklyn_getting_started", {
       use_case: "ai_development",
-      team_id: "echo-team",
+      team_id: "example-team",
     });
 
     expect(result).toBeDefined();
@@ -71,21 +71,21 @@ describe("Echo Team Functional Tests", () => {
     // Check that team_id is used in the guide
     const launchBrowserStep = result.steps.find((step: any) => step.command === "launch_browser");
     expect(launchBrowserStep).toBeDefined();
-    expect(launchBrowserStep.params.teamId).toBe("echo-team");
+    expect(launchBrowserStep.params.teamId).toBe("example-team");
   });
 
-  it("should handle brooklyn_team_setup for Echo team", async () => {
+  it("should handle brooklyn_team_setup for example team", async () => {
     const result = await OnboardingTools.handleTool("brooklyn_team_setup", {
-      team_id: "echo-team",
+      team_id: "example-team",
       use_cases: ["ux_development"],
-      domains: ["*.blossflow.com", "localhost:*"],
+      domains: ["*.example.com", "localhost:*"],
     });
 
     expect(result).toBeDefined();
-    expect(result.team_id).toBe("echo-team");
+    expect(result.team_id).toBe("example-team");
     expect(result.configuration).toBeDefined();
     expect(result.configuration.use_cases).toContain("ux_development");
-    expect(result.configuration.domains).toContain("*.blossflow.com");
+    expect(result.configuration.domains).toContain("*.example.com");
     expect(result.status).toBe("configuration_preview");
   });
 
@@ -158,10 +158,10 @@ describe("Echo Team Functional Tests", () => {
     );
   });
 
-  it("should handle Echo team specific getting started", async () => {
+  it("should handle example team specific getting started", async () => {
     const result = await OnboardingTools.handleTool("brooklyn_getting_started", {
       use_case: "e2e_testing",
-      team_id: "echo-team",
+      team_id: "example-team",
     });
 
     expect(result).toBeDefined();
@@ -171,10 +171,10 @@ describe("Echo Team Functional Tests", () => {
     // Check that team_id is used in the guide
     const setupStep = result.steps.find((step: any) => step.command === "brooklyn_team_setup");
     expect(setupStep).toBeDefined();
-    expect(setupStep.params.team_id).toBe("echo-team");
+    expect(setupStep.params.team_id).toBe("example-team");
   });
 
-  it("should provide Echo team specific examples", async () => {
+  it("should provide example team specific examples", async () => {
     const result = await OnboardingTools.handleTool("brooklyn_examples", {
       task: "basic_navigation",
       format: "api_calls",

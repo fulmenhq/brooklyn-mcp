@@ -158,8 +158,8 @@ describe("ScreenshotStorageManager", () => {
         {
           sessionId: "isolation-session",
           browserId: "browser-789",
-          teamId: "team-alpha",
-          tag: "alpha-test",
+          teamId: "team-test",
+          tag: "integration-test",
         },
       );
 
@@ -176,7 +176,7 @@ describe("ScreenshotStorageManager", () => {
 
       // Verify separate instance and tag directories exist
       expect(result1.filePath).toContain("instances/");
-      expect(result1.filePath).toContain("alpha-test");
+      expect(result1.filePath).toContain("integration-test");
       expect(result2.filePath).toContain("instances/");
       expect(result2.filePath).toContain("beta-test");
 
