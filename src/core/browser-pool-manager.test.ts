@@ -25,8 +25,8 @@ vi.mock("../shared/config.js", () => ({
   },
 }));
 
-// Mock logger
-vi.mock("../shared/logger.js", () => ({
+// Mock structured logger (winston eliminated)
+vi.mock("../shared/structured-logger.js", () => ({
   getLogger: vi.fn(() => ({
     trace: vi.fn(),
     debug: vi.fn(),

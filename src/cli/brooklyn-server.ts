@@ -252,8 +252,13 @@ function execInBrooklyn(command: string, options: { stdio?: "inherit" | "pipe" }
       stdout: error.stdout,
       stderr: error.stderr,
     });
-    if (error.stdout) console.log(error.stdout);
-    if (error.stderr) console.error(error.stderr);
+    // Log command output through structured logger instead of console
+    if (error.stdout) {
+      logger.info("Command stdout output", { stdout: error.stdout });
+    }
+    if (error.stderr) {
+      logger.error("Command stderr output", { stderr: error.stderr });
+    }
     process.exit(1);
   }
 }

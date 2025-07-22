@@ -58,17 +58,13 @@ export class BrooklynEngine {
   private isInitialized = false;
 
   constructor(options: BrooklynEngineOptions) {
-    console.error("DEBUG: BrooklynEngine constructor started");
     this.config = options.config;
 
     // Correlation ID will be included in log metadata instead
     // (logger.js doesn't support setGlobalContext)
 
-    console.error("DEBUG: Creating PluginManager...");
     this.pluginManager = new PluginManager();
-    console.error("DEBUG: Creating BrowserPoolManager...");
     this.browserPool = new BrowserPoolManager();
-    console.error("DEBUG: Creating SecurityMiddleware...");
     this.security = new SecurityMiddleware({
       allowedDomains: this.config.security.allowedDomains,
       rateLimiting: this.config.security.rateLimit,
@@ -76,7 +72,6 @@ export class BrooklynEngine {
       teamIsolation: true,
     });
 
-    console.error("DEBUG: Creating ToolDiscoveryService...");
     this.discovery = new ToolDiscoveryService({
       version: this.config.version,
       serverName: "Brooklyn MCP Server",
@@ -93,8 +88,6 @@ export class BrooklynEngine {
 
     // Register standard categories
     this.registerStandardCategories();
-
-    console.error("DEBUG: BrooklynEngine constructor complete");
   }
 
   /**

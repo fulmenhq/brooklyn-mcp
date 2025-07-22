@@ -181,10 +181,11 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
           });
         }
       } catch (error) {
-        console.error(
-          "Failed to start MCP server:",
-          error instanceof Error ? error.message : String(error),
-        );
+        const logger = getLogger("brooklyn-cli");
+        logger.error("Failed to start MCP server", {
+          error: error instanceof Error ? error.message : String(error),
+          mode: options.devMode ? "dev-pipes" : "mcp-stdio",
+        });
         process.exit(1);
       }
     });
@@ -197,10 +198,10 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
         const { getServerStatus } = await import("../../scripts/server-management.js");
         await getServerStatus();
       } catch (error) {
-        console.error(
-          "Failed to get MCP server status:",
-          error instanceof Error ? error.message : String(error),
-        );
+        const logger = getLogger("brooklyn-cli");
+        logger.error("Failed to get MCP server status", {
+          error: error instanceof Error ? error.message : String(error),
+        });
         process.exit(1);
       }
     });
@@ -236,10 +237,11 @@ function setupMCPDevCommands(mcpCmd: Command): void {
         }
         await devManager.start();
       } catch (error) {
-        console.error(
-          "Failed to start MCP development mode:",
-          error instanceof Error ? error.message : String(error),
-        );
+        const logger = getLogger("brooklyn-cli");
+        logger.error("Failed to start MCP development mode", {
+          error: error instanceof Error ? error.message : String(error),
+          teamId: options.teamId,
+        });
         process.exit(1);
       }
     });
@@ -251,10 +253,10 @@ function setupMCPDevCommands(mcpCmd: Command): void {
       try {
         await devManager.stop();
       } catch (error) {
-        console.error(
-          "Failed to stop MCP development mode:",
-          error instanceof Error ? error.message : String(error),
-        );
+        const logger = getLogger("brooklyn-cli");
+        logger.error("Failed to stop MCP development mode", {
+          error: error instanceof Error ? error.message : String(error),
+        });
         process.exit(1);
       }
     });
@@ -266,10 +268,10 @@ function setupMCPDevCommands(mcpCmd: Command): void {
       try {
         await devManager.restart();
       } catch (error) {
-        console.error(
-          "Failed to restart MCP development mode:",
-          error instanceof Error ? error.message : String(error),
-        );
+        const logger = getLogger("brooklyn-cli");
+        logger.error("Failed to restart MCP development mode", {
+          error: error instanceof Error ? error.message : String(error),
+        });
         process.exit(1);
       }
     });
@@ -281,10 +283,10 @@ function setupMCPDevCommands(mcpCmd: Command): void {
       try {
         await devManager.status();
       } catch (error) {
-        console.error(
-          "Failed to get MCP development mode status:",
-          error instanceof Error ? error.message : String(error),
-        );
+        const logger = getLogger("brooklyn-cli");
+        logger.error("Failed to get MCP development mode status", {
+          error: error instanceof Error ? error.message : String(error),
+        });
         process.exit(1);
       }
     });
@@ -298,10 +300,10 @@ function setupMCPDevCommands(mcpCmd: Command): void {
         // User-facing success message goes to stdout for CLI interaction
         console.info("✅ MCP development mode cleanup completed");
       } catch (error) {
-        console.error(
-          "Failed to cleanup MCP development mode:",
-          error instanceof Error ? error.message : String(error),
-        );
+        const logger = getLogger("brooklyn-cli");
+        logger.error("Failed to cleanup MCP development mode", {
+          error: error instanceof Error ? error.message : String(error),
+        });
         process.exit(1);
       }
     });
@@ -404,10 +406,12 @@ function setupWebCommands(program: Command): void {
           process.stdin.resume();
         }
       } catch (error) {
-        console.error(
-          "Failed to start web server:",
-          error instanceof Error ? error.message : String(error),
-        );
+        const logger = getLogger("brooklyn-cli");
+        logger.error("Failed to start web server", {
+          error: error instanceof Error ? error.message : String(error),
+          port: options.port,
+          daemon: options.daemon,
+        });
         process.exit(1);
       }
     });
@@ -420,10 +424,10 @@ function setupWebCommands(program: Command): void {
         const { stopServerProcess } = await import("../../scripts/server-management.js");
         await stopServerProcess();
       } catch (error) {
-        console.error(
-          "Failed to stop server:",
-          error instanceof Error ? error.message : String(error),
-        );
+        const logger = getLogger("brooklyn-cli");
+        logger.error("Failed to stop server", {
+          error: error instanceof Error ? error.message : String(error),
+        });
         process.exit(1);
       }
     });
@@ -436,10 +440,10 @@ function setupWebCommands(program: Command): void {
         const { getServerStatus } = await import("../../scripts/server-management.js");
         await getServerStatus();
       } catch (error) {
-        console.error(
-          "Failed to get server status:",
-          error instanceof Error ? error.message : String(error),
-        );
+        const logger = getLogger("brooklyn-cli");
+        logger.error("Failed to get server status", {
+          error: error instanceof Error ? error.message : String(error),
+        });
         process.exit(1);
       }
     });
@@ -461,10 +465,11 @@ function setupStatusCommand(program: Command): void {
 
         logger.info("Brooklyn Status Check", { version: VERSION });
       } catch (error) {
-        console.error(
-          "Status check failed:",
-          error instanceof Error ? error.message : String(error),
-        );
+        const logger = getLogger("brooklyn-cli");
+        logger.error("Status check failed", {
+          error: error instanceof Error ? error.message : String(error),
+          version: VERSION,
+        });
         process.exit(1);
       }
     });
@@ -494,7 +499,11 @@ function setupSetupCommand(program: Command): void {
 
         logger.info("Brooklyn setup completed", { options });
       } catch (error) {
-        console.error("Setup failed:", error instanceof Error ? error.message : String(error));
+        const logger = getLogger("brooklyn-cli");
+        logger.error("Setup failed", {
+          error: error instanceof Error ? error.message : String(error),
+          options,
+        });
         process.exit(1);
       }
     });
@@ -636,7 +645,11 @@ async function main(): Promise<void> {
     // Parse command line arguments
     await program.parseAsync(process.argv);
   } catch (error) {
-    console.error("CLI execution failed:", error instanceof Error ? error.message : String(error));
+    const logger = getLogger("brooklyn-cli");
+    logger.error("CLI execution failed", {
+      error: error instanceof Error ? error.message : String(error),
+      argv: process.argv,
+    });
     process.exit(1);
   }
 }
@@ -647,7 +660,11 @@ export { main };
 // Run main function if this file is executed directly
 if (import.meta.main) {
   main().catch((error) => {
-    console.error("Fatal error:", error);
+    const logger = getLogger("brooklyn-cli");
+    logger.error("Fatal error", {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     process.exit(1);
   });
 }

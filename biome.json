@@ -34,7 +34,7 @@
       },
       "suspicious": {
         "noExplicitAny": "error",
-        "noConsoleLog": "warn"
+        "noConsole": "error"
       }
     }
   },
@@ -85,7 +85,7 @@
       "linter": {
         "rules": {
           "suspicious": {
-            "noConsoleLog": "off"
+            "noConsole": "off"
           }
         }
       }
@@ -124,16 +124,22 @@
         "rules": {
           "suspicious": {
             "noExplicitAny": "off"
+          },
+          "style": {
+            "noNonNullAssertion": "off"
+          },
+          "performance": {
+            "noDelete": "off"
           }
         }
       }
     },
     {
-      "include": ["src/cli/brooklyn-server.ts"],
+      "include": ["src/cli/brooklyn.ts", "src/cli/brooklyn-server.ts"],
       "linter": {
         "rules": {
           "suspicious": {
-            "noConsoleLog": "off"
+            "noConsole": "off"
           },
           "complexity": {
             "noForEach": "off"
