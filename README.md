@@ -237,11 +237,13 @@ bun run format:code
 bun run check:file src/path/to/file.ts
 bun run check:file:fix src/path/to/file.ts
 
-# Version management
-bun run version:get
-bun run version:set 1.2.3
-bun run version:bump patch
-bun run check:versions
+# Version management (ALWAYS use these scripts - never edit manually)
+bun run version:get                    # Check current version
+bun run version:set 1.2.3             # Set specific version
+bun run version:bump:patch             # Bump patch version (1.1.6 → 1.1.7)
+bun run version:bump:minor             # Bump minor version (1.1.6 → 1.2.0)
+bun run version:bump:major             # Bump major version (1.1.6 → 2.0.0)
+bun run check:versions                 # Verify version consistency
 ```
 
 ### Testing

@@ -15,6 +15,7 @@ Brooklyn is a multi-team MCP server for browser automation using Bun, TypeScript
 - Format: bun run format:code
 - File check: bun run check:file path/to/file.ts (mandatory after edits)
 - Check all: bun run check-all (run before commits)
+- Version bump: bun run version:bump:patch (NEVER edit VERSION/package.json manually)
 
 ## AI Agent Commit Attribution
 
