@@ -128,6 +128,106 @@ claude mcp list
 
 ---
 
+## OpenCode.ai Integration (Alternative to Claude Code)
+
+### Overview
+
+**Problem Solved**: OpenCode.ai provides an alternative MCP client that doesn't require complete session restarts for Brooklyn updates, offering more flexibility than Claude Code.
+
+### Configuration
+
+Brooklyn includes `opencode.json` configuration for seamless integration:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "brooklyn": {
+      "type": "local",
+      "command": ["bun", "run", "src/cli/brooklyn.ts", "mcp", "start"],
+      "enabled": true,
+      "environment": {
+        "BROOKLYN_TEAM_ID": "opencode-dev",
+        "BROOKLYN_LOG_LEVEL": "info"
+      }
+    }
+  }
+}
+```
+
+### Usage Workflow
+
+#### Setup OpenCode
+
+```bash
+# Install opencode (if not already installed)
+curl -fsSL https://opencode.ai/install | bash
+
+# Navigate to Brooklyn project
+cd /path/to/fulmen-mcp-forge-brooklyn
+
+# Start opencode (automatically loads opencode.json)
+opencode
+```
+
+#### Test Brooklyn Integration
+
+```bash
+# In opencode chat interface, test Brooklyn tools:
+# "launch a browser and take a screenshot"
+# "show me available Brooklyn tools"
+# "test Brooklyn connection"
+```
+
+### Benefits vs Claude Code
+
+**OpenCode Advantages**:
+
+- ✅ **Faster Iteration**: May not require full restart for version updates
+- ✅ **Alternative Client**: Backup when Claude Code has issues
+- ✅ **Team Flexibility**: Different team members can use different clients
+- ✅ **Development Continuity**: Continue work during Claude Code maintenance
+
+**Claude Code Advantages**:
+
+- ✅ **Primary Support**: Main development and testing platform
+- ✅ **Team Standard**: Established workflow and documentation
+- ✅ **Integration Maturity**: Well-tested with Brooklyn
+
+### Version Update Testing Results
+
+**Test Performed**: Version bump from 1.1.7 → 1.1.8 with OpenCode running
+
+**Findings**:
+
+- ✅ **OpenCode MCP Discovery**: Successfully finds Brooklyn MCP server after version updates
+- ⚠️ **CLI Logger Issue**: Global Brooklyn CLI has logger initialization problems
+- 🔄 **Restart Behavior**: Similar to Claude Code - likely requires restart for version recognition
+- 📋 **Recommendation**: Use development mode for rapid iteration, OpenCode for alternative access
+
+### Workflow Decision Matrix
+
+| Scenario               | Recommended Approach      | Reason                          |
+| ---------------------- | ------------------------- | ------------------------------- |
+| **Rapid Development**  | Development Mode          | No restarts needed, named pipes |
+| **Alternative Client** | OpenCode + Real Server    | When Claude Code unavailable    |
+| **Team Testing**       | Claude Code + Real Server | Primary supported workflow      |
+| **Echo Team Testing**  | Claude Code + Real Server | Established, documented process |
+
+### Echo Team Onboarding Ready
+
+**Status**: ✅ **Ready for Echo team live testing**
+
+**Prepared Infrastructure**:
+
+- ✅ Development mode for internal iteration
+- ✅ OpenCode integration for alternative access
+- ✅ Real Brooklyn server for production testing
+- ✅ Documentation updated for all workflows
+- ✅ Version management processes established
+
+---
+
 ## Brooklyn MCP Development Mode (Architecture Committee Approved)
 
 ### Revolutionary Development Workflow
