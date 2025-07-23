@@ -3,11 +3,6 @@
  * Handles Claude Code integration via MCP protocol
  */
 
-import * as fs from "node:fs";
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-
 import type {
   MCPStdioConfig,
   ToolCallHandler,
@@ -29,7 +24,7 @@ export class MCPStdioTransport implements Transport {
   readonly type = TransportType.MCP_STDIO;
 
   private logger: ReturnType<typeof getLogger> | null = null;
-  private readonly config: MCPStdioConfig;
+  private readonly _config: MCPStdioConfig;
 
   private getLogger() {
     if (!this.logger) {
@@ -38,29 +33,14 @@ export class MCPStdioTransport implements Transport {
     return this.logger;
   }
 
-  private server: Server;
-  private transport: StdioServerTransport | null = null;
   private running = false;
 
   private toolListHandler?: ToolListHandler;
   private toolCallHandler?: ToolCallHandler;
 
   constructor(config: MCPStdioConfig) {
-    this.config = config;
-
-    // Initialize MCP Server
-    // Note: Server name and version will be provided by Brooklyn engine
-    this.server = new Server(
-      {
-        name: "brooklyn-mcp-server", // Default, will be overridden
-        version: "1.1.6", // Embedded at build time
-      },
-      {
-        capabilities: {
-          tools: {}, // Brooklyn provides tools
-        },
-      },
-    );
+    this._config = config;
+    // Config stored for future use (dev mode, pipe configuration)
   }
 
   /**
@@ -68,28 +48,6 @@ export class MCPStdioTransport implements Transport {
    */
   async initialize(): Promise<void> {
     this.getLogger().info("Initializing MCP stdio transport");
-
-    // Set up MCP request handlers
-    this.server.setRequestHandler(ListToolsRequestSchema, async () => {
-      if (!this.toolListHandler) {
-        throw new Error("Tool list handler not set");
-      }
-
-      this.getLogger().debug("MCP tool list request received");
-      return await this.toolListHandler();
-    });
-
-    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
-      if (!this.toolCallHandler) {
-        throw new Error("Tool call handler not set");
-      }
-
-      this.getLogger().debug("MCP tool call request received", {
-        tool: request.params.name,
-      });
-
-      return await this.toolCallHandler(request);
-    });
 
     this.getLogger().info("MCP stdio transport initialized");
   }
@@ -104,77 +62,80 @@ export class MCPStdioTransport implements Transport {
       return;
     }
 
-    this.getLogger().info("Starting MCP stdio transport");
+    this.getLogger().info("Starting custom MCP stdio transport");
 
+    process.stdin.resume();
+    process.stdin.setEncoding("utf8");
+
+    let buffer = "";
+    process.stdin.on("data", (chunk) => {
+      buffer += chunk;
+      let lineEnd: number = buffer.indexOf("\n");
+      while (lineEnd !== -1) {
+        const line = buffer.slice(0, lineEnd);
+        buffer = buffer.slice(lineEnd + 1);
+        this.handleIncomingMessage(line);
+        lineEnd = buffer.indexOf("\n");
+      }
+    });
+
+    process.stdin.on("end", () => {
+      this.getLogger().info("Stdin ended, stopping transport");
+      this.stop();
+    });
+
+    this.running = true;
+    this.getLogger().info("Custom MCP stdio transport started successfully");
+  }
+
+  private async handleIncomingMessage(line: string): Promise<void> {
     try {
-      // Create transport based on configuration
-      if (this.config.options?.inputPipe && this.config.options?.outputPipe) {
-        // Development mode with named pipes
-        this.getLogger().info("Using named pipes for development mode", {
-          inputPipe: this.config.options.inputPipe,
-          outputPipe: this.config.options.outputPipe,
-        });
+      const msg = JSON.parse(line);
+      if (!(msg.jsonrpc && msg.id && msg.method)) return;
 
-        // Create pipe-based transport with proper stream handling
-        const inputStream = fs.createReadStream(this.config.options.inputPipe);
-        const outputStream = fs.createWriteStream(this.config.options.outputPipe);
-
-        // Create custom StdioServerTransport that uses our pipe streams
-        this.transport = new StdioServerTransport();
-
-        // Connect to server with custom streams by overriding the transport's streams
-        // We need to replace stdin/stdout with our pipe streams
-        const originalStdin = process.stdin;
-        const originalStdout = process.stdout;
-
-        try {
-          // Temporarily replace stdin/stdout with our pipe streams
-          (process as any).stdin = inputStream;
-          (process as any).stdout = outputStream;
-
-          await this.server.connect(this.transport);
-
-          this.getLogger().info("MCP server connected to named pipes successfully");
-        } finally {
-          // Restore original stdin/stdout
-          (process as any).stdin = originalStdin;
-          (process as any).stdout = originalStdout;
+      let response: any;
+      try {
+        if (msg.method === "initialize") {
+          response = {
+            jsonrpc: "2.0",
+            id: msg.id,
+            result: {
+              protocolVersion: "2024-11-05",
+              serverInfo: { name: "brooklyn-mcp-server", version: "1.1.6" },
+              capabilities: { tools: {} },
+            },
+          };
+        } else if (msg.method === "tools/list") {
+          if (!this.toolListHandler) throw new Error("Tool list handler not set");
+          const result = await this.toolListHandler();
+          response = { jsonrpc: "2.0", id: msg.id, result };
+        } else if (msg.method === "tools/call") {
+          if (!this.toolCallHandler) throw new Error("Tool call handler not set");
+          const result = await this.toolCallHandler({
+            method: "tools/call",
+            params: msg.params,
+          });
+          response = { jsonrpc: "2.0", id: msg.id, result };
+        } else {
+          throw new Error("Method not found");
         }
-
-        // Keep process alive by preventing pipe streams from ending the process
-        inputStream.on("end", () => {
-          this.getLogger().info("Input pipe ended, stopping transport");
-          this.stop().catch((err) =>
-            this.getLogger().error("Error stopping transport", { error: err }),
-          );
-        });
-
-        inputStream.on("error", (error) => {
-          this.getLogger().error("Input pipe error", { error });
-        });
-
-        outputStream.on("error", (error) => {
-          this.getLogger().error("Output pipe error", { error });
-        });
-      } else {
-        // Standard stdio transport
-        this.transport = new StdioServerTransport();
-
-        // Connect to stdin/stdout
-        await this.server.connect(this.transport);
+      } catch (e) {
+        response = {
+          jsonrpc: "2.0",
+          id: msg.id,
+          error: {
+            code: -32600,
+            message: e instanceof Error ? e.message : String(e),
+          },
+        };
       }
 
-      this.running = true;
-      this.getLogger().info("MCP stdio transport started successfully");
-
-      // Note: MCP server will now handle requests via stdin/stdout
-      // The process will stay alive until stdin is closed or process is terminated
+      process.stdout.write(`${JSON.stringify(response)}\n`);
     } catch (error) {
-      this.getLogger().error("Failed to start MCP stdio transport", {
-        error: error instanceof Error ? error.message : String(error),
+      this.getLogger().error("Error parsing MCP message", {
+        line,
+        error: (error as Error).message,
       });
-      this.running = false;
-      throw error;
     }
   }
 
@@ -188,23 +149,9 @@ export class MCPStdioTransport implements Transport {
       return;
     }
 
-    this.getLogger().info("Stopping MCP stdio transport");
-
-    try {
-      // For stdio transport, we typically don't explicitly "stop"
-      // The connection is managed by the parent process (Claude Code)
-      // But we can clean up our state
-
-      this.running = false;
-      this.transport = null;
-
-      this.getLogger().info("MCP stdio transport stopped");
-    } catch (error) {
-      this.getLogger().error("Error stopping MCP stdio transport", {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      throw error;
-    }
+    this.running = false;
+    process.stdin.pause();
+    this.getLogger().info("Custom MCP stdio transport stopped");
   }
 
   /**
@@ -233,9 +180,4 @@ export class MCPStdioTransport implements Transport {
   /**
    * Update server info (called by Brooklyn engine)
    */
-  updateServerInfo(name: string, version: string): void {
-    // Note: MCP SDK doesn't allow updating server info after creation
-    // This would need to be set during construction in a real implementation
-    this.getLogger().debug("Server info update requested", { name, version });
-  }
 }

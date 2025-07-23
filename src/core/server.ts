@@ -62,6 +62,8 @@ export class MCPServer {
 
     // Set up core tool handlers
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
+      ensureLogger().debug("Handling tools/list request");
+
       const coreTools = await this.getCoreTools();
       const onboardingTools = OnboardingTools.getTools();
       const pluginTools = this.pluginManager.getAllTools();
@@ -139,6 +141,7 @@ export class MCPServer {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
     ensureLogger().info("MCP server connected via stdio");
+    ensureLogger().info("Server ready for requests");
   }
 
   async stop(): Promise<void> {

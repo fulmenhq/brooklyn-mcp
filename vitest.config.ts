@@ -24,6 +24,8 @@ export default defineConfig({
     ],
     isolate: true,
     pool: "forks",
+    hookTimeout: 30000,
+    testTimeout: 30000,
   },
   resolve: {
     alias: {

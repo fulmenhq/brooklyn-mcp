@@ -174,6 +174,9 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
           // Start MCP transport (this will connect to stdin/stdout)
           await engine.startTransport("mcp");
 
+          // Keep process alive for multiple requests
+          process.stdin.resume();
+
           // Process will stay alive until stdin is closed by Claude Code
           logger.info("MCP server started successfully", {
             transport: "stdio",

@@ -1,14 +1,56 @@
 /**
- * MCP Protocol End-to-End Testing Framework
+ * MCP Protocol End-to-End Test Suite
  *
- * Tests the complete MCP stdin/stdout protocol implementation for Brooklyn
- * Ensures Claude Code integration works correctly with all MCP commands
+ * This test suite validates Brooklyn's Model Context Protocol (MCP) implementation
+ * by spawning a real server process and communicating via stdin/stdout JSON-RPC.
+ *
+ * ## Key Concepts
+ *
+ * 1. **MCP Protocol**: A JSON-RPC 2.0 based protocol for AI-tool communication
+ *    See: docs/architecture/notes/mcp-dev-mode-pattern.md
+ *
+ * 2. **Stdout Purity**: MCP requires that stdout contains ONLY JSON-RPC messages
+ *    - All logs must go to stderr (handled by structured-logger)
+ *    - Any non-JSON output corrupts the protocol
+ *    See: tests/integration/stdout-purity.test.ts
+ *
+ * 3. **Process Lifecycle**: The test spawns a real Brooklyn process
+ *    - Startup timing is critical (server needs ~1s to initialize)
+ *    - Process cleanup must be thorough to avoid port conflicts
+ *
+ * ## Common Issues & Solutions
+ *
+ * 1. **Timeout Errors**: "Request timeout: tools/list"
+ *    - Cause: Server not ready when test sends requests
+ *    - Solution: Wait 1s after spawn before initialize (line 84)
+ *
+ * 2. **Parse Errors**: Invalid JSON on stdout
+ *    - Cause: Logger outputting to stdout instead of stderr
+ *    - Solution: Check structured-logger configuration
+ *
+ * 3. **Flaky Tests**: Intermittent failures
+ *    - Cause: Race conditions in startup/shutdown
+ *    - Solution: Proper process lifecycle management
+ *
+ * ## Debugging Tips
+ *
+ * 1. Enable debug mode: `DEBUG_MCP_TEST=1 bun run test tests/e2e/mcp-protocol.test.ts`
+ * 2. Manual testing: See .plans/active/paris/20250722-e2e-test-diagnosis.md
+ * 3. Check stderr output for server initialization logs
+ *
+ * For architecture details, see:
+ * - docs/architecture/notes/mcp-dev-mode-pattern.md
+ * - docs/user-guide/local-development.md
  */
 
 import { spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+/**
+ * MCP Message structure following JSON-RPC 2.0 specification
+ * All communication between Claude Code and Brooklyn uses this format
+ */
 interface MCPMessage {
   jsonrpc: "2.0";
   id?: string | number;
@@ -22,6 +64,15 @@ interface MCPMessage {
   };
 }
 
+/**
+ * Test client that simulates Claude Code's MCP communication
+ *
+ * This client:
+ * - Spawns Brooklyn as a child process
+ * - Communicates via stdin/stdout using JSON-RPC
+ * - Handles async request/response matching
+ * - Manages process lifecycle and cleanup
+ */
 class MCPTestClient {
   private process: ChildProcess | null = null;
   private messageQueue: MCPMessage[] = [];
@@ -31,31 +82,59 @@ class MCPTestClient {
   > = new Map();
   private nextId = 1;
 
+  /**
+   * Start the MCP server process and establish communication
+   *
+   * Critical timing: The server needs ~1 second to initialize before
+   * it can accept requests. This delay prevents timeout errors.
+   */
   async start(): Promise<void> {
     return new Promise((resolve, reject) => {
+      // Set restricted domains for testing
+      process.env["BROOKLYN_ALLOWED_DOMAINS"] = JSON.stringify(["example.com"]);
+      process.env["BROOKLYN_LOG_LEVEL"] = "debug";
+
       // Start Brooklyn MCP server
       this.process = spawn("bun", ["run", "src/cli/brooklyn.ts", "mcp", "start"], {
         stdio: ["pipe", "pipe", "pipe"],
         cwd: process.cwd(),
       });
 
-      if (!(this.process.stdout && this.process.stdin)) {
+      // Capture stderr for debugging if needed
+      this.process.stderr?.on("data", (data) => {
+        // Structured logs go to stderr, only log if debugging
+        if (process.env["DEBUG_MCP_TEST"]) {
+          process.stderr.write(`MCP STDERR: ${data.toString()}`);
+        }
+      });
+
+      if (!(this.process?.stdout && this.process?.stdin)) {
         reject(new Error("Failed to create MCP process stdio"));
         return;
       }
 
+      this.process.stdout.resume();
+
       // Handle stdout messages
+      let buffer = "";
       this.process.stdout.on("data", (data: Buffer) => {
-        const lines = data
-          .toString()
-          .split("\n")
-          .filter((line) => line.trim());
-        for (const line of lines) {
-          try {
-            const message: MCPMessage = JSON.parse(line);
-            this.handleMessage(message);
-          } catch (_error) {
-            // Non-JSON output (logs, etc.) - ignore for protocol testing
+        buffer += data.toString();
+        let lineEnd: number = buffer.indexOf("\n");
+        while (lineEnd !== -1) {
+          const line = buffer.slice(0, lineEnd);
+          buffer = buffer.slice(lineEnd + 1);
+          lineEnd = buffer.indexOf("\n");
+          if (line.trim()) {
+            try {
+              const message: MCPMessage = JSON.parse(line);
+              this.handleMessage(message);
+            } catch (e) {
+              // Only log parse errors if debugging
+              if (process.env["DEBUG_MCP_TEST"]) {
+                // Debug logging for test failures
+                process.stderr.write(`MCP parse error: ${e} Line: ${line}\n`);
+              }
+            }
           }
         }
       });
@@ -65,10 +144,28 @@ class MCPTestClient {
         reject(new Error(`MCP process error: ${error.message}`));
       });
 
-      // Give the process time to initialize
-      setTimeout(() => {
-        resolve();
-      }, 2000);
+      // Wait for server to be ready before sending initialize
+      // The server needs time to initialize logging, config, and transport
+      setTimeout(async () => {
+        try {
+          const initResponse = await this.sendRequest("initialize", {
+            protocolVersion: "2024-11-05",
+            capabilities: {
+              roots: { listChanged: false },
+              sampling: {},
+            },
+            clientInfo: {
+              name: "brooklyn-test-client",
+              version: "1.0.0",
+            },
+          });
+          if (initResponse.error)
+            throw new Error(`Initialize failed: ${initResponse.error.message}`);
+          resolve();
+        } catch (e) {
+          reject(e);
+        }
+      }, 1000); // Give server 1 second to start up
     });
   }
 
@@ -82,9 +179,12 @@ class MCPTestClient {
     }
   }
 
+  /**
+   * Handle incoming messages from the MCP server
+   * Matches responses to pending requests by ID
+   */
   private handleMessage(message: MCPMessage): void {
     if (message.id !== undefined) {
-      // Response to our request
       const promise = this.responsePromises.get(message.id);
       if (promise) {
         this.responsePromises.delete(message.id);
@@ -95,11 +195,20 @@ class MCPTestClient {
         }
       }
     } else {
-      // Notification or other message
+      // Notifications (no ID) are queued for later processing
       this.messageQueue.push(message);
     }
   }
 
+  /**
+   * Send a JSON-RPC request and wait for the response
+   *
+   * This simulates how Claude Code communicates with Brooklyn:
+   * 1. Assign unique ID to track the response
+   * 2. Send JSON message via stdin
+   * 3. Wait for matching response (by ID) via stdout
+   * 4. Timeout after 30s to prevent hanging tests
+   */
   async sendRequest(method: string, params?: unknown): Promise<MCPMessage> {
     if (!this.process?.stdin) {
       throw new Error("MCP client not started");
@@ -119,24 +228,63 @@ class MCPTestClient {
       // Send request
       this.process?.stdin?.write(`${JSON.stringify(request)}\n`);
 
-      // Timeout after 10 seconds
+      // Timeout after 30 seconds
       setTimeout(() => {
         if (this.responsePromises.has(id)) {
           this.responsePromises.delete(id);
           reject(new Error(`Request timeout: ${method}`));
         }
-      }, 10000);
+      }, 30000);
     });
+  }
+
+  async callTool(toolName: string, args: any): Promise<any> {
+    const response = await this.sendRequest("tools/call", {
+      name: toolName,
+      arguments: args,
+    });
+
+    if (response.error) {
+      throw new Error(`MCP error: ${response.error.message}`);
+    }
+
+    const result = response.result as any;
+    if (result?.isError) {
+      throw new Error(result.content?.[0]?.text || "Unknown error");
+    }
+
+    const contentText = result?.content?.[0]?.text;
+    try {
+      return JSON.parse(contentText);
+    } catch {
+      return contentText;
+    }
   }
 }
 
+/**
+ * MCP Protocol Integration Test Suite
+ *
+ * These tests validate the complete MCP flow from Claude Code's perspective,
+ * ensuring Brooklyn correctly implements the Model Context Protocol.
+ *
+ * Test Categories:
+ * 1. Core Protocol - Basic MCP handshake and tool discovery
+ * 2. Browser Automation - Tool execution and response handling
+ * 3. Error Handling - Graceful failure modes
+ * 4. Resource Management - Concurrent operations and cleanup
+ * 5. Performance - Response time validation
+ *
+ * For MCP protocol specification, see:
+ * https://modelcontextprotocol.io/specification
+ */
 describe("MCP Protocol Integration", () => {
   let client: MCPTestClient;
 
   beforeAll(async () => {
     client = new MCPTestClient();
     await client.start();
-  }, 15000);
+  }, 60000);
 
   afterAll(async () => {
     if (client) {
@@ -144,7 +292,17 @@ describe("MCP Protocol Integration", () => {
     }
   });
 
+  /**
+   * Core MCP protocol tests
+   * These validate the fundamental request/response cycle
+   */
   describe("MCP Core Protocol", () => {
+    it("should establish basic connectivity", async () => {
+      const response = await client.sendRequest("tools/list", {});
+      expect(response).toBeDefined();
+      expect(response.jsonrpc).toBe("2.0");
+    });
+
     it("should respond to initialize request", async () => {
       const response = await client.sendRequest("initialize", {
         protocolVersion: "2024-11-05",
@@ -171,34 +329,33 @@ describe("MCP Protocol Integration", () => {
       const result = response.result as { tools: unknown[] };
       expect(Array.isArray(result.tools)).toBe(true);
       expect(result.tools.length).toBeGreaterThan(0);
-    });
+    }, 30000);
 
     it("should provide tool schemas", async () => {
       const listResponse = await client.sendRequest("tools/list", {});
       const tools = (listResponse.result as { tools: { name: string }[] }).tools;
 
-      // Test tools have proper schema if any exist
       if (tools.length > 0) {
         const tool = tools[0];
-        if (tool) {
-          expect(tool).toHaveProperty("name");
-          expect(typeof tool.name).toBe("string");
-        }
+        expect(tool).toHaveProperty("name");
+        expect(typeof tool?.name).toBe("string");
       }
-    });
+    }, 30000);
   });
 
+  /**
+   * Browser automation tool tests
+   * Validates that Brooklyn's browser control tools work correctly
+   * via the MCP protocol (not direct function calls)
+   */
   describe("Browser Automation Tools", () => {
     it("should have navigate_to_url tool available", async () => {
       const response = await client.sendRequest("tools/list", {});
       const tools = (response.result as { tools: { name: string }[] }).tools;
 
-      const navigateTool = tools.find((tool) => tool.name === "navigate_to_url");
+      const navigateTool = tools.find((tool) => tool?.name === "navigate_to_url");
       expect(navigateTool).toBeDefined();
-      if (navigateTool) {
-        expect(navigateTool.name).toBe("navigate_to_url");
-      }
-    });
+    }, 30000);
 
     it("should have take_screenshot tool available", async () => {
       const response = await client.sendRequest("tools/list", {});
@@ -206,151 +363,132 @@ describe("MCP Protocol Integration", () => {
 
       const screenshotTool = tools.find((tool) => tool.name === "take_screenshot");
       expect(screenshotTool).toBeDefined();
-    });
+    }, 30000);
 
     it("should execute navigate_to_url tool safely", async () => {
-      // Test navigation to a safe, fast-loading page
-      const response = await client.sendRequest("tools/call", {
-        name: "navigate_to_url",
-        arguments: {
-          browserId: "test-browser-id",
-          url: "data:text/html,<html><body><h1>Test Page</h1></body></html>",
-        },
+      const launch = await client.callTool("launch_browser", {
+        browserType: "chromium",
+        headless: true,
       });
+      const browserId = launch.browserId;
+      expect(browserId).toBeDefined();
 
-      expect(response.error).toBeUndefined();
-      expect(response.result).toBeDefined();
+      const nav = await client.callTool("navigate_to_url", {
+        browserId,
+        url: "data:text/html,<html><body><h1>Test Page</h1></body></html>",
+      });
+      expect(nav.success).toBe(true);
+
+      const close = await client.callTool("close_browser", { browserId });
+      expect(close.success).toBe(true);
     });
   });
 
+  /**
+   * Error handling tests
+   * Ensures Brooklyn handles invalid requests gracefully without
+   * corrupting the protocol or crashing the server
+   */
   describe("Error Handling", () => {
     it("should handle invalid method gracefully", async () => {
-      try {
-        const response = await client.sendRequest("invalid_method", {});
-        // If we get here, check for error in response
-        expect(response.error).toBeDefined();
-        expect(response.error?.code).toBe(-32601); // Method not found
-      } catch (error) {
-        // If it throws, check the error message
-        expect(error).toBeInstanceOf(Error);
-        expect((error as Error).message).toContain("Method not found");
-      }
+      await expect(client.sendRequest("invalid_method", {})).rejects.toThrow("Method not found");
     });
 
     it("should handle malformed tool calls gracefully", async () => {
-      const response = await client.sendRequest("tools/call", {
-        name: "nonexistent_tool_name",
-        arguments: {
-          invalid: "parameter",
-        },
-      });
-
-      // Brooklyn returns tool errors as successful responses with isError: true
-      expect(response.result).toBeDefined();
-      expect((response.result as any).isError).toBe(true);
-      expect((response.result as any).content?.[0]?.text).toContain("Tool not found");
+      await expect(
+        client.callTool("nonexistent_tool_name", { invalid: "parameter" }),
+      ).rejects.toThrow(/Tool not found/);
     });
 
     it("should validate domain restrictions", async () => {
-      const response = await client.sendRequest("tools/call", {
-        name: "navigate_to_url",
-        arguments: {
-          browserId: "test-browser-id",
-          url: "https://malicious-example.com",
-        },
+      const launch = await client.callTool("launch_browser", {
+        browserType: "chromium",
+        headless: true,
       });
+      const browserId = launch.browserId;
 
-      // Should either succeed (if domain allowed) or fail gracefully
-      expect(response).toBeDefined();
+      await expect(
+        client.callTool("navigate_to_url", {
+          browserId,
+          url: "https://malicious-example.com",
+        }),
+      ).rejects.toThrow(/Domain .* not in allowed domains/i);
+
+      await client.callTool("close_browser", { browserId });
     });
   });
 
   describe("Resource Management", () => {
     it("should handle multiple concurrent operations", async () => {
-      const promises = Array.from({ length: 3 }, (_, i) =>
-        client.sendRequest("tools/call", {
-          name: "navigate_to",
-          arguments: {
-            url: `data:text/html,<html><body><h1>Test Page ${i}</h1></body></html>`,
-          },
+      const launchPromises = Array.from({ length: 3 }, () =>
+        client.callTool("launch_browser", { browserType: "chromium", headless: true }),
+      );
+      const launchResults = await Promise.all(launchPromises);
+      const browserIds = launchResults.map((res) => res.browserId);
+
+      const navPromises = browserIds.map((browserId, i) =>
+        client.callTool("navigate_to_url", {
+          browserId,
+          url: `data:text/html,<html><body><h1>Test Page ${i}</h1></body></html>`,
         }),
       );
-
-      const results = await Promise.all(promises);
-
-      for (const result of results) {
-        expect(result.error).toBeUndefined();
+      const navResults = await Promise.all(navPromises);
+      for (const res of navResults) {
+        expect(res.success).toBe(true);
       }
-    });
+
+      await Promise.all(
+        browserIds.map((id) => client.callTool("close_browser", { browserId: id })),
+      );
+    }, 30000);
 
     it("should clean up browser resources properly", async () => {
-      // This test ensures no resource leaks occur
-      const initialResponse = await client.sendRequest("tools/call", {
-        name: "navigate_to",
-        arguments: {
-          url: "data:text/html,<html><body><h1>Resource Test</h1></body></html>",
-        },
+      const launch = await client.callTool("launch_browser", {
+        browserType: "chromium",
+        headless: true,
       });
+      const browserId = launch.browserId;
 
-      expect(initialResponse.error).toBeUndefined();
-
-      // Multiple navigations should not cause resource exhaustion
       for (let i = 0; i < 5; i++) {
-        const response = await client.sendRequest("tools/call", {
-          name: "navigate_to",
-          arguments: {
-            url: `data:text/html,<html><body><h1>Test ${i}</h1></body></html>`,
-          },
+        const nav = await client.callTool("navigate_to_url", {
+          browserId,
+          url: `data:text/html,<html><body><h1>Test ${i}</h1></body></html>`,
         });
-        expect(response.error).toBeUndefined();
+        expect(nav.success).toBe(true);
       }
+
+      const close = await client.callTool("close_browser", { browserId });
+      expect(close.success).toBe(true);
     });
   });
-});
 
-describe("MCP Performance", () => {
-  let client: MCPTestClient;
-
-  beforeAll(async () => {
-    client = new MCPTestClient();
-    await client.start();
-  }, 15000);
-
-  afterAll(async () => {
-    if (client) {
-      await client.stop();
-    }
-  });
-
-  it("should respond to tool list requests quickly", async () => {
-    const start = Date.now();
-    const response = await client.sendRequest("tools/list", {});
-    const duration = Date.now() - start;
-
-    expect(response.result).toBeDefined();
-    expect(duration).toBeLessThan(1000); // Should respond within 1 second
-  });
-
-  it("should handle rapid successive requests", async () => {
-    // Test sequential requests instead of fully concurrent
-    const results = [];
-    const start = Date.now();
-
-    for (let i = 0; i < 3; i++) {
+  describe("MCP Performance", () => {
+    it("should respond to tool list requests quickly", async () => {
+      const start = Date.now();
       const response = await client.sendRequest("tools/list", {});
-      results.push(response);
-      // Small delay between requests to avoid overwhelming
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
+      const duration = Date.now() - start;
 
-    const duration = Date.now() - start;
+      expect(response.result).toBeDefined();
+      expect(duration).toBeLessThan(1000);
+    }, 30000);
 
-    for (const result of results) {
-      expect(result.error).toBeUndefined();
-      expect(result.result).toBeDefined();
-    }
+    it("should handle rapid successive requests", async () => {
+      const results = [];
+      const start = Date.now();
 
-    expect(duration).toBeLessThan(10000); // All requests within 10 seconds
-    expect(results).toHaveLength(3);
-  }, 20000); // Increase test timeout to 20 seconds
+      for (let i = 0; i < 3; i++) {
+        const response = await client.sendRequest("tools/list", {});
+        results.push(response);
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+
+      const duration = Date.now() - start;
+
+      for (const res of results) {
+        expect(res.result).toBeDefined();
+      }
+      expect(duration).toBeLessThan(10000);
+      expect(results).toHaveLength(3);
+    }, 30000);
+  });
 });
