@@ -88,4 +88,40 @@ Supervised by @[human-maintainer]
 - MCP Compliance: Strict protocol adherence
 - Resource Mgmt: Browser pooling, cleanup
 
+## Pre-Commit Quality Gates (MANDATORY)
+
+**ZERO-TOLERANCE POLICY**: All quality gates must pass before commit. Only maintainer can approve `--no-verify` for emergency situations.
+
+### Required Checks (All Must Pass)
+
+```bash
+# 1. Code quality and tests
+bun run check-all                    # Format, typecheck, lint, tests (100/100)
+
+# 2. Build and install
+bun run build                        # Must complete without errors
+bun run install                      # Global CLI installation must succeed
+
+# 3. Functional verification
+brooklyn status                      # CLI must be functional
+bun run dev:brooklyn:start           # Local dev mode must start
+bun run dev:brooklyn:stop            # Local dev mode must stop cleanly
+```
+
+### Commit Approval Criteria
+
+- ✅ **Code Quality**: All linting, formatting, type checking passes
+- ✅ **Test Suite**: 100% test pass rate (no skipped/failing tests)
+- ✅ **Build Success**: Clean build with no errors or warnings
+- ✅ **CLI Functional**: `brooklyn status` and basic commands work
+- ✅ **Dev Mode**: Local development mode starts/stops correctly
+
+### Emergency Override
+
+**Only maintainer (@3leapsdave) can approve**:
+
+```bash
+git commit --no-verify -m "Emergency commit - [reason]"
+```
+
 **Note**: Read source first, run quality gates before commits. See docs/substaile/codex/ for details. For onboarding, see CLAUDE.md.
