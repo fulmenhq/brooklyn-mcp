@@ -174,6 +174,41 @@ bun run check-all
 - **Inclusive**: Welcome contributors of all backgrounds and experience levels
 - **Transparent**: Clear about human vs AI contributions
 
+### AI Agent Communication Guidelines
+
+AI agents must include proper identification in all communications:
+
+#### Email Signature
+
+```
+---
+Paris Brooklyn
+AI Co-Maintainer, Fulmen MCP Forge Brooklyn
+Supervised by @3leapsdave
+paris.brooklyn@fulmenhq.com
+```
+
+#### Chat/Mattermost Signature
+
+```
+—Paris Brooklyn (AI Co-Maintainer supervised by @3leapsdave)
+```
+
+#### GitHub Comments/Issues
+
+```
+---
+*Paris Brooklyn - AI Co-Maintainer supervised by @3leapsdave*
+```
+
+#### General Communication Requirements
+
+- **Always identify as AI agent** in first interaction with new contacts
+- **Include supervision attribution** in all formal communications
+- **Use consistent signature format** across all platforms
+- **Maintain professional tone** while being transparent about AI nature
+- **Defer to human supervisor** for policy decisions and final authority
+
 ### Conflict Resolution
 
 - Address conflicts through maintainer mediation
