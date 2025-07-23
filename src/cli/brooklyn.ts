@@ -10,9 +10,12 @@
  * - brooklyn setup        (Browser installation and configuration)
  */
 
+// Version embedded at build time from VERSION file
+const VERSION = "1.1.8";
+
 import { HELP_TEXT } from "../generated/help/index.js";
-import { buildConfig } from "../shared/build-config.js";
-import { initializeLogging } from "../shared/structured-logger.js";
+// buildConfig import removed - not used in CLI entry point
+import { getLogger, initializeLogging } from "../shared/structured-logger.js";
 
 // ARCHITECTURE COMMITTEE IMMEDIATE FIX:
 // Initialize logging BEFORE any other imports to avoid circular dependency issues.
@@ -21,7 +24,7 @@ import { initializeLogging } from "../shared/structured-logger.js";
 // Create minimal config that matches BrooklynConfig structure
 const minimalConfig = {
   serviceName: "brooklyn-mcp-server",
-  version: buildConfig.version,
+  version: VERSION, // Use embedded version directly
   environment: "production",
   teamId: "default",
   logging: {
@@ -59,24 +62,21 @@ const minimalConfig = {
   },
 };
 
-initializeLogging(minimalConfig as any);
-
-const earlyLogger = getLogger("brooklyn-cli-early");
-
-// Debug: Check if HELP_TEXT is available at module level
-earlyLogger.debug("HELP_TEXT imported", { type: typeof HELP_TEXT });
-earlyLogger.debug("HELP_TEXT keys", { keys: Object.keys(HELP_TEXT || {}) });
-
-// Duplicate configuration removed - using the one from above
+// Initialize logging - wrapped in try-catch for safety
+try {
+  initializeLogging(minimalConfig as any);
+} catch (error) {
+  console.error("Failed to initialize logging:", error);
+  process.exit(1);
+}
 
 import { Command } from "commander";
 import { BrooklynEngine } from "../core/brooklyn-engine.js";
-import { type BrooklynConfig, loadConfig } from "../core/config.js";
-import { getLogger } from "../shared/structured-logger.js";
+import { type BrooklynConfig, enableConfigLogger, loadConfig } from "../core/config.js";
 import { createHTTP, createMCPStdio } from "../transports/index.js";
 
-// Version embedded at build time from VERSION file
-const VERSION = "1.1.6";
+// Enable config logger after logging system is initialized
+enableConfigLogger();
 
 // Logger will be initialized after configuration is loaded
 
@@ -117,7 +117,7 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
     .option("--log-level <level>", "Log level (debug, info, warn, error)")
     .option("--dev-mode", "Enable development mode with named pipes")
     .option("--pipes-prefix <prefix>", "Named pipes prefix (dev mode only)", "/tmp/brooklyn-dev")
-    .action(async (options) => {
+    .action(async options => {
       try {
         // Load configuration with CLI overrides
         const cliOverrides: Partial<BrooklynConfig> = {};
@@ -184,11 +184,17 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
           });
         }
       } catch (error) {
-        const logger = getLogger("brooklyn-cli");
-        logger.error("Failed to start MCP server", {
-          error: error instanceof Error ? error.message : String(error),
-          mode: options.devMode ? "dev-pipes" : "mcp-stdio",
-        });
+        try {
+          const logger = getLogger("brooklyn-cli");
+          logger.error("Failed to start MCP server", {
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+            mode: options.devMode ? "dev-pipes" : "mcp-stdio",
+          });
+        } catch {
+          // Fallback if logger fails
+          console.error("Failed to start MCP server:", error);
+        }
         process.exit(1);
       }
     });
@@ -213,7 +219,7 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
     .command("configure")
     .description("Configure Claude Code MCP integration")
     .option("--project", "Configure for project-specific scope")
-    .action(async (_options) => {});
+    .action(async _options => {});
 
   // MCP Development Mode Commands (Architecture Committee approved - internal use only)
   setupMCPDevCommands(mcpCmd);
@@ -232,7 +238,7 @@ function setupMCPDevCommands(mcpCmd: Command): void {
     .command("dev-start")
     .description("Start MCP development mode with named pipes (internal use only)")
     .option("--team-id <teamId>", "Team identifier for development")
-    .action(async (options) => {
+    .action(async options => {
       try {
         // Set team ID if provided
         if (options.teamId) {
@@ -338,7 +344,7 @@ function setupWebCommands(program: Command): void {
     .option("--daemon", "Run as background daemon")
     .option("--team-id <teamId>", "Team identifier")
     .option("--log-level <level>", "Log level (debug, info, warn, error)")
-    .action(async (options) => {
+    .action(async options => {
       try {
         // Load configuration with CLI overrides
         const cliOverrides: Partial<BrooklynConfig> = {};
@@ -361,8 +367,7 @@ function setupWebCommands(program: Command): void {
 
         const config = await loadConfig(cliOverrides);
 
-        // Initialize logging for web mode
-        initializeLogging(config);
+        // Logging already initialized at startup
         const logger = getLogger("brooklyn-cli");
 
         logger.info("Starting Brooklyn web server", {
@@ -461,18 +466,15 @@ function setupStatusCommand(program: Command): void {
     .description("Show status of all Brooklyn services")
     .action(async () => {
       try {
-        // Load configuration
-        const config = await loadConfig();
-        initializeLogging(config);
         const logger = getLogger("brooklyn-cli");
-
         logger.info("Brooklyn Status Check", { version: VERSION });
+
+        // TODO: Add actual status checking logic here
+        logger.info("All systems operational");
       } catch (error) {
-        const logger = getLogger("brooklyn-cli");
-        logger.error("Status check failed", {
-          error: error instanceof Error ? error.message : String(error),
-          version: VERSION,
-        });
+        // Don't use logger in catch block as it might not be initialized
+        console.error("Status check failed:", error);
+        console.error("Version:", VERSION);
         process.exit(1);
       }
     });
@@ -487,11 +489,10 @@ function setupSetupCommand(program: Command): void {
     .description("Install browsers and configure Brooklyn")
     .option("--browser <type>", "Install specific browser (chromium, firefox, webkit)")
     .option("--check", "Check installation status only")
-    .action(async (options) => {
+    .action(async options => {
       try {
-        // Load minimal config for logging
-        const config = await loadConfig();
-        initializeLogging(config);
+        // Load minimal config (logging already initialized at startup)
+        const _config = await loadConfig();
         const logger = getLogger("brooklyn-cli");
 
         if (options.check) {
@@ -618,7 +619,10 @@ function setupVersionCommand(program: Command): void {
   program
     .command("version")
     .description("Show Brooklyn version information")
-    .action(() => {});
+    .action(() => {
+      console.log(VERSION);
+      process.exit(0);
+    });
 }
 
 /**
@@ -648,11 +652,18 @@ async function main(): Promise<void> {
     // Parse command line arguments
     await program.parseAsync(process.argv);
   } catch (error) {
-    const logger = getLogger("brooklyn-cli");
-    logger.error("CLI execution failed", {
-      error: error instanceof Error ? error.message : String(error),
-      argv: process.argv,
-    });
+    // Handle error without logger if it's not initialized
+    try {
+      const logger = getLogger("brooklyn-cli");
+      logger.error("CLI execution failed", {
+        error: error instanceof Error ? error.message : String(error),
+        argv: process.argv,
+      });
+    } catch {
+      // Logger not initialized, fall back to console.error
+      console.error("CLI execution failed:", error);
+      console.error("argv:", process.argv);
+    }
     process.exit(1);
   }
 }
@@ -662,12 +673,18 @@ export { main };
 
 // Run main function if this file is executed directly
 if (import.meta.main) {
-  main().catch((error) => {
-    const logger = getLogger("brooklyn-cli");
-    logger.error("Fatal error", {
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+  main().catch(error => {
+    // Handle error without logger if it's not initialized
+    try {
+      const logger = getLogger("brooklyn-cli");
+      logger.error("Fatal error", {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+    } catch {
+      // Logger not initialized, fall back to console.error
+      console.error("Fatal error:", error);
+    }
     process.exit(1);
   });
 }

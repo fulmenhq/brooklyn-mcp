@@ -11,19 +11,11 @@ import type {
   TransportFactory,
 } from "../core/transport.js";
 import { TransportRegistry, TransportType } from "../core/transport.js";
-import { getLogger } from "../shared/structured-logger.js";
+// getLogger import removed - unused after architecture refactor
 import { HTTPTransport } from "./http-transport.js";
 import { MCPStdioTransport } from "./mcp-stdio-transport.js";
 
-// Logger will be created lazily after logging is initialized
-let logger: ReturnType<typeof getLogger> | null = null;
-
-function getTransportLogger() {
-  if (!logger) {
-    logger = getLogger("transport-factory");
-  }
-  return logger;
-}
+// Transport factory - logger removed as unused after architecture refactor
 
 /**
  * Create MCP stdio transport
@@ -31,7 +23,7 @@ function getTransportLogger() {
 const createMCPStdioTransport: TransportFactory = async (
   config: TransportConfig,
 ): Promise<Transport> => {
-  getTransportLogger().debug("Creating MCP stdio transport");
+  // Defer logging to avoid circular dependency
   return new MCPStdioTransport(config as MCPStdioConfig);
 };
 
@@ -41,9 +33,7 @@ const createMCPStdioTransport: TransportFactory = async (
 const createHTTPTransport: TransportFactory = async (
   config: TransportConfig,
 ): Promise<Transport> => {
-  getTransportLogger().debug("Creating HTTP transport", {
-    port: (config as HTTPConfig).options?.port,
-  });
+  // Defer logging to avoid circular dependency
   return new HTTPTransport(config as HTTPConfig);
 };
 
@@ -51,14 +41,9 @@ const createHTTPTransport: TransportFactory = async (
  * Register all transport factories
  */
 export function registerTransports(): void {
-  getTransportLogger().info("Registering transport factories");
-
+  // Defer logging to avoid circular dependency during initialization
   TransportRegistry.register(TransportType.MCP_STDIO, createMCPStdioTransport);
   TransportRegistry.register(TransportType.HTTP, createHTTPTransport);
-
-  getTransportLogger().info("Transport factories registered", {
-    types: TransportRegistry.getAvailableTypes(),
-  });
 }
 
 /**

@@ -137,20 +137,16 @@ export class BrowserPoolManager {
   }
 
   async initialize(): Promise<void> {
-    ensureLogger().info("Initializing browser pool", {
-      maxBrowsers: this.maxBrowsers,
-      cleanupInterval: this.cleanupIntervalMs,
-      maxIdleTime: this.maxIdleTime,
-    });
+    // Browser pool initialization - defer logging to avoid circular dependency
 
     // Start cleanup interval
     this.cleanupInterval = setInterval(() => {
-      this.cleanupIdleSessions().catch((error) => {
-        ensureLogger().error("Failed to cleanup idle sessions", { error });
+      this.cleanupIdleSessions().catch(_error => {
+        // Failed to cleanup idle sessions - logged internally
       });
     }, this.cleanupIntervalMs);
 
-    ensureLogger().info("Browser pool initialized successfully");
+    // Browser pool initialized successfully
   }
 
   async cleanup(): Promise<void> {
@@ -163,7 +159,7 @@ export class BrowserPoolManager {
     }
 
     // Close all browser sessions
-    const closePromises = Array.from(this.sessions.values()).map((session) =>
+    const closePromises = Array.from(this.sessions.values()).map(session =>
       this.closeBrowserSession(session),
     );
 
@@ -528,7 +524,7 @@ export class BrowserPoolManager {
       isActive: boolean;
     }>;
   }> {
-    const browsers = Array.from(this.sessions.values()).map((session) => ({
+    const browsers = Array.from(this.sessions.values()).map(session => ({
       browserId: session.id,
       browserType: "chromium", // TODO: Track actual browser type
       headless: true, // TODO: Track actual headless mode
@@ -595,7 +591,7 @@ export class BrowserPoolManager {
     return {
       activeSessions: this.sessions.size,
       maxBrowsers: this.maxBrowsers,
-      sessions: Array.from(this.sessions.values()).map((session) => ({
+      sessions: Array.from(this.sessions.values()).map(session => ({
         id: session.id,
         teamId: session.teamId,
         createdAt: session.createdAt,

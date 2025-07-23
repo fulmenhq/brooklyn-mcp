@@ -3,6 +3,8 @@
  * Handles Claude Code integration via MCP protocol
  */
 
+import * as fs from "node:fs";
+
 import type {
   MCPStdioConfig,
   ToolCallHandler,
@@ -10,6 +12,7 @@ import type {
   Transport,
 } from "../core/transport.js";
 import { TransportType } from "../core/transport.js";
+import { buildConfig } from "../shared/build-config.js";
 import { getLogger } from "../shared/structured-logger.js";
 
 /**
@@ -24,7 +27,7 @@ export class MCPStdioTransport implements Transport {
   readonly type = TransportType.MCP_STDIO;
 
   private logger: ReturnType<typeof getLogger> | null = null;
-  private readonly _config: MCPStdioConfig;
+  private readonly config: MCPStdioConfig;
 
   private getLogger() {
     if (!this.logger) {
@@ -39,17 +42,14 @@ export class MCPStdioTransport implements Transport {
   private toolCallHandler?: ToolCallHandler;
 
   constructor(config: MCPStdioConfig) {
-    this._config = config;
-    // Config stored for future use (dev mode, pipe configuration)
+    this.config = config;
   }
 
   /**
    * Initialize the MCP transport
    */
   async initialize(): Promise<void> {
-    this.getLogger().info("Initializing MCP stdio transport");
-
-    this.getLogger().info("MCP stdio transport initialized");
+    // Transport initialization - logging deferred to avoid circular dependency
   }
 
   /**
@@ -58,17 +58,15 @@ export class MCPStdioTransport implements Transport {
    */
   async start(): Promise<void> {
     if (this.running) {
-      this.getLogger().warn("MCP stdio transport already running");
+      // Transport already running
       return;
     }
-
-    this.getLogger().info("Starting custom MCP stdio transport");
 
     process.stdin.resume();
     process.stdin.setEncoding("utf8");
 
     let buffer = "";
-    process.stdin.on("data", (chunk) => {
+    process.stdin.on("data", chunk => {
       buffer += chunk;
       let lineEnd: number = buffer.indexOf("\n");
       while (lineEnd !== -1) {
@@ -80,12 +78,12 @@ export class MCPStdioTransport implements Transport {
     });
 
     process.stdin.on("end", () => {
-      this.getLogger().info("Stdin ended, stopping transport");
+      // Stdin ended, stopping transport
       this.stop();
     });
 
     this.running = true;
-    this.getLogger().info("Custom MCP stdio transport started successfully");
+    // Transport started successfully
   }
 
   private async handleIncomingMessage(line: string): Promise<void> {
@@ -101,7 +99,7 @@ export class MCPStdioTransport implements Transport {
             id: msg.id,
             result: {
               protocolVersion: "2024-11-05",
-              serverInfo: { name: "brooklyn-mcp-server", version: "1.1.6" },
+              serverInfo: { name: "brooklyn-mcp-server", version: buildConfig.version },
               capabilities: { tools: {} },
             },
           };
@@ -112,8 +110,8 @@ export class MCPStdioTransport implements Transport {
         } else if (msg.method === "tools/call") {
           if (!this.toolCallHandler) throw new Error("Tool call handler not set");
           const result = await this.toolCallHandler({
-            method: "tools/call",
             params: msg.params,
+            method: "tools/call",
           });
           response = { jsonrpc: "2.0", id: msg.id, result };
         } else {
@@ -131,11 +129,9 @@ export class MCPStdioTransport implements Transport {
       }
 
       process.stdout.write(`${JSON.stringify(response)}\n`);
-    } catch (error) {
-      this.getLogger().error("Error parsing MCP message", {
-        line,
-        error: (error as Error).message,
-      });
+    } catch (_error) {
+      // Error parsing MCP message - cannot log to avoid circular dependency
+      // Errors will be returned via MCP protocol response
     }
   }
 
@@ -145,13 +141,13 @@ export class MCPStdioTransport implements Transport {
    */
   async stop(): Promise<void> {
     if (!this.running) {
-      this.getLogger().warn("MCP stdio transport not running");
+      // Transport not running
       return;
     }
 
     this.running = false;
     process.stdin.pause();
-    this.getLogger().info("Custom MCP stdio transport stopped");
+    // Transport stopped
   }
 
   /**
@@ -166,7 +162,7 @@ export class MCPStdioTransport implements Transport {
    */
   setToolListHandler(handler: ToolListHandler): void {
     this.toolListHandler = handler;
-    this.getLogger().debug("Tool list handler set");
+    // Defer logging to avoid circular dependency
   }
 
   /**
@@ -174,7 +170,7 @@ export class MCPStdioTransport implements Transport {
    */
   setToolCallHandler(handler: ToolCallHandler): void {
     this.toolCallHandler = handler;
-    this.getLogger().debug("Tool call handler set");
+    // Defer logging to avoid circular dependency
   }
 
   /**

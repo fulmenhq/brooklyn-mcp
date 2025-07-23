@@ -375,6 +375,14 @@ class LoggerRegistry {
    * Initialize logger registry with default configuration
    */
   initialize(config: BrooklynConfig): void {
+    if (process.env["BROOKLYN_DEBUG_INIT"]) {
+      // Debug logging for initialization - using stderr for bootstrap logging
+      process.stderr.write(
+        `[LOGGER] Registry initialize called, current defaultConfig: ${
+          this.defaultConfig ? "EXISTS" : "NULL"
+        }\n`,
+      );
+    }
     this.defaultConfig = createLoggerConfig(config);
   }
 
@@ -387,6 +395,12 @@ class LoggerRegistry {
     let logger = this.loggers.get(key);
     if (!logger) {
       if (!this.defaultConfig) {
+        if (process.env["BROOKLYN_DEBUG_INIT"]) {
+          // Debug logging for initialization errors - using stderr for bootstrap logging
+          process.stderr.write(
+            `[LOGGER] getLogger called but defaultConfig is null! name: ${name}\n`,
+          );
+        }
         throw new Error("Logger registry not initialized. Call initialize() first.");
       }
 
