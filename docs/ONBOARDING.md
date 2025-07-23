@@ -1,6 +1,6 @@
 # Brooklyn Team Onboarding Guide 🌉
 
-**⚡ Developer Spark Enabled - Your 15-Minute Path to Productivity**
+**⚡ Fulmen Spark Enabled - Your 15-Minute Path to Productivity**
 
 _Making quality practices the fastest way to get assignment-ready_
 
@@ -335,7 +335,7 @@ bun run check:file src/path/to/file.ts       # Verify all checks pass
 - 📖 **`docs/substaile/codex/coding.md`** - Core coding principles, error patterns
 - 📖 **`docs/substaile/codex/typescript/typescript-coding.md`** - TypeScript-specific practices
 - 📖 **`docs/substaile/codex/testing.md`** - Testing patterns, AAA structure
-- 📖 **`docs/fulmen/fulmen-technical-manifesto.md`** - Fulmen forge principles
+- 📖 **`FULMEN-TECHNICAL-MANIFESTO.md`** - Fulmen forge principles and philosophy
 
 **Team Context**:
 
@@ -375,7 +375,7 @@ bun run check:file src/path/to/file.ts       # Verify all checks pass
 
 ### What Makes This "Spark Enabled"
 
-**Developer Spark Initiative**: Brooklyn is the reference implementation for fulmen's strategic onboarding framework that achieves:
+**Fulmen Spark Initiative**: Brooklyn is the reference implementation for fulmen's strategic onboarding framework that achieves:
 
 - ✅ **70% reduction** in preventable lint/format failures
 - ✅ **15 minutes** from zero knowledge → assignment ready
@@ -455,8 +455,8 @@ Your 15-minute investment in this onboarding guide has prepared you to contribut
 
 ---
 
-_Developer Spark: Making quality practices the path of least resistance since 2025_ ⚡
+_Fulmen Spark: Making quality practices the path of least resistance since 2025_ ⚡
 
 **Questions?** Check our comprehensive documentation or create an issue for support.
 
-[![Learn More](https://img.shields.io/badge/Learn%20More-Developer%20Spark%20Initiative-blue?style=for-the-badge&logo=lightning)](fulmen/spark/README.md)
+[![Learn More](https://img.shields.io/badge/Learn%20More-Fulmen%20Spark%20Initiative-blue?style=for-the-badge&logo=lightning)](fulmen/spark/README.md)

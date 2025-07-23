@@ -398,7 +398,7 @@ brooklyn/
 
 **For Maintainers**:
 
-- **[Developer Spark Framework](docs/fulmen/spark/README.md)** - Strategic onboarding initiative
+- **[Fulmen Spark Framework](docs/fulmen/spark/README.md)** - Strategic onboarding initiative
 - **[Maintainer Guide](docs/fulmen/spark/maintainer-guide.md)** - Multi-language implementation
 
 ## 🆘 Support
