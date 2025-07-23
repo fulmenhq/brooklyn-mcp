@@ -1,8 +1,13 @@
 # Welcome to Brooklyn MCP Server! 🌉
 
-**Your Enterprise-Ready Gateway to AI-Powered Browser Automation**
+**⚡ Developer Spark Enabled - Your Enterprise-Ready Gateway to AI-Powered Browser Automation**
 
 Brooklyn is a Model Context Protocol (MCP) server that bridges the gap between AI models and web browsers, enabling seamless automation, testing, and monitoring workflows. Named after the Brooklyn Bridge - a testament to engineering excellence - Brooklyn connects AI developers with powerful browser automation capabilities.
+
+> **👥 Team Members**: Looking for comprehensive onboarding? See **[Team Onboarding Guide](ONBOARDING.md)** for architecture decisions, development philosophy, and team context.
+
+[![Developer Spark Enabled](https://img.shields.io/badge/Developer%20Spark-Enabled%20⚡-brightgreen?style=for-the-badge&logo=lightning&logoColor=white)](fulmen/spark/README.md)
+[![Brooklyn Forge](https://img.shields.io/badge/Brooklyn-Forge%20🌉-blue?style=for-the-badge&logo=bridge&logoColor=white)](fulmen/forges/fulmen-brooklyn-forge-principles.md)
 
 ## 🚀 Quick Start
 
@@ -286,6 +291,27 @@ Brooklyn is designed to make browser automation accessible, reliable, and powerf
 5. **Set up your team:** `brooklyn_team_setup team_id=your-team-name`
 
 **Welcome to Brooklyn - where AI meets browser automation! 🌉**
+
+## 📚 Documentation Navigation
+
+### For Users (Getting Started)
+
+- **[This Guide](welcome.md)** - Complete user onboarding and setup
+- **[User Guide](user-guide/index.md)** - Comprehensive browser automation guide
+- **[Advanced Features](user-guide/advanced-features.md)** - Complex automation patterns
+- **[Team Management](user-guide/team-management.md)** - Multi-team configuration
+
+### For Team Members (Development)
+
+- **[Team Onboarding](ONBOARDING.md)** - Architecture, philosophy, and team context
+- **[Development Guide](development/index.md)** - Server management and troubleshooting
+- **[5-Minute Onboarding](../CLAUDE.md#5-minute-team-onboarding-start-here-first)** - Instant productivity guide
+
+### For Maintainers (Spark Framework)
+
+- **[Developer Spark Initiative](fulmen/spark/README.md)** - Strategic onboarding framework
+- **[Maintainer Guide](fulmen/spark/maintainer-guide.md)** - Multi-language implementation
+- **[Brooklyn Implementation](fulmen/spark/reference/brooklyn-implementation-validation.md)** - Reference validation
 
 ---
 

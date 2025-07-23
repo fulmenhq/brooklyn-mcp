@@ -15,7 +15,11 @@ Brooklyn is a Model Context Protocol (MCP) server that provides AI developers an
 
 ## 🚀 Quick Start
 
-**New to Brooklyn?** Start here: **[docs/hello_brooklyn.md](docs/hello_brooklyn.md)** - Your 5-minute setup guide!
+**New to Brooklyn?** Choose your path:
+
+- **👤 Users**: **[docs/welcome.md](docs/welcome.md)** - Complete setup and first automation
+- **👥 Team Members**: **[docs/ONBOARDING.md](docs/ONBOARDING.md)** - Architecture, development, and team context
+- **⚡ 5-Minute Start**: **[CLAUDE.md 5-minute section](CLAUDE.md#5-minute-team-onboarding-start-here-first)** - Instant productivity
 
 ### Prerequisites
 
@@ -379,18 +383,23 @@ brooklyn/
 
 ### Complete Documentation
 
-For detailed information about Brooklyn MCP server:
+**For Users**:
 
-- **[Development Guide](docs/development/index.md)** - Server management, configuration, and troubleshooting
-- **[User Guide](docs/user-guide/index.md)** - Getting started with browser automation
+- **[Welcome Guide](docs/welcome.md)** - Complete setup and first automation
+- **[User Guide](docs/user-guide/index.md)** - Comprehensive browser automation guide
 - **[Advanced Features](docs/user-guide/advanced-features.md)** - Complex automation scenarios
-- **[Team Management](docs/user-guide/team-management.md)** - Multi-team configuration and workflows
+- **[Team Management](docs/user-guide/team-management.md)** - Multi-team configuration
 
-### Quick Links
+**For Team Members**:
 
-- **Server Management**: [docs/development/index.md](docs/development/index.md)
-- **Browser Automation**: [docs/user-guide/index.md](docs/user-guide/index.md)
-- **Team Setup**: [docs/user-guide/team-management.md](docs/user-guide/team-management.md)
+- **[Team Onboarding](docs/ONBOARDING.md)** - Architecture, development philosophy, and team context
+- **[Development Guide](docs/development/index.md)** - Server management and troubleshooting
+- **[5-Minute Onboarding](CLAUDE.md#5-minute-team-onboarding-start-here-first)** - Instant productivity
+
+**For Maintainers**:
+
+- **[Developer Spark Framework](docs/fulmen/spark/README.md)** - Strategic onboarding initiative
+- **[Maintainer Guide](docs/fulmen/spark/maintainer-guide.md)** - Multi-language implementation
 
 ## 🆘 Support
 
