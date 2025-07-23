@@ -1,0 +1,14 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "brooklyn": {
+      "type": "local",
+      "command": ["bun", "run", "src/cli/brooklyn.ts", "mcp", "start"],
+      "enabled": true,
+      "environment": {
+        "BROOKLYN_TEAM_ID": "opencode-dev",
+        "BROOKLYN_LOG_LEVEL": "info"
+      }
+    }
+  }
+}
