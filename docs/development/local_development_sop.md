@@ -241,7 +241,7 @@ opencode
 
 **Problem Solved**: Every Brooklyn update requires complete Claude session restart, disrupting multi-project workflows and forcing coordination across enterprise client work.
 
-**Solution Implemented**: Named pipe-based MCP development mode that allows rapid iteration without Claude Code dependencies.
+**Solution Implemented**: Named pipe-based MCP development mode using FIFO transport that allows rapid iteration without Claude Code dependencies.
 
 ### Architecture Committee Endorsement
 
@@ -413,6 +413,29 @@ bun run build && bun run install
 
 ### Technical Architecture
 
+#### Transport Layer Solution (v1.2.2)
+
+**FIFO Transport Implementation** (`src/transports/mcp-fifo-transport.ts`):
+
+- **Problem Solved**: Node.js streams (createReadStream) fail with named pipes (ESPIPE errors)
+- **Solution**: Use `spawn('cat')` for reading and low-level file descriptors for writing
+- **Key Features**:
+  - Subprocess-based pipe reading avoids Node.js stream limitations
+  - Direct file descriptor writes for reliable output
+  - Proper timing to handle FIFO blocking behavior
+  - Automatic transport selection via factory pattern
+
+**Transport Factory** (`src/transports/index.ts`):
+
+```typescript
+// Automatically selects FIFO transport for dev mode
+if (mcpConfig.options?.inputPipe && mcpConfig.options?.outputPipe) {
+  return new MCPFifoTransport(mcpConfig);
+}
+// Uses standard stdio transport for production
+return new MCPStdioTransport(mcpConfig);
+```
+
 #### MCP Dev Manager (`src/core/mcp-dev-manager.ts`)
 
 **Architecture Committee Approved Features**:
@@ -422,6 +445,7 @@ bun run build && bun run install
 - Process lifecycle management
 - Enhanced logging and debugging
 - Auto-cleanup on exit
+- Lazy logger initialization to prevent bundling issues
 
 #### Process Architecture
 
@@ -497,7 +521,15 @@ if (providedInputPipe && providedOutputPipe) {
 
 ### Version History
 
-**v1.1.6**: 🎉 **MCP Development Mode Fully Implemented**
+**v1.2.2**: 🎉 **FIFO Transport Solution Complete**
+
+- Fixed Node.js stream issues with named pipes (ESPIPE errors)
+- Implemented MCPFifoTransport using subprocess approach
+- Automatic transport selection for dev vs production modes
+- Full browser automation working through dev mode
+- Revolutionary development workflow fully operational
+
+**v1.1.6**: **MCP Development Mode Initial Implementation**
 
 - Architecture Committee approved implementation
 - CLI integration complete

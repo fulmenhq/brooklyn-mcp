@@ -23,8 +23,16 @@ import { MCPStdioTransport } from "./mcp-stdio-transport.js";
 const createMCPStdioTransport: TransportFactory = async (
   config: TransportConfig,
 ): Promise<Transport> => {
-  // Defer logging to avoid circular dependency
-  return new MCPStdioTransport(config as MCPStdioConfig);
+  const mcpConfig = config as MCPStdioConfig;
+
+  // Use FIFO transport for development mode with named pipes
+  if (mcpConfig.options?.inputPipe && mcpConfig.options?.outputPipe) {
+    const { MCPFifoTransport } = await import("./mcp-fifo-transport.js");
+    return new MCPFifoTransport(mcpConfig);
+  }
+
+  // Use standard stdio transport for production
+  return new MCPStdioTransport(mcpConfig);
 };
 
 /**
