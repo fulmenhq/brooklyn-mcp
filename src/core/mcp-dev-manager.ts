@@ -9,7 +9,6 @@ import { type ChildProcess, spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getLogger } from "../shared/structured-logger.js";
 
 interface DevProcessInfo {
   processId: number;
@@ -20,25 +19,49 @@ interface DevProcessInfo {
   logFile: string;
 }
 
+// Type for the logger to satisfy TypeScript
+interface Logger {
+  info: (message: string, context?: unknown) => void;
+  warn: (message: string, context?: unknown) => void;
+  error: (message: string, context?: unknown) => void;
+  debug: (message: string, context?: unknown) => void;
+}
+
 export class MCPDevManager {
   private devDir: string;
   private pipesFile: string;
   private logDir: string;
-  private logger: ReturnType<typeof getLogger> | null = null;
+  private logger: Logger | null = null;
 
-  private getLogger() {
+  private getLogger(): Logger {
+    // Lazy initialization to avoid calling before CLI initializes logging
     if (!this.logger) {
       try {
-        this.logger = getLogger("brooklyn-mcp-dev");
-      } catch {
-        // Logger not initialized yet, return null to skip logging
-        return null;
+        // Dynamic import to avoid module-level execution
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const loggerModule = require("../shared/structured-logger.js") as {
+          getLogger: (name: string) => Logger;
+        };
+        this.logger = loggerModule.getLogger("brooklyn-mcp-dev");
+      } catch (_error) {
+        // Fallback to console if logger not available
+        this.logger = {
+          info: (message: string, context?: unknown) =>
+            console.error(`[INFO] ${message}`, context ? JSON.stringify(context) : ""),
+          warn: (message: string, context?: unknown) =>
+            console.error(`[WARN] ${message}`, context ? JSON.stringify(context) : ""),
+          error: (message: string, context?: unknown) =>
+            console.error(`[ERROR] ${message}`, context ? JSON.stringify(context) : ""),
+          debug: (message: string, context?: unknown) =>
+            console.error(`[DEBUG] ${message}`, context ? JSON.stringify(context) : ""),
+        };
       }
     }
     return this.logger;
   }
 
   constructor() {
+    // Don't initialize logger here - wait for lazy initialization
     // Use configurable pipe directory (Architecture Committee recommendation)
     const baseDir = process.env["BROOKLYN_DEV_PIPE_DIR"] || os.homedir();
     this.devDir = path.join(baseDir, ".brooklyn", "dev");
@@ -218,57 +241,56 @@ export class MCPDevManager {
    */
   async status(): Promise<void> {
     // Use logger to maintain stderr output (stdio purity)
-    this.getLogger()?.info("📊 Brooklyn MCP Development Mode Status");
-    this.getLogger()?.info("=".repeat(45));
+    const logger = this.getLogger();
+    logger.info("📊 Brooklyn MCP Development Mode Status");
+    logger.info("=".repeat(45));
 
     const info = this.loadProcessInfo();
     if (!info) {
-      this.getLogger()?.warn("❌ Development mode not running");
-      this.getLogger()?.info("");
-      this.getLogger()?.info("💡 Start with: brooklyn mcp dev-start");
+      logger.warn("❌ Development mode not running");
+      logger.info("");
+      logger.info("💡 Start with: brooklyn mcp dev-start");
     } else {
       const isRunning = this.isProcessRunning(info.processId);
       const inputExists = fs.existsSync(info.inputPipe);
       const outputExists = fs.existsSync(info.outputPipe);
 
-      this.getLogger()?.info(`Process: ${isRunning ? "🟢 Running" : "🔴 Stopped"}`);
-      this.getLogger()?.info(`PID: ${info.processId}`);
-      this.getLogger()?.info(`Started: ${info.startTime}`);
-      this.getLogger()?.info(`Input Pipe: ${inputExists ? "✅" : "❌"} ${info.inputPipe}`);
-      this.getLogger()?.info(`Output Pipe: ${outputExists ? "✅" : "❌"} ${info.outputPipe}`);
-      this.getLogger()?.info(`Log File: ${info.logFile}`);
+      logger.info(`Process: ${isRunning ? "🟢 Running" : "🔴 Stopped"}`);
+      logger.info(`PID: ${info.processId}`);
+      logger.info(`Started: ${info.startTime}`);
+      logger.info(`Input Pipe: ${inputExists ? "✅" : "❌"} ${info.inputPipe}`);
+      logger.info(`Output Pipe: ${outputExists ? "✅" : "❌"} ${info.outputPipe}`);
+      logger.info(`Log File: ${info.logFile}`);
 
       if (fs.existsSync(info.logFile)) {
         const stats = fs.statSync(info.logFile);
-        this.getLogger()?.info(`Log Size: ${(stats.size / 1024).toFixed(1)} KB`);
+        logger.info(`Log Size: ${(stats.size / 1024).toFixed(1)} KB`);
       }
 
       if (isRunning && inputExists && outputExists) {
-        this.getLogger()?.info("");
-        this.getLogger()?.info("🚀 Ready for development! Available in chat via:");
-        this.getLogger()?.info(
-          "   const browser = await dev_launch_browser({ browserType: 'chromium' });",
-        );
+        logger.info("");
+        logger.info("🚀 Ready for development! Available in chat via:");
+        logger.info("   const browser = await dev_launch_browser({ browserType: 'chromium' });");
       }
     }
 
     // Check for orphaned processes
-    this.getLogger()?.info("");
-    this.getLogger()?.info("🔍 Scanning for orphaned Brooklyn processes...");
+    logger.info("");
+    logger.info("🔍 Scanning for orphaned Brooklyn processes...");
 
     try {
       const orphaned = await this.findOrphanedProcesses();
       if (orphaned.length === 0) {
-        this.getLogger()?.info("✅ No orphaned processes found");
+        logger.info("✅ No orphaned processes found");
       } else {
-        this.getLogger()?.warn(`⚠️  Found ${orphaned.length} orphaned processes:`);
+        logger.warn(`⚠️  Found ${orphaned.length} orphaned processes:`);
         for (const proc of orphaned) {
-          this.getLogger()?.info(`   PID: ${proc.pid} Command: ${proc.command}`);
+          logger.info(`   PID: ${proc.pid} Command: ${proc.command}`);
         }
-        this.getLogger()?.info("💡 Run 'brooklyn mcp dev-cleanup' to terminate them");
+        logger.info("💡 Run 'brooklyn mcp dev-cleanup' to terminate them");
       }
     } catch (error) {
-      this.getLogger()?.debug("Error scanning for orphaned processes", { error });
+      logger.error("Error scanning for orphaned processes", { error });
     }
   }
 
@@ -328,12 +350,12 @@ export class MCPDevManager {
             process.kill(Number(pid), "SIGTERM");
             this.getLogger()?.debug("Terminated orphaned process", { pid });
           } catch (error) {
-            this.getLogger()?.debug("Failed to kill orphaned process", { pid, error });
+            this.getLogger()?.error("Failed to kill orphaned process", { pid, error });
           }
         }
       }
     } catch (error) {
-      this.getLogger()?.debug("Error finding orphaned processes", { error });
+      this.getLogger()?.error("Error finding orphaned processes", { error });
     }
 
     // Remove named pipes with error handling

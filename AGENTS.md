@@ -88,6 +88,32 @@ Supervised by @[human-maintainer]
 - MCP Compliance: Strict protocol adherence
 - Resource Mgmt: Browser pooling, cleanup
 
+## 🚨 CRITICAL: Logger Initialization Pattern (WILL BREAK BUNDLED APPS)
+
+**THIS IS THE #1 CAUSE OF BUNDLED BINARY FAILURES**
+
+### ❌ NEVER DO THIS - Module-Level Logger
+
+```typescript
+import { getLogger } from "../shared/structured-logger.js";
+const logger = getLogger("my-module"); // 💥 EXECUTES DURING BUNDLE!
+```
+
+### ✅ ALWAYS DO THIS - Lazy Logger Pattern
+
+```typescript
+let logger: ReturnType<typeof getLogger> | null = null;
+function ensureLogger() {
+  if (!logger) {
+    logger = getLogger("my-module");
+  }
+  return logger;
+}
+// Use: ensureLogger().info("Safe!");
+```
+
+**See docs/development/logging_and_telemetry_guide.md for full details**
+
 ## Pre-Commit Quality Gates (MANDATORY)
 
 **ZERO-TOLERANCE POLICY**: All quality gates must pass before commit. Only maintainer can approve `--no-verify` for emergency situations.

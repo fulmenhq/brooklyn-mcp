@@ -371,6 +371,8 @@ brooklyn/
 
 ### Contributing
 
+⚠️ **CRITICAL**: Read [Logger Pattern Guide](docs/development/LOGGER-PATTERN.md) FIRST to avoid common bundling failures!
+
 1. **Fork** the repository
 2. **Create** a feature branch
 3. **Make** your changes following our coding standards

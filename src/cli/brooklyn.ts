@@ -11,7 +11,7 @@
  */
 
 // Version embedded at build time from VERSION file
-const VERSION = "1.2.0";
+const VERSION = "1.2.1";
 
 import { HELP_TEXT } from "../generated/help/index.js";
 // buildConfig import removed - not used in CLI entry point
@@ -22,6 +22,10 @@ import { getLogger, initializeLogging } from "../shared/structured-logger.js";
 // This prevents "Logger registry not initialized" errors during module loading.
 //
 // Create minimal config that matches BrooklynConfig structure
+// For CLI commands, use pretty format for better readability
+const isDevCommand = process.argv.some((arg) =>
+  ["dev-start", "dev-stop", "dev-status", "dev-cleanup", "dev-restart"].includes(arg),
+);
 const minimalConfig = {
   serviceName: "brooklyn-mcp-server",
   version: VERSION, // Use embedded version directly
@@ -29,7 +33,7 @@ const minimalConfig = {
   teamId: "default",
   logging: {
     level: process.env["BROOKLYN_LOG_LEVEL"] || "info",
-    format: "json" as const,
+    format: isDevCommand ? ("pretty" as const) : ("json" as const),
     maxFiles: 5,
     maxSize: "10MB",
   },
@@ -230,9 +234,6 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
  * Hidden from main help unless --internal flag is used
  */
 function setupMCPDevCommands(mcpCmd: Command): void {
-  const { MCPDevManager } = require("../core/mcp-dev-manager.js");
-  const devManager = new MCPDevManager();
-
   // Hidden commands for internal development (Architecture Committee guidance)
   const devStartCmd = mcpCmd
     .command("dev-start")
@@ -240,6 +241,8 @@ function setupMCPDevCommands(mcpCmd: Command): void {
     .option("--team-id <teamId>", "Team identifier for development")
     .action(async (options) => {
       try {
+        const { MCPDevManager } = await import("../core/mcp-dev-manager.js");
+        const devManager = new MCPDevManager();
         // Set team ID if provided
         if (options.teamId) {
           process.env["BROOKLYN_DEV_TEAM_ID"] = options.teamId;
@@ -265,6 +268,8 @@ function setupMCPDevCommands(mcpCmd: Command): void {
     .description("Stop MCP development mode (internal use only)")
     .action(async () => {
       try {
+        const { MCPDevManager } = await import("../core/mcp-dev-manager.js");
+        const devManager = new MCPDevManager();
         await devManager.stop();
       } catch (error) {
         try {
@@ -285,6 +290,8 @@ function setupMCPDevCommands(mcpCmd: Command): void {
     .description("Restart MCP development mode (internal use only)")
     .action(async () => {
       try {
+        const { MCPDevManager } = await import("../core/mcp-dev-manager.js");
+        const devManager = new MCPDevManager();
         await devManager.restart();
       } catch (error) {
         try {
@@ -305,12 +312,15 @@ function setupMCPDevCommands(mcpCmd: Command): void {
     .description("Show MCP development mode status (internal use only)")
     .action(async () => {
       try {
+        const { MCPDevManager } = await import("../core/mcp-dev-manager.js");
+        const devManager = new MCPDevManager();
         await devManager.status();
       } catch (error) {
         try {
           const logger = getLogger("brooklyn-cli");
           logger.error("Failed to get MCP development mode status", {
             error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
           });
         } catch {
           // Fallback if logger fails
@@ -325,6 +335,8 @@ function setupMCPDevCommands(mcpCmd: Command): void {
     .description("Clean up MCP development mode resources (internal use only)")
     .action(async () => {
       try {
+        const { MCPDevManager } = await import("../core/mcp-dev-manager.js");
+        const devManager = new MCPDevManager();
         await devManager.cleanup();
         // User-facing success message goes to stdout for CLI interaction
         console.info("✅ MCP development mode cleanup completed");
