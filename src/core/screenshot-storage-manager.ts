@@ -211,13 +211,7 @@ export class ScreenshotStorageManager {
     // Generate idempotent instance UUID (Architecture Committee guidance)
     this.instanceId = this.generateInstanceId(config);
 
-    ensureLogger().info("Screenshot storage manager initialized", {
-      baseDirectory: this.baseDirectory,
-      instanceId: this.instanceId,
-      maxFileSize: this.config.maxFileSize,
-      encryption: this.config.encryption,
-      quotas: this.config.quotas,
-    });
+    // Defer logging until first use to avoid circular dependency
   }
 
   /**

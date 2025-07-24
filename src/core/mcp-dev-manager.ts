@@ -27,7 +27,14 @@ export class MCPDevManager {
   private devDir: string;
   private pipesFile: string;
   private logDir: string;
-  private logger = getLogger("brooklyn-mcp-dev");
+  private logger: ReturnType<typeof getLogger> | null = null;
+
+  private getLogger() {
+    if (!this.logger) {
+      this.logger = getLogger("brooklyn-mcp-dev");
+    }
+    return this.logger;
+  }
 
   constructor() {
     // Use configurable pipe directory (Architecture Committee recommendation)
@@ -46,15 +53,15 @@ export class MCPDevManager {
    */
   async start(): Promise<void> {
     // Use structured logging - it handles stderr output automatically in MCP mode
-    this.logger.info("🚀 Starting Brooklyn MCP development mode");
+    this.getLogger().info("🚀 Starting Brooklyn MCP development mode");
 
     // Check if already running
     if (this.isRunning()) {
       const info = this.loadProcessInfo();
-      this.logger.warn(`❌ Development mode already running (PID: ${info?.processId})`, {
+      this.getLogger().warn(`❌ Development mode already running (PID: ${info?.processId})`, {
         processId: info?.processId,
       });
-      this.logger.info("   Use 'brooklyn mcp dev-stop' first, then try again.");
+      this.getLogger().info("   Use 'brooklyn mcp dev-stop' first, then try again.");
       return;
     }
 
@@ -67,7 +74,7 @@ export class MCPDevManager {
 
     try {
       // Create named pipes with secure permissions (Architecture Committee requirement)
-      this.logger.info("📦 Creating named pipes", { inputPipe, outputPipe });
+      this.getLogger().info("📦 Creating named pipes", { inputPipe, outputPipe });
       await this.createNamedPipe(inputPipe);
       await this.createNamedPipe(outputPipe);
 
@@ -75,11 +82,11 @@ export class MCPDevManager {
       fs.chmodSync(inputPipe, 0o600);
       fs.chmodSync(outputPipe, 0o600);
 
-      this.logger.info(`   Input:  ${inputPipe}`);
-      this.logger.info(`   Output: ${outputPipe}`);
+      this.getLogger().info(`   Input:  ${inputPipe}`);
+      this.getLogger().info(`   Output: ${outputPipe}`);
 
       // Start Brooklyn in development mode
-      this.logger.info("🔧 Starting Brooklyn MCP process...");
+      this.getLogger().info("🔧 Starting Brooklyn MCP process...");
       const brooklynProcess = spawn(
         "bun", // Use Bun to run TypeScript directly
         [
@@ -122,7 +129,7 @@ export class MCPDevManager {
 
       // Handle process exit with cleanup (Architecture Committee requirement)
       brooklynProcess.on("exit", (code) => {
-        this.logger.info("Brooklyn MCP dev process exited", {
+        this.getLogger().info("Brooklyn MCP dev process exited", {
           code,
           processId: processInfo.processId,
         });
@@ -131,14 +138,14 @@ export class MCPDevManager {
 
       // Enhanced signal handling (Architecture Committee recommendation)
       const cleanup = () => {
-        this.logger.info("Received shutdown signal, cleaning up MCP dev mode");
+        this.getLogger().info("Received shutdown signal, cleaning up MCP dev mode");
         this.cleanup();
       };
 
       process.on("SIGTERM", cleanup);
       process.on("SIGINT", cleanup);
       process.on("uncaughtException", (error) => {
-        this.logger.error("Uncaught exception in MCP dev mode", { error });
+        this.getLogger().error("Uncaught exception in MCP dev mode", { error });
         cleanup();
       });
 
@@ -146,20 +153,20 @@ export class MCPDevManager {
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       if (brooklynProcess.killed || brooklynProcess.exitCode !== null) {
-        this.logger.error("❌ Failed to start Brooklyn MCP development process");
+        this.getLogger().error("❌ Failed to start Brooklyn MCP development process");
         return;
       }
 
-      this.logger.info("✅ Brooklyn MCP development mode started successfully!");
-      this.logger.info(`   PID: ${brooklynProcess.pid}`);
-      this.logger.info(`   Log: ${logFile}`);
-      this.logger.info("");
-      this.logger.info("📋 Next steps:");
-      this.logger.info("   • Test connection: brooklyn mcp dev-status");
-      this.logger.info(`   • View logs: tail -f ${logFile}`);
-      this.logger.info("   • Stop server: brooklyn mcp dev-stop");
+      this.getLogger().info("✅ Brooklyn MCP development mode started successfully!");
+      this.getLogger().info(`   PID: ${brooklynProcess.pid}`);
+      this.getLogger().info(`   Log: ${logFile}`);
+      this.getLogger().info("");
+      this.getLogger().info("📋 Next steps:");
+      this.getLogger().info("   • Test connection: brooklyn mcp dev-status");
+      this.getLogger().info(`   • View logs: tail -f ${logFile}`);
+      this.getLogger().info("   • Stop server: brooklyn mcp dev-stop");
     } catch (error) {
-      this.logger.error("Failed to start MCP development mode", { error });
+      this.getLogger().error("Failed to start MCP development mode", { error });
       await this.cleanup();
       process.exit(1);
     }
@@ -169,17 +176,17 @@ export class MCPDevManager {
    * Stop development MCP server
    */
   async stop(): Promise<void> {
-    this.logger.info("🛑 Stopping Brooklyn MCP development mode...");
+    this.getLogger().info("🛑 Stopping Brooklyn MCP development mode...");
 
     const info = this.loadProcessInfo();
     if (!info) {
-      this.logger.warn("❌ No development mode process found");
+      this.getLogger().warn("❌ No development mode process found");
       return;
     }
 
     try {
       // Kill the process with enhanced signal handling
-      this.logger.info(`   Stopping process PID: ${info.processId}`);
+      this.getLogger().info(`   Stopping process PID: ${info.processId}`);
       process.kill(info.processId, "SIGTERM");
 
       // Wait for graceful shutdown
@@ -188,15 +195,15 @@ export class MCPDevManager {
       // Force kill if still running
       try {
         process.kill(info.processId, 0); // Check if still running
-        this.logger.info("   Force killing process...");
+        this.getLogger().info("   Force killing process...");
         process.kill(info.processId, "SIGKILL");
       } catch {
         // Process already dead, that's good
       }
 
-      this.logger.info("✅ Development mode stopped");
+      this.getLogger().info("✅ Development mode stopped");
     } catch (error) {
-      this.logger.warn("⚠️  Process may have already stopped", { error });
+      this.getLogger().warn("⚠️  Process may have already stopped", { error });
     } finally {
       await this.cleanup();
     }
@@ -206,7 +213,7 @@ export class MCPDevManager {
    * Restart development MCP server
    */
   async restart(): Promise<void> {
-    this.logger.info("🔄 Restarting Brooklyn MCP development mode...");
+    this.getLogger().info("🔄 Restarting Brooklyn MCP development mode...");
     await this.stop();
     await new Promise((resolve) => setTimeout(resolve, 1000));
     await this.start();
@@ -216,14 +223,14 @@ export class MCPDevManager {
    * Show development mode status
    */
   async status(): Promise<void> {
-    this.logger.info("📊 Brooklyn MCP Development Mode Status");
-    this.logger.info("=".repeat(45));
+    this.getLogger().info("📊 Brooklyn MCP Development Mode Status");
+    this.getLogger().info("=".repeat(45));
 
     const info = this.loadProcessInfo();
     if (!info) {
-      this.logger.warn("❌ Development mode not running");
-      this.logger.info("");
-      this.logger.info("💡 Start with: brooklyn mcp dev-start");
+      this.getLogger().warn("❌ Development mode not running");
+      this.getLogger().info("");
+      this.getLogger().info("💡 Start with: brooklyn mcp dev-start");
       return;
     }
 
@@ -231,22 +238,24 @@ export class MCPDevManager {
     const inputExists = fs.existsSync(info.inputPipe);
     const outputExists = fs.existsSync(info.outputPipe);
 
-    this.logger.info(`Process: ${isRunning ? "🟢 Running" : "🔴 Stopped"}`);
-    this.logger.info(`PID: ${info.processId}`);
-    this.logger.info(`Started: ${info.startTime}`);
-    this.logger.info(`Input Pipe: ${inputExists ? "✅" : "❌"} ${info.inputPipe}`);
-    this.logger.info(`Output Pipe: ${outputExists ? "✅" : "❌"} ${info.outputPipe}`);
-    this.logger.info(`Log File: ${info.logFile}`);
+    this.getLogger().info(`Process: ${isRunning ? "🟢 Running" : "🔴 Stopped"}`);
+    this.getLogger().info(`PID: ${info.processId}`);
+    this.getLogger().info(`Started: ${info.startTime}`);
+    this.getLogger().info(`Input Pipe: ${inputExists ? "✅" : "❌"} ${info.inputPipe}`);
+    this.getLogger().info(`Output Pipe: ${outputExists ? "✅" : "❌"} ${info.outputPipe}`);
+    this.getLogger().info(`Log File: ${info.logFile}`);
 
     if (fs.existsSync(info.logFile)) {
       const stats = fs.statSync(info.logFile);
-      this.logger.info(`Log Size: ${(stats.size / 1024).toFixed(1)} KB`);
+      this.getLogger().info(`Log Size: ${(stats.size / 1024).toFixed(1)} KB`);
     }
 
     if (isRunning && inputExists && outputExists) {
-      this.logger.info("");
-      this.logger.info("🚀 Ready for development! Available in chat via:");
-      this.logger.info("   const browser = await dev_launch_browser({ browserType: 'chromium' });");
+      this.getLogger().info("");
+      this.getLogger().info("🚀 Ready for development! Available in chat via:");
+      this.getLogger().info(
+        "   const browser = await dev_launch_browser({ browserType: 'chromium' });",
+      );
     }
   }
 
@@ -257,33 +266,33 @@ export class MCPDevManager {
     const info = this.loadProcessInfo();
     if (!info) return;
 
-    this.logger.info("Cleaning up MCP development mode", { processId: info.processId });
+    this.getLogger().info("Cleaning up MCP development mode", { processId: info.processId });
 
     // Remove named pipes with error handling
     try {
       if (fs.existsSync(info.inputPipe)) {
         fs.unlinkSync(info.inputPipe);
-        this.logger.debug("Removed input pipe", { pipe: info.inputPipe });
+        this.getLogger().debug("Removed input pipe", { pipe: info.inputPipe });
       }
       if (fs.existsSync(info.outputPipe)) {
         fs.unlinkSync(info.outputPipe);
-        this.logger.debug("Removed output pipe", { pipe: info.outputPipe });
+        this.getLogger().debug("Removed output pipe", { pipe: info.outputPipe });
       }
     } catch (error) {
-      this.logger.warn("Error removing pipes", { error });
+      this.getLogger().warn("Error removing pipes", { error });
     }
 
     // Remove process info file
     try {
       if (fs.existsSync(this.pipesFile)) {
         fs.unlinkSync(this.pipesFile);
-        this.logger.debug("Removed pipe info file", { file: this.pipesFile });
+        this.getLogger().debug("Removed pipe info file", { file: this.pipesFile });
       }
     } catch (error) {
-      this.logger.warn("Error removing pipe info file", { error });
+      this.getLogger().warn("Error removing pipe info file", { error });
     }
 
-    this.logger.info("MCP development mode cleanup complete");
+    this.getLogger().info("MCP development mode cleanup complete");
   }
 
   // Private helper methods
@@ -295,7 +304,7 @@ export class MCPDevManager {
         return JSON.parse(data);
       }
     } catch (error) {
-      this.logger.warn("Error loading process info", { error });
+      this.getLogger().warn("Error loading process info", { error });
     }
     return null;
   }
@@ -304,7 +313,7 @@ export class MCPDevManager {
     try {
       fs.writeFileSync(this.pipesFile, JSON.stringify(info, null, 2));
     } catch (error) {
-      this.logger.error("Failed to save process info", { error });
+      this.getLogger().error("Failed to save process info", { error });
     }
   }
 

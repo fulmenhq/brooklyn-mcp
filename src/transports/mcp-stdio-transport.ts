@@ -66,7 +66,7 @@ export class MCPStdioTransport implements Transport {
     process.stdin.setEncoding("utf8");
 
     let buffer = "";
-    process.stdin.on("data", chunk => {
+    process.stdin.on("data", (chunk) => {
       buffer += chunk;
       let lineEnd: number = buffer.indexOf("\n");
       while (lineEnd !== -1) {

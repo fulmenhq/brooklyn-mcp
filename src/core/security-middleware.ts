@@ -73,10 +73,7 @@ export class SecurityMiddleware {
       this.cleanupRateLimitStore();
     }, this.config.rateLimiting.windowMs);
 
-    ensureLogger().info("Security middleware initialized", {
-      allowedDomains: this.config.allowedDomains,
-      rateLimit: this.config.rateLimiting,
-    });
+    // Defer logging until first use to avoid circular dependency
   }
 
   /**

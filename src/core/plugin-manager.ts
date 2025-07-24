@@ -157,13 +157,8 @@ export class PluginManager implements IPluginManager {
   }
 
   async loadPlugins(): Promise<void> {
-    ensureLogger().info("Loading plugins from config path", {
-      path: config.configPath,
-    });
-
     // TODO: Implement plugin loading from file system
-    // For now, we'll just log that no plugins were loaded
-    ensureLogger().info("No plugins loaded (plugin loading not yet implemented)");
+    // For now, no plugins are loaded (plugin loading not yet implemented)
   }
 
   async cleanup(): Promise<void> {

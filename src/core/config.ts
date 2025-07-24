@@ -9,13 +9,24 @@ import { join } from "node:path";
 import { getLogger } from "../shared/structured-logger.js";
 
 // ARCHITECTURE FIX: Lazy logger initialization to avoid circular dependency
+// CRITICAL: Do not use logger during initial config loading to prevent circular dependency
 let logger: ReturnType<typeof getLogger> | null = null;
+let loggerEnabled = false;
 
 function ensureLogger() {
-  if (!logger) {
-    logger = getLogger("config");
+  if (!logger && loggerEnabled) {
+    try {
+      logger = getLogger("config");
+    } catch {
+      // Logger not initialized yet, skip logging
+    }
   }
   return logger;
+}
+
+// Enable logger after initial load
+export function enableConfigLogger() {
+  loggerEnabled = true;
 }
 
 /**
@@ -127,7 +138,7 @@ export class ConfigManager {
       return this.config;
     }
 
-    ensureLogger().info("Loading Brooklyn configuration");
+    ensureLogger()?.info("Loading Brooklyn configuration");
 
     // Load configuration sources
     this.sources = {
@@ -147,7 +158,7 @@ export class ConfigManager {
     // Ensure directories exist
     await this.ensureDirectories(this.config);
 
-    ensureLogger().info("Configuration loaded successfully", {
+    ensureLogger()?.info("Configuration loaded successfully", {
       serviceName: this.config.serviceName,
       version: this.config.version,
       teamId: this.config.teamId,
@@ -188,7 +199,7 @@ export class ConfigManager {
     this.config = this.mergeDeep(this.config, updates);
     this.validateConfiguration(this.config!);
 
-    ensureLogger().debug("Configuration updated", { updates });
+    ensureLogger()?.debug("Configuration updated", { updates });
   }
 
   /**
@@ -200,7 +211,7 @@ export class ConfigManager {
 
     return {
       serviceName: "brooklyn-mcp-server",
-      version: "1.1.6", // Embedded at build time
+      version: "1.1.8", // Embedded at build time
       environment: "production",
       teamId: "default",
 
@@ -357,13 +368,13 @@ export class ConfigManager {
       const { config: dotenvConfig } = await import("dotenv");
       dotenvConfig();
 
-      ensureLogger().debug("Loaded .env file");
+      ensureLogger()?.debug("Loaded .env file");
 
       // After loading .env, re-read environment variables
       return this.loadFromEnvironment();
     } catch {
       // .env not available (packaged binary) - this is fine
-      ensureLogger().debug("No .env file found (expected for packaged binary)");
+      ensureLogger()?.debug("No .env file found (expected for packaged binary)");
       return undefined;
     }
   }
@@ -382,7 +393,7 @@ export class ConfigManager {
     for (const configPath of configPaths) {
       if (existsSync(configPath)) {
         try {
-          ensureLogger().debug("Loading config file", { path: configPath });
+          ensureLogger()?.debug("Loading config file", { path: configPath });
 
           const content = readFileSync(configPath, "utf8");
 
@@ -391,10 +402,10 @@ export class ConfigManager {
           }
           if (configPath.endsWith(".yaml") || configPath.endsWith(".yml")) {
             // TODO: Add YAML support if needed
-            ensureLogger().warn("YAML config files not yet supported", { path: configPath });
+            ensureLogger()?.warn("YAML config files not yet supported", { path: configPath });
           }
         } catch (error) {
-          ensureLogger().warn("Failed to load config file", {
+          ensureLogger()?.warn("Failed to load config file", {
             path: configPath,
             error: error instanceof Error ? error.message : String(error),
           });
@@ -493,7 +504,7 @@ export class ConfigManager {
       try {
         mkdirSync(dir, { recursive: true });
       } catch (error) {
-        ensureLogger().warn("Failed to create directory", {
+        ensureLogger()?.warn("Failed to create directory", {
           directory: dir,
           error: error instanceof Error ? error.message : String(error),
         });

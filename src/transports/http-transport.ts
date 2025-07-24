@@ -170,7 +170,7 @@ export class HTTPTransport implements Transport {
    */
   setToolListHandler(handler: ToolListHandler): void {
     this.toolListHandler = handler;
-    this.getLogger().debug("Tool list handler set");
+    // Defer logging to avoid circular dependency
   }
 
   /**
@@ -178,7 +178,7 @@ export class HTTPTransport implements Transport {
    */
   setToolCallHandler(handler: ToolCallHandler): void {
     this.toolCallHandler = handler;
-    this.getLogger().debug("Tool call handler set");
+    // Defer logging to avoid circular dependency
   }
 
   /**

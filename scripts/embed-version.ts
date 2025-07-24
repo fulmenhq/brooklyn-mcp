@@ -34,12 +34,7 @@ const filesToUpdate = [
     replacement: (version: string) => `version: "${version}", // Synced from VERSION file`,
     description: "Build config version",
   },
-  {
-    path: path.join(rootDir, "src/transports/mcp-stdio-transport.ts"),
-    pattern: /version: "[\d\.]+", \/\/ (?:Default, will be overridden|Embedded at build time)/,
-    replacement: (version: string) => `version: "${version}", // Embedded at build time`,
-    description: "MCP transport version",
-  },
+  // MCP transport now reads version from build-config dynamically - no need to embed
 ];
 
 async function getCurrentVersion(): Promise<string> {

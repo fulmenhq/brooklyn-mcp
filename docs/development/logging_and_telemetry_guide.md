@@ -1,5 +1,57 @@
 # Brooklyn Logging and Telemetry Guide
 
+## 🚨 CRITICAL: Logger Initialization DOs and DON'Ts
+
+### ❌ DON'T - Module-Level Logger Initialization (WILL BREAK BUNDLED APPS)
+
+```typescript
+// NEVER DO THIS - Module-level logger
+import { getLogger } from "../shared/structured-logger.js";
+
+const logger = getLogger("my-module"); // 💥 BOOM! Executes during module load
+
+export class MyClass {
+  constructor() {
+    logger.info("Initialized"); // 💥 Logger registry not initialized!
+  }
+}
+```
+
+### ✅ DO - Lazy Logger Initialization Pattern
+
+```typescript
+// ALWAYS DO THIS - Lazy initialization
+import { getLogger } from "../shared/structured-logger.js";
+
+let logger: ReturnType<typeof getLogger> | null = null;
+
+function ensureLogger() {
+  if (!logger) {
+    logger = getLogger("my-module");
+  }
+  return logger;
+}
+
+export class MyClass {
+  constructor() {
+    // Defer logging or skip entirely in constructors
+  }
+
+  someMethod() {
+    ensureLogger().info("Method called"); // ✅ Safe - called after init
+  }
+}
+```
+
+### 🎯 Key Rules to Prevent "Logger registry not initialized" Errors
+
+1. **NEVER** call `getLogger()` at module level
+2. **NEVER** log in constructors without lazy initialization
+3. **ALWAYS** use lazy initialization pattern for loggers
+4. **ALWAYS** initialize logging before importing modules in CLI entry points
+5. **ALWAYS** add console.error fallbacks in catch blocks
+6. **DEFER** all logging during initialization phases
+
 ## Introduction
 
 Brooklyn uses a unified structured logging system to provide consistent, configurable logging across the application. This guide covers how to use the logging system, configure it, and best practices for developers. Telemetry features are planned for future releases to enable metrics collection and monitoring; currently, the focus is on logging.
@@ -22,6 +74,43 @@ The logging system supports:
 - Context-aware child loggers for modules.
 
 This setup ensures logs do not interfere with MCP stdio communications or local dev processes.
+
+## CLI Entry Point Initialization
+
+For CLI applications that will be bundled, the initialization order is CRITICAL:
+
+```typescript
+// ✅ CORRECT ORDER for CLI entry points (e.g., brooklyn.ts)
+
+// 1. Version/constants at top
+const VERSION = "1.1.8";
+
+// 2. Import logging functions FIRST
+import { getLogger, initializeLogging } from "../shared/structured-logger.js";
+
+// 3. Create minimal config and initialize logging BEFORE other imports
+const minimalConfig = {
+  serviceName: "brooklyn-mcp-server",
+  version: VERSION,
+  logging: { level: "info", format: "json" },
+  // ... other required fields
+};
+
+// Initialize logging NOW before any modules that might use it
+try {
+  initializeLogging(minimalConfig);
+} catch (error) {
+  console.error("Failed to initialize logging:", error);
+  process.exit(1);
+}
+
+// 4. NOW import other modules that might use logging
+import { BrooklynEngine } from "../core/brooklyn-engine.js";
+import { loadConfig, enableConfigLogger } from "../core/config.js";
+
+// 5. Enable conditional loggers after initialization
+enableConfigLogger();
+```
 
 ## Configuration
 
@@ -77,15 +166,31 @@ Logs are written to stderr for console and a configurable file path for persiste
 
 ### Getting a Logger Instance
 
-Use `getLogger` to create a context-specific logger:
+⚠️ **WARNING**: Never call `getLogger` at module level! Use lazy initialization:
 
 ```typescript
 import { getLogger } from "../shared/structured-logger.js";
 
-const logger = getLogger("my-module");
+// ❌ WRONG - Module-level logger
+// const logger = getLogger("my-module");  // DON'T DO THIS!
+
+// ✅ CORRECT - Lazy initialization pattern
+let logger: ReturnType<typeof getLogger> | null = null;
+
+function ensureLogger() {
+  if (!logger) {
+    logger = getLogger("my-module");
+  }
+  return logger;
+}
+
+// Usage in your code
+function someFunction() {
+  ensureLogger().info("This is safe!");
+}
 ```
 
-This creates a child logger with the module name for context.
+This creates a child logger with the module name for context, but only when first used.
 
 ### Logging Methods
 
@@ -195,6 +300,16 @@ This prevents test output pollution and ensures tests pass regardless of log lev
 
 ## Best Practices
 
+### 🔴 Critical Rules (Prevent Total Failure)
+
+1. **Lazy Initialization**: ALWAYS use lazy logger pattern - NEVER call `getLogger()` at module level
+2. **Constructor Logging**: DEFER or AVOID logging in constructors
+3. **CLI Entry Points**: Initialize logging BEFORE importing other modules
+4. **Error Fallbacks**: ALWAYS add `console.error` fallbacks in catch blocks
+5. **Bundling Safety**: TEST bundled binaries after any logger changes
+
+### 🟡 Standard Best Practices
+
 - **Use Context**: Always use `getLogger("module-name")` for traceable logs.
 - **Structured Data**: Prefer metadata objects over string concatenation for better querying.
 - **Levels**: Use debug for dev details, info for normal ops, warn/error for issues.
@@ -203,6 +318,14 @@ This prevents test output pollution and ensures tests pass regardless of log lev
 - **Error Handling**: Use `errorWithException` in structured-logger for stack traces.
 - **Cleanup**: Call `closeAllLoggers()` on shutdown to flush file streams.
 - **Logger Choice**: Use Structured Logger for new code, Winston Logger for legacy compatibility.
+
+### 📋 Code Review Checklist
+
+- [ ] No module-level `getLogger()` calls
+- [ ] Constructor logging uses lazy pattern or is deferred
+- [ ] CLI entry points initialize logging first
+- [ ] Error handlers have console.error fallbacks
+- [ ] Bundled binary tested with logger changes
 
 ## Telemetry
 
@@ -217,6 +340,45 @@ For now, use logging for observability. Backlog items include integrating OpenTe
 ## Troubleshooting
 
 ### Common Issues
+
+#### 🚨 "Logger registry not initialized" Error
+
+**Symptoms**:
+
+- Error appears immediately on CLI startup
+- Affects ALL commands (status, mcp start, etc.)
+- Stack trace points to bundled code
+
+**Causes**:
+
+- Module-level `getLogger()` calls
+- Constructor logging without lazy initialization
+- Wrong import order in CLI entry points
+
+**Fix**:
+
+1. Find the module in the stack trace
+2. Apply lazy logger pattern
+3. Remove/defer constructor logging
+4. Rebuild and test bundled binary
+
+**Example Fix**:
+
+```typescript
+// Before (BROKEN)
+const logger = getLogger("my-module");
+
+// After (FIXED)
+let logger: ReturnType<typeof getLogger> | null = null;
+function ensureLogger() {
+  if (!logger) {
+    logger = getLogger("my-module");
+  }
+  return logger;
+}
+```
+
+#### Other Common Issues
 
 - **No logs appearing**: Check initialization and log level configuration
 - **MCP protocol corruption**: Ensure no direct `console.log()` usage; all output must go to stderr
@@ -241,5 +403,11 @@ BROOKLYN_DEV_VERBOSE=true bun run mcp-dev:start
 
 For questions, refer to `src/shared/logger.ts`, `src/shared/structured-logger.ts`, or contact the architecture team.
 
+## Related Documentation
+
+- [`local_development_sop.md`](./local_development_sop.md) - Critical logger initialization section
+- [`.plans/active/paris/logger-initialization-fix-summary.md`](../../.plans/active/paris/logger-initialization-fix-summary.md) - v1.1.8 fix details
+
 — Brooklyn Development Team  
-Last Updated: July 21, 2025
+Last Updated: July 23, 2025  
+⚠️ **Critical Update**: Added logger initialization patterns to prevent bundling failures

@@ -500,7 +500,183 @@ if (providedInputPipe && providedOutputPipe) {
 
 ---
 
-**Last Updated**: July 21, 2025  
-**Version Implemented**: Brooklyn v1.1.6  
+**Last Updated**: July 23, 2025  
+**Version Implemented**: Brooklyn v1.1.8  
 **Implementation Status**: ✅ **Architecture Committee Approved & Fully Operational**  
 **Next Phase**: Helper function integration and team rollout
+
+---
+
+## 🚨 CRITICAL: Logger Initialization in Bundled Applications
+
+### Overview
+
+**Problem**: Brooklyn CLI experienced complete failure due to "Logger registry not initialized" errors when bundled into a single binary. This affected all CLI commands and made the Brooklyn MCP server completely non-functional.
+
+**Root Cause**: Module-level logger initialization creates circular dependencies during bundling. When Bun bundles the application, module-level code executes in an unpredictable order, causing logger calls before the logging system is initialized.
+
+### Critical Best Practices
+
+#### ❌ NEVER Do This (Module-Level Logger)
+
+```typescript
+// WRONG - Module-level logger initialization
+import { getLogger } from "../shared/structured-logger.js";
+
+const logger = getLogger("my-module"); // This executes during module load!
+
+export class MyClass {
+  constructor() {
+    logger.info("Class initialized"); // BOOM! Logger not initialized
+  }
+}
+```
+
+#### ✅ ALWAYS Do This (Lazy Logger Initialization)
+
+```typescript
+// CORRECT - Lazy logger initialization pattern
+import { getLogger } from "../shared/structured-logger.js";
+
+// Lazy initialization pattern
+let logger: ReturnType<typeof getLogger> | null = null;
+
+function ensureLogger() {
+  if (!logger) {
+    logger = getLogger("my-module");
+  }
+  return logger;
+}
+
+export class MyClass {
+  constructor() {
+    // Defer logging to avoid circular dependency
+    // Or use ensureLogger() only in methods called after initialization
+  }
+
+  someMethod() {
+    ensureLogger().info("Method called"); // Safe - called after init
+  }
+}
+```
+
+### Affected Areas Fixed in v1.1.8
+
+The following modules had module-level logger initialization that caused failures:
+
+1. **CLI Entry Point** (`src/cli/brooklyn.ts`)
+   - Fixed by initializing logging before any imports
+   - Added try-catch blocks with console.error fallbacks
+
+2. **Configuration Module** (`src/core/config.ts`)
+   - Added conditional logging with `enableConfigLogger()` function
+   - Prevents circular dependency during config loading
+
+3. **Transport Components**
+   - `mcp-stdio-transport.ts`: Deferred all logging in initialize/start methods
+   - `http-transport.ts`: Added lazy initialization pattern
+   - Transport factory: Removed logging from transport creation
+
+4. **Core Engine Components**
+   - `brooklyn-engine.ts`: Deferred logging in initialize method
+   - `browser-pool-manager.ts`: Removed logging from initialize method
+   - `security-middleware.ts`: Deferred constructor logging
+   - `screenshot-storage-manager.ts`: Removed constructor logging
+
+5. **Development Tools**
+   - `mcp-dev-manager.ts`: Implemented lazy logger pattern
+   - `dev-mode.ts`: Fixed sed replacement error, added lazy pattern
+
+### Logger Initialization Order
+
+The correct initialization order for Brooklyn CLI is:
+
+```typescript
+// 1. Create minimal config for logging initialization
+const minimalConfig = {
+  serviceName: "brooklyn-mcp-server",
+  version: VERSION,
+  logging: { level: "info", format: "json" },
+  // ... other required fields
+};
+
+// 2. Initialize logging BEFORE any other imports that might use logger
+initializeLogging(minimalConfig);
+
+// 3. Import other modules that may use logging
+import { BrooklynEngine } from "../core/brooklyn-engine.js";
+import { loadConfig } from "../core/config.js";
+
+// 4. Enable config logger after logging is initialized
+enableConfigLogger();
+```
+
+### Testing for Logger Issues
+
+#### Symptoms of Logger Initialization Problems
+
+1. **Error Message**: `Logger registry not initialized. Call initialize() first.`
+2. **Stack Trace**: Points to bundled code line numbers (not source)
+3. **Timing**: Happens immediately on CLI startup
+4. **Scope**: Affects all commands, not just specific functionality
+
+#### Testing Procedure
+
+```bash
+# Build the binary
+bun run build
+
+# Test basic commands
+./dist/brooklyn --version
+./dist/brooklyn status
+
+# Test MCP initialization
+echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | ./dist/brooklyn mcp start
+
+# Look for any logger errors in output
+```
+
+### Prevention Guidelines
+
+1. **Code Review Checklist**
+   - No `const logger = getLogger()` at module level
+   - Constructor logging should be deferred or removed
+   - Use lazy initialization pattern for all loggers
+   - Add console.error fallbacks in catch blocks
+
+2. **Testing Requirements**
+   - Always test bundled binary after logger-related changes
+   - Test both status command and MCP server startup
+   - Verify no logger errors in console output
+
+3. **Documentation**
+   - Document any new lazy logger patterns in code comments
+   - Update this guide if new patterns emerge
+   - Add warnings in code review guidelines
+
+### Recovery Procedure
+
+If logger initialization fails in production:
+
+1. **Immediate Fix**: Revert to previous working version
+2. **Debug**: Run unbundled with `bun run src/cli/brooklyn.ts`
+3. **Identify**: Find module-level logger calls in stack trace
+4. **Fix**: Apply lazy initialization pattern
+5. **Test**: Verify bundled binary works
+6. **Deploy**: Update version and redeploy
+
+### Architecture Committee Guidance
+
+The Architecture Committee has approved the following patterns:
+
+1. **Lazy Logger Pattern**: Recommended for all modules
+2. **Deferred Logging**: Acceptable for initialization phases
+3. **Console Fallbacks**: Required for error handling
+4. **Conditional Logging**: Approved for circular dependency cases
+
+### Future Improvements
+
+1. **Static Analysis**: Add linter rules to catch module-level loggers
+2. **Build-Time Checks**: Validate logger usage during bundling
+3. **Logger Factory**: Consider centralized logger management
+4. **Init Verification**: Add logger initialization checks

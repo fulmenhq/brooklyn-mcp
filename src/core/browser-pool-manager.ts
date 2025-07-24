@@ -141,7 +141,7 @@ export class BrowserPoolManager {
 
     // Start cleanup interval
     this.cleanupInterval = setInterval(() => {
-      this.cleanupIdleSessions().catch(_error => {
+      this.cleanupIdleSessions().catch((_error) => {
         // Failed to cleanup idle sessions - logged internally
       });
     }, this.cleanupIntervalMs);
@@ -159,7 +159,7 @@ export class BrowserPoolManager {
     }
 
     // Close all browser sessions
-    const closePromises = Array.from(this.sessions.values()).map(session =>
+    const closePromises = Array.from(this.sessions.values()).map((session) =>
       this.closeBrowserSession(session),
     );
 
@@ -524,7 +524,7 @@ export class BrowserPoolManager {
       isActive: boolean;
     }>;
   }> {
-    const browsers = Array.from(this.sessions.values()).map(session => ({
+    const browsers = Array.from(this.sessions.values()).map((session) => ({
       browserId: session.id,
       browserType: "chromium", // TODO: Track actual browser type
       headless: true, // TODO: Track actual headless mode
@@ -591,7 +591,7 @@ export class BrowserPoolManager {
     return {
       activeSessions: this.sessions.size,
       maxBrowsers: this.maxBrowsers,
-      sessions: Array.from(this.sessions.values()).map(session => ({
+      sessions: Array.from(this.sessions.values()).map((session) => ({
         id: session.id,
         teamId: session.teamId,
         createdAt: session.createdAt,

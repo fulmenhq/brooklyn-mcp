@@ -117,7 +117,7 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
     .option("--log-level <level>", "Log level (debug, info, warn, error)")
     .option("--dev-mode", "Enable development mode with named pipes")
     .option("--pipes-prefix <prefix>", "Named pipes prefix (dev mode only)", "/tmp/brooklyn-dev")
-    .action(async options => {
+    .action(async (options) => {
       try {
         // Load configuration with CLI overrides
         const cliOverrides: Partial<BrooklynConfig> = {};
@@ -219,7 +219,7 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
     .command("configure")
     .description("Configure Claude Code MCP integration")
     .option("--project", "Configure for project-specific scope")
-    .action(async _options => {});
+    .action(async (_options) => {});
 
   // MCP Development Mode Commands (Architecture Committee approved - internal use only)
   setupMCPDevCommands(mcpCmd);
@@ -238,7 +238,7 @@ function setupMCPDevCommands(mcpCmd: Command): void {
     .command("dev-start")
     .description("Start MCP development mode with named pipes (internal use only)")
     .option("--team-id <teamId>", "Team identifier for development")
-    .action(async options => {
+    .action(async (options) => {
       try {
         // Set team ID if provided
         if (options.teamId) {
@@ -344,7 +344,7 @@ function setupWebCommands(program: Command): void {
     .option("--daemon", "Run as background daemon")
     .option("--team-id <teamId>", "Team identifier")
     .option("--log-level <level>", "Log level (debug, info, warn, error)")
-    .action(async options => {
+    .action(async (options) => {
       try {
         // Load configuration with CLI overrides
         const cliOverrides: Partial<BrooklynConfig> = {};
@@ -489,7 +489,7 @@ function setupSetupCommand(program: Command): void {
     .description("Install browsers and configure Brooklyn")
     .option("--browser <type>", "Install specific browser (chromium, firefox, webkit)")
     .option("--check", "Check installation status only")
-    .action(async options => {
+    .action(async (options) => {
       try {
         // Load minimal config (logging already initialized at startup)
         const _config = await loadConfig();
@@ -673,7 +673,7 @@ export { main };
 
 // Run main function if this file is executed directly
 if (import.meta.main) {
-  main().catch(error => {
+  main().catch((error) => {
     // Handle error without logger if it's not initialized
     try {
       const logger = getLogger("brooklyn-cli");
