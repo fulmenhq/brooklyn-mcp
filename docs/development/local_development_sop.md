@@ -253,16 +253,16 @@ opencode
 
 ```bash
 # Start MCP development mode
-bun run mcp-dev:start
+brooklyn mcp dev-start
 
 # Check status
-bun run mcp-dev:status
+brooklyn mcp dev-status
 
-# Test communication (once implemented)
-bun -e "import { dev_brooklyn_status } from './scripts/dev-helpers.ts'; console.log(await dev_brooklyn_status());"
+# Test communication (revolutionary capability!)
+node /tmp/talk-to-brooklyn.js  # Or use examples/brooklyn-dev-test.js
 
 # Stop development mode
-bun run mcp-dev:stop
+brooklyn mcp dev-stop
 ```
 
 ### Development Workflow Architecture
@@ -289,7 +289,7 @@ graph TD
 **New Commands**: Integrated into main `brooklyn` CLI
 
 ```bash
-# Internal commands (hidden unless --internal flag used)
+# Production-ready commands (no --internal flag needed)
 brooklyn mcp dev-start      # Start MCP development mode
 brooklyn mcp dev-stop       # Stop MCP development mode
 brooklyn mcp dev-restart    # Restart MCP development mode
@@ -297,14 +297,14 @@ brooklyn mcp dev-status     # Show MCP development status
 brooklyn mcp dev-cleanup    # Clean up development resources
 ```
 
-**Package.json Scripts**: Easy access for developers
+**Package.json Scripts**: Alternative access for repository-based development
 
 ```bash
-bun run mcp-dev:start       # Convenience wrapper
-bun run mcp-dev:stop        # Convenience wrapper
-bun run mcp-dev:status      # Convenience wrapper
-bun run mcp-dev:restart     # Convenience wrapper
-bun run mcp-dev:cleanup     # Convenience wrapper
+bun run dev:brooklyn:start  # Convenience wrapper
+bun run dev:brooklyn:stop   # Convenience wrapper
+bun run dev:brooklyn:status # Convenience wrapper
+bun run dev:brooklyn:restart # Convenience wrapper
+bun run dev:brooklyn:cleanup # Convenience wrapper
 ```
 
 #### Named Pipe Architecture
@@ -365,7 +365,7 @@ bun run mcp-dev:cleanup     # Convenience wrapper
 
 ```bash
 # Start the revolutionary MCP development mode
-bun run mcp-dev:start
+brooklyn mcp dev-start
 
 # Expected output:
 # 🚀 Starting Brooklyn MCP development mode...
@@ -376,25 +376,37 @@ bun run mcp-dev:start
 
 #### Step 2: Development Testing
 
-**Chat Integration Ready**: Once helper functions are updated, you can use Brooklyn tools directly in chat:
+**Revolutionary Conversational Capability**: You can now communicate with Brooklyn dev mode exactly like production MCP:
 
-```typescript
-// Future capability (helpers need MCP dev manager integration)
-const browser = await dev_launch_browser({ browserType: "chromium" });
-const screenshot = await dev_take_screenshot({
-  browserId: browser.browserId,
-  returnFormat: "file",
-});
+```bash
+# Test natural conversation through pipes
+node examples/brooklyn-dev-test.js
+
+# Create custom conversations
+node /tmp/talk-to-brooklyn.js
 ```
+
+**Example Natural Conversation**:
+```
+🌉 Brooklyn, what is your version?
+🤖 Brooklyn responds: {"version": "1.2.2", "service": "fulmen-brooklyn"}
+
+🔍 Brooklyn, show me your server info...
+🤖 Brooklyn responds: {"capabilities": {"browsers": ["chromium", "firefox", "webkit"]}}
+```
+
+**Key Breakthrough**: No Claude Code restart needed - same MCP protocol, different transport!
 
 #### Step 3: Iterative Development
 
 ```bash
 # Make code changes to Brooklyn
 # Restart development mode to pick up changes
-bun run mcp-dev:restart
+brooklyn mcp dev-restart
 
-# Test immediately - no Claude restart needed!
+# Test immediately through pipes - no Claude restart needed!
+node examples/brooklyn-dev-test.js
+
 # Continue development iteration
 ```
 
