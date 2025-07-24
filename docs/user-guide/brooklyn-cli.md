@@ -29,6 +29,87 @@ bun run bootstrap:install
 
 This installs Brooklyn globally and configures Claude Code integration automatically.
 
+## Installation Behavior
+
+### Current Install Behavior (`bun run install`)
+
+**⚠️ Important**: The current installation process has specific behavior that users should understand:
+
+#### Version Handling
+
+- **Always overwrites**: No version comparison or confirmation prompts
+- **No `--force` option**: Currently not supported (planned enhancement)
+- **Build-first approach**: Always runs `bun run build` before installation
+- **Simple replacement**: Uses direct file copy to `~/.local/bin/brooklyn`
+
+#### What Happens in Different Scenarios
+
+| Scenario                     | Current Behavior              | Notes                              |
+| ---------------------------- | ----------------------------- | ---------------------------------- |
+| **Same version installed**   | ✅ Overwrites without warning | Replaces with freshly built binary |
+| **Newer version installed**  | ✅ Overwrites without warning | ⚠️ **Silently downgrades**         |
+| **Older version installed**  | ✅ Overwrites without warning | ✅ **Silently upgrades**           |
+| **No existing installation** | ✅ Creates new installation   | Standard first-time install        |
+
+#### Current Install Flow
+
+```bash
+bun run install
+├── bun run build              # Always rebuilds from source
+├── scripts/install-cli.ts
+    ├── Check dist/brooklyn exists
+    ├── Create ~/.local/bin/ if needed
+    ├── copyFileSync() - overwrites existing
+    ├── chmod +x
+    └── Test with --version
+```
+
+### Missing Features (Future Enhancements)
+
+- [ ] `--force` flag support for explicit overwrites
+- [ ] Version comparison logic with confirmation prompts
+- [ ] Backup of existing installation before overwrite
+- [ ] Skip-if-same-version option
+- [ ] Interactive confirmation for version downgrades
+
+### Recommendations
+
+**For Development Teams**:
+
+```bash
+# Check current version before installing
+~/.local/bin/brooklyn --version
+bun run version:get
+
+# Verify versions match after install
+bun run install
+brooklyn --version  # Should match project version
+```
+
+**For Version Management**:
+
+```bash
+# Always verify version consistency
+bun run check:versions
+
+# Use proper version bumping
+bun run version:bump:patch    # Don't edit VERSION manually
+bun run install              # Then install updated version
+```
+
+**For Safety**:
+
+```bash
+# Backup existing CLI before major updates
+cp ~/.local/bin/brooklyn ~/.local/bin/brooklyn.backup
+
+# Install new version
+bun run install
+
+# Test functionality
+brooklyn status
+```
+
 ## Core Commands
 
 ### Server Management

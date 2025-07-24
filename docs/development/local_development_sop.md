@@ -14,9 +14,16 @@ When updating Brooklyn MCP binary versions (e.g., 1.1.3 → 1.1.4):
 # In Brooklyn project directory
 bun run version:bump:patch    # Updates VERSION file
 bun run build                 # Build with new version
-bun run install              # Install updated binary globally
+bun run install              # Install updated binary globally (see Installation Notes below)
 brooklyn --version           # Verify version updated
 ```
+
+**⚠️ Installation Notes**:
+
+- `bun run install` always overwrites without version checking
+- No `--force` option support currently available
+- Always rebuilds before installing (ensures fresh binary)
+- For detailed behavior, see [Brooklyn CLI Installation Behavior](../user-guide/brooklyn-cli.md#installation-behavior)
 
 #### Step 2: MCP Configuration Cleanup
 
@@ -674,9 +681,85 @@ The Architecture Committee has approved the following patterns:
 3. **Console Fallbacks**: Required for error handling
 4. **Conditional Logging**: Approved for circular dependency cases
 
+## Brooklyn CLI Installation for Development
+
+### Installation Behavior Overview
+
+Understanding the current `bun run install` behavior is critical for development workflows:
+
+#### Current Installation Characteristics
+
+- **Always overwrites**: No version checking or confirmation prompts
+- **Build-first approach**: Always runs `bun run build` before installation
+- **No `--force` support**: Planned enhancement for future versions
+- **Target location**: `~/.local/bin/brooklyn`
+
+#### Development Scenarios
+
+| Scenario                     | Behavior                   | Development Impact               |
+| ---------------------------- | -------------------------- | -------------------------------- |
+| **Installing same version**  | Overwrites without warning | ✅ Safe - ensures fresh binary   |
+| **Installing older version** | **Silently downgrades**    | ⚠️ **Risk** - May lose features  |
+| **Installing newer version** | Silently upgrades          | ✅ Safe - standard upgrade       |
+| **First installation**       | Creates new binary         | ✅ Safe - standard first install |
+
+#### Development Best Practices
+
+**Before Installing**:
+
+```bash
+# Check current installed version
+~/.local/bin/brooklyn --version
+
+# Check project version
+bun run version:get
+
+# Ensure versions are as expected
+bun run check:versions
+```
+
+**Safe Install Procedure**:
+
+```bash
+# 1. Backup existing CLI (optional but recommended)
+cp ~/.local/bin/brooklyn ~/.local/bin/brooklyn.backup
+
+# 2. Install new version
+bun run install
+
+# 3. Verify installation
+brooklyn --version
+brooklyn status
+```
+
+**Version Conflict Resolution**:
+
+```bash
+# If accidental downgrade occurs:
+# 1. Check project version
+bun run version:get
+
+# 2. If project version is newer, reinstall
+bun run install
+
+# 3. If project version is older, update project
+bun run version:set 1.2.0  # Use correct version
+bun run install
+```
+
+#### Integration with MCP Update Procedures
+
+When updating Brooklyn versions for MCP compatibility:
+
+1. **Version Bump**: `bun run version:bump:patch`
+2. **Install**: `bun run install` (applies overwrite behavior)
+3. **MCP Restart**: Follow complete MCP restart procedure above
+4. **Verify**: Check both CLI and MCP versions match
+
 ### Future Improvements
 
 1. **Static Analysis**: Add linter rules to catch module-level loggers
 2. **Build-Time Checks**: Validate logger usage during bundling
 3. **Logger Factory**: Consider centralized logger management
 4. **Init Verification**: Add logger initialization checks
+5. **Install Safety**: Add `--force` flag and version comparison logic

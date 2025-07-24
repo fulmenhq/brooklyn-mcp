@@ -236,11 +236,16 @@ The structured logger automatically detects MCP mode through transport context.
 
 ### Development Mode
 
+Brooklyn uses structured logging consistently across all modes, with output directed to stderr to maintain stdio purity for MCP protocol:
+
 ```typescript
-// CLI tools and dev scripts - user-friendly output
+// Development mode uses structured logger with stderr output
 this.logger.info("🚀 Starting Brooklyn MCP development mode");
-this.logger.warn("❌ Development mode already running", { processId });
+this.logger.info("📊 Brooklyn MCP Development Mode Status");
+this.logger.warn("⚠️ Found orphaned processes");
 ```
+
+**Key Rule**: All logging goes through the structured logger to stderr. This maintains consistency and prevents MCP protocol corruption.
 
 ### Production Mode
 
@@ -403,11 +408,58 @@ BROOKLYN_DEV_VERBOSE=true bun run mcp-dev:start
 
 For questions, refer to `src/shared/logger.ts`, `src/shared/structured-logger.ts`, or contact the architecture team.
 
+## Development Mode Enhancements (v1.2.1)
+
+### Process Cleanup Improvements
+
+The development mode now includes comprehensive process cleanup:
+
+```typescript
+// Enhanced cleanup in MCPDevManager
+async cleanup(): Promise<void> {
+  // 1. Terminate managed process
+  if (info && this.isProcessRunning(info.processId)) {
+    process.kill(info.processId, "SIGTERM");
+    // Wait for graceful shutdown, then SIGKILL if needed
+  }
+
+  // 2. Find and terminate orphaned processes
+  const orphaned = await this.findOrphanedProcesses();
+  for (const pid of orphanedPids) {
+    process.kill(Number(pid), "SIGTERM");
+  }
+
+  // 3. Clean up pipes and files
+  this.cleanupPipes(info);
+  this.removeProcessInfo();
+}
+```
+
+### Status Command Enhancements
+
+The `dev-status` command now detects orphaned processes:
+
+```typescript
+// Shows orphaned processes and cleanup instructions
+async status(): Promise<void> {
+  // Display current status
+  console.info("📊 Brooklyn MCP Development Mode Status");
+
+  // Scan for orphaned processes
+  const orphaned = await this.findOrphanedProcesses();
+  if (orphaned.length > 0) {
+    console.warn(`⚠️ Found ${orphaned.length} orphaned processes`);
+    console.info("💡 Run 'brooklyn mcp dev-cleanup' to terminate them");
+  }
+}
+```
+
 ## Related Documentation
 
 - [`local_development_sop.md`](./local_development_sop.md) - Critical logger initialization section
 - [`.plans/active/paris/logger-initialization-fix-summary.md`](../../.plans/active/paris/logger-initialization-fix-summary.md) - v1.1.8 fix details
 
 — Brooklyn Development Team  
-Last Updated: July 23, 2025  
+Last Updated: July 24, 2025  
 ⚠️ **Critical Update**: Added logger initialization patterns to prevent bundling failures
+🆕 **v1.2.1 Update**: Enhanced dev mode with proper process cleanup and orphan detection

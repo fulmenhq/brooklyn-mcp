@@ -1,12 +1,5 @@
 #!/usr/bin/env bun
 
-/**
- * Brooklyn Development Mode Management Script
- *
- * Manages captive Brooklyn processes with named pipes for development.
- * Enables rapid iteration without Claude session restarts.
- */
-
 import { type ChildProcess, exec, spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -92,13 +85,9 @@ class DevBrooklynManager {
     fs.mkdirSync(this.logDir, { recursive: true });
   }
 
-  /**
-   * Start development Brooklyn process
-   */
   async start(): Promise<void> {
     logger.info("🚀 Starting Brooklyn development mode...");
 
-    // Clean up stale resources if any
     const existingInfo = this.loadProcessInfo();
     if (existingInfo && !this.isProcessRunning(existingInfo.processId)) {
       logger.info("🧹 Cleaning up stale resources from previous run...");
@@ -106,7 +95,6 @@ class DevBrooklynManager {
       logger.info("✅ Cleanup completed");
     }
 
-    // Check if already running
     if (this.isRunning()) {
       const info = this.loadProcessInfo();
       logger.info(`❌ Development mode already running (PID: ${info?.processId})`);
@@ -121,14 +109,12 @@ class DevBrooklynManager {
     const logFile = path.join(this.logDir, `brooklyn-dev-${timestamp}.log`);
 
     try {
-      // Create named pipes
       logger.info("📦 Creating named pipes...");
       await this.createNamedPipe(inputPipe);
       await this.createNamedPipe(outputPipe);
       logger.info(`   Input:  ${inputPipe}`);
       logger.info(`   Output: ${outputPipe}`);
 
-      // Start Brooklyn in development mode
       logger.info("🔧 Starting Brooklyn process...");
       const brooklynProcess = spawn(
         "bun",
@@ -150,7 +136,6 @@ class DevBrooklynManager {
         },
       );
 
-      // Save process info
       const processInfo: DevProcessInfo = {
         processId: brooklynProcess.pid ?? 0,
         startTime: new Date().toISOString(),
@@ -162,16 +147,13 @@ class DevBrooklynManager {
 
       this.saveProcessInfo(processInfo);
 
-      // Setup log streaming
       this.setupLogStreaming(brooklynProcess, logFile);
 
-      // Handle process exit
       brooklynProcess.on("exit", (code) => {
         logger.info(`🔴 Brooklyn development process exited with code: ${code}`);
         this.cleanup();
       });
 
-      // Wait a moment to ensure process started
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       if (brooklynProcess.killed || brooklynProcess.exitCode !== null) {
@@ -196,9 +178,6 @@ class DevBrooklynManager {
     }
   }
 
-  /**
-   * Stop development Brooklyn process
-   */
   async stop(): Promise<void> {
     logger.info("🛑 Stopping Brooklyn development mode...");
 
@@ -209,20 +188,17 @@ class DevBrooklynManager {
     }
 
     try {
-      // Kill the process
       logger.info(`   Stopping process PID: ${info.processId}`);
       process.kill(info.processId, "SIGTERM");
 
-      // Wait for process to exit gracefully
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
-      // Force kill if still running
       try {
-        process.kill(info.processId, 0); // Check if still running
+        process.kill(info.processId, 0);
         logger.info("   Force killing process...");
         process.kill(info.processId, "SIGKILL");
       } catch {
-        // Process already dead, that's good
+        // Process already dead
       }
 
       logger.info("✅ Development mode stopped");
@@ -235,9 +211,6 @@ class DevBrooklynManager {
     }
   }
 
-  /**
-   * Restart development Brooklyn process
-   */
   async restart(): Promise<void> {
     logger.info("🔄 Restarting Brooklyn development mode...");
     await this.stop();
@@ -245,39 +218,69 @@ class DevBrooklynManager {
     await this.start();
   }
 
-  /**
-   * Show development mode status
-   */
   async status(): Promise<void> {
     logger.info("📊 Brooklyn Development Mode Status");
     logger.info("=".repeat(40));
 
     const info = this.loadProcessInfo();
     if (!info) {
-      logger.info("❌ Development mode not running");
-      return;
+      logger.info("❌ No managed development mode process found");
+    } else {
+      const isRunning = this.isProcessRunning(info.processId);
+      const inputExists = fs.existsSync(info.inputPipe);
+      const outputExists = fs.existsSync(info.outputPipe);
+
+      logger.info("Managed Process:");
+      logger.info(`  Status: ${isRunning ? "🟢 Running" : "🔴 Stopped"}`);
+      logger.info(`  PID: ${info.processId}`);
+      logger.info(`  Started: ${info.startTime}`);
+      logger.info(`  Input Pipe: ${inputExists ? "✅" : "❌"} ${info.inputPipe}`);
+      logger.info(`  Output Pipe: ${outputExists ? "✅" : "❌"} ${info.outputPipe}`);
+      logger.info(`  Log File: ${info.logFile}`);
+
+      if (fs.existsSync(info.logFile)) {
+        const stats = fs.statSync(info.logFile);
+        logger.info(`  Log Size: ${(stats.size / 1024).toFixed(1)} KB`);
+      }
     }
 
-    const isRunning = this.isProcessRunning(info.processId);
-    const inputExists = fs.existsSync(info.inputPipe);
-    const outputExists = fs.existsSync(info.outputPipe);
-
-    logger.info(`Process: ${isRunning ? "🟢 Running" : "🔴 Stopped"}`);
-    logger.info(`PID: ${info.processId}`);
-    logger.info(`Started: ${info.startTime}`);
-    logger.info(`Input Pipe: ${inputExists ? "✅" : "❌"} ${info.inputPipe}`);
-    logger.info(`Output Pipe: ${outputExists ? "✅" : "❌"} ${info.outputPipe}`);
-    logger.info(`Log File: ${info.logFile}`);
-
-    if (fs.existsSync(info.logFile)) {
-      const stats = fs.statSync(info.logFile);
-      logger.info(`Log Size: ${(stats.size / 1024).toFixed(1)} KB`);
+    logger.info("\n🔍 Scanning for orphaned Brooklyn processes...");
+    const orphaned = await this.findOrphanedProcesses();
+    if (orphaned.length === 0) {
+      logger.info("✅ No orphaned processes found");
+    } else {
+      logger.warn(`⚠️ Found ${orphaned.length} orphaned processes:`);
+      for (const proc of orphaned) {
+        logger.info(`  PID: ${proc.pid} Command: ${proc.command}`);
+      }
+      logger.info("💡 Run 'brooklyn mcp dev-cleanup' to terminate them");
     }
   }
 
-  /**
-   * Show recent logs
-   */
+  private async findOrphanedProcesses(): Promise<{ pid: string; command: string }[]> {
+    try {
+      const { stdout } = await execAsync(
+        "ps -ef | grep '[b]rooklyn.*mcp start --dev-mode' | grep -v grep",
+      );
+      return stdout
+        .trim()
+        .split("\n")
+        .filter((line) => line.trim())
+        .map((line) => {
+          const parts = line.trim().split(/\s+/);
+          const pid = parts[1];
+          if (!pid) return null;
+          return {
+            pid,
+            command: parts.slice(7).join(" "),
+          };
+        })
+        .filter((p): p is { pid: string; command: string } => p !== null);
+    } catch {
+      return [];
+    }
+  }
+
   async logs(): Promise<void> {
     const info = this.loadProcessInfo();
     if (!info) {
@@ -294,7 +297,6 @@ class DevBrooklynManager {
     logger.info("=".repeat(40));
 
     try {
-      // Show last 50 lines
       const { stdout } = await execAsync(`tail -50 "${info.logFile}"`);
       logger.info(stdout);
     } catch (error) {
@@ -304,9 +306,6 @@ class DevBrooklynManager {
     }
   }
 
-  /**
-   * Show pipe information
-   */
   async pipes(): Promise<void> {
     logger.info("🔗 Brooklyn Development Pipes");
     logger.info("=".repeat(40));
@@ -321,7 +320,6 @@ class DevBrooklynManager {
     logger.info(`Output Pipe: ${info.outputPipe}`);
     logger.info(`Prefix:      ${info.pipesPrefix}`);
 
-    // Check pipe status
     const inputExists = fs.existsSync(info.inputPipe);
     const outputExists = fs.existsSync(info.outputPipe);
 
@@ -340,9 +338,6 @@ class DevBrooklynManager {
     }
   }
 
-  /**
-   * Test pipe communication
-   */
   async test(): Promise<void> {
     logger.info("🧪 Testing Brooklyn development mode...");
 
@@ -375,14 +370,60 @@ class DevBrooklynManager {
     logger.info("   bun run dev:test:basic");
   }
 
-  /**
-   * Cleanup development mode resources
-   */
   async cleanup(): Promise<void> {
     const info = this.loadProcessInfo();
+
+    if (info) {
+      await this.killManagedProcess(info.processId);
+    }
+
+    const orphanedCount = await this.killOrphanedProcesses();
+    this.cleanupPipes(info);
+    this.cleanupProcessInfo();
+
+    logger.info(`✅ Cleanup completed. Killed ${orphanedCount} orphaned processes`);
+  }
+
+  private async killManagedProcess(pid: number): Promise<void> {
+    if (!this.isProcessRunning(pid)) return;
+
+    try {
+      process.kill(pid, "SIGTERM");
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // Force kill if still running
+      try {
+        process.kill(pid, 0);
+        process.kill(pid, "SIGKILL");
+      } catch {
+        // Process already dead
+      }
+    } catch (error: unknown) {
+      logger.warn("⚠️  Process may have already stopped", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  private async killOrphanedProcesses(): Promise<number> {
+    const orphaned = await this.findOrphanedProcesses();
+
+    for (const proc of orphaned) {
+      try {
+        process.kill(Number(proc.pid), "SIGTERM");
+      } catch (error: unknown) {
+        logger.warn(`⚠️  Failed to kill orphaned process ${proc.pid}`, {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    return orphaned.length;
+  }
+
+  private cleanupPipes(info: DevProcessInfo | null): void {
     if (!info) return;
 
-    // Remove pipes
     try {
       if (fs.existsSync(info.inputPipe)) {
         fs.unlinkSync(info.inputPipe);
@@ -390,32 +431,35 @@ class DevBrooklynManager {
       if (fs.existsSync(info.outputPipe)) {
         fs.unlinkSync(info.outputPipe);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn("⚠️  Error removing pipes", {
         error: error instanceof Error ? error.message : String(error),
       });
     }
+  }
 
-    // Remove process info
+  private cleanupProcessInfo(): void {
     try {
       if (fs.existsSync(this.pipesFile)) {
         fs.unlinkSync(this.pipesFile);
       }
-    } catch (error) {
-      console.warn("⚠️  Error removing process info:", error);
+    } catch (error: unknown) {
+      logger.warn("⚠️  Error removing process info:", {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
-
-  // Helper methods
 
   private loadProcessInfo(): DevProcessInfo | null {
     try {
       if (fs.existsSync(this.pipesFile)) {
         const data = fs.readFileSync(this.pipesFile, "utf-8");
-        return JSON.parse(data);
+        return JSON.parse(data) as DevProcessInfo;
       }
-    } catch (error) {
-      console.warn("⚠️  Error loading process info:", error);
+    } catch (error: unknown) {
+      logger.warn("⚠️  Error loading process info:", {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
     return null;
   }
@@ -423,8 +467,10 @@ class DevBrooklynManager {
   private saveProcessInfo(info: DevProcessInfo): void {
     try {
       fs.writeFileSync(this.pipesFile, JSON.stringify(info, null, 2));
-    } catch (error) {
-      console.error("❌ Failed to save process info:", error);
+    } catch (error: unknown) {
+      logger.error("❌ Failed to save process info:", {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
@@ -444,7 +490,6 @@ class DevBrooklynManager {
 
   private async createNamedPipe(pipePath: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      // Remove existing pipe if it exists
       try {
         if (fs.existsSync(pipePath)) {
           fs.unlinkSync(pipePath);
@@ -453,7 +498,6 @@ class DevBrooklynManager {
         // Ignore cleanup errors
       }
 
-      // Create named pipe
       const mkfifo = spawn("mkfifo", [pipePath]);
 
       mkfifo.on("close", (code) => {
@@ -473,27 +517,16 @@ class DevBrooklynManager {
   private setupLogStreaming(childProcess: ChildProcess, logFile: string): void {
     const logStream = fs.createWriteStream(logFile, { flags: "a" });
 
-    if (childProcess.stdout) {
-      childProcess.stdout.pipe(logStream);
-    }
+    childProcess.stdout?.pipe(logStream);
+    childProcess.stderr?.pipe(logStream);
 
-    if (childProcess.stderr) {
-      childProcess.stderr.pipe(logStream);
-    }
-
-    // Also log to console in verbose mode
     if (process.env["BROOKLYN_DEV_VERBOSE"]) {
-      if (childProcess.stdout) {
-        childProcess.stdout.pipe(process.stdout);
-      }
-      if (childProcess.stderr) {
-        childProcess.stderr.pipe(process.stderr);
-      }
+      childProcess.stdout?.pipe(process.stdout);
+      childProcess.stderr?.pipe(process.stderr);
     }
   }
 
   private getProjectRoot(): string {
-    // Find project root by looking for package.json
     let currentDir = __dirname;
     while (currentDir !== path.dirname(currentDir)) {
       if (fs.existsSync(path.join(currentDir, "package.json"))) {
@@ -505,7 +538,6 @@ class DevBrooklynManager {
   }
 }
 
-// CLI interface
 async function main() {
   const command = process.argv[2];
   const manager = new DevBrooklynManager();

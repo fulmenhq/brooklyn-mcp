@@ -203,6 +203,8 @@ brooklyn-server --help
 - **User-wide**: Use bootstrap script for system-wide installation
 - **Deprovisioning**: `bun run bootstrap:remove` to uninstall completely
 
+> **⚠️ Important**: `bun run install` always overwrites existing installations without version checking or `--force` option. See [Brooklyn CLI Documentation](docs/user-guide/brooklyn-cli.md#installation-behavior) for detailed behavior and version handling.
+
 ### Development Commands
 
 ```bash

@@ -246,11 +246,16 @@ function setupMCPDevCommands(mcpCmd: Command): void {
         }
         await devManager.start();
       } catch (error) {
-        const logger = getLogger("brooklyn-cli");
-        logger.error("Failed to start MCP development mode", {
-          error: error instanceof Error ? error.message : String(error),
-          teamId: options.teamId,
-        });
+        try {
+          const logger = getLogger("brooklyn-cli");
+          logger.error("Failed to start MCP development mode", {
+            error: error instanceof Error ? error.message : String(error),
+            teamId: options.teamId,
+          });
+        } catch {
+          // Fallback if logger fails
+          console.error("Failed to start MCP development mode:", error);
+        }
         process.exit(1);
       }
     });
@@ -262,10 +267,15 @@ function setupMCPDevCommands(mcpCmd: Command): void {
       try {
         await devManager.stop();
       } catch (error) {
-        const logger = getLogger("brooklyn-cli");
-        logger.error("Failed to stop MCP development mode", {
-          error: error instanceof Error ? error.message : String(error),
-        });
+        try {
+          const logger = getLogger("brooklyn-cli");
+          logger.error("Failed to stop MCP development mode", {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        } catch {
+          // Fallback if logger fails
+          console.error("Failed to stop MCP development mode:", error);
+        }
         process.exit(1);
       }
     });
@@ -277,10 +287,15 @@ function setupMCPDevCommands(mcpCmd: Command): void {
       try {
         await devManager.restart();
       } catch (error) {
-        const logger = getLogger("brooklyn-cli");
-        logger.error("Failed to restart MCP development mode", {
-          error: error instanceof Error ? error.message : String(error),
-        });
+        try {
+          const logger = getLogger("brooklyn-cli");
+          logger.error("Failed to restart MCP development mode", {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        } catch {
+          // Fallback if logger fails
+          console.error("Failed to restart MCP development mode:", error);
+        }
         process.exit(1);
       }
     });
@@ -292,10 +307,15 @@ function setupMCPDevCommands(mcpCmd: Command): void {
       try {
         await devManager.status();
       } catch (error) {
-        const logger = getLogger("brooklyn-cli");
-        logger.error("Failed to get MCP development mode status", {
-          error: error instanceof Error ? error.message : String(error),
-        });
+        try {
+          const logger = getLogger("brooklyn-cli");
+          logger.error("Failed to get MCP development mode status", {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        } catch {
+          // Fallback if logger fails
+          console.error("Failed to get MCP development mode status:", error);
+        }
         process.exit(1);
       }
     });
@@ -309,10 +329,15 @@ function setupMCPDevCommands(mcpCmd: Command): void {
         // User-facing success message goes to stdout for CLI interaction
         console.info("✅ MCP development mode cleanup completed");
       } catch (error) {
-        const logger = getLogger("brooklyn-cli");
-        logger.error("Failed to cleanup MCP development mode", {
-          error: error instanceof Error ? error.message : String(error),
-        });
+        try {
+          const logger = getLogger("brooklyn-cli");
+          logger.error("Failed to cleanup MCP development mode", {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        } catch {
+          // Fallback if logger fails
+          console.error("Failed to cleanup MCP development mode:", error);
+        }
         process.exit(1);
       }
     });
