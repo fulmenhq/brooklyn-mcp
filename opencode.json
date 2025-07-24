@@ -3,7 +3,7 @@
   "mcp": {
     "brooklyn": {
       "type": "local",
-      "command": ["bun", "run", "src/cli/brooklyn.ts", "mcp", "start"],
+      "command": ["brooklyn", "mcp", "start"],
       "enabled": true,
       "environment": {
         "BROOKLYN_TEAM_ID": "opencode-dev",

@@ -146,12 +146,17 @@ export class BrooklynEngine {
       return;
     }
 
-    this.getLogger().info("Initializing Brooklyn engine", {
-      service: this.config.serviceName,
-      version: this.config.version,
-      teamId: this.config.teamId,
-      maxBrowsers: this.config.browsers.maxInstances,
-    });
+    // Defer logging to avoid circular dependency during startup
+    try {
+      this.getLogger().info("Initializing Brooklyn engine", {
+        service: this.config.serviceName,
+        version: this.config.version,
+        teamId: this.config.teamId,
+        maxBrowsers: this.config.browsers.maxInstances,
+      });
+    } catch {
+      // Logger not ready yet, skip logging
+    }
 
     // Initialize browser pool
     await this.browserPool.initialize();
@@ -166,7 +171,13 @@ export class BrooklynEngine {
     await this.pluginManager.loadPlugins();
 
     this.isInitialized = true;
-    this.getLogger().info("Brooklyn engine initialized successfully");
+
+    // Defer logging to avoid circular dependency during startup
+    try {
+      this.getLogger().info("Brooklyn engine initialized successfully");
+    } catch {
+      // Logger not ready yet, skip logging
+    }
   }
 
   /**
@@ -189,13 +200,23 @@ export class BrooklynEngine {
       }));
       this.discovery.registerTools(enhancedOnboarding);
 
-      this.getLogger().info("Registered tools with discovery service", {
-        coreTools: enhancedTools.length,
-        onboardingTools: enhancedOnboarding.length,
-        totalTools: this.discovery.getMetadata().totalTools,
-      });
+      // Defer logging to avoid circular dependency during startup
+      try {
+        this.getLogger().info("Registered tools with discovery service", {
+          coreTools: enhancedTools.length,
+          onboardingTools: enhancedOnboarding.length,
+          totalTools: this.discovery.getMetadata().totalTools,
+        });
+      } catch {
+        // Logger not ready yet, skip logging
+      }
     } catch (error) {
-      this.getLogger().warn("Failed to register enhanced tools, using basic tools", { error });
+      // Defer logging to avoid circular dependency during startup
+      try {
+        this.getLogger().warn("Failed to register enhanced tools, using basic tools", { error });
+      } catch {
+        // Logger not ready yet, skip logging
+      }
 
       // Register basic tools as fallback
       const basicTools = this.getBasicCoreTools();
@@ -251,7 +272,13 @@ export class BrooklynEngine {
     await transport.initialize();
 
     this.transports.set(name, transport);
-    this.getLogger().info("Transport added", { name, type: transport.type });
+
+    // Defer logging to avoid circular dependency during startup
+    try {
+      this.getLogger().info("Transport added", { name, type: transport.type });
+    } catch {
+      // Logger not ready yet, skip logging
+    }
   }
 
   /**
@@ -268,7 +295,13 @@ export class BrooklynEngine {
     }
 
     await transport.start();
-    this.getLogger().info("Transport started", { name, type: transport.type });
+
+    // Defer logging to avoid circular dependency during startup
+    try {
+      this.getLogger().info("Transport started", { name, type: transport.type });
+    } catch {
+      // Logger not ready yet, skip logging
+    }
   }
 
   /**

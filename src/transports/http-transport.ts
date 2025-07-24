@@ -78,7 +78,12 @@ export class HTTPTransport implements Transport {
       });
     });
 
-    this.getLogger().info("HTTP transport initialized");
+    // Defer logging to avoid circular dependency during startup
+    try {
+      this.getLogger().info("HTTP transport initialized");
+    } catch {
+      // Logger not ready yet, skip logging
+    }
   }
 
   /**
