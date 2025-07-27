@@ -13,8 +13,9 @@ import { homedir, platform } from "node:os";
 import { dirname, join } from "node:path";
 import { Command } from "commander";
 
-import { getLogger } from "../shared/structured-logger.js";
+import { getLogger } from "../shared/pino-logger.js";
 
+// Lazy logger initialization to prevent bundled binary failures
 const logger = getLogger("brooklyn-server");
 
 // Build-time configuration - will be replaced during build
@@ -248,11 +249,10 @@ function execInBrooklyn(command: string, options: { stdio?: "inherit" | "pipe" }
   } catch (error: any) {
     logger.error("Brooklyn command failed", {
       command,
-      error: error.message,
-      stdout: error.stdout,
-      stderr: error.stderr,
+      error: error instanceof Error ? error.message : String(error),
+      code: error.status,
     });
-    // Log command output through structured logger instead of console
+
     if (error.stdout) {
       logger.info("Command stdout output", { stdout: error.stdout });
     }

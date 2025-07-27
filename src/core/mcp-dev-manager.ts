@@ -39,21 +39,17 @@ export class MCPDevManager {
       try {
         // Dynamic import to avoid module-level execution
         // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const loggerModule = require("../shared/structured-logger.js") as {
+        const loggerModule = require("../shared/pino-logger.js") as {
           getLogger: (name: string) => Logger;
         };
         this.logger = loggerModule.getLogger("brooklyn-mcp-dev");
       } catch (_error) {
         // Fallback to console if logger not available
         this.logger = {
-          info: (message: string, context?: unknown) =>
-            console.error(`[INFO] ${message}`, context ? JSON.stringify(context) : ""),
-          warn: (message: string, context?: unknown) =>
-            console.error(`[WARN] ${message}`, context ? JSON.stringify(context) : ""),
-          error: (message: string, context?: unknown) =>
-            console.error(`[ERROR] ${message}`, context ? JSON.stringify(context) : ""),
-          debug: (message: string, context?: unknown) =>
-            console.error(`[DEBUG] ${message}`, context ? JSON.stringify(context) : ""),
+          info: (_message: string, _context?: unknown) => {},
+          warn: (_message: string, _context?: unknown) => {},
+          error: (_message: string, _context?: unknown) => {},
+          debug: (_message: string, _context?: unknown) => {},
         };
       }
     }
@@ -488,8 +484,8 @@ export class MCPDevManager {
           };
         })
         .filter((p): p is { pid: string; command: string } => {
-          // Filter out null values and the current managed process
-          return p !== null && p.pid !== String(info?.processId);
+          // Filter out null values, the current managed process, and the current process
+          return p !== null && p.pid !== String(info?.processId) && p.pid !== String(process.pid);
         });
     } catch {
       return [];

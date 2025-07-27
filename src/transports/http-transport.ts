@@ -1,34 +1,28 @@
 /**
- * HTTP transport implementation
- * Handles web server mode for monitoring, APIs, and dashboards
+ * MCP Streamable HTTP transport implementation
+ * Implements MCP spec for HTTP transport with SSE support
  */
 
-import type { Server as HTTPServer } from "node:http";
+import type { IncomingMessage, ServerResponse } from "node:http";
+import { createServer } from "node:http";
+
 import type { HTTPConfig, ToolCallHandler, ToolListHandler, Transport } from "../core/transport.js";
 import { TransportType } from "../core/transport.js";
-import { getLogger } from "../shared/structured-logger.js";
+import { buildConfig } from "../shared/build-config.js";
+import { getLogger } from "../shared/pino-logger.js";
 
 /**
- * HTTP transport for web server mode
- * Provides REST API endpoints and web interface
+ * MCP Streamable HTTP transport
+ * Handles JSON-RPC over HTTP POST with optional SSE for streaming
  */
-export class HTTPTransport implements Transport {
-  readonly name = "http";
+export class MCPHTTPTransport implements Transport {
+  readonly name = "mcp-http";
   readonly type = TransportType.HTTP;
 
-  private logger: ReturnType<typeof getLogger> | null = null;
+  private logger = getLogger("mcp-http-transport");
   private readonly config: HTTPConfig;
-
-  private getLogger() {
-    if (!this.logger) {
-      this.logger = getLogger("http-transport");
-    }
-    return this.logger;
-  }
-
-  private server: HTTPServer | null = null;
+  private server: ReturnType<typeof createServer> | null = null;
   private running = false;
-
   private toolListHandler?: ToolListHandler;
   private toolCallHandler?: ToolCallHandler;
 
@@ -36,23 +30,17 @@ export class HTTPTransport implements Transport {
     this.config = config;
   }
 
-  /**
-   * Initialize the HTTP transport
-   */
   async initialize(): Promise<void> {
-    this.getLogger().info("Initializing HTTP transport", {
+    this.logger.info("Initializing MCP HTTP transport", {
       port: this.config.options.port,
       host: this.config.options.host || "localhost",
     });
-
-    // Create HTTP server
-    const { createServer } = await import("node:http");
 
     this.server = createServer(async (req, res) => {
       try {
         await this.handleRequest(req, res);
       } catch (error) {
-        this.getLogger().error("HTTP request error", {
+        this.logger.error("MCP HTTP request error", {
           url: req.url,
           method: req.method,
           error: error instanceof Error ? error.message : String(error),
@@ -63,43 +51,33 @@ export class HTTPTransport implements Transport {
           res.setHeader("Content-Type", "application/json");
           res.end(
             JSON.stringify({
-              error: "Internal server error",
-              message: error instanceof Error ? error.message : "Unknown error",
+              jsonrpc: "2.0",
+              error: {
+                code: -32603,
+                message: "Internal error",
+              },
             }),
           );
         }
       }
     });
 
-    // Handle server errors
     this.server.on("error", (error) => {
-      this.getLogger().error("HTTP server error", {
-        error: error.message,
-      });
+      this.logger.error("MCP HTTP server error", { error: error.message });
     });
-
-    // Defer logging to avoid circular dependency during startup
-    try {
-      this.getLogger().info("HTTP transport initialized");
-    } catch {
-      // Logger not ready yet, skip logging
-    }
   }
 
-  /**
-   * Start the HTTP transport
-   */
   async start(): Promise<void> {
     if (this.running) {
-      this.getLogger().warn("HTTP transport already running");
+      this.logger.warn("MCP HTTP transport already running");
       return;
     }
 
     if (!this.server) {
-      throw new Error("HTTP transport not initialized");
+      throw new Error("MCP HTTP transport not initialized");
     }
 
-    this.getLogger().info("Starting HTTP transport");
+    this.logger.info("Starting MCP HTTP transport");
 
     return new Promise((resolve, reject) => {
       if (!this.server) {
@@ -109,7 +87,7 @@ export class HTTPTransport implements Transport {
 
       this.server.listen(this.config.options.port, this.config.options.host || "localhost", () => {
         this.running = true;
-        this.getLogger().info("HTTP transport started", {
+        this.logger.info("MCP HTTP transport started", {
           port: this.config.options.port,
           host: this.config.options.host || "localhost",
         });
@@ -117,30 +95,25 @@ export class HTTPTransport implements Transport {
       });
 
       this.server.on("error", (error) => {
-        this.getLogger().error("Failed to start HTTP transport", {
-          error: error.message,
-        });
+        this.logger.error("Failed to start MCP HTTP transport", { error: error.message });
         this.running = false;
         reject(error);
       });
     });
   }
 
-  /**
-   * Stop the HTTP transport
-   */
   async stop(): Promise<void> {
     if (!this.running) {
-      this.getLogger().warn("HTTP transport not running");
+      this.logger.warn("MCP HTTP transport not running");
       return;
     }
 
     if (!this.server) {
-      this.getLogger().warn("HTTP server not initialized");
+      this.logger.warn("MCP HTTP server not initialized");
       return;
     }
 
-    this.getLogger().info("Stopping HTTP transport");
+    this.logger.info("Stopping MCP HTTP transport");
 
     return new Promise((resolve, reject) => {
       if (!this.server) {
@@ -150,304 +123,162 @@ export class HTTPTransport implements Transport {
 
       this.server.close((error) => {
         if (error) {
-          this.getLogger().error("Error stopping HTTP transport", {
-            error: error.message,
-          });
+          this.logger.error("Error stopping MCP HTTP transport", { error: error.message });
           reject(error);
         } else {
           this.running = false;
-          this.getLogger().info("HTTP transport stopped");
+          this.logger.info("MCP HTTP transport stopped");
           resolve();
         }
       });
     });
   }
 
-  /**
-   * Check if transport is running
-   */
   isRunning(): boolean {
     return this.running;
   }
 
-  /**
-   * Set tool list handler
-   */
   setToolListHandler(handler: ToolListHandler): void {
     this.toolListHandler = handler;
-    // Defer logging to avoid circular dependency
   }
 
-  /**
-   * Set tool call handler
-   */
   setToolCallHandler(handler: ToolCallHandler): void {
     this.toolCallHandler = handler;
-    // Defer logging to avoid circular dependency
   }
 
-  /**
-   * Handle incoming HTTP requests
-   */
-  private async handleRequest(req: any, res: any): Promise<void> {
-    const url = new URL(req.url || "/", `http://${req.headers.host}`);
-    const method = req.method?.toUpperCase();
-
-    this.getLogger().debug("HTTP request", {
-      method,
-      path: url.pathname,
-      query: Object.fromEntries(url.searchParams),
-    });
-
-    // Set CORS headers if enabled
-    if (this.config.options.cors) {
-      res.setHeader("Access-Control-Allow-Origin", "*");
-      res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    }
-
-    // Handle preflight requests
-    if (method === "OPTIONS") {
-      res.statusCode = 200;
+  private async handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    if (req.method !== "POST") {
+      res.statusCode = 405;
+      res.setHeader("Allow", "POST");
       res.end();
       return;
     }
 
-    // Route requests
-    if (url.pathname === "/health") {
-      await this.handleHealthCheck(req, res);
-    } else if (url.pathname === "/status") {
-      await this.handleStatus(req, res);
-    } else if (url.pathname === "/tools" && method === "GET") {
-      await this.handleToolList(req, res);
-    } else if (url.pathname === "/tools/call" && method === "POST") {
-      await this.handleToolCall(req, res);
-    } else if (url.pathname === "/" || url.pathname === "/dashboard") {
-      await this.handleDashboard(req, res);
+    const body = await this.parseRequestBody(req);
+    const msg = body as Record<string, unknown>;
+
+    if (!(msg["jsonrpc"] && msg["method"])) {
+      res.statusCode = 400;
+      res.setHeader("Content-Type", "application/json");
+      res.end(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          error: { code: -32600, message: "Invalid Request" },
+        }),
+      );
+      return;
+    }
+
+    const id = msg["id"];
+    if (id == null) {
+      res.statusCode = 204;
+      res.end();
+      return;
+    }
+
+    let response: Record<string, unknown>;
+    try {
+      response = await this.processRequest(msg);
+    } catch (e) {
+      response = this.createErrorResponse(msg["id"], e);
+    }
+
+    // Check if SSE is requested for streaming
+    if (req.headers.accept === "text/event-stream") {
+      this.handleSSE(res, response);
     } else {
-      await this.handleNotFound(req, res);
+      res.statusCode = 200;
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify(response));
     }
   }
 
-  /**
-   * Handle health check endpoint
-   */
-  private async handleHealthCheck(_req: any, res: any): Promise<void> {
-    res.statusCode = 200;
-    res.setHeader("Content-Type", "application/json");
-    res.end(
-      JSON.stringify({
-        status: "healthy",
-        timestamp: new Date().toISOString(),
-        transport: "http",
-      }),
-    );
-  }
+  private async processRequest(msg: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const method = msg["method"] as string;
+    const params = msg["params"] as Record<string, unknown> | undefined;
+    const id = msg["id"];
 
-  /**
-   * Handle status endpoint
-   */
-  private async handleStatus(_req: any, res: any): Promise<void> {
-    res.statusCode = 200;
-    res.setHeader("Content-Type", "application/json");
-    res.end(
-      JSON.stringify({
-        transport: {
-          name: this.name,
-          type: this.type,
-          running: this.running,
-          config: {
-            port: this.config.options.port,
-            host: this.config.options.host || "localhost",
+    switch (method) {
+      case "initialize":
+        return {
+          jsonrpc: "2.0",
+          id,
+          result: {
+            protocolVersion: params?.["protocolVersion"] || "2025-06-18",
+            serverInfo: { name: "brooklyn-mcp-server", version: buildConfig.version },
+            capabilities: {
+              tools: { listChanged: true },
+              resources: {},
+              roots: {},
+            },
           },
-        },
-        timestamp: new Date().toISOString(),
-      }),
-    );
-  }
-
-  /**
-   * Handle tool list endpoint
-   */
-  private async handleToolList(_req: any, res: any): Promise<void> {
-    if (!this.toolListHandler) {
-      res.statusCode = 503;
-      res.setHeader("Content-Type", "application/json");
-      res.end(
-        JSON.stringify({
-          error: "Tool list handler not available",
-        }),
-      );
-      return;
-    }
-
-    try {
-      const result = await this.toolListHandler();
-      res.statusCode = 200;
-      res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify(result));
-    } catch (error) {
-      res.statusCode = 500;
-      res.setHeader("Content-Type", "application/json");
-      res.end(
-        JSON.stringify({
-          error: "Failed to get tool list",
-          message: error instanceof Error ? error.message : "Unknown error",
-        }),
-      );
-    }
-  }
-
-  /**
-   * Handle tool call endpoint
-   */
-  private async handleToolCall(req: any, res: any): Promise<void> {
-    if (!this.toolCallHandler) {
-      res.statusCode = 503;
-      res.setHeader("Content-Type", "application/json");
-      res.end(
-        JSON.stringify({
-          error: "Tool call handler not available",
-        }),
-      );
-      return;
-    }
-
-    try {
-      // Parse request body
-      const body = await this.parseRequestBody(req);
-
-      // Validate request format
-      if (!body.params?.name) {
-        res.statusCode = 400;
-        res.setHeader("Content-Type", "application/json");
-        res.end(
-          JSON.stringify({
-            error: "Invalid request format",
-            message: "Request must include params.name",
+        };
+      case "tools/list":
+        if (!this.toolListHandler) throw new Error("Tool list handler not set");
+        return { jsonrpc: "2.0", id, result: await this.toolListHandler() };
+      case "tools/call": {
+        if (!this.toolCallHandler) throw new Error("Tool call handler not set");
+        const callParams = params ?? {};
+        if (typeof callParams["name"] !== "string")
+          throw new Error("Missing or invalid 'name' in params");
+        const args = (callParams["arguments"] ?? {}) as Record<string, unknown>;
+        const toolInput = {
+          name: callParams["name"] as string,
+          arguments: args,
+        };
+        return {
+          jsonrpc: "2.0",
+          id,
+          result: await this.toolCallHandler({
+            params: toolInput,
+            method,
           }),
-        );
-        return;
+        };
       }
-
-      // Create MCP-compatible request
-      const mcpRequest = {
-        method: "tools/call",
-        params: {
-          name: body.params.name,
-          arguments: body.params.arguments || {},
-        },
-      };
-
-      const result = await this.toolCallHandler(mcpRequest as any);
-      res.statusCode = 200;
-      res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify(result));
-    } catch (error) {
-      res.statusCode = 500;
-      res.setHeader("Content-Type", "application/json");
-      res.end(
-        JSON.stringify({
-          error: "Tool call failed",
-          message: error instanceof Error ? error.message : "Unknown error",
-        }),
-      );
+      default:
+        throw new Error("Method not found");
     }
   }
 
-  /**
-   * Handle dashboard endpoint
-   */
-  private async handleDashboard(_req: any, res: any): Promise<void> {
-    const html = `
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Brooklyn MCP Server</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 40px; }
-        .header { color: #2c5aa0; }
-        .endpoint { margin: 20px 0; padding: 10px; background: #f5f5f5; border-radius: 4px; }
-        .method { font-weight: bold; color: #5cb85c; }
-        .path { font-family: monospace; }
-    </style>
-</head>
-<body>
-    <h1 class="header">🌉 Brooklyn MCP Server</h1>
-    <p>Web interface for Brooklyn browser automation platform.</p>
-    
-    <h2>Available Endpoints</h2>
-    
-    <div class="endpoint">
-        <span class="method">GET</span> <span class="path">/health</span>
-        <p>Health check endpoint</p>
-    </div>
-    
-    <div class="endpoint">
-        <span class="method">GET</span> <span class="path">/status</span>
-        <p>Server status and configuration</p>
-    </div>
-    
-    <div class="endpoint">
-        <span class="method">GET</span> <span class="path">/tools</span>
-        <p>List available automation tools</p>
-    </div>
-    
-    <div class="endpoint">
-        <span class="method">POST</span> <span class="path">/tools/call</span>
-        <p>Execute automation tools via REST API</p>
-    </div>
-    
-    <h2>Usage</h2>
-    <p>This HTTP interface provides REST API access to Brooklyn's browser automation capabilities.</p>
-    <p>For Claude Code integration, Brooklyn also supports MCP stdio mode.</p>
-    
-    <p><em>Brooklyn MCP Server v1.0 - Enterprise browser automation</em></p>
-</body>
-</html>`;
+  private createErrorResponse(id: unknown, error: unknown): Record<string, unknown> {
+    return {
+      jsonrpc: "2.0",
+      id,
+      error: {
+        code: -32600,
+        message: error instanceof Error ? error.message : String(error),
+      },
+    };
+  }
 
+  private handleSSE(res: ServerResponse, response: Record<string, unknown>): void {
     res.statusCode = 200;
-    res.setHeader("Content-Type", "text/html");
-    res.end(html);
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+
+    // Send initial response
+    res.write(`data: ${JSON.stringify(response)}\n\n`);
+
+    // For streaming, we can add logic here if needed for notifications
+    // For now, close after initial response
+    res.end();
   }
 
-  /**
-   * Handle 404 not found
-   */
-  private async handleNotFound(req: any, res: any): Promise<void> {
-    res.statusCode = 404;
-    res.setHeader("Content-Type", "application/json");
-    res.end(
-      JSON.stringify({
-        error: "Not found",
-        message: `Path ${req.url} not found`,
-      }),
-    );
-  }
-
-  /**
-   * Parse request body as JSON
-   */
-  private parseRequestBody(req: any): Promise<any> {
+  private parseRequestBody(req: IncomingMessage): Promise<Record<string, unknown>> {
     return new Promise((resolve, reject) => {
       let body = "";
-
-      req.on("data", (chunk: Buffer) => {
-        body += chunk.toString();
+      req.on("data", (chunk) => {
+        body += chunk;
       });
-
       req.on("end", () => {
         try {
-          const parsed = body ? JSON.parse(body) : {};
-          resolve(parsed);
-        } catch (_error) {
-          reject(new Error("Invalid JSON in request body"));
+          resolve(JSON.parse(body));
+        } catch (e) {
+          reject(e);
         }
       });
-
-      req.on("error", (error: Error) => {
-        reject(error);
-      });
+      req.on("error", reject);
     });
   }
 }

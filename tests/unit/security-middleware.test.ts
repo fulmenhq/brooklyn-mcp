@@ -17,7 +17,7 @@ describe("Security Middleware", () => {
 
   beforeEach(async () => {
     // Set up logging before creating middleware
-    const { initializeLogging } = await import("../../src/shared/structured-logger.js");
+    const { initializeLogging } = await import("../../src/shared/pino-logger.js");
     initializeLogging({
       serviceName: "brooklyn-test",
       version: "1.0.0",

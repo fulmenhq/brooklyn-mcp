@@ -188,10 +188,15 @@ Brooklyn tools not appearing in Claude Code:
   2. Check configuration: claude mcp get brooklyn
   3. Verify binary exists: which brooklyn
 
-Connection errors:
-  1. Ensure Brooklyn installed: brooklyn --version
-  2. Test MCP directly: brooklyn mcp start --help
-  3. Check Claude Code logs
+Connection errors or timeouts:
+  1. Clean up orphaned processes: brooklyn mcp cleanup
+  2. Ensure Brooklyn installed: brooklyn --version
+  3. Test MCP directly: brooklyn mcp start --help
+  4. Check Claude Code logs
+
+Multiple processes running:
+  brooklyn mcp cleanup              # Graceful cleanup
+  brooklyn mcp cleanup --force      # Force cleanup if stuck
 
 Need help? Visit: https://github.com/fulmenhq/fulmen-mcp-brooklyn
 ```
@@ -203,6 +208,51 @@ Need help? Visit: https://github.com/fulmenhq/fulmen-mcp-brooklyn
 1. Use full path to binary in MCP config
 2. Don't use shell expansions (~, $HOME)
 3. Verify binary exists: `ls -la ~/.local/bin/brooklyn`
+
+### Process Management
+
+**Brooklyn MCP Cleanup Command (v1.2.4+)**
+
+Brooklyn includes a built-in cleanup command to handle orphaned or competing MCP processes:
+
+```bash
+# Standard cleanup (graceful termination with SIGTERM)
+brooklyn mcp cleanup
+
+# Force cleanup (immediate SIGKILL if processes are stuck)
+brooklyn mcp cleanup --force
+```
+
+**When to Use**:
+
+- `claude mcp list` shows "Failed to connect" errors
+- Multiple Brooklyn processes are competing for resources
+- After version updates to ensure clean state
+- Before reconfiguring MCP settings
+
+**How it Works**:
+
+1. **Process Detection**: Scans for all `brooklyn mcp start` processes
+2. **Graceful Termination**: Sends SIGTERM with 5-second timeout
+3. **Force Kill**: Uses SIGKILL if graceful termination fails
+4. **Verification**: Confirms all processes are actually terminated
+
+**Example Output**:
+
+```
+Starting Brooklyn MCP process cleanup
+Found Brooklyn MCP processes to terminate (count: 2)
+Attempting graceful termination (SIGTERM)...
+Waiting up to 5s for processes to terminate gracefully...
+✅ All processes terminated gracefully
+```
+
+**Advantages over Manual Process Killing**:
+
+- No need to find PIDs manually with `ps aux | grep brooklyn`
+- Works without access to the Brooklyn repository
+- Handles edge cases (permission errors, stuck processes)
+- Cross-platform compatible (Windows, macOS, Linux)
 
 ## Security Considerations
 
@@ -232,9 +282,10 @@ brooklyn --version           # Verify version updated
 # 2. MCP Configuration Cleanup
 claude mcp remove brooklyn
 
-# 3. CRITICAL: Kill any running Brooklyn processes
-ps aux | grep brooklyn
-kill -9 [pid]  # Kill all brooklyn processes
+# 3. CRITICAL: Clean up any running Brooklyn processes
+brooklyn mcp cleanup
+# If processes are stuck, use force mode:
+# brooklyn mcp cleanup --force
 # Note: MCP removal does NOT automatically kill running processes
 
 # 4. Re-add MCP Configuration

@@ -387,6 +387,7 @@ node /tmp/talk-to-brooklyn.js
 ```
 
 **Example Natural Conversation**:
+
 ```
 🌉 Brooklyn, what is your version?
 🤖 Brooklyn responds: {"version": "1.2.2", "service": "fulmen-brooklyn"}
@@ -558,62 +559,78 @@ if (providedInputPipe && providedOutputPipe) {
 
 ---
 
-## 🚨 CRITICAL: Logger Initialization in Bundled Applications
+## 🚨 CRITICAL: Silent Logger Initialization for MCP Mode
 
 ### Overview
 
-**Problem**: Brooklyn CLI experienced complete failure due to "Logger registry not initialized" errors when bundled into a single binary. This affected all CLI commands and made the Brooklyn MCP server completely non-functional.
+**Problem**: Claude's MCP health checks interpret ANY output to stderr as an error, causing connection timeouts. Even INFO level logs are treated as failures.
 
-**Root Cause**: Module-level logger initialization creates circular dependencies during bundling. When Bun bundles the application, module-level code executes in an unpredictable order, causing logger calls before the logging system is initialized.
+**Solution**: Brooklyn's logger now starts completely silent until transport mode is determined. This ensures zero output during the critical initialization phase when Claude is performing health checks.
 
 ### Critical Best Practices
 
-#### ❌ NEVER Do This (Module-Level Logger)
+#### ❌ NEVER Do This (Early Initialization)
 
 ```typescript
-// WRONG - Module-level logger initialization
-import { getLogger } from "../shared/structured-logger.js";
+// WRONG - Initializing logging before transport is determined
+import { initializeLogging } from "../shared/pino-logger.js";
 
-const logger = getLogger("my-module"); // This executes during module load!
+// Don't do this at module level!
+initializeLogging(config); // May output to stderr before MCP mode is known
 
-export class MyClass {
-  constructor() {
-    logger.info("Class initialized"); // BOOM! Logger not initialized
-  }
-}
+// WRONG - Early logging
+const logger = getLogger("module");
+logger.info("Starting up"); // This could fail Claude health checks!
 ```
 
-#### ✅ ALWAYS Do This (Lazy Logger Initialization)
+#### ✅ ALWAYS Do This (Silent Until Transport Known)
 
 ```typescript
-// CORRECT - Lazy logger initialization pattern
-import { getLogger } from "../shared/structured-logger.js";
+// CORRECT - Silent initialization pattern
+import { createMCPStdio } from "../transports/index.js";
+import { initializeLogging, getLogger } from "../shared/pino-logger.js";
 
-// Lazy initialization pattern
-let logger: ReturnType<typeof getLogger> | null = null;
+// Create transport FIRST - this determines MCP mode
+const transport = await createMCPStdio(); // Sets global transport mode
 
-function ensureLogger() {
-  if (!logger) {
-    logger = getLogger("my-module");
-  }
-  return logger;
-}
-
-export class MyClass {
-  constructor() {
-    // Defer logging to avoid circular dependency
-    // Or use ensureLogger() only in methods called after initialization
-  }
-
-  someMethod() {
-    ensureLogger().info("Method called"); // Safe - called after init
-  }
-}
+// NOW it's safe to initialize logging
+await initializeLogging(config);
+const logger = getLogger("module");
+logger.info("Now safe to log!"); // Won't pollute stdout/stderr in MCP mode
 ```
 
-### Affected Areas Fixed in v1.1.8
+### Silent Logger Architecture
 
-The following modules had module-level logger initialization that caused failures:
+The Pino logger in Brooklyn now implements a **silent-until-initialized** pattern:
+
+1. **Silent Start**: Logger produces NO output until transport mode is determined
+2. **Transport Detection**: `createMCPStdio()` sets global transport mode
+3. **File Logging**: In MCP mode, all logs go to `~/.brooklyn/logs/`
+4. **Safe Initialization**: Only after transport is set can logging begin
+
+**Key Implementation Details**:
+
+- `globalConfig.silentUntilInitialized = true` by default
+- `createSafeStream()` blocks all output until initialized
+- `setGlobalTransport()` configures file logging for MCP mode
+- Non-blocking file operations prevent startup delays
+
+### MCP Mode Log Files
+
+When running in MCP mode, logs are written to:
+
+```
+~/.brooklyn/logs/brooklyn-mcp-{pid}-{timestamp}.log
+```
+
+Features:
+
+- Automatic log rotation (keeps last 10 files)
+- Non-blocking writes
+- Fallback to temp directory if home unavailable
+- Access via `brooklyn_logs` MCP tool
+
+### Affected Areas Updated for Silent Logging
 
 1. **CLI Entry Point** (`src/cli/brooklyn.ts`)
    - Fixed by initializing logging before any imports

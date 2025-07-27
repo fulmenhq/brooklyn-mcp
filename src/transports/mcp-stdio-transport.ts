@@ -13,14 +13,18 @@ import type {
 } from "../core/transport.js";
 import { TransportType } from "../core/transport.js";
 import { buildConfig } from "../shared/build-config.js";
-import { getLogger } from "../shared/structured-logger.js";
+import { getLogger } from "../shared/pino-logger.js";
 
 /**
  * MCP stdin/stdout transport for Claude Code integration
  *
- * CRITICAL: This transport communicates via stdin/stdout using JSON-RPC.
- * NEVER write to stdout directly - it will corrupt the MCP protocol.
- * All logging must go to stderr or files only.
+ * CRITICAL MCP PROTOCOL REQUIREMENTS:
+ * 1. This transport communicates via stdin/stdout using JSON-RPC 2.0
+ * 2. NEVER write to stdout except for JSON-RPC responses - it corrupts the protocol
+ * 3. The server will NOT respond to ANY request until it receives a valid "initialize" request
+ * 4. The initialize request MUST include: jsonrpc: "2.0", method: "initialize", params with protocolVersion
+ * 5. All logging must go to stderr or files only
+ * 6. The server starts COMPLETELY SILENT until the transport is created and initialized
  */
 export class MCPStdioTransport implements Transport {
   readonly name = "mcp-stdio";
@@ -62,47 +66,110 @@ export class MCPStdioTransport implements Transport {
       return;
     }
 
-    process.stdin.resume();
+    // Set up stdin for reliable handling
     process.stdin.setEncoding("utf8");
 
+    // Remove any existing listeners to avoid conflicts
+    process.stdin.removeAllListeners("data");
+    process.stdin.removeAllListeners("end");
+    process.stdin.removeAllListeners("error");
+
     let buffer = "";
-    process.stdin.on("data", (chunk) => {
-      buffer += chunk;
-      let lineEnd: number = buffer.indexOf("\n");
-      while (lineEnd !== -1) {
-        const line = buffer.slice(0, lineEnd);
-        buffer = buffer.slice(lineEnd + 1);
-        this.handleIncomingMessage(line);
-        lineEnd = buffer.indexOf("\n");
+
+    // Handle data events
+    process.stdin.on("data", (chunk: string | Buffer | undefined) => {
+      this.getLogger().debug("Received stdin data", { length: chunk?.length });
+      if (!chunk) return;
+      buffer += typeof chunk === "string" ? chunk : chunk.toString();
+
+      // Process all complete lines immediately
+      const lines = buffer.split(/\r?\n/);
+
+      // Process each complete line
+      for (let i = 0; i < lines.length - 1; i++) {
+        const line = lines[i];
+        if (line?.trim()) {
+          this.getLogger().debug("Processing line", { line: line.trim() });
+          // Use setImmediate to avoid blocking
+          setImmediate(() => this.handleIncomingMessage(line.trim()));
+        }
       }
+
+      // Keep the last incomplete line
+      buffer = lines[lines.length - 1] || "";
     });
 
     process.stdin.on("end", () => {
+      // Process any remaining buffer
+      if (buffer.trim()) {
+        this.handleIncomingMessage(buffer.trim());
+      }
       // Stdin ended, stopping transport
       this.stop();
     });
 
+    process.stdin.on("error", (err) => {
+      // Log error but don't crash
+      try {
+        this.getLogger().error("Stdin error", { error: err.message });
+      } catch {
+        // Ignore logging errors
+      }
+    });
+
     this.running = true;
+
+    // Resume stdin AFTER all handlers are set up
+    process.stdin.resume();
+
     // Transport started successfully
   }
 
   private async handleIncomingMessage(line: string): Promise<void> {
+    this.getLogger().debug("Handling message", { line });
     try {
       const msg = JSON.parse(line);
-      if (!(msg.jsonrpc && msg.id && msg.method)) return;
+      this.getLogger().debug("Parsed message", { msg });
+
+      // CRITICAL: MCP requires proper JSON-RPC structure
+      // The server will ONLY respond to messages with both jsonrpc and method fields
+      if (!(msg.jsonrpc && msg.method)) return;
+
+      // Handle notifications (no id) vs requests (with id)
+      const isNotification = !("id" in msg) || msg.id === null;
+      if (isNotification) {
+        // Handle notifications like "notifications/initialized"
+        if (msg.method === "notifications/initialized") {
+          // Client has completed initialization, no response needed
+          return;
+        }
+        // Ignore other notifications for now
+        return;
+      }
 
       let response: any;
       try {
         if (msg.method === "initialize") {
+          // CRITICAL: This is the FIRST request that MUST be sent by any MCP client
+          // The server will NOT respond to ANY other request until this is received
+          // Required fields: protocolVersion, capabilities, clientInfo
+          this.getLogger().debug("Handling initialize request", { params: msg.params });
+          // Accept Claude's protocol version if provided, otherwise use default
+          const requestedVersion = msg.params?.protocolVersion || "2024-11-05";
           response = {
             jsonrpc: "2.0",
             id: msg.id,
             result: {
-              protocolVersion: "2024-11-05",
+              protocolVersion: requestedVersion, // Echo back the requested version
               serverInfo: { name: "brooklyn-mcp-server", version: buildConfig.version },
-              capabilities: { tools: {} },
+              capabilities: {
+                tools: { listChanged: true },
+                resources: {},
+                roots: {},
+              },
             },
           };
+          this.getLogger().debug("Initialize response prepared", { response });
         } else if (msg.method === "tools/list") {
           if (!this.toolListHandler) throw new Error("Tool list handler not set");
           const result = await this.toolListHandler();
@@ -128,7 +195,26 @@ export class MCPStdioTransport implements Transport {
         };
       }
 
-      process.stdout.write(`${JSON.stringify(response)}\n`);
+      const responseStr = `${JSON.stringify(response)}\n`;
+      this.getLogger().debug("Writing response", { responseStr });
+
+      // Write response with callback to ensure delivery
+      process.stdout.write(responseStr, "utf8", (err) => {
+        if (err) {
+          try {
+            this.getLogger().error("Failed to write response", { error: err.message });
+          } catch {
+            // Ignore logging errors
+          }
+        } else {
+          this.getLogger().debug("Response written successfully");
+        }
+      });
+
+      // Force flush if available
+      if (typeof (process.stdout as any).flush === "function") {
+        (process.stdout as any).flush();
+      }
     } catch (_error) {
       // Error parsing MCP message - cannot log to avoid circular dependency
       // Errors will be returned via MCP protocol response

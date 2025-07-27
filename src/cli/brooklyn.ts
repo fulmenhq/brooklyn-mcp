@@ -8,25 +8,22 @@
  * - brooklyn web start    (HTTP server for monitoring/APIs)
  * - brooklyn status       (Show all modes)
  * - brooklyn setup        (Browser installation and configuration)
+ * - brooklyn debug        (Debugging utilities)
  */
 
 // Version embedded at build time from VERSION file
-const VERSION = "1.2.3";
+const VERSION = "1.2.23";
 
 import { HELP_TEXT } from "../generated/help/index.js";
 // buildConfig import removed - not used in CLI entry point
-import { getLogger, initializeLogging } from "../shared/structured-logger.js";
+import { getLogger, initializeLogging } from "../shared/pino-logger.js";
 
-// ARCHITECTURE COMMITTEE IMMEDIATE FIX:
-// Initialize logging BEFORE any other imports to avoid circular dependency issues.
-// This prevents "Logger registry not initialized" errors during module loading.
-//
 // Create minimal config that matches BrooklynConfig structure
 // For CLI commands, use pretty format for better readability
 const isDevCommand = process.argv.some((arg) =>
   ["dev-start", "dev-stop", "dev-status", "dev-cleanup", "dev-restart"].includes(arg),
 );
-const minimalConfig = {
+const _minimalConfig = {
   serviceName: "brooklyn-mcp-server",
   version: VERSION, // Use embedded version directly
   environment: "production",
@@ -66,21 +63,21 @@ const minimalConfig = {
   },
 };
 
-// Initialize logging - wrapped in try-catch for safety
-try {
-  initializeLogging(minimalConfig as any);
-} catch (error) {
-  console.error("Failed to initialize logging:", error);
-  process.exit(1);
-}
+// CRITICAL MCP INITIALIZATION SEQUENCE:
+// 1. NO logging can happen until transport mode is determined
+// 2. The server stays COMPLETELY SILENT (no stderr, no stdout) at startup
+// 3. In MCP mode, the server will NOT respond until it receives a valid initialize request
+// 4. The initialize request MUST be properly formatted JSON-RPC with method "initialize"
+// 5. Any output before initialization breaks the MCP protocol
 
 import { Command } from "commander";
 import { BrooklynEngine } from "../core/brooklyn-engine.js";
 import { type BrooklynConfig, enableConfigLogger, loadConfig } from "../core/config.js";
+import { InstanceManager } from "../core/instance-manager.js";
 import { createHTTP, createMCPStdio } from "../transports/index.js";
+import { handleDebugCommand } from "./debug.js";
 
-// Enable config logger after logging system is initialized
-enableConfigLogger();
+// Config logger no longer needed with Pino
 
 // Logger will be initialized after configuration is loaded
 
@@ -92,16 +89,11 @@ function setupMCPCommands(program: Command): void {
     .command("mcp")
     .description("MCP server commands for Claude Code integration");
 
-  const logger = getLogger("brooklyn-cli");
-
-  // Debug: Check if HELP_TEXT is loaded
-  logger.debug("HELP_TEXT keys", { keys: Object.keys(HELP_TEXT) });
-  logger.debug("mcp-setup content", { content: `${HELP_TEXT["mcp-setup"]?.substring(0, 50)}...` });
+  // Don't log until we know if we're in MCP mode
 
   // Override helpInformation method to append custom help (Architecture Team recommendation)
   const originalHelp = mcpCmd.helpInformation;
   mcpCmd.helpInformation = function () {
-    logger.debug("helpInformation called");
     return `${originalHelp.call(this)}
 
 Quick Setup:
@@ -123,6 +115,21 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
     .option("--pipes-prefix <prefix>", "Named pipes prefix (dev mode only)", "/tmp/brooklyn-dev")
     .action(async (options) => {
       try {
+        // Check for existing instance in MCP mode
+        if (!options.devMode) {
+          const instanceManager = new InstanceManager();
+          const { running } = await instanceManager.checkExistingInstance();
+
+          if (running) {
+            // In MCP mode, we should not have console output
+            // But we need to signal failure somehow
+            process.exit(1);
+          }
+
+          // Register this instance
+          await instanceManager.registerInstance();
+        }
+
         // Load configuration with CLI overrides
         const cliOverrides: Partial<BrooklynConfig> = {};
         if (options.teamId) cliOverrides.teamId = options.teamId;
@@ -130,74 +137,98 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
 
         const config = await loadConfig(cliOverrides);
 
-        // Note: Logging already initialized at module top to prevent circular dependency issues
-        const logger = getLogger("brooklyn-cli");
+        // CRITICAL: Create transport FIRST - this determines if we're in MCP mode
+        // The transport creation:
+        // 1. Calls setGlobalTransport() which sets isMCPMode flag
+        // 2. Marks logger as initialized (isInitialized = true)
+        // 3. Only AFTER this can any logging occur
+        const transport = options.devMode
+          ? await createMCPStdio({
+              inputPipe: `${options.pipesPrefix}-input`,
+              outputPipe: `${options.pipesPrefix}-output`,
+            })
+          : await createMCPStdio();
 
-        const mode = options.devMode ? "dev-pipes" : "mcp-stdio";
-        logger.info("Starting Brooklyn MCP server", { mode });
+        // Now it's safe to initialize logging configuration
+        // Logger is no longer silent, but in MCP mode all logs go to file, not stdout
+        await initializeLogging(config);
 
-        // Handle development mode with named pipes
+        // Don't log immediately - let the engine start first
+        // This ensures clean MCP protocol startup
+
+        // Create Brooklyn engine
+        const engine = new BrooklynEngine({
+          config: { ...config, devMode: options.devMode },
+          correlationId: `mcp-${Date.now()}`,
+        });
+
+        // Initialize the engine before adding transports
+        await engine.initialize();
+
+        // Add and start the transport we already created
+        const transportName = options.devMode ? "dev-mcp" : "mcp";
+        await engine.addTransport(transportName, transport);
+        await engine.startTransport(transportName);
+
+        // Keep process alive for stdin/stdout mode
+        if (!options.devMode) {
+          // stdin.resume() is handled by the transport itself
+
+          // Handle graceful shutdown for MCP mode
+          const shutdown = async (_signal: string) => {
+            try {
+              await engine.cleanup();
+            } catch {
+              // Ignore cleanup errors
+            }
+            process.exit(0);
+          };
+
+          process.on("SIGINT", () => shutdown("SIGINT"));
+          process.on("SIGTERM", () => shutdown("SIGTERM"));
+          process.on("SIGHUP", () => shutdown("SIGHUP"));
+
+          // Handle stdin close (Claude disconnected)
+          process.stdin.on("end", () => shutdown("stdin-end"));
+          process.stdin.on("close", () => shutdown("stdin-close"));
+        }
+
+        // Only log startup message in dev mode (uses named pipes, not stdio)
         if (options.devMode) {
-          const { setupDevMode } = await import("../core/dev-mode.js");
-          const { inputPipe, outputPipe, processInfo } = await setupDevMode(options.pipesPrefix);
-
-          logger.info("Development mode enabled", {
-            inputPipe,
-            outputPipe,
-            processId: processInfo.processId,
-            pipesPrefix: options.pipesPrefix,
-          });
-
-          // Create Brooklyn engine with dev mode config
-          const engine = new BrooklynEngine({
-            config: { ...config, devMode: true },
-            correlationId: `dev-${Date.now()}`,
-          });
-
-          // Create MCP transport with named pipes
-          const mcpTransport = await createMCPStdio({ inputPipe, outputPipe });
-          await engine.addTransport("dev-mcp", mcpTransport);
-          await engine.startTransport("dev-mcp");
-
-          logger.info("Development MCP server started", {
-            mode: "named-pipes",
-            teamId: config.teamId,
-            pipesInfo: processInfo,
-          });
-        } else {
-          // Standard MCP mode
-          const engine = new BrooklynEngine({
-            config,
-            correlationId: `mcp-start-${Date.now()}`,
-          });
-
-          // Create and add MCP transport
-          const mcpTransport = await createMCPStdio();
-          await engine.addTransport("mcp", mcpTransport);
-
-          // Start MCP transport (this will connect to stdin/stdout)
-          await engine.startTransport("mcp");
-
-          // Keep process alive for multiple requests
-          process.stdin.resume();
-
-          // Process will stay alive until stdin is closed by Claude Code
+          const logger = getLogger("brooklyn-cli");
           logger.info("MCP server started successfully", {
-            transport: "stdio",
+            mode: "dev-pipes",
+            transport: "named-pipes",
             teamId: config.teamId,
           });
         }
+        // In production MCP mode, stay completely silent
       } catch (error) {
-        try {
-          const logger = getLogger("brooklyn-cli");
-          logger.error("Failed to start MCP server", {
-            error: error instanceof Error ? error.message : String(error),
-            stack: error instanceof Error ? error.stack : undefined,
-            mode: options.devMode ? "dev-pipes" : "mcp-stdio",
-          });
-        } catch {
-          // Fallback if logger fails
-          console.error("Failed to start MCP server:", error);
+        // In MCP mode, we need to output a proper JSON-RPC error response
+        if (!options.devMode) {
+          const errorResponse = {
+            jsonrpc: "2.0",
+            id: null,
+            error: {
+              code: -32603,
+              message: "Internal error during MCP server startup",
+              data: error instanceof Error ? error.message : String(error),
+            },
+          };
+          process.stdout.write(`${JSON.stringify(errorResponse)}\n`);
+        } else {
+          // In dev mode, we can use regular error logging
+          try {
+            const logger = getLogger("brooklyn-cli");
+            logger.error("Failed to start MCP server", {
+              error: error instanceof Error ? error.message : String(error),
+              stack: error instanceof Error ? error.stack : undefined,
+              mode: "dev-pipes",
+            });
+          } catch {
+            // Fallback if logger fails
+            console.error("Failed to start MCP server:", error);
+          }
         }
         process.exit(1);
       }
@@ -224,6 +255,26 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
     .description("Configure Claude Code MCP integration")
     .option("--project", "Configure for project-specific scope")
     .action(async (_options) => {});
+
+  mcpCmd
+    .command("cleanup")
+    .description("Clean up stale Brooklyn MCP processes")
+    .action(async () => {
+      try {
+        const config = await loadConfig();
+        await initializeLogging(config);
+        const logger = getLogger("brooklyn-cli");
+
+        const instanceManager = new InstanceManager();
+        const cleaned = await instanceManager.cleanupAllProcesses();
+
+        logger.info("MCP cleanup completed", { processesKilled: cleaned });
+        console.log(`✅ Cleaned up ${cleaned} stale Brooklyn processes`);
+      } catch (error) {
+        console.error("Failed to cleanup MCP processes:", error);
+        process.exit(1);
+      }
+    });
 
   // MCP Development Mode Commands (Architecture Committee approved - internal use only)
   setupMCPDevCommands(mcpCmd);
@@ -404,7 +455,9 @@ function setupWebCommands(program: Command): void {
 
         const config = await loadConfig(cliOverrides);
 
-        // Logging already initialized at startup
+        // Initialize logging for non-MCP commands
+        await initializeLogging(config);
+        enableConfigLogger(); // Safe to enable config logging now
         const logger = getLogger("brooklyn-cli");
 
         logger.info("Starting Brooklyn web server", {
@@ -528,8 +581,10 @@ function setupSetupCommand(program: Command): void {
     .option("--check", "Check installation status only")
     .action(async (options) => {
       try {
-        // Load minimal config (logging already initialized at startup)
-        const _config = await loadConfig();
+        // Load config and initialize logging for non-MCP commands
+        const config = await loadConfig();
+        await initializeLogging(config);
+        enableConfigLogger(); // Safe to enable config logging now
         const logger = getLogger("brooklyn-cli");
 
         if (options.check) {
@@ -663,6 +718,22 @@ function setupVersionCommand(program: Command): void {
 }
 
 /**
+ * Debug command group
+ */
+function setupDebugCommands(program: Command): void {
+  const debugCmd = program.command("debug").description("Debugging utilities for Brooklyn");
+
+  debugCmd
+    .command("stdio")
+    .description("Run command with STDIO logging")
+    .argument("<command>", "Command to run")
+    .option("-b, --log-base <name>", "Base name for log files", "debug")
+    .action(async (command, options) => {
+      await handleDebugCommand(["stdio", command, "--log-base", options.logBase]);
+    });
+}
+
+/**
  * Main CLI setup
  */
 async function main(): Promise<void> {
@@ -679,6 +750,7 @@ async function main(): Promise<void> {
     // Set up command groups
     setupMCPCommands(program);
     setupWebCommands(program);
+    setupDebugCommands(program);
     setupStatusCommand(program);
     setupSetupCommand(program);
     setupVersionCommand(program);

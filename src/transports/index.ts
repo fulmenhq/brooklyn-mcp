@@ -11,8 +11,8 @@ import type {
   TransportFactory,
 } from "../core/transport.js";
 import { TransportRegistry, TransportType } from "../core/transport.js";
-// getLogger import removed - unused after architecture refactor
-import { HTTPTransport } from "./http-transport.js";
+import { setGlobalTransport } from "../shared/pino-logger.js";
+import { MCPHTTPTransport } from "./http-transport.js";
 import { MCPStdioTransport } from "./mcp-stdio-transport.js";
 
 // Transport factory - logger removed as unused after architecture refactor
@@ -42,7 +42,7 @@ const createHTTPTransport: TransportFactory = async (
   config: TransportConfig,
 ): Promise<Transport> => {
   // Defer logging to avoid circular dependency
-  return new HTTPTransport(config as HTTPConfig);
+  return new MCPHTTPTransport(config as HTTPConfig);
 };
 
 /**
@@ -69,6 +69,10 @@ export async function createMCPStdio(pipeOptions?: {
   inputPipe?: string;
   outputPipe?: string;
 }): Promise<Transport> {
+  // Set global transport mode for logging configuration BEFORE creating transport
+  const transportMode = pipeOptions ? "dev-mcp" : "mcp-stdio";
+  await setGlobalTransport(transportMode);
+
   const config: MCPStdioConfig = {
     type: TransportType.MCP_STDIO,
     options: pipeOptions
@@ -79,6 +83,9 @@ export async function createMCPStdio(pipeOptions?: {
         }
       : {},
   };
+
+  // Ensure transports are registered before creating
+  ensureTransportsRegistered();
 
   return createTransport(config);
 }

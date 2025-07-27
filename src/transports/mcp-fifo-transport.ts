@@ -15,7 +15,7 @@ import type {
 } from "../core/transport.js";
 import { TransportType } from "../core/transport.js";
 import { buildConfig } from "../shared/build-config.js";
-import { getLogger } from "../shared/structured-logger.js";
+import { getLogger } from "../shared/pino-logger.js";
 
 /**
  * MCP FIFO transport for development mode
@@ -130,7 +130,19 @@ export class MCPFifoTransport implements Transport {
   private async handleIncomingMessage(line: string): Promise<void> {
     try {
       const msg = JSON.parse(line);
-      if (!(msg.jsonrpc && msg.id && msg.method)) return;
+      if (!(msg.jsonrpc && msg.method)) return;
+
+      // Handle notifications (no id) vs requests (with id)
+      const isNotification = !("id" in msg) || msg.id === null;
+      if (isNotification) {
+        // Handle notifications like "notifications/initialized"
+        if (msg.method === "notifications/initialized") {
+          // Client has completed initialization, no response needed
+          return;
+        }
+        // Ignore other notifications for now
+        return;
+      }
 
       let response: unknown;
       try {
@@ -139,9 +151,13 @@ export class MCPFifoTransport implements Transport {
             jsonrpc: "2.0",
             id: msg.id,
             result: {
-              protocolVersion: "2024-11-05",
+              protocolVersion: msg.params?.protocolVersion || "2024-11-05",
               serverInfo: { name: "brooklyn-mcp-server", version: buildConfig.version },
-              capabilities: { tools: {} },
+              capabilities: {
+                tools: { listChanged: true },
+                resources: {},
+                roots: {},
+              },
             },
           };
         } else if (msg.method === "tools/list") {

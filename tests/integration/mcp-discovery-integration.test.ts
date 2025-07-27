@@ -16,7 +16,7 @@ describe("MCP Discovery Integration", () => {
 
   beforeAll(async () => {
     // Initialize logging
-    const { initializeLogging } = await import("../../src/shared/structured-logger.js");
+    const { initializeLogging } = await import("../../src/shared/pino-logger.js");
     const testConfig: BrooklynConfig = {
       serviceName: "brooklyn-test",
       version: "1.0.0",

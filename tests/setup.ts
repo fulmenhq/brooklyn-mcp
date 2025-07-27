@@ -2,11 +2,11 @@
  * Test setup file for Brooklyn MCP server
  *
  * This file runs before all tests to set up the testing environment.
- * CRITICAL: Initializes structured logger to prevent "Logger registry not initialized" errors.
+ * CRITICAL: Initializes Pino logger for consistent test logging.
  */
 
 import { vi } from "vitest";
-import { initializeLogging } from "../src/shared/structured-logger.js";
+import { initializeLogging } from "../src/shared/pino-logger.js";
 
 // Mock environment variables for testing
 vi.stubEnv("BROOKLYN_MCP_PORT", "50000");
@@ -15,7 +15,7 @@ vi.stubEnv("BROOKLYN_LOG_LEVEL", "error");
 vi.stubEnv("BROOKLYN_HEADLESS", "true");
 vi.stubEnv("BROOKLYN_MAX_BROWSERS", "2");
 
-// Initialize structured logger for all tests (winston eliminated)
+// Initialize Pino logger for all tests
 const testConfig = {
   serviceName: "brooklyn-test",
   version: "test",

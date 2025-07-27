@@ -75,7 +75,7 @@ describe("Transport Factory", () => {
     const transport = await createHTTP(3000);
 
     expect(transport).toBeDefined();
-    expect(transport.name).toBe("http");
+    expect(transport.name).toBe("mcp-http");
     expect(transport.type).toBe("http");
   });
 

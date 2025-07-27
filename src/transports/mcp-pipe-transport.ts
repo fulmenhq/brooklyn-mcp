@@ -15,7 +15,7 @@ import type {
 } from "../core/transport.js";
 import { TransportType } from "../core/transport.js";
 import { buildConfig } from "../shared/build-config.js";
-import { getLogger } from "../shared/structured-logger.js";
+import { getLogger } from "../shared/pino-logger.js";
 
 /**
  * MCP named pipe transport for development mode
@@ -31,6 +31,7 @@ export class MCPPipeTransport implements Transport {
   private readonly config: MCPStdioConfig;
   private inputStream?: Readable;
   private outputStream?: Writable;
+  private pollInterval?: NodeJS.Timeout;
 
   private getLogger() {
     if (!this.logger) {
@@ -84,9 +85,11 @@ export class MCPPipeTransport implements Transport {
       // and continue - many times it still works even with the seek error
       try {
         this.inputStream = createReadStream(inputPipe, { encoding: "utf8" });
-      } catch (_seekError) {
+      } catch (seekError) {
         // If createReadStream fails, fall back to polling approach
-        this.getLogger().info("CreateReadStream failed, using polling approach");
+        this.getLogger().info("CreateReadStream failed, using polling approach", {
+          error: seekError instanceof Error ? seekError.message : String(seekError),
+        });
         this.startPollingMode(inputPipe);
         this.running = true;
         this.getLogger().info("Named pipe transport started (polling mode)");
@@ -114,8 +117,14 @@ export class MCPPipeTransport implements Transport {
       });
 
       this.inputStream.on("error", (error) => {
-        // Log error but don't stop - named pipes are finicky
-        this.getLogger().error("Input pipe error (continuing)", { error: error.message });
+        // Named pipes can have transient errors - log but continue unless critical
+        const errorMessage = error.message;
+        if (errorMessage.includes("EPIPE") || errorMessage.includes("ECONNRESET")) {
+          this.getLogger().warn("Input pipe connection lost", { error: errorMessage });
+          this.stop();
+        } else {
+          this.getLogger().error("Input pipe error (continuing)", { error: errorMessage });
+        }
       });
 
       this.outputStream.on("error", (error) => {
@@ -134,55 +143,91 @@ export class MCPPipeTransport implements Transport {
   }
 
   private async handleIncomingMessage(line: string): Promise<void> {
+    let msg: Record<string, unknown>;
     try {
-      const msg = JSON.parse(line);
-      if (!(msg.jsonrpc && msg.id && msg.method)) return;
+      msg = JSON.parse(line);
+    } catch (error) {
+      this.getLogger().error("Failed to parse message", { line, error });
+      return;
+    }
 
-      let response: unknown;
-      try {
-        if (msg.method === "initialize") {
-          response = {
-            jsonrpc: "2.0",
-            id: msg.id,
-            result: {
-              protocolVersion: "2024-11-05",
-              serverInfo: { name: "brooklyn-mcp-server", version: buildConfig.version },
-              capabilities: { tools: {} },
-            },
-          };
-        } else if (msg.method === "tools/list") {
-          if (!this.toolListHandler) throw new Error("Tool list handler not set");
-          const result = await this.toolListHandler();
-          response = { jsonrpc: "2.0", id: msg.id, result };
-        } else if (msg.method === "tools/call") {
-          if (!this.toolCallHandler) throw new Error("Tool call handler not set");
-          const result = await this.toolCallHandler({
-            params: msg.params,
-            method: "tools/call",
-          });
-          response = { jsonrpc: "2.0", id: msg.id, result };
-        } else {
-          throw new Error("Method not found");
-        }
-      } catch (e) {
-        response = {
+    if (!(msg["jsonrpc"] && msg["method"])) return;
+
+    const isNotification = msg["id"] == null;
+    if (isNotification) {
+      if ((msg["method"] as string) === "notifications/initialized") {
+        return;
+      }
+      return;
+    }
+
+    let response: Record<string, unknown>;
+    try {
+      response = await this.processRequest(msg);
+    } catch (e) {
+      response = this.createErrorResponse(msg["id"], e);
+    }
+
+    this.sendResponse(response);
+  }
+
+  private async processRequest(msg: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const method = msg["method"] as string;
+    const params = msg["params"] as Record<string, unknown> | undefined;
+    const id = msg["id"];
+
+    switch (method) {
+      case "initialize":
+        return {
           jsonrpc: "2.0",
-          id: msg.id,
-          error: {
-            code: -32600,
-            message: e instanceof Error ? e.message : String(e),
+          id,
+          result: {
+            protocolVersion: params?.["protocolVersion"] || "2024-11-05",
+            serverInfo: { name: "brooklyn-mcp-server", version: buildConfig.version },
+            capabilities: {
+              tools: { listChanged: true },
+              resources: {},
+              roots: {},
+            },
           },
         };
+      case "tools/list":
+        if (!this.toolListHandler) throw new Error("Tool list handler not set");
+        return { jsonrpc: "2.0", id, result: await this.toolListHandler() };
+      case "tools/call": {
+        if (!this.toolCallHandler) throw new Error("Tool call handler not set");
+        const toolCallParams = params as { name: string; arguments?: Record<string, unknown> };
+        return {
+          jsonrpc: "2.0",
+          id,
+          result: await this.toolCallHandler({
+            method: "tools/call",
+            params: {
+              name: toolCallParams.name,
+              arguments: toolCallParams.arguments ?? {},
+            },
+          }),
+        };
       }
+      default:
+        throw new Error("Method not found");
+    }
+  }
 
-      // Write response to output pipe
-      if (this.outputStream && !this.outputStream.destroyed) {
-        this.outputStream.write(`${JSON.stringify(response)}\n`);
-      }
-    } catch (error) {
-      this.getLogger().error("Error handling MCP message", {
-        error: error instanceof Error ? error.message : String(error),
-      });
+  private createErrorResponse(id: unknown, error: unknown): Record<string, unknown> {
+    return {
+      jsonrpc: "2.0",
+      id,
+      error: {
+        code: -32600,
+        message: error instanceof Error ? error.message : String(error),
+      },
+    };
+  }
+
+  private sendResponse(response: Record<string, unknown>): void {
+    if (this.outputStream && !this.outputStream.destroyed) {
+      this.outputStream.write(`${JSON.stringify(response)}\n`);
     }
   }
 
@@ -190,15 +235,20 @@ export class MCPPipeTransport implements Transport {
    * Fallback polling mode for problematic named pipes
    */
   private startPollingMode(inputPipe: string): void {
+    const POLL_INTERVAL_MS = 100;
+
     // Use periodic polling as fallback
-    const pollInterval = setInterval(() => {
+    this.pollInterval = setInterval(() => {
       if (!this.running) {
-        clearInterval(pollInterval);
+        if (this.pollInterval) {
+          clearInterval(this.pollInterval);
+          this.pollInterval = undefined;
+        }
         return;
       }
 
       try {
-        // Try to read from pipe synchronously
+        // Try to read from pipe synchronously (less efficient but more reliable for FIFOs)
         const data = fs.readFileSync(inputPipe, "utf8");
         if (data.trim()) {
           const lines = data.split("\n");
@@ -208,15 +258,22 @@ export class MCPPipeTransport implements Transport {
             }
           }
         }
-      } catch (_error) {
-        // Ignore read errors in polling mode - pipe might be empty
+      } catch (error) {
+        // Log occasional errors but don't spam logs for empty pipe reads
+        if (
+          error instanceof Error &&
+          !error.message.includes("EAGAIN") &&
+          !error.message.includes("ENOENT")
+        ) {
+          this.getLogger().debug("Polling read error", { error: error.message });
+        }
       }
-    }, 100); // Poll every 100ms
+    }, POLL_INTERVAL_MS);
   }
 
   /**
    * Stop the MCP transport
-   * Closes the named pipes
+   * Closes the named pipes and cleans up resources
    */
   async stop(): Promise<void> {
     if (!this.running) {
@@ -225,12 +282,20 @@ export class MCPPipeTransport implements Transport {
 
     this.running = false;
 
+    // Clean up polling interval if running
+    if (this.pollInterval) {
+      clearInterval(this.pollInterval);
+      this.pollInterval = undefined;
+    }
+
     // Close streams
     if (this.inputStream) {
       this.inputStream.destroy();
+      this.inputStream = undefined;
     }
     if (this.outputStream) {
       this.outputStream.end();
+      this.outputStream = undefined;
     }
 
     this.getLogger().info("Named pipe transport stopped");

@@ -8,7 +8,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getLogger } from "../shared/structured-logger.js";
+import { getLogger } from "../shared/pino-logger.js";
 
 interface DevModeProcessInfo {
   processId: number;
@@ -25,14 +25,7 @@ interface DevModeConfig {
 }
 
 // Lazy logger initialization to avoid circular dependency
-let logger: ReturnType<typeof getLogger> | null = null;
-
-function ensureLogger() {
-  if (!logger) {
-    logger = getLogger("brooklyn-dev-mode");
-  }
-  return logger;
-}
+const logger = getLogger("brooklyn-dev-mode");
 
 /**
  * Setup development mode with named pipes
@@ -49,20 +42,20 @@ export async function setupDevMode(pipesPrefix = "/tmp/brooklyn-dev"): Promise<D
     // Use pipes provided by MCP dev manager
     inputPipe = providedInputPipe;
     outputPipe = providedOutputPipe;
-    ensureLogger().info("Using provided named pipes", { inputPipe, outputPipe });
+    logger.info("Using provided named pipes", { inputPipe, outputPipe });
   } else {
     // Create new pipes (legacy mode)
     const timestamp = Date.now();
     inputPipe = `${pipesPrefix}-in-${timestamp}`;
     outputPipe = `${pipesPrefix}-out-${timestamp}`;
-    ensureLogger().info("Creating new named pipes", { pipesPrefix, timestamp });
+    logger.info("Creating new named pipes", { pipesPrefix, timestamp });
 
     // Create named pipes (FIFOs)
     await createNamedPipe(inputPipe);
     await createNamedPipe(outputPipe);
   }
 
-  ensureLogger().info("Development mode pipes configured", { inputPipe, outputPipe });
+  logger.info("Development mode pipes configured", { inputPipe, outputPipe });
 
   try {
     // Create process info
@@ -80,7 +73,7 @@ export async function setupDevMode(pipesPrefix = "/tmp/brooklyn-dev"): Promise<D
     // Setup cleanup on process exit
     setupCleanupHandlers(processInfo);
 
-    ensureLogger().info("Development mode setup complete", {
+    logger.info("Development mode setup complete", {
       inputPipe,
       outputPipe,
       processId: processInfo.processId,
@@ -92,7 +85,7 @@ export async function setupDevMode(pipesPrefix = "/tmp/brooklyn-dev"): Promise<D
       processInfo,
     };
   } catch (error) {
-    ensureLogger().error("Failed to setup development mode", { error });
+    logger.error("Failed to setup development mode", { error });
     throw error;
   }
 }
@@ -117,7 +110,7 @@ async function createNamedPipe(pipePath: string): Promise<void> {
 
     mkfifo.on("close", (code: number) => {
       if (code === 0) {
-        ensureLogger().debug("Named pipe created", { pipePath });
+        logger.debug("Named pipe created", { pipePath });
         resolve();
       } else {
         reject(new Error(`Failed to create named pipe: ${pipePath} (exit code: ${code})`));
@@ -143,9 +136,9 @@ async function savePipeInfo(processInfo: DevModeProcessInfo): Promise<void> {
 
   try {
     fs.writeFileSync(pipesFile, JSON.stringify(processInfo, null, 2));
-    ensureLogger().debug("Pipe info saved", { file: pipesFile });
+    logger.debug("Pipe info saved", { file: pipesFile });
   } catch (error) {
-    ensureLogger().warn("Failed to save pipe info", { error, file: pipesFile });
+    logger.warn("Failed to save pipe info", { error, file: pipesFile });
   }
 }
 
@@ -162,7 +155,7 @@ export function loadPipeInfo(): DevModeProcessInfo | null {
       return JSON.parse(data);
     }
   } catch (error) {
-    ensureLogger().warn("Failed to load pipe info", { error, file: pipesFile });
+    logger.warn("Failed to load pipe info", { error, file: pipesFile });
   }
 
   return null;
@@ -222,25 +215,25 @@ export async function cleanupDevMode(): Promise<void> {
   const pipeInfo = loadPipeInfo();
 
   if (!pipeInfo) {
-    ensureLogger().info("No development mode to clean up");
+    logger.info("No development mode to clean up");
     return;
   }
 
-  ensureLogger().info("Cleaning up development mode", { processId: pipeInfo.processId });
+  logger.info("Cleaning up development mode", { processId: pipeInfo.processId });
 
   // Remove named pipes
   try {
     if (fs.existsSync(pipeInfo.inputPipe)) {
       fs.unlinkSync(pipeInfo.inputPipe);
-      ensureLogger().debug("Removed input pipe", { pipe: pipeInfo.inputPipe });
+      logger.debug("Removed input pipe", { pipe: pipeInfo.inputPipe });
     }
 
     if (fs.existsSync(pipeInfo.outputPipe)) {
       fs.unlinkSync(pipeInfo.outputPipe);
-      ensureLogger().debug("Removed output pipe", { pipe: pipeInfo.outputPipe });
+      logger.debug("Removed output pipe", { pipe: pipeInfo.outputPipe });
     }
   } catch (error) {
-    ensureLogger().warn("Error removing pipes", { error });
+    logger.warn("Error removing pipes", { error });
   }
 
   // Remove pipe info file
@@ -250,13 +243,13 @@ export async function cleanupDevMode(): Promise<void> {
 
     if (fs.existsSync(pipesFile)) {
       fs.unlinkSync(pipesFile);
-      ensureLogger().debug("Removed pipe info file", { file: pipesFile });
+      logger.debug("Removed pipe info file", { file: pipesFile });
     }
   } catch (error) {
-    ensureLogger().warn("Error removing pipe info file", { error });
+    logger.warn("Error removing pipe info file", { error });
   }
 
-  ensureLogger().info("Development mode cleanup complete");
+  logger.info("Development mode cleanup complete");
 }
 
 /**
@@ -264,9 +257,9 @@ export async function cleanupDevMode(): Promise<void> {
  */
 function setupCleanupHandlers(_processInfo: DevModeProcessInfo): void {
   const cleanup = () => {
-    ensureLogger().info("Process exit detected, cleaning up development mode");
+    logger.info("Process exit detected, cleaning up development mode");
     cleanupDevMode().catch((error) => {
-      ensureLogger().error("Error during cleanup", { error });
+      logger.error("Error during cleanup", { error });
     });
   };
 
@@ -281,7 +274,7 @@ function setupCleanupHandlers(_processInfo: DevModeProcessInfo): void {
     process.exit(0);
   });
   process.on("uncaughtException", (error) => {
-    ensureLogger().error("Uncaught exception", { error });
+    logger.error("Uncaught exception", { error });
     cleanup();
     process.exit(1);
   });
@@ -294,7 +287,7 @@ export async function testPipeConnection(): Promise<boolean> {
   const pipeInfo = loadPipeInfo();
 
   if (!pipeInfo) {
-    ensureLogger().error("No development mode pipes found");
+    logger.error("No development mode pipes found");
     return false;
   }
 
@@ -303,7 +296,7 @@ export async function testPipeConnection(): Promise<boolean> {
     const inputExists = fs.existsSync(pipeInfo.inputPipe);
     const outputExists = fs.existsSync(pipeInfo.outputPipe);
 
-    ensureLogger().info("Pipe connection test", {
+    logger.info("Pipe connection test", {
       inputPipe: pipeInfo.inputPipe,
       outputPipe: pipeInfo.outputPipe,
       inputExists,
@@ -312,7 +305,7 @@ export async function testPipeConnection(): Promise<boolean> {
 
     return inputExists && outputExists;
   } catch (error) {
-    ensureLogger().error("Pipe connection test failed", { error });
+    logger.error("Pipe connection test failed", { error });
     return false;
   }
 }

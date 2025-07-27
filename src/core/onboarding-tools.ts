@@ -3,20 +3,15 @@
  * These tools help users get acquainted with Brooklyn's capabilities
  */
 
+import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { config } from "../shared/config.js";
-import { getLogger } from "../shared/structured-logger.js";
+import { getLogger, getMCPLogPath } from "../shared/pino-logger.js";
 import type { BrowserPoolManager } from "./browser-pool-manager.js";
 
 // Lazy logger initialization to avoid circular dependency
-let logger: ReturnType<typeof getLogger> | null = null;
-
-function ensureLogger() {
-  if (!logger) {
-    logger = getLogger("onboarding-tools");
-  }
-  return logger;
-}
+const logger = getLogger("onboarding-tools");
 
 export class OnboardingTools {
   private static browserPool: BrowserPoolManager | null = null;
@@ -167,11 +162,44 @@ export class OnboardingTools {
           required: [],
         },
       },
+      {
+        name: "brooklyn_logs",
+        description: "Access Brooklyn MCP server logs for debugging and monitoring",
+        inputSchema: {
+          type: "object",
+          properties: {
+            lines: {
+              type: "number",
+              description: "Number of recent log lines to return",
+              default: 50,
+              minimum: 1,
+              maximum: 1000,
+            },
+            level: {
+              type: "string",
+              enum: ["debug", "info", "warn", "error", "all"],
+              description: "Filter logs by level",
+              default: "all",
+            },
+            since: {
+              type: "string",
+              description: "Return logs since this timestamp (ISO 8601 format)",
+            },
+          },
+          required: [],
+        },
+      },
     ];
   }
 
   static async handleTool(name: string, args: any): Promise<any> {
-    ensureLogger().debug("Handling onboarding tool", { tool: name, args });
+    // Defensive check: Skip logging if logger not initialized
+    try {
+      logger?.debug("Handling onboarding tool", { tool: name, args });
+    } catch (_error) {
+      // Logger not initialized, skip logging but continue execution
+      // This can happen in bundled binaries where initialization order differs
+    }
 
     switch (name) {
       case "brooklyn_status":
@@ -186,6 +214,8 @@ export class OnboardingTools {
         return await OnboardingTools.getTeamSetup(args);
       case "brooklyn_troubleshooting":
         return await OnboardingTools.getTroubleshooting(args);
+      case "brooklyn_logs":
+        return await OnboardingTools.getLogs(args);
       default:
         throw new Error(`Unknown onboarding tool: ${name}`);
     }
@@ -259,6 +289,7 @@ export class OnboardingTools {
           { name: "brooklyn_examples", description: "Get practical examples" },
           { name: "brooklyn_team_setup", description: "Configure team settings" },
           { name: "brooklyn_troubleshooting", description: "Get help with issues" },
+          { name: "brooklyn_logs", description: "Access server logs for debugging" },
         ],
       },
       // TODO: Add plugin tools when implemented
@@ -557,5 +588,102 @@ export class OnboardingTools {
     }
 
     return guide;
+  }
+
+  private static async getLogs(args: {
+    lines?: number;
+    level?: string;
+    since?: string;
+  }): Promise<any> {
+    const { lines = 50, level = "all", since } = args;
+
+    try {
+      const logPath = getMCPLogPath();
+
+      if (!logPath) {
+        return {
+          error: "Log file not available",
+          message: "Brooklyn is not running in MCP mode or file logging is not configured",
+          suggestion:
+            "Logs are only available when Brooklyn is running in MCP mode with file logging enabled",
+        };
+      }
+
+      if (!existsSync(logPath)) {
+        return {
+          error: "Log file not found",
+          message: `Log file does not exist at ${logPath}`,
+          suggestion: "Brooklyn may have just started or logs may not be written yet",
+        };
+      }
+
+      // Read the log file
+      const logContent = await readFile(logPath, "utf-8");
+      const logLines = logContent.split("\n").filter((line) => line.trim());
+
+      // Parse and filter logs
+      const parsedLogs = [];
+      const sinceTime = since ? new Date(since).getTime() : 0;
+
+      for (const line of logLines) {
+        try {
+          const logEntry = JSON.parse(line);
+
+          // Filter by timestamp if since is provided
+          if (since && logEntry.time && logEntry.time < sinceTime) {
+            continue;
+          }
+
+          // Filter by level if not "all"
+          if (level !== "all") {
+            const logLevel = OnboardingTools.pinoLevelToString(logEntry.level);
+            if (logLevel !== level) {
+              continue;
+            }
+          }
+
+          parsedLogs.push({
+            timestamp: new Date(logEntry.time).toISOString(),
+            level: OnboardingTools.pinoLevelToString(logEntry.level),
+            module: logEntry.module || "brooklyn",
+            message: logEntry.msg,
+            ...logEntry,
+          });
+        } catch {}
+      }
+
+      // Return the most recent lines
+      const recentLogs = parsedLogs.slice(-lines);
+
+      return {
+        log_file: logPath,
+        total_entries: recentLogs.length,
+        requested_lines: lines,
+        level_filter: level,
+        since_filter: since || "beginning",
+        logs: recentLogs,
+      };
+    } catch (error) {
+      logger?.error("Failed to read logs", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return {
+        error: "Failed to read logs",
+        message: error instanceof Error ? error.message : "Unknown error",
+        suggestion: "Check if the log file exists and is readable",
+      };
+    }
+  }
+
+  private static pinoLevelToString(level: number): string {
+    const levelMap: Record<number, string> = {
+      10: "trace",
+      20: "debug",
+      30: "info",
+      40: "warn",
+      50: "error",
+      60: "fatal",
+    };
+    return levelMap[level] || "unknown";
   }
 }

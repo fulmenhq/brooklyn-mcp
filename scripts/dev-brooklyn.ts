@@ -6,7 +6,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { promisify } from "node:util";
 import type { BrooklynConfig } from "../src/core/config.js";
-import { getLogger, initializeLogging } from "../src/shared/structured-logger.js";
+import { getLogger, initializeLogging } from "../src/shared/pino-logger.js";
 
 const execAsync = promisify(exec);
 

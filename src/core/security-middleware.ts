@@ -4,17 +4,10 @@
  */
 
 import type { CallToolRequest } from "@modelcontextprotocol/sdk/types.js";
-import { getLogger } from "../shared/structured-logger.js";
+import { getLogger } from "../shared/pino-logger.js";
 
 // Logger will be created lazily after logging is initialized
-let logger: ReturnType<typeof getLogger> | null = null;
-
-function ensureLogger() {
-  if (!logger) {
-    logger = getLogger("security-middleware");
-  }
-  return logger;
-}
+const logger = getLogger("security-middleware");
 
 /**
  * Security configuration interface
@@ -86,7 +79,7 @@ export class SecurityMiddleware {
     const { name, arguments: args } = request.params;
     const clientId = context?.teamId || context?.userId || "anonymous";
 
-    ensureLogger().debug("Validating request", {
+    logger.debug("Validating request", {
       tool: name,
       clientId,
       args,
@@ -105,12 +98,12 @@ export class SecurityMiddleware {
       // Browser resource limits
       await this.validateResourceLimits(name, args, clientId);
 
-      ensureLogger().debug("Request validation passed", {
+      logger.debug("Request validation passed", {
         tool: name,
         clientId,
       });
     } catch (error) {
-      ensureLogger().warn("Request validation failed", {
+      logger.warn("Request validation failed", {
         tool: name,
         clientId,
         error: error instanceof Error ? error.message : String(error),
@@ -144,7 +137,7 @@ export class SecurityMiddleware {
       );
     }
 
-    ensureLogger().debug("Rate limit check passed", {
+    logger.debug("Rate limit check passed", {
       clientId,
       count: entry.count,
       limit: this.config.rateLimiting.requests,
@@ -186,7 +179,7 @@ export class SecurityMiddleware {
           );
         }
 
-        ensureLogger().debug("Domain access validated", {
+        logger.debug("Domain access validated", {
           url,
           domain,
           allowed: true,
@@ -253,7 +246,7 @@ export class SecurityMiddleware {
     ) {
       // TODO: Implement browser ownership validation
       // This would check that the browserId belongs to the requesting team
-      ensureLogger().debug("Browser ownership validation", {
+      logger.debug("Browser ownership validation", {
         tool: toolName,
         browserId: (args as { browserId: unknown }).browserId,
         teamId,
@@ -273,7 +266,7 @@ export class SecurityMiddleware {
       // TODO: Implement browser count tracking per team/client
       // This would prevent exceeding maxBrowsers per team
 
-      ensureLogger().debug("Resource limit validation", {
+      logger.debug("Resource limit validation", {
         tool: toolName,
         clientId,
         maxBrowsers: this.config.maxBrowsers,
@@ -287,7 +280,7 @@ export class SecurityMiddleware {
   updateConfig(newConfig: Partial<SecurityConfig>): void {
     Object.assign(this.config, newConfig);
 
-    ensureLogger().info("Security configuration updated", {
+    logger.info("Security configuration updated", {
       allowedDomains: this.config.allowedDomains,
       rateLimit: this.config.rateLimiting,
     });
@@ -324,7 +317,7 @@ export class SecurityMiddleware {
     }
 
     if (cleaned > 0) {
-      ensureLogger().debug("Rate limit store cleaned", {
+      logger.debug("Rate limit store cleaned", {
         entriesRemoved: cleaned,
         remainingEntries: this.rateLimitStore.size,
       });
@@ -340,6 +333,6 @@ export class SecurityMiddleware {
     }
     this.rateLimitStore.clear();
 
-    ensureLogger().info("Security middleware cleaned up");
+    logger.info("Security middleware cleaned up");
   }
 }

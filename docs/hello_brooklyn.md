@@ -17,27 +17,30 @@ ls -la
 
 ## 🚀 **Quick Setup (5 minutes)**
 
-### **Option A: Automated Bootstrap (Recommended)**
+### **Option A: Quick Setup with Claude MCP CLI (Recommended)**
 
-Run our interactive bootstrap script that handles everything:
+Use the modern Claude MCP CLI for seamless integration:
 
 ```bash
-# From the Brooklyn repository
-bun run bootstrap
+# From the Brooklyn repository - build and install Brooklyn binary
+bun install && bun run build && bun run install
 
-# Or run directly
-bun scripts/bootstrap-brooklyn.ts
+# Add Brooklyn to Claude Code (user-wide for all projects)
+claude mcp add -s user brooklyn brooklyn mcp start
+
+# Verify configuration
+claude mcp list
+brooklyn --version  # Should show current version
 ```
 
-The bootstrap script will:
+This approach:
 
-- ✅ Detect your OS and set appropriate paths
-- ✅ Install or configure Brooklyn MCP server
-- ✅ Configure Claude Code integration automatically
-- ✅ Install global `brooklyn-server` command
-- ✅ Test the server connection
+- ✅ Uses the official Claude MCP CLI (no manual JSON editing)
+- ✅ Works across all your projects automatically
+- ✅ Leverages Brooklyn's silent logger for reliable MCP connections
+- ✅ Supports the revolutionary development mode for rapid iteration
 
-**After bootstrap completes, skip to Step 4 below!**
+**After setup completes, skip to Step 4 below!**
 
 ### **Option B: Manual Setup**
 
@@ -61,10 +64,13 @@ cd /path/to/fulmen-mcp-forge-brooklyn
 bun install
 
 # Set up browsers (first time only)
-bun run setup
+brooklyn setup
 
-# Start the server
-bun run server:start
+# Build and install Brooklyn CLI
+bun run build && bun run install
+
+# Add to Claude Code
+claude mcp add -s user brooklyn brooklyn mcp start
 ```
 
 **If you DON'T have access to the Brooklyn repository:**

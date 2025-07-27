@@ -7,19 +7,12 @@ import { createHash, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync } from "node:fs";
 import { readFile, readdir, stat, unlink, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { dirname, join, normalize, relative, resolve } from "node:path";
+import { join, normalize, relative, resolve } from "node:path";
 
-import { getLogger } from "../shared/structured-logger.js";
+import { getLogger } from "../shared/pino-logger.js";
 
-// Lazy logger initialization to avoid circular dependency
-let logger: ReturnType<typeof getLogger> | null = null;
-
-function ensureLogger() {
-  if (!logger) {
-    logger = getLogger("screenshot-storage");
-  }
-  return logger;
-}
+// Direct logger initialization - no lazy pattern needed!
+const logger = getLogger("screenshot-storage");
 
 /**
  * Screenshot storage configuration
@@ -225,7 +218,7 @@ export class ScreenshotStorageManager {
     const auditId = randomUUID();
     const timestamp = new Date().toISOString();
 
-    ensureLogger().info("Saving screenshot", {
+    logger.info("Saving screenshot", {
       auditId,
       sessionId: options.sessionId,
       browserId: options.browserId,
@@ -297,7 +290,7 @@ export class ScreenshotStorageManager {
       await writeFile(metadataPath, JSON.stringify(metadata, null, 2), { mode: 0o600 });
 
       // Audit log
-      ensureLogger().info("Screenshot saved successfully", {
+      logger.info("Screenshot saved successfully", {
         auditId,
         operation: "CREATE",
         filePath,
@@ -317,7 +310,7 @@ export class ScreenshotStorageManager {
         metadata,
       };
     } catch (error) {
-      ensureLogger().error("Failed to save screenshot", {
+      logger.error("Failed to save screenshot", {
         auditId,
         sessionId: options.sessionId,
         error: error instanceof Error ? error.message : String(error),
@@ -358,7 +351,7 @@ export class ScreenshotStorageManager {
     }
 
     // Audit log
-    ensureLogger().debug("Screenshot accessed", {
+    logger.debug("Screenshot accessed", {
       operation: "READ",
       filePath,
       instanceId: actualInstanceId,
@@ -386,14 +379,14 @@ export class ScreenshotStorageManager {
       }
 
       // Audit log
-      ensureLogger().info("Screenshot deleted", {
+      logger.info("Screenshot deleted", {
         operation: "DELETE",
         filePath,
         instanceId: instanceId || this.instanceId,
         tag,
       });
     } catch (error) {
-      ensureLogger().error("Failed to delete screenshot", {
+      logger.error("Failed to delete screenshot", {
         filePath,
         error: error instanceof Error ? error.message : String(error),
       });
@@ -411,7 +404,7 @@ export class ScreenshotStorageManager {
       return;
     }
 
-    ensureLogger().info("Cleaning up session directory", {
+    logger.info("Cleaning up session directory", {
       operation: "CLEANUP",
       sessionDir,
       sessionId,
@@ -420,7 +413,7 @@ export class ScreenshotStorageManager {
 
     // TODO: Implement recursive directory cleanup
     // For now, just log the intent
-    ensureLogger().info("Session cleanup completed", {
+    logger.info("Session cleanup completed", {
       sessionId,
       teamId,
     });
@@ -532,7 +525,7 @@ export class ScreenshotStorageManager {
       }
     }
 
-    ensureLogger().debug("Input security validation passed", {
+    logger.debug("Input security validation passed", {
       sessionId: options.sessionId,
       browserId: options.browserId,
       teamId: options.teamId,
@@ -568,7 +561,7 @@ export class ScreenshotStorageManager {
       }
     }
 
-    ensureLogger().debug("Path validation passed", {
+    logger.debug("Path validation passed", {
       originalPath: filePath,
       normalizedPath,
       resolvedPath,
@@ -582,7 +575,7 @@ export class ScreenshotStorageManager {
   private async ensureDirectory(dirPath: string): Promise<void> {
     if (!existsSync(dirPath)) {
       mkdirSync(dirPath, { recursive: true, mode: 0o700 }); // Owner access only
-      ensureLogger().debug("Created directory", { dirPath });
+      logger.debug("Created directory", { dirPath });
     }
   }
 
@@ -619,7 +612,7 @@ export class ScreenshotStorageManager {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
 
-    ensureLogger().info("Starting cleanup of old files", {
+    logger.info("Starting cleanup of old files", {
       olderThanDays,
       cutoffDate: cutoffDate.toISOString(),
     });
@@ -667,7 +660,7 @@ export class ScreenshotStorageManager {
               deletedCount++;
               deletedSize += fileStat.size;
 
-              ensureLogger().debug("Deleted old screenshot", {
+              logger.debug("Deleted old screenshot", {
                 filePath,
                 age: Math.floor((Date.now() - fileStat.mtime.getTime()) / (1000 * 60 * 60 * 24)),
                 size: fileStat.size,
@@ -677,13 +670,13 @@ export class ScreenshotStorageManager {
         }
       }
 
-      ensureLogger().info("Cleanup completed", {
+      logger.info("Cleanup completed", {
         deletedCount,
         deletedSize,
         operation: "CLEANUP",
       });
     } catch (error) {
-      ensureLogger().error("Cleanup failed", {
+      logger.error("Cleanup failed", {
         error: error instanceof Error ? error.message : String(error),
       });
       throw error;
@@ -760,7 +753,7 @@ export class ScreenshotStorageManager {
         stats.instances.push(instanceStats);
       }
 
-      ensureLogger().debug("Storage stats calculated", {
+      logger.debug("Storage stats calculated", {
         totalFiles: stats.totalFiles,
         totalSize: stats.totalSize,
         instanceCount: stats.instanceCount,
@@ -768,7 +761,7 @@ export class ScreenshotStorageManager {
       });
       return stats;
     } catch (error) {
-      ensureLogger().error("Failed to calculate storage stats", {
+      logger.error("Failed to calculate storage stats", {
         error: error instanceof Error ? error.message : String(error),
       });
       throw error;
@@ -834,7 +827,7 @@ export class ScreenshotStorageManager {
                 });
               }
             } catch (parseError) {
-              ensureLogger().warn("Failed to parse metadata file", {
+              logger.warn("Failed to parse metadata file", {
                 file: file.name,
                 error: parseError instanceof Error ? parseError.message : String(parseError),
               });
@@ -843,14 +836,14 @@ export class ScreenshotStorageManager {
         }
       }
 
-      ensureLogger().debug("Screenshot search completed", {
+      logger.debug("Screenshot search completed", {
         query,
         resultCount: results.length,
       });
 
       return results;
     } catch (error) {
-      ensureLogger().error("Screenshot search failed", {
+      logger.error("Screenshot search failed", {
         query,
         error: error instanceof Error ? error.message : String(error),
       });

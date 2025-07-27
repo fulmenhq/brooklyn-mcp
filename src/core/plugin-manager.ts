@@ -5,24 +5,17 @@
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import type { PluginManager as IPluginManager, WebPilotPlugin } from "../ports/plugin.js";
 import { config } from "../shared/config.js";
-import { getLogger } from "../shared/structured-logger.js";
+import { getLogger } from "../shared/pino-logger.js";
 
 // ARCHITECTURE FIX: Lazy logger initialization
-let logger: ReturnType<typeof getLogger> | null = null;
-
-function ensureLogger() {
-  if (!logger) {
-    logger = getLogger("plugin-manager");
-  }
-  return logger;
-}
+const logger = getLogger("plugin-manager");
 
 export class PluginManager implements IPluginManager {
   private plugins = new Map<string, WebPilotPlugin>();
   private toolRegistry = new Map<string, WebPilotPlugin>();
 
   async register(plugin: WebPilotPlugin): Promise<void> {
-    ensureLogger().info("Registering plugin", {
+    logger.info("Registering plugin", {
       name: plugin.name,
       version: plugin.version,
       team: plugin.team,
@@ -46,7 +39,7 @@ export class PluginManager implements IPluginManager {
       try {
         await plugin.setup();
       } catch (error) {
-        ensureLogger().error("Plugin setup failed", {
+        logger.error("Plugin setup failed", {
           plugin: plugin.name,
           error: error instanceof Error ? error.message : String(error),
         });
@@ -60,7 +53,7 @@ export class PluginManager implements IPluginManager {
       this.toolRegistry.set(tool.name, plugin);
     }
 
-    ensureLogger().info("Plugin registered successfully", {
+    logger.info("Plugin registered successfully", {
       name: plugin.name,
       toolCount: plugin.tools.length,
     });
@@ -72,14 +65,14 @@ export class PluginManager implements IPluginManager {
       throw new Error(`Plugin not found: ${pluginName}`);
     }
 
-    ensureLogger().info("Unregistering plugin", { name: pluginName });
+    logger.info("Unregistering plugin", { name: pluginName });
 
     // Run plugin teardown
     if (plugin.teardown) {
       try {
         await plugin.teardown();
       } catch (error) {
-        ensureLogger().error("Plugin teardown failed", {
+        logger.error("Plugin teardown failed", {
           plugin: pluginName,
           error: error instanceof Error ? error.message : String(error),
         });
@@ -94,7 +87,7 @@ export class PluginManager implements IPluginManager {
     // Remove plugin
     this.plugins.delete(pluginName);
 
-    ensureLogger().info("Plugin unregistered successfully", { name: pluginName });
+    logger.info("Plugin unregistered successfully", { name: pluginName });
   }
 
   getPlugins(): WebPilotPlugin[] {
@@ -145,7 +138,7 @@ export class PluginManager implements IPluginManager {
       throw new Error(`Tool not found: ${toolName}`);
     }
 
-    ensureLogger().debug("Delegating tool call to plugin", {
+    logger.debug("Delegating tool call to plugin", {
       tool: toolName,
       plugin: plugin.name,
     });
@@ -162,20 +155,20 @@ export class PluginManager implements IPluginManager {
   }
 
   async cleanup(): Promise<void> {
-    ensureLogger().info("Cleaning up plugin manager");
+    logger.info("Cleaning up plugin manager");
 
     const pluginNames = Array.from(this.plugins.keys());
     for (const pluginName of pluginNames) {
       try {
         await this.unregister(pluginName);
       } catch (error) {
-        ensureLogger().error("Failed to unregister plugin during cleanup", {
+        logger.error("Failed to unregister plugin during cleanup", {
           plugin: pluginName,
           error: error instanceof Error ? error.message : String(error),
         });
       }
     }
 
-    ensureLogger().info("Plugin manager cleanup complete");
+    logger.info("Plugin manager cleanup complete");
   }
 }

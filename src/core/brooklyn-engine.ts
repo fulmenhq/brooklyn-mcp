@@ -3,10 +3,10 @@
  * Transport-agnostic business logic for browser automation
  */
 
-import type { CallToolRequest, CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
+import type { CallToolRequest, Tool } from "@modelcontextprotocol/sdk/types.js";
 import type { ToolCallHandler, ToolListHandler, Transport } from "./transport.js";
 
-import { getLogger } from "../shared/structured-logger.js";
+import { getLogger, initializeLogging, isLoggingInitialized } from "../shared/pino-logger.js";
 import { BrowserPoolManager } from "./browser-pool-manager.js";
 import type { BrooklynConfig } from "./config.js";
 import { ToolDiscoveryService } from "./discovery/tool-discovery-service.js";
@@ -403,10 +403,14 @@ export class BrooklynEngine {
     return async () => {
       const correlationId = this.generateCorrelationId();
 
-      this.getLogger().debug("Tool list requested", {
-        transport: transportName,
-        correlationId,
-      });
+      try {
+        this.getLogger().debug("Tool list requested", {
+          transport: transportName,
+          correlationId,
+        });
+      } catch {
+        // Logger not ready yet, skip logging
+      }
 
       try {
         // Get all tools from discovery service (already includes plugin tools)
@@ -429,20 +433,28 @@ export class BrooklynEngine {
           }
         }
 
-        this.getLogger().debug("Tool list generated", {
-          transport: transportName,
-          correlationId,
-          toolCount: allTools.length,
-          categories: this.discovery.getCategories().map((c) => c.id),
-        });
+        try {
+          this.getLogger().debug("Tool list generated", {
+            transport: transportName,
+            correlationId,
+            toolCount: allTools.length,
+            categories: this.discovery.getCategories().map((c) => c.id),
+          });
+        } catch {
+          // Logger not ready yet, skip logging
+        }
 
         return { tools: allTools };
       } catch (error) {
-        this.getLogger().error("Failed to generate tool list", {
-          transport: transportName,
-          correlationId,
-          error: error instanceof Error ? error.message : String(error),
-        });
+        try {
+          this.getLogger().error("Failed to generate tool list", {
+            transport: transportName,
+            correlationId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        } catch {
+          // Logger not ready yet, skip logging
+        }
         throw error;
       }
     };
@@ -453,15 +465,29 @@ export class BrooklynEngine {
    */
   private createToolCallHandler(transportName: string): ToolCallHandler {
     return async (request: CallToolRequest) => {
+      // DEFENSIVE: Ensure logging is initialized before tool execution
+      // This handles edge cases in bundled binaries where initialization order differs
+      if (!isLoggingInitialized()) {
+        try {
+          initializeLogging(this.config);
+        } catch {
+          // If initialization fails, continue without logging
+        }
+      }
+
       const correlationId = this.generateCorrelationId();
       const { name, arguments: args } = request.params;
 
-      this.getLogger().debug("Tool call received", {
-        transport: transportName,
-        correlationId,
-        tool: name,
-        args,
-      });
+      try {
+        this.getLogger().debug("Tool call received", {
+          transport: transportName,
+          correlationId,
+          tool: name,
+          args,
+        });
+      } catch {
+        // Logger not ready yet, skip logging
+      }
 
       try {
         // Create context for this request
@@ -489,11 +515,15 @@ export class BrooklynEngine {
           result = await this.pluginManager.handleToolCall(name, args);
         }
 
-        this.getLogger().debug("Tool call completed", {
-          transport: transportName,
-          correlationId,
-          tool: name,
-        });
+        try {
+          this.getLogger().debug("Tool call completed", {
+            transport: transportName,
+            correlationId,
+            tool: name,
+          });
+        } catch {
+          // Logger not ready yet, skip logging
+        }
 
         return {
           content: [
@@ -504,12 +534,16 @@ export class BrooklynEngine {
           ],
         };
       } catch (error) {
-        this.getLogger().error("Tool call failed", {
-          transport: transportName,
-          correlationId,
-          tool: name,
-          error: error instanceof Error ? error.message : String(error),
-        });
+        try {
+          this.getLogger().error("Tool call failed", {
+            transport: transportName,
+            correlationId,
+            tool: name,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        } catch {
+          // Logger not ready yet, skip logging
+        }
 
         return {
           content: [
@@ -526,6 +560,7 @@ export class BrooklynEngine {
 
   /**
    * Get core tools from enhanced tool definitions
+   * @private
    */
   private async getCoreTools(): Promise<Tool[]> {
     try {
@@ -659,6 +694,7 @@ export class BrooklynEngine {
       "brooklyn_examples",
       "brooklyn_team_setup",
       "brooklyn_troubleshooting",
+      "brooklyn_logs",
     ];
     return onboardingTools.includes(toolName);
   }
@@ -819,6 +855,6 @@ export class BrooklynEngine {
    * Generate correlation ID for request tracking
    */
   private generateCorrelationId(): string {
-    return `brooklyn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return `brooklyn-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
   }
 }

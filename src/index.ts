@@ -5,7 +5,7 @@
 
 import { loadConfig } from "./core/config.js";
 import { createServer } from "./core/server";
-import { getLogger, initializeLogging } from "./shared/structured-logger.js";
+import { getLogger, initializeLogging } from "./shared/pino-logger.js";
 
 async function main(): Promise<void> {
   // Load Brooklyn configuration
