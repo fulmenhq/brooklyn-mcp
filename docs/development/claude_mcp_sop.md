@@ -30,7 +30,7 @@ Notes:
 - **Full params object** - protocolVersion, capabilities, clientInfo all required
 - Protocol version may differ from MCP spec default
 - No embedded newlines; terminated by single \n
-**Historical Issue**: Earlier Brooklyn documentation incorrectly showed `id: 1` format, which our server would reject, causing silent connection failures.
+  **Historical Issue**: Earlier Brooklyn documentation incorrectly showed `id: 1` format, which our server would reject, causing silent connection failures.
 
 ### Brooklyn Response
 

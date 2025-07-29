@@ -432,6 +432,40 @@ export class BrowserInstallationManager {
     const playwrightCacheDir = join(homedir(), ".cache", "ms-playwright");
     return join(playwrightCacheDir, type);
   }
+
+  /**
+   * Check if a browser is installed
+   */
+  async isBrowserInstalled(type: BrowserType): Promise<boolean> {
+    const status = await this.getBrowserStatus(type);
+    return status.installed;
+  }
+
+  /**
+   * Clean browser cache
+   */
+  async cleanCache(): Promise<void> {
+    ensureLogger().info("Cleaning browser cache");
+
+    // Clear installation cache
+    this.installationCache = {};
+
+    // Update cache file
+    try {
+      await writeFile(this.cacheFile, JSON.stringify(this.installationCache, null, 2));
+    } catch (error) {
+      ensureLogger().warn("Failed to clean cache", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  /**
+   * Get system browser detector
+   */
+  getSystemBrowserDetector() {
+    return this.systemDetector;
+  }
 }
 
 // Singleton instance

@@ -37,15 +37,35 @@ vi.mock("../shared/pino-logger.js", () => ({
   })),
 }));
 
+// Mock browser instance
+vi.mock("./browser/browser-instance.js");
+
+// Mock browser factory
+vi.mock("./browser/browser-factory.js");
+
+// Mock browser pool
+vi.mock("./browser/browser-pool.js");
+
+// Mock screenshot storage manager
+vi.mock("./screenshot-storage-manager.js", () => ({
+  ScreenshotStorageManager: vi.fn().mockImplementation(() => ({
+    saveScreenshot: vi.fn().mockResolvedValue({
+      filePath: "/tmp/screenshot.png",
+      filename: "screenshot.png",
+      format: "png",
+      fileSize: 1024,
+      auditId: "audit-123",
+    }),
+  })),
+}));
+
 describe("BrowserPoolManager", () => {
   let browserPoolManager: BrowserPoolManager;
   let mockBrowser: any;
   let mockContext: any;
   let mockPage: any;
 
-  beforeEach(() => {
-    browserPoolManager = new BrowserPoolManager();
-
+  beforeEach(async () => {
     // Setup mock browser, context, and page
     mockPage = {
       evaluate: vi.fn(),
@@ -57,6 +77,8 @@ describe("BrowserPoolManager", () => {
       isClosed: vi.fn(),
       setDefaultTimeout: vi.fn(),
       setDefaultNavigationTimeout: vi.fn(),
+      setViewportSize: vi.fn(),
+      setExtraHTTPHeaders: vi.fn(),
     };
 
     mockContext = {
@@ -70,9 +92,62 @@ describe("BrowserPoolManager", () => {
       close: vi.fn(),
       isConnected: vi.fn().mockReturnValue(true),
     };
+
+    // Create browser pool manager
+    browserPoolManager = new BrowserPoolManager();
+
+    // Mock the browser factory createInstance method
+    const mockInstance = {
+      id: "test-instance-id",
+      browserType: "chromium",
+      isActive: true,
+      healthStatus: "healthy",
+      createPage: vi.fn().mockResolvedValue(mockPage),
+      getMainPage: vi.fn().mockResolvedValue(mockPage),
+      close: vi.fn(),
+      checkHealth: vi.fn().mockResolvedValue(true),
+      touch: vi.fn(),
+      getMetrics: vi.fn().mockReturnValue({ pageCount: 0 }),
+      getSummary: vi.fn(),
+      isIdle: vi.fn().mockReturnValue(false),
+      lastUsed: new Date(),
+      createdAt: new Date(),
+    };
+
+    // Inject mock factory
+    (browserPoolManager as any).factory.createInstance = vi.fn().mockResolvedValue(mockInstance);
+
+    // Mock pool allocate to return instance with page
+    (browserPoolManager as any).pool.allocate = vi.fn().mockResolvedValue({
+      instance: mockInstance,
+      page: mockPage,
+      allocationTime: 100,
+    });
+
+    // Mock pool release
+    (browserPoolManager as any).pool.release = vi.fn().mockResolvedValue(undefined);
+
+    // Mock pool remove
+    (browserPoolManager as any).pool.remove = vi.fn().mockResolvedValue(undefined);
+
+    // Mock pool getStatus
+    (browserPoolManager as any).pool.getStatus = vi.fn().mockReturnValue({
+      initialized: true,
+      metrics: {
+        totalInstances: 0,
+        activeInstances: 0,
+        idleInstances: 0,
+      },
+      instances: [],
+    });
+
+    // Mock pool initialize and shutdown
+    (browserPoolManager as any).pool.initialize = vi.fn().mockResolvedValue(undefined);
+    (browserPoolManager as any).pool.shutdown = vi.fn().mockResolvedValue(undefined);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await browserPoolManager.cleanup();
     vi.clearAllMocks();
   });
 
@@ -105,8 +180,19 @@ describe("BrowserPoolManager", () => {
     });
 
     it("should launch chromium browser successfully", async () => {
-      const { chromium } = await import("playwright");
-      vi.mocked(chromium.launch).mockResolvedValue(mockBrowser);
+      // Mock page evaluation for user agent
+      const mockAllocatedInstance = {
+        id: "chromium-instance",
+        browserType: "chromium",
+        isActive: true,
+        healthStatus: "healthy",
+      };
+
+      (browserPoolManager as any).pool.allocate = vi.fn().mockResolvedValue({
+        instance: mockAllocatedInstance,
+        page: mockPage,
+        allocationTime: 50,
+      });
       mockPage.evaluate.mockResolvedValue("Mozilla/5.0 Test");
 
       const result = await browserPoolManager.launchBrowser({
@@ -124,8 +210,19 @@ describe("BrowserPoolManager", () => {
     });
 
     it("should launch firefox browser successfully", async () => {
-      const { firefox } = await import("playwright");
-      vi.mocked(firefox.launch).mockResolvedValue(mockBrowser);
+      // Mock page evaluation for user agent
+      const mockAllocatedInstance = {
+        id: "firefox-instance",
+        browserType: "firefox",
+        isActive: true,
+        healthStatus: "healthy",
+      };
+
+      (browserPoolManager as any).pool.allocate = vi.fn().mockResolvedValue({
+        instance: mockAllocatedInstance,
+        page: mockPage,
+        allocationTime: 50,
+      });
       mockPage.evaluate.mockResolvedValue("Mozilla/5.0 Firefox");
 
       const result = await browserPoolManager.launchBrowser({
@@ -145,6 +242,38 @@ describe("BrowserPoolManager", () => {
       vi.mocked(chromium.launch).mockResolvedValue(mockBrowser);
       mockPage.evaluate.mockResolvedValue("Mozilla/5.0 Test");
 
+      // Track how many times allocate has been called
+      let allocateCount = 0;
+      (browserPoolManager as any).pool.allocate = vi.fn().mockImplementation(async () => {
+        allocateCount++;
+        if (allocateCount > 5) {
+          throw new Error("No available browser instances");
+        }
+
+        const mockInstance = {
+          id: `test-instance-${allocateCount}`,
+          browserType: "chromium",
+          isActive: true,
+          healthStatus: "healthy",
+          createPage: vi.fn().mockResolvedValue(mockPage),
+          getMainPage: vi.fn().mockResolvedValue(mockPage),
+          close: vi.fn(),
+          checkHealth: vi.fn().mockResolvedValue(true),
+          touch: vi.fn(),
+          getMetrics: vi.fn().mockReturnValue({ pageCount: 0 }),
+          getSummary: vi.fn(),
+          isIdle: vi.fn().mockReturnValue(false),
+          lastUsed: new Date(),
+          createdAt: new Date(),
+        };
+
+        return {
+          instance: mockInstance,
+          page: mockPage,
+          allocationTime: 100,
+        };
+      });
+
       // Launch browsers up to the limit
       for (let i = 0; i < 5; i++) {
         await browserPoolManager.launchBrowser({
@@ -159,7 +288,7 @@ describe("BrowserPoolManager", () => {
           browserType: "chromium",
           headless: true,
         }),
-      ).rejects.toThrow("Browser pool limit reached");
+      ).rejects.toThrow("No available browser instances");
     });
   });
 
@@ -168,8 +297,21 @@ describe("BrowserPoolManager", () => {
 
     beforeEach(async () => {
       await browserPoolManager.initialize();
-      const { chromium } = await import("playwright");
-      vi.mocked(chromium.launch).mockResolvedValue(mockBrowser);
+
+      // Mock successful browser allocation
+      const mockInstance = {
+        id: "nav-test-instance",
+        browserType: "chromium",
+        isActive: true,
+        touch: vi.fn(),
+      };
+
+      (browserPoolManager as any).pool.allocate = vi.fn().mockResolvedValue({
+        instance: mockInstance,
+        page: mockPage,
+        allocationTime: 50,
+      });
+
       mockPage.evaluate.mockResolvedValue("Mozilla/5.0 Test");
 
       const result = await browserPoolManager.launchBrowser({
@@ -177,6 +319,13 @@ describe("BrowserPoolManager", () => {
         headless: true,
       });
       browserId = result.browserId;
+
+      // Store session for navigation tests
+      (browserPoolManager as any).sessions.set(browserId, {
+        instance: mockInstance,
+        page: mockPage,
+        teamId: undefined,
+      });
     });
 
     afterEach(async () => {
@@ -227,8 +376,21 @@ describe("BrowserPoolManager", () => {
 
     beforeEach(async () => {
       await browserPoolManager.initialize();
-      const { chromium } = await import("playwright");
-      vi.mocked(chromium.launch).mockResolvedValue(mockBrowser);
+
+      // Mock successful browser allocation
+      const mockInstance = {
+        id: "screenshot-test-instance",
+        browserType: "chromium",
+        isActive: true,
+        touch: vi.fn(),
+      };
+
+      (browserPoolManager as any).pool.allocate = vi.fn().mockResolvedValue({
+        instance: mockInstance,
+        page: mockPage,
+        allocationTime: 50,
+      });
+
       mockPage.evaluate.mockResolvedValue("Mozilla/5.0 Test");
 
       const result = await browserPoolManager.launchBrowser({
@@ -236,6 +398,13 @@ describe("BrowserPoolManager", () => {
         headless: true,
       });
       browserId = result.browserId;
+
+      // Store session for screenshot tests
+      (browserPoolManager as any).sessions.set(browserId, {
+        instance: mockInstance,
+        page: mockPage,
+        teamId: undefined,
+      });
     });
 
     afterEach(async () => {
@@ -278,8 +447,21 @@ describe("BrowserPoolManager", () => {
 
     beforeEach(async () => {
       await browserPoolManager.initialize();
-      const { chromium } = await import("playwright");
-      vi.mocked(chromium.launch).mockResolvedValue(mockBrowser);
+
+      // Mock successful browser allocation
+      const mockInstance = {
+        id: "close-test-instance",
+        browserType: "chromium",
+        isActive: true,
+        touch: vi.fn(),
+      };
+
+      (browserPoolManager as any).pool.allocate = vi.fn().mockResolvedValue({
+        instance: mockInstance,
+        page: mockPage,
+        allocationTime: 50,
+      });
+
       mockPage.evaluate.mockResolvedValue("Mozilla/5.0 Test");
 
       const result = await browserPoolManager.launchBrowser({
@@ -287,6 +469,13 @@ describe("BrowserPoolManager", () => {
         headless: true,
       });
       browserId = result.browserId;
+
+      // Store session for close tests
+      (browserPoolManager as any).sessions.set(browserId, {
+        instance: mockInstance,
+        page: mockPage,
+        teamId: undefined,
+      });
     });
 
     afterEach(async () => {

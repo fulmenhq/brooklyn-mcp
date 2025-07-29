@@ -1,0 +1,376 @@
+/**
+ * Enhanced Browser Pool Manager v2
+ * Enterprise-ready browser pool with circuit breaker, team isolation, and resource management
+ */
+
+import type { Page } from "playwright";
+import { getLogger } from "../../shared/pino-logger.js";
+import { BrowserFactory, type BrowserFactoryConfig } from "./browser-factory.js";
+import type { BrowserInstance } from "./browser-instance.js";
+import { type AllocationRequest, BrowserPool, type PoolConfig } from "./browser-pool.js";
+
+const logger = getLogger("browser-pool-manager-v2");
+
+export interface BrowserPoolManagerConfig {
+  maxBrowsers?: number;
+  minBrowsers?: number;
+  maxIdleTime?: number;
+  warmupSize?: number;
+  allocationStrategy?: "round-robin" | "least-used" | "team-isolated";
+  mcpMode?: boolean;
+  browserFactory?: BrowserFactoryConfig;
+}
+
+export interface LaunchBrowserResult {
+  browserId: string;
+  browserType: string;
+  headless: boolean;
+  userAgent: string;
+  viewport: { width: number; height: number };
+}
+
+export interface NavigateResult {
+  success: boolean;
+  url: string;
+  title: string;
+  statusCode?: number;
+  loadTime: number;
+}
+
+export interface ScreenshotResult {
+  filePath: string;
+  filename: string;
+  format: string;
+  dimensions: { width: number; height: number };
+  fileSize: number;
+  auditId: string;
+  returnFormat: string;
+  data?: string;
+}
+
+/**
+ * Main browser pool manager with enterprise features
+ */
+export class BrowserPoolManagerV2 {
+  private pool: BrowserPool;
+  private factory: BrowserFactory;
+  private sessions = new Map<string, { instance: BrowserInstance; page: Page }>();
+  private config: BrowserPoolManagerConfig;
+
+  constructor(config: BrowserPoolManagerConfig = {}) {
+    this.config = config;
+
+    // Initialize browser factory
+    this.factory = new BrowserFactory({
+      ...config.browserFactory,
+      mcpMode: config.mcpMode,
+    });
+
+    // Initialize browser pool
+    const poolConfig: PoolConfig = {
+      maxSize: config.maxBrowsers || 10,
+      minSize: config.minBrowsers || 0,
+      maxIdleTime: config.maxIdleTime,
+      warmupSize: config.warmupSize || 0,
+      allocationStrategy: config.allocationStrategy || "round-robin",
+    };
+
+    this.pool = new BrowserPool(poolConfig);
+
+    // Inject factory into pool
+    this.injectFactoryIntoPool();
+  }
+
+  /**
+   * Initialize the pool manager
+   */
+  async initialize(): Promise<void> {
+    logger.info("Initializing enhanced browser pool manager");
+
+    // Initialize the pool
+    await this.pool.initialize();
+
+    logger.info("Browser pool manager initialized", {
+      config: this.config,
+      poolStatus: this.pool.getStatus(),
+    });
+  }
+
+  /**
+   * Launch a new browser and get a session
+   */
+  async launchBrowser(args: {
+    teamId?: string;
+    browserType?: "chromium" | "firefox" | "webkit";
+    headless?: boolean;
+    userAgent?: string;
+    viewport?: { width: number; height: number };
+    timeout?: number;
+  }): Promise<LaunchBrowserResult> {
+    const {
+      teamId,
+      browserType = "chromium",
+      headless = true,
+      userAgent,
+      viewport = { width: 1920, height: 1080 },
+      timeout = 30000,
+    } = args;
+
+    logger.info("Launching browser", {
+      teamId,
+      browserType,
+      headless,
+      poolMetrics: this.pool.getMetrics(),
+    });
+
+    try {
+      // Allocate browser from pool
+      const allocation = await this.pool.allocate({
+        teamId,
+        browserType,
+        priority: "normal",
+      });
+
+      // Store session
+      const sessionId = allocation.instance.id;
+      this.sessions.set(sessionId, {
+        instance: allocation.instance,
+        page: allocation.page,
+      });
+
+      // Configure page
+      if (userAgent) {
+        await allocation.page.setExtraHTTPHeaders({
+          "User-Agent": userAgent,
+        });
+      }
+
+      if (viewport) {
+        await allocation.page.setViewportSize(viewport);
+      }
+
+      logger.info("Browser launched successfully", {
+        browserId: sessionId,
+        browserType,
+        teamId,
+        allocationTime: allocation.allocationTime,
+      });
+
+      return {
+        browserId: sessionId,
+        browserType,
+        headless,
+        userAgent: userAgent || (await allocation.page.evaluate(() => navigator.userAgent)),
+        viewport,
+      };
+    } catch (error) {
+      logger.error("Failed to launch browser", {
+        teamId,
+        browserType,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Navigate to URL
+   */
+  async navigate(args: {
+    browserId: string;
+    url: string;
+    timeout?: number;
+    waitUntil?: "load" | "domcontentloaded" | "networkidle";
+  }): Promise<NavigateResult> {
+    const { browserId, url, timeout = 30000, waitUntil = "domcontentloaded" } = args;
+
+    logger.info("Navigating browser", { browserId, url, waitUntil });
+
+    const session = this.sessions.get(browserId);
+    if (!session) {
+      throw new Error(`Browser session not found: ${browserId}`);
+    }
+
+    // Update instance activity
+    session.instance.touch();
+
+    const startTime = Date.now();
+
+    try {
+      const response = await session.page.goto(url, {
+        timeout,
+        waitUntil,
+      });
+
+      const loadTime = Date.now() - startTime;
+      const title = await session.page.title();
+      const finalUrl = session.page.url();
+
+      logger.info("Navigation completed", {
+        browserId,
+        url: finalUrl,
+        title,
+        loadTime,
+        statusCode: response?.status(),
+      });
+
+      return {
+        success: true,
+        url: finalUrl,
+        title,
+        statusCode: response?.status(),
+        loadTime,
+      };
+    } catch (error) {
+      const loadTime = Date.now() - startTime;
+      logger.error("Navigation failed", {
+        browserId,
+        url,
+        loadTime,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Take screenshot
+   */
+  async screenshot(args: {
+    browserId: string;
+    fullPage?: boolean;
+    quality?: number;
+    type?: "png" | "jpeg";
+    clip?: { x: number; y: number; width: number; height: number };
+    returnFormat?: "file" | "url" | "base64_thumbnail";
+  }): Promise<ScreenshotResult> {
+    const session = this.sessions.get(args.browserId);
+    if (!session) {
+      throw new Error(`Browser session not found: ${args.browserId}`);
+    }
+
+    // Update instance activity
+    session.instance.touch();
+
+    // Delegate to existing screenshot implementation
+    // This would integrate with ScreenshotStorageManager
+    throw new Error("Screenshot implementation pending integration");
+  }
+
+  /**
+   * Close browser
+   */
+  async closeBrowser(args: {
+    browserId: string;
+    force?: boolean;
+  }): Promise<{ success: boolean; browserId: string }> {
+    const { browserId, force = false } = args;
+
+    logger.info("Closing browser", { browserId, force });
+
+    const session = this.sessions.get(browserId);
+    if (!session) {
+      throw new Error(`Browser session not found: ${browserId}`);
+    }
+
+    try {
+      // Release instance back to pool
+      await this.pool.release(browserId);
+
+      // Remove from sessions
+      this.sessions.delete(browserId);
+
+      logger.info("Browser closed successfully", {
+        browserId,
+        remainingSessions: this.sessions.size,
+      });
+
+      return {
+        success: true,
+        browserId,
+      };
+    } catch (error) {
+      logger.error("Failed to close browser", {
+        browserId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      if (force) {
+        // Force remove from pool
+        await this.pool.remove(browserId, true);
+        this.sessions.delete(browserId);
+        return { success: true, browserId };
+      }
+
+      throw error;
+    }
+  }
+
+  /**
+   * Get pool status
+   */
+  getStatus() {
+    const poolStatus = this.pool.getStatus();
+    const sessions = Array.from(this.sessions.entries()).map(([id, session]) => ({
+      id,
+      instanceId: session.instance.id,
+      teamId: session.instance.teamId,
+      createdAt: session.instance.createdAt,
+      lastUsed: session.instance.lastUsed,
+      healthStatus: session.instance.healthStatus,
+    }));
+
+    return {
+      pool: poolStatus,
+      activeSessions: sessions.length,
+      sessions,
+    };
+  }
+
+  /**
+   * Cleanup and shutdown
+   */
+  async cleanup(): Promise<void> {
+    logger.info("Cleaning up browser pool manager");
+
+    // Close all sessions
+    const closePromises = Array.from(this.sessions.keys()).map((browserId) =>
+      this.closeBrowser({ browserId, force: true }).catch((err) => {
+        logger.error("Failed to close session during cleanup", {
+          browserId,
+          error: err.message,
+        });
+      }),
+    );
+
+    await Promise.allSettled(closePromises);
+
+    // Shutdown pool
+    await this.pool.shutdown();
+
+    logger.info("Browser pool manager cleanup completed");
+  }
+
+  /**
+   * Inject factory into pool
+   * This is a temporary solution until we refactor the pool to accept factory in constructor
+   */
+  private injectFactoryIntoPool(): void {
+    // Override the private createInstance method using prototype manipulation
+    // This is not ideal but maintains backward compatibility
+    const factory = this.factory;
+    const pool = this.pool as any;
+
+    pool.createInstance = async (config: {
+      teamId?: string;
+      browserType?: "chromium" | "firefox" | "webkit";
+    }) => {
+      return factory.createInstance({
+        teamId: config.teamId,
+        browserType: config.browserType || "chromium",
+        headless: true,
+        timeout: 30000,
+      });
+    };
+  }
+}

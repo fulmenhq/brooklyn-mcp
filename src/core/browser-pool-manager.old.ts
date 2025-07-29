@@ -1,20 +1,33 @@
 /**
- * Browser Pool Manager for Brooklyn MCP Server
- * Enterprise-ready browser automation with team isolation and resource management
+ * Browser pool manager for Brooklyn MCP server
+ * Enterprise-ready Playwright integration with resource management
  */
 
-import type { Page } from "playwright";
+import { randomUUID } from "node:crypto";
+import { chromium, firefox, webkit } from "playwright";
+import type { Browser, BrowserContext, Page } from "playwright";
+
 import { config } from "../shared/config.js";
 import { getLogger } from "../shared/pino-logger.js";
-import { BrowserFactory } from "./browser/browser-factory.js";
-import type { BrowserInstance } from "./browser/browser-instance.js";
-import { type AllocationRequest, BrowserPool } from "./browser/browser-pool.js";
 import {
   ScreenshotStorageManager,
   type ScreenshotStorageResult,
 } from "./screenshot-storage-manager.js";
 
-const logger = getLogger("browser-pool-manager");
+// ARCHITECTURE FIX: Lazy logger initialization to avoid circular dependency
+const logger = getLogger("browser-pool");
+
+// Browser session interface
+interface BrowserSession {
+  id: string;
+  browser: Browser;
+  context: BrowserContext;
+  page: Page;
+  teamId?: string;
+  createdAt: Date;
+  lastUsed: Date;
+  isActive: boolean;
+}
 
 // Browser launch arguments interface
 interface LaunchBrowserArgs {
@@ -41,6 +54,7 @@ interface ScreenshotArgs {
   quality?: number;
   type?: "png" | "jpeg";
   clip?: { x: number; y: number; width: number; height: number };
+  // Architecture Committee approved new options
   returnFormat?: "file" | "url" | "base64_thumbnail";
   teamId?: string;
   sessionId?: string;
@@ -102,81 +116,48 @@ interface FindElementsArgs {
   timeout?: number;
 }
 
-/**
- * Main browser pool manager class
- */
 export class BrowserPoolManager {
-  private pool: BrowserPool;
-  private factory: BrowserFactory;
-  private sessions = new Map<string, { instance: BrowserInstance; page: Page; teamId?: string }>();
-  private storageManager: ScreenshotStorageManager;
+  private sessions = new Map<string, BrowserSession>();
   private maxBrowsers: number;
+  private cleanupInterval: NodeJS.Timeout | null = null;
+  private readonly cleanupIntervalMs = 5 * 60 * 1000; // 5 minutes
+  private readonly maxIdleTime = 30 * 60 * 1000; // 30 minutes
+  private readonly storageManager: ScreenshotStorageManager;
 
   constructor() {
     this.maxBrowsers = config.maxBrowsers || 10;
     this.storageManager = new ScreenshotStorageManager();
-
-    // Initialize browser factory with MCP mode awareness
-    this.factory = new BrowserFactory({
-      mcpMode: process.env["MCP_MODE"] === "true",
-      defaultTimeout: 30000,
-      defaultHeadless: true,
-    });
-
-    // Initialize browser pool with enterprise configuration
-    this.pool = new BrowserPool({
-      maxSize: this.maxBrowsers,
-      minSize: 0,
-      maxIdleTime: 30 * 60 * 1000, // 30 minutes
-      warmupSize: 0,
-      allocationStrategy: config.allocationStrategy || "least-used",
-      createInstance: async (config: {
-        teamId?: string;
-        browserType?: "chromium" | "firefox" | "webkit";
-      }) => {
-        const instance = await this.factory.createInstance({
-          id: `browser-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-          teamId: config.teamId,
-          browserType: config.browserType || "chromium",
-          headless: true,
-          timeout: 30000,
-          viewport: { width: 1920, height: 1080 },
-        });
-        return instance;
-      },
-    });
   }
 
   async initialize(): Promise<void> {
-    logger.info("Initializing browser pool manager", {
-      maxBrowsers: this.maxBrowsers,
-      allocationStrategy: config.allocationStrategy,
-    });
+    // Browser pool initialization - defer logging to avoid circular dependency
 
-    await this.pool.initialize();
+    // Start cleanup interval
+    this.cleanupInterval = setInterval(() => {
+      this.cleanupIdleSessions().catch((_error) => {
+        // Failed to cleanup idle sessions - logged internally
+      });
+    }, this.cleanupIntervalMs);
 
-    logger.info("Browser pool manager initialized successfully");
+    // Browser pool initialized successfully
   }
 
   async cleanup(): Promise<void> {
-    logger.info("Cleaning up browser pool", {
-      activeSessions: this.sessions.size,
-    });
+    logger.info("Cleaning up browser pool", { activeSessions: this.sessions.size });
 
-    // Close all active sessions
-    const closePromises = Array.from(this.sessions.keys()).map((browserId) =>
-      this.closeBrowser({ browserId, force: true }).catch((err) => {
-        logger.error("Failed to close session during cleanup", {
-          browserId,
-          error: err.message,
-        });
-      }),
+    // Clear cleanup interval
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
+
+    // Close all browser sessions
+    const closePromises = Array.from(this.sessions.values()).map((session) =>
+      this.closeBrowserSession(session),
     );
 
     await Promise.allSettled(closePromises);
-
-    // Shutdown the pool
-    await this.pool.shutdown();
+    this.sessions.clear();
 
     logger.info("Browser pool cleanup completed");
   }
@@ -205,39 +186,84 @@ export class BrowserPoolManager {
       maxBrowsers: this.maxBrowsers,
     });
 
+    // Check browser pool limits
+    if (this.sessions.size >= this.maxBrowsers) {
+      // Try to clean up idle sessions first
+      await this.cleanupIdleSessions();
+
+      if (this.sessions.size >= this.maxBrowsers) {
+        throw new Error(
+          `Browser pool limit reached (${this.maxBrowsers}). Please close unused browsers.`,
+        );
+      }
+    }
+
+    const browserId = randomUUID();
+    const now = new Date();
+
     try {
-      // Allocate browser from pool
-      const allocation = await this.pool.allocate({
-        teamId,
-        browserType,
-        priority: "normal",
-      });
-
-      const browserId = allocation.instance.id;
-
-      // Configure page
-      if (userAgent) {
-        await allocation.page.setExtraHTTPHeaders({
-          "User-Agent": userAgent,
-        });
+      // Launch browser based on type
+      let browserInstance: Browser;
+      switch (browserType) {
+        case "firefox":
+          browserInstance = await firefox.launch({
+            headless,
+            timeout,
+          });
+          break;
+        case "webkit":
+          browserInstance = await webkit.launch({
+            headless,
+            timeout,
+          });
+          break;
+        default:
+          browserInstance = await chromium.launch({
+            headless,
+            timeout,
+            args: [
+              "--no-sandbox",
+              "--disable-setuid-sandbox",
+              "--disable-dev-shm-usage",
+              "--disable-web-security",
+              "--disable-features=VizDisplayCompositor",
+            ],
+          });
+          break;
       }
 
-      await allocation.page.setViewportSize(viewport);
-      allocation.page.setDefaultTimeout(timeout);
-      allocation.page.setDefaultNavigationTimeout(timeout);
+      // Create browser context
+      const context = await browserInstance.newContext({
+        viewport,
+        userAgent,
+        ignoreHTTPSErrors: true,
+      });
+
+      // Create page
+      const page = await context.newPage();
+
+      // Configure page timeouts
+      page.setDefaultTimeout(timeout);
+      page.setDefaultNavigationTimeout(timeout);
 
       // Store session
-      this.sessions.set(browserId, {
-        instance: allocation.instance,
-        page: allocation.page,
+      const session: BrowserSession = {
+        id: browserId,
+        browser: browserInstance,
+        context,
+        page,
         teamId,
-      });
+        createdAt: now,
+        lastUsed: now,
+        isActive: true,
+      };
+
+      this.sessions.set(browserId, session);
 
       logger.info("Browser launched successfully", {
         browserId,
         browserType,
         teamId,
-        allocationTime: allocation.allocationTime,
         activeSessions: this.sessions.size,
       });
 
@@ -245,12 +271,12 @@ export class BrowserPoolManager {
         browserId,
         browserType,
         headless,
-        userAgent: userAgent || (await allocation.page.evaluate(() => navigator.userAgent)),
+        userAgent: userAgent || (await page.evaluate(() => navigator.userAgent)),
         viewport,
       };
     } catch (error) {
       logger.error("Failed to launch browser", {
-        teamId,
+        browserId,
         browserType,
         error: error instanceof Error ? error.message : String(error),
       });
@@ -284,7 +310,7 @@ export class BrowserPoolManager {
     }
 
     const startTime = Date.now();
-    session.instance.touch();
+    session.lastUsed = new Date();
 
     try {
       const response = await session.page.goto(url, {
@@ -333,7 +359,7 @@ export class BrowserPoolManager {
     fileSize: number;
     auditId: string;
     returnFormat: string;
-    data?: string;
+    data?: string; // Only for base64_thumbnail backward compatibility
   }> {
     const {
       browserId,
@@ -341,18 +367,20 @@ export class BrowserPoolManager {
       quality = 90,
       type = "png",
       clip,
-      returnFormat = "file",
+      returnFormat = "file", // Default to file storage (Architecture Committee guidance)
       teamId,
       sessionId,
       encryption,
     } = args;
 
-    logger.info("Taking screenshot", {
+    logger.info("Taking screenshot with file storage", {
       browserId,
       fullPage,
       type,
       quality,
       returnFormat,
+      teamId,
+      sessionId,
     });
 
     const session = this.sessions.get(browserId);
@@ -360,7 +388,7 @@ export class BrowserPoolManager {
       throw new Error(`Browser session not found: ${browserId}`);
     }
 
-    session.instance.touch();
+    session.lastUsed = new Date();
 
     try {
       const screenshotOptions: Parameters<Page["screenshot"]>[0] = {
@@ -381,14 +409,14 @@ export class BrowserPoolManager {
       // Generate session ID if not provided
       const effectiveSessionId = sessionId || `browser-session-${browserId}`;
 
-      // Save to file storage
+      // Save to file storage using ScreenshotStorageManager
       const storageResult: ScreenshotStorageResult = await this.storageManager.saveScreenshot(
         buffer,
         dimensions,
         {
           sessionId: effectiveSessionId,
           browserId,
-          teamId: teamId || session.teamId,
+          teamId,
           format: type,
           quality,
           fullPage,
@@ -396,13 +424,15 @@ export class BrowserPoolManager {
         },
       );
 
-      logger.info("Screenshot saved", {
+      logger.info("Screenshot saved to file storage", {
         browserId,
         filePath: storageResult.filePath,
         fileSize: storageResult.fileSize,
         auditId: storageResult.auditId,
+        returnFormat,
       });
 
+      // Prepare response based on return format
       const response = {
         filePath: storageResult.filePath,
         filename: storageResult.filename,
@@ -413,9 +443,11 @@ export class BrowserPoolManager {
         returnFormat,
       };
 
-      // Backward compatibility for base64_thumbnail
+      // Backward compatibility: provide base64 thumbnail for legacy clients
       if (returnFormat === "base64_thumbnail") {
-        const thumbnailBuffer = buffer.length > 10000 ? buffer.slice(0, 10000) : buffer;
+        // Generate small thumbnail (max 64x64) to stay under 10K tokens
+        const thumbnailBuffer = buffer.length > 10000 ? buffer.slice(0, 10000) : buffer; // Simple truncation for now
+
         return {
           ...response,
           data: thumbnailBuffer.toString("base64"),
@@ -448,10 +480,7 @@ export class BrowserPoolManager {
     }
 
     try {
-      // Release instance back to pool
-      await this.pool.release(browserId);
-
-      // Remove from sessions
+      await this.closeBrowserSession(session, force);
       this.sessions.delete(browserId);
 
       logger.info("Browser closed successfully", {
@@ -468,20 +497,15 @@ export class BrowserPoolManager {
         browserId,
         error: error instanceof Error ? error.message : String(error),
       });
-
-      if (force) {
-        // Force remove from pool
-        await this.pool.remove(browserId, true);
-        this.sessions.delete(browserId);
-        return { success: true, browserId };
-      }
-
       throw new Error(
         `Failed to close browser: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
 
+  /**
+   * List all active browsers
+   */
   async listActiveBrowsers(): Promise<{
     browsers: Array<{
       browserId: string;
@@ -493,19 +517,22 @@ export class BrowserPoolManager {
       isActive: boolean;
     }>;
   }> {
-    const browsers = Array.from(this.sessions.entries()).map(([browserId, session]) => ({
-      browserId,
-      browserType: session.instance.browserType,
-      headless: true,
-      launchedAt: session.instance.createdAt,
+    const browsers = Array.from(this.sessions.values()).map((session) => ({
+      browserId: session.id,
+      browserType: "chromium", // TODO: Track actual browser type
+      headless: true, // TODO: Track actual headless mode
+      launchedAt: session.createdAt,
       currentUrl: session.page.url(),
       teamId: session.teamId,
-      isActive: session.instance.isActive,
+      isActive: session.isActive,
     }));
 
     return { browsers };
   }
 
+  /**
+   * Navigate browser back in history
+   */
   async goBack(args: { browserId: string }): Promise<{
     browserId: string;
     status: string;
@@ -517,7 +544,9 @@ export class BrowserPoolManager {
     }
 
     try {
-      session.instance.touch();
+      session.lastUsed = new Date();
+
+      // Navigate back in history
       await session.page.goBack();
       const url = session.page.url();
 
@@ -540,6 +569,7 @@ export class BrowserPoolManager {
     }
   }
 
+  // Get browser pool status
   getStatus(): {
     activeSessions: number;
     maxBrowsers: number;
@@ -551,23 +581,20 @@ export class BrowserPoolManager {
       isActive: boolean;
     }>;
   } {
-    const _poolStatus = this.pool.getStatus();
-    const sessions = Array.from(this.sessions.entries()).map(([id, session]) => ({
-      id,
-      teamId: session.teamId,
-      createdAt: session.instance.createdAt,
-      lastUsed: session.instance.lastUsed,
-      isActive: session.instance.isActive,
-    }));
-
     return {
       activeSessions: this.sessions.size,
       maxBrowsers: this.maxBrowsers,
-      sessions,
+      sessions: Array.from(this.sessions.values()).map((session) => ({
+        id: session.id,
+        teamId: session.teamId,
+        createdAt: session.createdAt,
+        lastUsed: session.lastUsed,
+        isActive: session.isActive,
+      })),
     };
   }
 
-  // Element interaction methods
+  // Private helper methods
   async clickElement(args: ClickElementArgs): Promise<{
     success: boolean;
     message: string;
@@ -575,14 +602,14 @@ export class BrowserPoolManager {
   }> {
     const { browserId, selector, waitForClickable = true, timeout = 5000 } = args;
 
-    logger.info("Clicking element", { browserId, selector });
+    logger.info("Clicking element", { browserId, selector, waitForClickable, timeout });
 
     const session = this.sessions.get(browserId);
     if (!session) {
       throw new Error(`Browser session not found: ${browserId}`);
     }
 
-    session.instance.touch();
+    session.lastUsed = new Date();
 
     try {
       if (waitForClickable) {
@@ -632,7 +659,7 @@ export class BrowserPoolManager {
       throw new Error(`Browser session not found: ${browserId}`);
     }
 
-    session.instance.touch();
+    session.lastUsed = new Date();
 
     try {
       await session.page.waitForSelector(selector, { timeout });
@@ -682,7 +709,7 @@ export class BrowserPoolManager {
       throw new Error(`Browser session not found: ${browserId}`);
     }
 
-    session.instance.touch();
+    session.lastUsed = new Date();
 
     const results: Array<{
       selector: string;
@@ -745,7 +772,7 @@ export class BrowserPoolManager {
       throw new Error(`Browser session not found: ${browserId}`);
     }
 
-    session.instance.touch();
+    session.lastUsed = new Date();
 
     try {
       await session.page.waitForSelector(selector, { state, timeout });
@@ -788,7 +815,7 @@ export class BrowserPoolManager {
       throw new Error(`Browser session not found: ${browserId}`);
     }
 
-    session.instance.touch();
+    session.lastUsed = new Date();
 
     try {
       await session.page.waitForSelector(selector, { timeout });
@@ -831,7 +858,7 @@ export class BrowserPoolManager {
       throw new Error(`Browser session not found: ${browserId}`);
     }
 
-    session.instance.touch();
+    session.lastUsed = new Date();
 
     try {
       const elementExists = await session.page
@@ -885,7 +912,7 @@ export class BrowserPoolManager {
       throw new Error(`Browser session not found: ${browserId}`);
     }
 
-    session.instance.touch();
+    session.lastUsed = new Date();
 
     try {
       // Wait a short time for elements to potentially appear
@@ -917,6 +944,79 @@ export class BrowserPoolManager {
       throw new Error(
         `Failed to find elements: ${error instanceof Error ? error.message : String(error)}`,
       );
+    }
+  }
+
+  private async closeBrowserSession(session: BrowserSession, force = false): Promise<void> {
+    try {
+      if (session.page && !session.page.isClosed()) {
+        await session.page.close();
+      }
+    } catch (error) {
+      logger.warn("Failed to close page", {
+        sessionId: session.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    try {
+      if (session.context && !session.context.pages().length) {
+        await session.context.close();
+      }
+    } catch (error) {
+      logger.warn("Failed to close context", {
+        sessionId: session.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    try {
+      if (session.browser?.isConnected()) {
+        await session.browser.close();
+      }
+    } catch (error) {
+      if (force) {
+        logger.warn("Force closing browser despite error", {
+          sessionId: session.id,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  private async cleanupIdleSessions(): Promise<void> {
+    const now = Date.now();
+    const sessionsToCleanup: string[] = [];
+
+    for (const [id, session] of this.sessions) {
+      const idleTime = now - session.lastUsed.getTime();
+      if (idleTime > this.maxIdleTime) {
+        sessionsToCleanup.push(id);
+      }
+    }
+
+    if (sessionsToCleanup.length > 0) {
+      logger.info("Cleaning up idle sessions", {
+        count: sessionsToCleanup.length,
+        sessions: sessionsToCleanup,
+      });
+
+      for (const sessionId of sessionsToCleanup) {
+        const session = this.sessions.get(sessionId);
+        if (session) {
+          try {
+            await this.closeBrowserSession(session, true);
+            this.sessions.delete(sessionId);
+          } catch (error) {
+            logger.error("Failed to cleanup idle session", {
+              sessionId,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+      }
     }
   }
 }

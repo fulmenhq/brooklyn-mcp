@@ -16,6 +16,7 @@ export interface Config {
   maxBrowsers: number;
   browserTimeout: number;
   headless: boolean;
+  allocationStrategy?: "round-robin" | "least-used" | "team-isolated";
 
   // Security
   rateLimitRequests: number;

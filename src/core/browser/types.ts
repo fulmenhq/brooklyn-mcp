@@ -34,6 +34,8 @@ export interface BrowserInstallationOptions {
   forceReinstall?: boolean;
   installPath?: string;
   onProgress?: (progress: BrowserInstallationProgress) => void;
+  silent?: boolean;
+  skipProgress?: boolean;
 }
 
 export interface BrowserAvailabilityResult {
