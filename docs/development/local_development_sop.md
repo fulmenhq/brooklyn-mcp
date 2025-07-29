@@ -698,8 +698,12 @@ bun run build
 ./dist/brooklyn --version
 ./dist/brooklyn status
 
-# Test MCP initialization
-echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | ./dist/brooklyn mcp start
+# Test MCP initialization - Use correct Claude format
+echo '{"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{"roots":{}},"clientInfo":{"name":"claude-code","version":"1.0.61"}},"jsonrpc":"2.0","id":0}' | ./dist/brooklyn mcp start
+
+# Historical Note: Earlier versions accepted simplified format
+# echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | ./dist/brooklyn mcp start
+# But Claude actually sends id:0 with full params, so use format above
 
 # Look for any logger errors in output
 ```

@@ -136,7 +136,7 @@
       }
     },
     {
-      "include": ["src/cli/brooklyn.ts", "src/cli/brooklyn-server.ts"],
+      "include": ["src/cli/brooklyn.ts", "src/cli/brooklyn-server.ts", "src/cli/commands/*.ts"],
       "linter": {
         "rules": {
           "suspicious": {

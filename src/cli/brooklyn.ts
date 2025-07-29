@@ -12,7 +12,7 @@
  */
 
 // Version embedded at build time from VERSION file
-const VERSION = "1.2.23";
+const VERSION = "1.3.0";
 
 import { HELP_TEXT } from "../generated/help/index.js";
 // buildConfig import removed - not used in CLI entry point
@@ -734,6 +734,59 @@ function setupDebugCommands(program: Command): void {
 }
 
 /**
+ * Browser command group - Browser management
+ */
+function setupBrowserCommands(program: Command): void {
+  const browserCmd = program.command("browser").description("Browser management commands");
+
+  browserCmd
+    .command("info")
+    .description("Show installed browsers and versions")
+    .action(async () => {
+      const { browserInfoCommand } = await import("./commands/browser-info.js");
+      await browserInfoCommand();
+    });
+
+  browserCmd
+    .command("update [browser]")
+    .description("Update installed browsers to latest versions")
+    .action(async (browser?: string) => {
+      const { browserUpdateCommand } = await import("./commands/browser-info.js");
+      await browserUpdateCommand(browser);
+    });
+
+  browserCmd
+    .command("clean")
+    .description("Clean browser cache and remove old versions")
+    .option("--force", "Force cleanup without confirmation")
+    .action(async (options) => {
+      const { browserCleanCommand } = await import("./commands/browser-info.js");
+      await browserCleanCommand(options.force);
+    });
+
+  browserCmd
+    .command("install [browser]")
+    .description("Install specific browser (chromium, firefox, webkit)")
+    .action(async (browser?: string) => {
+      try {
+        // Load config and initialize logging for non-MCP commands
+        const config = await loadConfig();
+        await initializeLogging(config);
+        enableConfigLogger();
+
+        if (browser) {
+          await setupBrowsers(browser);
+        } else {
+          await setupBrowsers();
+        }
+      } catch (error) {
+        console.error("Browser installation failed:", error);
+        process.exit(1);
+      }
+    });
+}
+
+/**
  * Main CLI setup
  */
 async function main(): Promise<void> {
@@ -750,6 +803,7 @@ async function main(): Promise<void> {
     // Set up command groups
     setupMCPCommands(program);
     setupWebCommands(program);
+    setupBrowserCommands(program);
     setupDebugCommands(program);
     setupStatusCommand(program);
     setupSetupCommand(program);

@@ -6,6 +6,8 @@ Brooklyn implements the MCP JSON-RPC 2.0 protocol. Key details from debugging Cl
 
 ### Initialize Request (from Claude)
 
+**CRITICAL**: Claude sends `id: 0`, not `id: 1`. Earlier documentation versions incorrectly showed `id: 1`, causing "two days of chasing tails" debugging issues.
+
 Claude sends:
 
 ```json
@@ -23,10 +25,12 @@ Claude sends:
 
 Notes:
 
-- Uses id:0 (treated as request, not notification)
-- Declares "roots": {} capability
+- **Uses `id: 0`** (treated as request, not notification) - this is critical!
+- **Declares `"roots": {}` capability** - required for handshake success
+- **Full params object** - protocolVersion, capabilities, clientInfo all required
 - Protocol version may differ from MCP spec default
 - No embedded newlines; terminated by single \n
+**Historical Issue**: Earlier Brooklyn documentation incorrectly showed `id: 1` format, which our server would reject, causing silent connection failures.
 
 ### Brooklyn Response
 
@@ -123,7 +127,11 @@ Brooklyn now starts completely silent in MCP mode:
 bun scripts/flow-wrapper-stdio.ts "brooklyn mcp start" --pipe-log-base test-silent
 
 # Should see NO stderr output, only JSON-RPC on stdout
-echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | brooklyn mcp start
+echo '{"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{"roots":{}},"clientInfo":{"name":"claude-code","version":"1.0.61"}},"jsonrpc":"2.0","id":0}' | brooklyn mcp start
+
+# Historical Note: Earlier versions of our docs incorrectly showed
+# echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | brooklyn mcp start
+# This caused "two days of chasing tails" - Claude actually uses id:0, not id:1
 ```
 
 ### Common Issues

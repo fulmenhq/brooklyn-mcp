@@ -145,7 +145,11 @@ ls -la /tmp/brooklyn-mcp-dev-*
 # Watch Brooklyn logs
 tail -f ~/.brooklyn/dev/logs/brooklyn-mcp-dev-*.log
 
-# Test pipes manually
-echo '{"jsonrpc":"2.0","id":1,"method":"initialize"}' > /tmp/brooklyn-mcp-dev-*-in
+# Test pipes manually - Use correct Claude format
+echo '{"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{"roots":{}},"clientInfo":{"name":"claude-code","version":"1.0.61"}},"jsonrpc":"2.0","id":0}' > /tmp/brooklyn-mcp-dev-*-in
 cat /tmp/brooklyn-mcp-dev-*-out
+
+# Historical Note: Earlier versions accepted simplified format
+# echo '{"jsonrpc":"2.0","id":1,"method":"initialize"}' > /tmp/brooklyn-mcp-dev-*-in
+# But Claude actually sends id:0 with full params, so use format above
 ```
