@@ -31,10 +31,10 @@ The fastest way to get started with dev mode:
 # 1. Build and install Brooklyn CLI
 bun run build && bun install
 
-# 2. Start dev mode
+# 2. Start dev mode (runs in foreground!)
 brooklyn mcp dev-start
 
-# 3. Check status
+# 3. Check status (in separate terminal)
 brooklyn mcp dev-status
 
 # 4. Test communication (optional)
@@ -66,8 +66,14 @@ All dev mode operations use the Brooklyn CLI. The commands are available after r
 Launch the development server with named pipes:
 
 ```bash
+# Terminal 1: Start dev mode (runs in foreground!)
 brooklyn mcp dev-start
+
+# For AI agents: Background the process
+brooklyn mcp dev-start &
 ```
+
+⚠️ **Important**: Dev mode runs in the foreground by default. Use a separate terminal for other commands or background the process.
 
 This command:
 
@@ -142,22 +148,22 @@ brooklyn mcp dev-cleanup
 
 ### Typical Development Cycle
 
-1. **Start dev mode**: `brooklyn mcp dev-start`
-2. **Make code changes** to Brooklyn source
+1. **Start dev mode**: `brooklyn mcp dev-start` (in Terminal 1, runs in foreground)
+2. **Make code changes** to Brooklyn source (in Terminal 2)
 3. **Test changes**: Use the provided client examples or create custom MCP clients
 4. **Verify functionality**: `brooklyn mcp dev-status` to check health
 5. **Iterate**: Repeat steps 2-4 as needed
-6. **Stop when done**: `brooklyn mcp dev-stop`
+6. **Stop when done**: `brooklyn mcp dev-stop` or Ctrl+C in Terminal 1
 
 ### Advanced Development
 
 For more intensive development work:
 
 ```bash
-# 1. Start dev mode
+# 1. Start dev mode (Terminal 1, runs in foreground)
 brooklyn mcp dev-start
 
-# 2. Monitor logs in real-time (separate terminal)
+# 2. Monitor logs in real-time (Terminal 2)
 tail -f ~/.brooklyn/dev/logs/brooklyn-mcp-dev-*.log
 
 # 3. Test browser automation
@@ -240,7 +246,7 @@ For detailed debugging, start dev mode with verbose logging:
 # Stop existing instance first
 brooklyn mcp dev-stop
 
-# Start with debug logging
+# Start with debug logging (runs in foreground)
 brooklyn mcp dev-start --log-level debug
 ```
 

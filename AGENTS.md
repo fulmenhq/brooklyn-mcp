@@ -112,6 +112,7 @@ Supervised by @[human-maintainer]
 - Quality gates: All checks must pass; no bypassing
 - MCP Compliance: Strict protocol adherence
 - Resource Mgmt: Browser pooling, cleanup
+- Planning docs: .plans/ directory is gitignored - use for team coordination, not permanent docs
 
 ## 🚨 MANDATORY SAFETY PROTOCOLS COMPLIANCE
 

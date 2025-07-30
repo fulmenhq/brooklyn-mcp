@@ -47,10 +47,14 @@ This pattern is primarily for internal use by the Brooklyn development team but 
 Launch the dev server using the management script:
 
 ```bash
+# Terminal 1: Start dev mode (runs in foreground!)
 bun run dev:brooklyn:start
+
+# For AI agents: Background the process
+bun run dev:brooklyn:start &
 ```
 
-This creates named pipes and spawns a detached Brooklyn MCP server process. The server runs independently and can be managed through script commands.
+⚠️ **Important**: Dev mode runs in the foreground by default. This creates named pipes and spawns a Brooklyn MCP server process that stays attached to the terminal. Use a separate terminal for other commands or background the process for automation.
 
 ### Management Commands
 

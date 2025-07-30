@@ -226,7 +226,7 @@ opencode
 ### Quick Start (Copy-Paste Ready)
 
 ```bash
-# Terminal 1: Start Brooklyn dev mode
+# Terminal 1: Start Brooklyn dev mode (runs in foreground!)
 bun run dev:brooklyn:start
 
 # Terminal 2: Test with pre-built example
@@ -234,6 +234,32 @@ node examples/brooklyn-dev-test.js
 
 # Or use the one-liner test
 bun run dev:brooklyn:test
+```
+
+⚠️ **Important: Dev Mode Runs in Foreground**
+
+The `bun run dev:brooklyn:start` command keeps the process in the foreground. This is critical for:
+
+- **AI Agents**: Must account for this in automation scripts
+- **Testing**: Keep terminal open or use process managers
+- **Logs**: Output goes to terminal AND ~/.brooklyn/dev/logs/
+
+**Alternative Approaches**:
+
+```bash
+# Background the process (AI agents should handle background jobs)
+bun run dev:brooklyn:start &
+
+# Use screen/tmux for persistent sessions
+screen -S brooklyn-dev
+bun run dev:brooklyn:start
+# Ctrl+A,D to detach
+
+# Use nohup for disconnected sessions
+nohup bun run dev:brooklyn:start > brooklyn-dev.log 2>&1 &
+
+# Check if running
+bun run dev:brooklyn:status
 ```
 
 ### Understanding the Dev Mode Architecture
@@ -253,14 +279,16 @@ Here's a full example showing how to communicate with Brooklyn dev mode using th
 #!/usr/bin/env node
 // save as: test-brooklyn-dev.js
 
-import { spawn, execSync } from 'child_process';
-import { createWriteStream } from 'fs';
+import { spawn, execSync } from "child_process";
+import { createWriteStream } from "fs";
 
 // Auto-detect the most recent Brooklyn dev pipes
-const inPipe = execSync('ls -t /tmp/brooklyn-mcp-dev-*-in 2>/dev/null | head -1').toString().trim();
-const outPipe = execSync('ls -t /tmp/brooklyn-mcp-dev-*-out 2>/dev/null | head -1').toString().trim();
+const inPipe = execSync("ls -t /tmp/brooklyn-mcp-dev-*-in 2>/dev/null | head -1").toString().trim();
+const outPipe = execSync("ls -t /tmp/brooklyn-mcp-dev-*-out 2>/dev/null | head -1")
+  .toString()
+  .trim();
 
-console.log('🌉 Brooklyn Dev Mode Testing');
+console.log("🌉 Brooklyn Dev Mode Testing");
 console.log(`📤 Input pipe: ${inPipe}`);
 console.log(`📥 Output pipe: ${outPipe}`);
 
@@ -268,15 +296,18 @@ console.log(`📥 Output pipe: ${outPipe}`);
 const writer = createWriteStream(inPipe);
 
 // Read from output pipe using cat (important!)
-const reader = spawn('cat', [outPipe]);
+const reader = spawn("cat", [outPipe]);
 
 // Handle responses
-reader.stdout.on('data', (data) => {
-  const lines = data.toString().split('\n').filter(l => l.trim());
+reader.stdout.on("data", data => {
+  const lines = data
+    .toString()
+    .split("\n")
+    .filter(l => l.trim());
   lines.forEach(line => {
     try {
       const response = JSON.parse(line);
-      console.log('\n📥 Response:', JSON.stringify(response, null, 2));
+      console.log("\n📥 Response:", JSON.stringify(response, null, 2));
     } catch (e) {
       // Ignore non-JSON lines
     }
@@ -286,89 +317,99 @@ reader.stdout.on('data', (data) => {
 // Test Sequence:
 
 // 1. Initialize MCP connection (required first)
-console.log('\n🚀 Step 1: Initialize MCP connection');
-writer.write(JSON.stringify({
-  jsonrpc: "2.0",
-  id: 1,
-  method: "initialize",
-  params: {
-    protocolVersion: "2024-11-05",
-    capabilities: {},
-    clientInfo: {
-      name: "brooklyn-dev-test",
-      version: "1.0.0"
-    }
-  }
-}) + '\n');
+console.log("\n🚀 Step 1: Initialize MCP connection");
+writer.write(
+  JSON.stringify({
+    jsonrpc: "2.0",
+    id: 1,
+    method: "initialize",
+    params: {
+      protocolVersion: "2024-11-05",
+      capabilities: {},
+      clientInfo: {
+        name: "brooklyn-dev-test",
+        version: "1.0.0",
+      },
+    },
+  }) + "\n",
+);
 
 // 2. List available tools
 setTimeout(() => {
-  console.log('\n📋 Step 2: List available tools');
-  writer.write(JSON.stringify({
-    jsonrpc: "2.0",
-    id: 2,
-    method: "tools/list",
-    params: {}
-  }) + '\n');
+  console.log("\n📋 Step 2: List available tools");
+  writer.write(
+    JSON.stringify({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "tools/list",
+      params: {},
+    }) + "\n",
+  );
 }, 500);
 
 // 3. Launch a browser
 setTimeout(() => {
-  console.log('\n🌐 Step 3: Launch a browser');
-  writer.write(JSON.stringify({
-    jsonrpc: "2.0",
-    id: 3,
-    method: "tools/call",
-    params: {
-      name: "launch_browser",
-      arguments: {
-        browserType: "chromium",
-        headless: true,
-        teamId: "dev-test"
-      }
-    }
-  }) + '\n');
+  console.log("\n🌐 Step 3: Launch a browser");
+  writer.write(
+    JSON.stringify({
+      jsonrpc: "2.0",
+      id: 3,
+      method: "tools/call",
+      params: {
+        name: "launch_browser",
+        arguments: {
+          browserType: "chromium",
+          headless: true,
+          teamId: "dev-test",
+        },
+      },
+    }) + "\n",
+  );
 }, 1000);
 
 // 4. Navigate to a URL (you'll need the browserId from step 3)
 setTimeout(() => {
-  console.log('\n🔗 Step 4: Navigate to URL');
-  console.log('(Note: Update browserId from step 3 response)');
+  console.log("\n🔗 Step 4: Navigate to URL");
+  console.log("(Note: Update browserId from step 3 response)");
   // In real usage, extract browserId from step 3 response
-  writer.write(JSON.stringify({
-    jsonrpc: "2.0",
-    id: 4,
-    method: "tools/call",
-    params: {
-      name: "navigate_to_url",
-      arguments: {
-        browserId: "browser_xxxxx", // Update this!
-        url: "https://example.com"
-      }
-    }
-  }) + '\n');
+  writer.write(
+    JSON.stringify({
+      jsonrpc: "2.0",
+      id: 4,
+      method: "tools/call",
+      params: {
+        name: "navigate_to_url",
+        arguments: {
+          browserId: "browser_xxxxx", // Update this!
+          url: "https://example.com",
+        },
+      },
+    }) + "\n",
+  );
 }, 2000);
 
 // 5. Take a screenshot
 setTimeout(() => {
-  console.log('\n📸 Step 5: Take a screenshot');
-  writer.write(JSON.stringify({
-    jsonrpc: "2.0",
-    id: 5,
-    method: "tools/call",
-    params: {
-      name: "take_screenshot",
-      arguments: {
-        browserId: "browser_xxxxx", // Update this!
-        fullPage: false
-      }
-    }
-  }) + '\n');
+  console.log("\n📸 Step 5: Take a screenshot");
+  writer.write(
+    JSON.stringify({
+      jsonrpc: "2.0",
+      id: 5,
+      method: "tools/call",
+      params: {
+        name: "take_screenshot",
+        arguments: {
+          browserId: "browser_xxxxx", // Update this!
+          fullPage: false,
+        },
+      },
+    }) + "\n",
+  );
 }, 3000);
 
 // Clean up after 5 seconds
 setTimeout(() => {
-  console.log('\n✅ Test complete!');
+  console.log("\n✅ Test complete!");
   writer.end();
   reader.kill();
   process.exit(0);
@@ -386,10 +427,10 @@ EOF
 # Make it executable
 chmod +x test-brooklyn-dev.js
 
-# Start Brooklyn dev mode (if not already running)
+# Terminal 1: Start Brooklyn dev mode (STAYS IN FOREGROUND!)
 bun run dev:brooklyn:start
 
-# Run the test
+# Terminal 2: Run the test (in separate terminal)
 node test-brooklyn-dev.js
 ```
 
@@ -456,33 +497,36 @@ node test-brooklyn-dev.js
 
 ```javascript
 // interactive-brooklyn.js - A more advanced example
-import readline from 'readline';
-import { spawn, execSync } from 'child_process';
-import { createWriteStream } from 'fs';
+import readline from "readline";
+import { spawn, execSync } from "child_process";
+import { createWriteStream } from "fs";
 
 // Setup pipes and readline
-const inPipe = execSync('ls -t /tmp/brooklyn-mcp-dev-*-in | head -1').toString().trim();
-const outPipe = execSync('ls -t /tmp/brooklyn-mcp-dev-*-out | head -1').toString().trim();
+const inPipe = execSync("ls -t /tmp/brooklyn-mcp-dev-*-in | head -1").toString().trim();
+const outPipe = execSync("ls -t /tmp/brooklyn-mcp-dev-*-out | head -1").toString().trim();
 const writer = createWriteStream(inPipe);
-const reader = spawn('cat', [outPipe]);
+const reader = spawn("cat", [outPipe]);
 const rl = readline.createInterface({
   input: process.stdin,
-  output: process.stdout
+  output: process.stdout,
 });
 
 let messageId = 1;
 let currentBrowserId = null;
 
 // Handle responses
-reader.stdout.on('data', (data) => {
-  const lines = data.toString().split('\n').filter(l => l.trim());
+reader.stdout.on("data", data => {
+  const lines = data
+    .toString()
+    .split("\n")
+    .filter(l => l.trim());
   lines.forEach(line => {
     try {
       const response = JSON.parse(line);
-      console.log('\n✅ Response:', JSON.stringify(response, null, 2));
-      
+      console.log("\n✅ Response:", JSON.stringify(response, null, 2));
+
       // Extract browser ID from launch response
-      if (response.result?.content?.[0]?.text?.includes('Browser ID:')) {
+      if (response.result?.content?.[0]?.text?.includes("Browser ID:")) {
         const match = response.result.content[0].text.match(/Browser ID: (browser_\w+)/);
         if (match) {
           currentBrowserId = match[1];
@@ -494,87 +538,95 @@ reader.stdout.on('data', (data) => {
 });
 
 // Initialize MCP
-writer.write(JSON.stringify({
-  jsonrpc: "2.0",
-  id: messageId++,
-  method: "initialize",
-  params: {
-    protocolVersion: "2024-11-05",
-    capabilities: {},
-    clientInfo: { name: "interactive-brooklyn", version: "1.0.0" }
-  }
-}) + '\n');
+writer.write(
+  JSON.stringify({
+    jsonrpc: "2.0",
+    id: messageId++,
+    method: "initialize",
+    params: {
+      protocolVersion: "2024-11-05",
+      capabilities: {},
+      clientInfo: { name: "interactive-brooklyn", version: "1.0.0" },
+    },
+  }) + "\n",
+);
 
 // Interactive menu
 function showMenu() {
-  console.log('\n🌉 Brooklyn Interactive Menu:');
-  console.log('1. Launch browser');
-  console.log('2. Navigate to URL');
-  console.log('3. Take screenshot');
-  console.log('4. Close browser');
-  console.log('5. List tools');
-  console.log('q. Quit');
-  rl.question('\nChoice: ', handleChoice);
+  console.log("\n🌉 Brooklyn Interactive Menu:");
+  console.log("1. Launch browser");
+  console.log("2. Navigate to URL");
+  console.log("3. Take screenshot");
+  console.log("4. Close browser");
+  console.log("5. List tools");
+  console.log("q. Quit");
+  rl.question("\nChoice: ", handleChoice);
 }
 
 function handleChoice(choice) {
-  switch(choice) {
-    case '1':
-      writer.write(JSON.stringify({
-        jsonrpc: "2.0",
-        id: messageId++,
-        method: "tools/call",
-        params: {
-          name: "launch_browser",
-          arguments: { browserType: "chromium", headless: false }
-        }
-      }) + '\n');
+  switch (choice) {
+    case "1":
+      writer.write(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          id: messageId++,
+          method: "tools/call",
+          params: {
+            name: "launch_browser",
+            arguments: { browserType: "chromium", headless: false },
+          },
+        }) + "\n",
+      );
       break;
-      
-    case '2':
-      rl.question('URL: ', (url) => {
+
+    case "2":
+      rl.question("URL: ", url => {
         if (!currentBrowserId) {
-          console.log('❌ No browser launched yet!');
+          console.log("❌ No browser launched yet!");
           showMenu();
           return;
         }
-        writer.write(JSON.stringify({
-          jsonrpc: "2.0",
-          id: messageId++,
-          method: "tools/call",
-          params: {
-            name: "navigate_to_url",
-            arguments: { browserId: currentBrowserId, url }
-          }
-        }) + '\n');
+        writer.write(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: messageId++,
+            method: "tools/call",
+            params: {
+              name: "navigate_to_url",
+              arguments: { browserId: currentBrowserId, url },
+            },
+          }) + "\n",
+        );
         setTimeout(showMenu, 1000);
       });
       return;
-      
-    case '3':
+
+    case "3":
       if (!currentBrowserId) {
-        console.log('❌ No browser launched yet!');
+        console.log("❌ No browser launched yet!");
       } else {
-        writer.write(JSON.stringify({
-          jsonrpc: "2.0",
-          id: messageId++,
-          method: "tools/call",
-          params: {
-            name: "take_screenshot",
-            arguments: { browserId: currentBrowserId, fullPage: true }
-          }
-        }) + '\n');
+        writer.write(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: messageId++,
+            method: "tools/call",
+            params: {
+              name: "take_screenshot",
+              arguments: { browserId: currentBrowserId, fullPage: true },
+            },
+          }) + "\n",
+        );
       }
       break;
-      
-    case 'q':
-      console.log('👋 Goodbye!');
+
+    case "q":
+      console.log("👋 Goodbye!");
       process.exit(0);
-      
+
     default:
-      console.log('❌ Invalid choice');
+      console.log("❌ Invalid choice");
   }
-  
+
   setTimeout(showMenu, 1000);
 }
 
@@ -602,7 +654,7 @@ You're using `createReadStream` on the output pipe. Use the `cat` subprocess app
 const reader = createReadStream(outputPipe);
 
 // ✅ Correct
-const reader = spawn('cat', [outputPipe]);
+const reader = spawn("cat", [outputPipe]);
 ```
 
 #### 3. Messages not getting through
@@ -769,7 +821,7 @@ bun run dev:brooklyn:cleanup # Convenience wrapper
 #### Step 1: Start Development Mode
 
 ```bash
-# Start the revolutionary MCP development mode
+# Start the revolutionary MCP development mode (runs in foreground!)
 brooklyn mcp dev-start
 
 # Expected output:
@@ -777,6 +829,10 @@ brooklyn mcp dev-start
 # 📦 Creating named pipes...
 # 🔧 Starting Brooklyn MCP process...
 # ✅ Brooklyn MCP development mode started successfully!
+# [Process continues running in foreground - use another terminal for testing]
+
+# Alternative: Background the process for AI agents
+brooklyn mcp dev-start &
 ```
 
 #### Step 2: Development Testing

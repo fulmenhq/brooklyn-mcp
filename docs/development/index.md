@@ -242,14 +242,17 @@ Brooklyn includes a revolutionary development mode for internal MCP development 
 ### Quick Start
 
 ```bash
-# Start MCP development mode
+# Terminal 1: Start MCP development mode (runs in foreground!)
 bun run mcp-dev:start
 
-# Check status
+# Terminal 2: Check status (in separate terminal)
 bun run mcp-dev:status
 
-# Stop development mode
+# Stop development mode (when done testing)
 bun run mcp-dev:stop
+
+# For AI agents: Background the process
+bun run mcp-dev:start &
 ```
 
 ### Key Benefits

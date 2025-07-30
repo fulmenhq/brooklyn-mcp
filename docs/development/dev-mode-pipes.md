@@ -101,11 +101,14 @@ reader.stdout.on("data", data => {
 ```
 
 ```bash
-# Start Brooklyn dev mode
+# Terminal 1: Start Brooklyn dev mode (RUNS IN FOREGROUND!)
 brooklyn mcp dev-start
 
-# Test with the working client
+# Terminal 2: Test with the working client (SEPARATE TERMINAL)
 node examples/brooklyn-dev-test.js
+
+# For AI agents: Background the dev mode process
+brooklyn mcp dev-start &
 ```
 
 ## Key Takeaways
