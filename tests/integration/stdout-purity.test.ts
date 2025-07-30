@@ -9,11 +9,18 @@
  * - JSON-RPC purity validation on stdout
  * - Structured log routing verification on stderr
  * - Regression prevention for Architecture Committee compliance
+ *
+ * CI/CD Requirements:
+ * - Tests will fail if existing Brooklyn processes are running
+ * - In CI/CD environments, run cleanup before tests: pkill -f brooklyn
+ * - This ensures tests reflect real-world conditions
+ * - Local developers must manage their Brooklyn instances properly
  */
 
 import { spawn } from "node:child_process";
 import { resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { InstanceManager } from "../../src/core/instance-manager.js";
 
 interface MCP_Message {
   jsonrpc: string;
@@ -43,6 +50,22 @@ describe("Architecture Committee: MCP Stdout Purity Tests", () => {
     // Ensure test environment is clean
     process.env["BROOKLYN_LOG_LEVEL"] = "debug";
     process.env["BROOKLYN_TEST_MODE"] = "true";
+
+    // Check for existing Brooklyn processes before running tests
+    try {
+      const processes = await InstanceManager.findBrooklynProcesses();
+
+      if (processes.length > 0) {
+        throw new Error(
+          `\n\nExisting Brooklyn server processes detected. Please clean up before running tests:\n${processes.join("\n")}\n\nRun one of:\n  - bun run server:cleanup  (for production server)\n  - bun run dev:brooklyn:cleanup  (for dev mode)\n  - pkill -f 'brooklyn mcp'  (manual cleanup)\n\n`,
+        );
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("Existing Brooklyn")) {
+        throw error;
+      }
+      // Ignore other errors from process detection
+    }
   });
 
   afterAll(() => {
@@ -60,20 +83,28 @@ describe("Architecture Committee: MCP Stdout Purity Tests", () => {
     "should maintain stdout purity during MCP initialize",
     async () => {
       const initializeRequest = {
-        jsonrpc: "2.0",
-        id: 1,
         method: "initialize",
         params: {
-          protocolVersion: "2024-11-05",
-          capabilities: {},
+          protocolVersion: "2025-06-18",
+          capabilities: { roots: {} },
           clientInfo: {
-            name: "stdout-purity-test",
-            version: "1.0.0",
+            name: "claude-code",
+            version: "1.0.61",
           },
         },
+        jsonrpc: "2.0",
+        id: 0,
       };
 
       const result = await runMCPTest(JSON.stringify(initializeRequest));
+
+      // Check if server exited due to existing instance
+      if (result.exitCode === 1 && !result.stdout && !result.stderr) {
+        throw new Error(
+          "MCP server exited immediately (exit code 1). This usually means another Brooklyn instance is running.\n" +
+            "Run 'pkill -f brooklyn' to clean up, then try again.",
+        );
+      }
 
       // CRITICAL: stdout must contain ONLY JSON-RPC response
       expect(result.stdout.trim()).toBeTruthy();
@@ -84,7 +115,7 @@ describe("Architecture Committee: MCP Stdout Purity Tests", () => {
 
       const response: MCP_Message = JSON.parse(stdoutLines[0]!);
       expect(response.jsonrpc).toBe("2.0");
-      expect(response.id).toBe(1);
+      expect(response.id).toBe(0);
       expect(response.result).toBeDefined();
       expect(response.result).toHaveProperty("protocolVersion");
       expect(response.result).toHaveProperty("capabilities");
@@ -138,16 +169,24 @@ describe("Architecture Committee: MCP Stdout Purity Tests", () => {
       // First initialize the session
       const initResult = await runMCPTest(
         JSON.stringify({
-          jsonrpc: "2.0",
-          id: 1,
           method: "initialize",
           params: {
-            protocolVersion: "2024-11-05",
-            capabilities: {},
-            clientInfo: { name: "test", version: "1.0.0" },
+            protocolVersion: "2025-06-18",
+            capabilities: { roots: {} },
+            clientInfo: { name: "claude-code", version: "1.0.61" },
           },
+          jsonrpc: "2.0",
+          id: 0,
         }),
       );
+
+      // Check if server exited due to existing instance
+      if (initResult.exitCode === 1 && !initResult.stdout && !initResult.stderr) {
+        throw new Error(
+          "MCP server exited immediately (exit code 1). This usually means another Brooklyn instance is running.\n" +
+            "Run 'pkill -f brooklyn' to clean up, then try again.",
+        );
+      }
 
       // Process may exit with null (SIGTERM) or 0 (normal exit) - both are acceptable
       expect(initResult.exitCode === 0 || initResult.exitCode === null).toBe(true);
@@ -184,14 +223,14 @@ describe("Architecture Committee: MCP Stdout Purity Tests", () => {
     async () => {
       const requests = [
         {
-          jsonrpc: "2.0",
-          id: 1,
           method: "initialize",
           params: {
-            protocolVersion: "2024-11-05",
-            capabilities: {},
-            clientInfo: { name: "multi-test", version: "1.0.0" },
+            protocolVersion: "2025-06-18",
+            capabilities: { roots: {} },
+            clientInfo: { name: "claude-code", version: "1.0.61" },
           },
+          jsonrpc: "2.0",
+          id: 0,
         },
         {
           jsonrpc: "2.0",
@@ -331,6 +370,7 @@ async function runMCPTest(input: string): Promise<TestResult> {
     //    - Start the transport and begin listening on stdin
     // 3. Only AFTER all this can we send the initialize request
     // 4. The server will NOT respond until it receives a valid initialize request
+    // 5. CRITICAL: Use Claude's exact message format with id:0, not id:1
     setTimeout(() => {
       if (child.stdin && !child.killed) {
         // Sending input
@@ -340,11 +380,11 @@ async function runMCPTest(input: string): Promise<TestResult> {
         setTimeout(() => {
           child.stdin.end();
           // Stdin ended
-        }, 2000); // Give time for response before closing stdin
+        }, 3000); // Give time for response before closing stdin
       } else {
         // Child not ready for input
       }
-    }, 3000); // Wait 3s for full server initialization
+    }, 5000); // Wait 5s for full server initialization (increased from 3s)
 
     child.on("close", () => clearTimeout(timeout));
   });

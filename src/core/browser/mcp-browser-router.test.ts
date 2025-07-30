@@ -12,6 +12,14 @@ const mockBrowserPool = {
   takeScreenshot: vi.fn(),
   getBrowserInstance: vi.fn(),
   listActiveBrowsers: vi.fn(),
+  fillText: vi.fn(),
+  waitForElement: vi.fn(),
+  getTextContent: vi.fn(),
+  validateElementPresence: vi.fn(),
+  goBack: vi.fn(),
+  clickElement: vi.fn(),
+  fillFormFields: vi.fn(),
+  findElements: vi.fn(),
 } as unknown as BrowserPoolManager;
 
 describe("MCPBrowserRouter", () => {
@@ -311,6 +319,205 @@ describe("MCPBrowserRouter", () => {
       // Assert
       expect(stats.activeSessions).toBe(0);
       expect(router["activeSessions"].has(browserId)).toBe(false);
+    });
+  });
+
+  describe("newly migrated tools", () => {
+    const browserId = "browser_test_123";
+
+    beforeEach(() => {
+      // Set up a browser session
+      router["activeSessions"].set(browserId, {
+        teamId: "test-team",
+        createdAt: new Date(),
+      });
+    });
+
+    it("should route fill_text requests successfully", async () => {
+      // Arrange
+      (mockBrowserPool.fillText as any).mockResolvedValue({
+        success: true,
+        selector: "#input",
+        text: "test value",
+      });
+
+      const context = MCPRequestContextFactory.create({
+        teamId: "test-team",
+        userId: "test-user",
+      });
+
+      // Act
+      const response = await router.route({
+        tool: "fill_text",
+        params: {
+          browserId,
+          selector: "#input",
+          text: "test value",
+        },
+        context,
+      });
+
+      // Assert
+      expect(response.success).toBe(true);
+      expect(mockBrowserPool.fillText).toHaveBeenCalledWith({
+        browserId,
+        selector: "#input",
+        text: "test value",
+        timeout: 30000,
+      });
+    });
+
+    it("should route wait_for_element requests successfully", async () => {
+      // Arrange
+      (mockBrowserPool.waitForElement as any).mockResolvedValue({
+        success: true,
+        found: true,
+        selector: "#button",
+      });
+
+      const context = MCPRequestContextFactory.create({
+        teamId: "test-team",
+        userId: "test-user",
+      });
+
+      // Act
+      const response = await router.route({
+        tool: "wait_for_element",
+        params: {
+          browserId,
+          selector: "#button",
+          state: "visible",
+        },
+        context,
+      });
+
+      // Assert
+      expect(response.success).toBe(true);
+      expect(mockBrowserPool.waitForElement).toHaveBeenCalledWith({
+        browserId,
+        selector: "#button",
+        timeout: 30000,
+        state: "visible",
+      });
+    });
+
+    it("should route get_text_content requests successfully", async () => {
+      // Arrange
+      (mockBrowserPool.getTextContent as any).mockResolvedValue({
+        success: true,
+        text: "Hello World",
+        selector: ".content",
+      });
+
+      const context = MCPRequestContextFactory.create({
+        teamId: "test-team",
+        userId: "test-user",
+      });
+
+      // Act
+      const response = await router.route({
+        tool: "get_text_content",
+        params: {
+          browserId,
+          selector: ".content",
+        },
+        context,
+      });
+
+      // Assert
+      expect(response.success).toBe(true);
+      expect(mockBrowserPool.getTextContent).toHaveBeenCalledWith({
+        browserId,
+        selector: ".content",
+        timeout: 30000,
+      });
+    });
+
+    it("should route validate_element_presence requests successfully", async () => {
+      // Arrange
+      (mockBrowserPool.validateElementPresence as any).mockResolvedValue({
+        success: true,
+        exists: true,
+        selector: "#element",
+      });
+
+      const context = MCPRequestContextFactory.create({
+        teamId: "test-team",
+        userId: "test-user",
+      });
+
+      // Act
+      const response = await router.route({
+        tool: "validate_element_presence",
+        params: {
+          browserId,
+          selector: "#element",
+          shouldExist: true,
+        },
+        context,
+      });
+
+      // Assert
+      expect(response.success).toBe(true);
+      expect(mockBrowserPool.validateElementPresence).toHaveBeenCalledWith({
+        browserId,
+        selector: "#element",
+        shouldExist: true,
+        timeout: 30000,
+      });
+    });
+
+    it("should route go_back requests successfully", async () => {
+      // Arrange
+      (mockBrowserPool.goBack as any).mockResolvedValue({
+        success: true,
+        message: "Navigated back",
+      });
+
+      const context = MCPRequestContextFactory.create({
+        teamId: "test-team",
+        userId: "test-user",
+      });
+
+      // Act
+      const response = await router.route({
+        tool: "go_back",
+        params: {
+          browserId,
+        },
+        context,
+      });
+
+      // Assert
+      expect(response.success).toBe(true);
+      expect(mockBrowserPool.goBack).toHaveBeenCalledWith({
+        browserId,
+      });
+    });
+
+    it("should enforce team isolation for new tools", async () => {
+      // Arrange
+      const context = MCPRequestContextFactory.create({
+        teamId: "different-team", // Different team
+        userId: "test-user",
+      });
+
+      // Act
+      const response = await router.route({
+        tool: "fill_text",
+        params: {
+          browserId,
+          selector: "#input",
+          text: "test",
+        },
+        context,
+      });
+
+      // Assert
+      expect(response.success).toBe(false);
+      expect(response.error?.code).toBe("ACCESS_DENIED");
+      expect(response.error?.message).toContain("Access denied");
+      expect(mockBrowserPool.fillText).not.toHaveBeenCalled();
     });
   });
 });

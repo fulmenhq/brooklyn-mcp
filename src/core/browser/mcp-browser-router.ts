@@ -108,6 +108,31 @@ export class MCPBrowserRouter {
           result = await this.closeBrowser(params, context);
           break;
 
+        case "fill_text":
+          result = await this.fillText(params, context);
+          metadata.browserId = params["browserId"] as string;
+          break;
+
+        case "wait_for_element":
+          result = await this.waitForElement(params, context);
+          metadata.browserId = params["browserId"] as string;
+          break;
+
+        case "get_text_content":
+          result = await this.getTextContent(params, context);
+          metadata.browserId = params["browserId"] as string;
+          break;
+
+        case "validate_element_presence":
+          result = await this.validateElementPresence(params, context);
+          metadata.browserId = params["browserId"] as string;
+          break;
+
+        case "go_back":
+          result = await this.goBack(params, context);
+          metadata.browserId = params["browserId"] as string;
+          break;
+
         default:
           throw new Error(`Unknown browser tool: ${tool}`);
       }
@@ -338,6 +363,97 @@ export class MCPBrowserRouter {
     this.activeSessions.delete(browserId as string);
 
     return result;
+  }
+
+  /**
+   * Fill text in an element
+   */
+  private async fillText(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const { browserId, selector, text, timeout = 30000 } = params;
+
+    this.validateBrowserAccess(browserId as string, context.teamId);
+
+    return this.poolManager.fillText({
+      browserId: browserId as string,
+      selector: selector as string,
+      text: text as string,
+      timeout: timeout as number,
+    });
+  }
+
+  /**
+   * Wait for an element to appear
+   */
+  private async waitForElement(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const { browserId, selector, timeout = 30000, state = "visible" } = params;
+
+    this.validateBrowserAccess(browserId as string, context.teamId);
+
+    return this.poolManager.waitForElement({
+      browserId: browserId as string,
+      selector: selector as string,
+      timeout: timeout as number,
+      state: state as "attached" | "detached" | "visible" | "hidden",
+    });
+  }
+
+  /**
+   * Get text content from an element
+   */
+  private async getTextContent(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const { browserId, selector, timeout = 30000 } = params;
+
+    this.validateBrowserAccess(browserId as string, context.teamId);
+
+    return this.poolManager.getTextContent({
+      browserId: browserId as string,
+      selector: selector as string,
+      timeout: timeout as number,
+    });
+  }
+
+  /**
+   * Validate element presence on the page
+   */
+  private async validateElementPresence(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const { browserId, selector, shouldExist = true, timeout = 30000 } = params;
+
+    this.validateBrowserAccess(browserId as string, context.teamId);
+
+    return this.poolManager.validateElementPresence({
+      browserId: browserId as string,
+      selector: selector as string,
+      shouldExist: shouldExist as boolean,
+      timeout: timeout as number,
+    });
+  }
+
+  /**
+   * Navigate back in browser history
+   */
+  private async goBack(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const { browserId } = params;
+
+    this.validateBrowserAccess(browserId as string, context.teamId);
+
+    return this.poolManager.goBack({
+      browserId: browserId as string,
+    });
   }
 
   /**

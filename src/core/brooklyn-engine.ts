@@ -801,6 +801,27 @@ export class BrooklynEngine {
           return await this.browserPool.navigate(args as any);
 
         case "go_back":
+          // Phase 2: Use router for go_back
+          if (this.browserRouter) {
+            const request = {
+              tool: name,
+              params: args as Record<string, unknown>,
+              context: MCPRequestContextFactory.create({
+                teamId: context.teamId,
+                userId: context.userId,
+                metadata: {
+                  permissions: context.permissions,
+                  correlationId: context.correlationId,
+                },
+              }),
+            };
+            const response = await this.browserRouter.route(request);
+            if (!response.success) {
+              throw new Error(response.error?.message || "Go back failed");
+            }
+            return response.result;
+          }
+          // Fallback to direct pool access
           return await this.browserPool.goBack(args as any);
 
         // Element interaction tools
@@ -829,6 +850,27 @@ export class BrooklynEngine {
           return await this.browserPool.clickElement(args as any);
 
         case "fill_text":
+          // Phase 2: Use router for fill_text
+          if (this.browserRouter) {
+            const request = {
+              tool: name,
+              params: args as Record<string, unknown>,
+              context: MCPRequestContextFactory.create({
+                teamId: context.teamId,
+                userId: context.userId,
+                metadata: {
+                  permissions: context.permissions,
+                  correlationId: context.correlationId,
+                },
+              }),
+            };
+            const response = await this.browserRouter.route(request);
+            if (!response.success) {
+              throw new Error(response.error?.message || "Fill text failed");
+            }
+            return response.result;
+          }
+          // Fallback to direct pool access
           return await this.browserPool.fillText(args as any);
 
         case "fill_form":
@@ -856,12 +898,75 @@ export class BrooklynEngine {
           return await this.browserPool.fillForm(args as any);
 
         case "wait_for_element":
+          // Phase 2: Use router for wait_for_element
+          if (this.browserRouter) {
+            const request = {
+              tool: name,
+              params: args as Record<string, unknown>,
+              context: MCPRequestContextFactory.create({
+                teamId: context.teamId,
+                userId: context.userId,
+                metadata: {
+                  permissions: context.permissions,
+                  correlationId: context.correlationId,
+                },
+              }),
+            };
+            const response = await this.browserRouter.route(request);
+            if (!response.success) {
+              throw new Error(response.error?.message || "Wait for element failed");
+            }
+            return response.result;
+          }
+          // Fallback to direct pool access
           return await this.browserPool.waitForElement(args as any);
 
         case "get_text_content":
+          // Phase 2: Use router for get_text_content
+          if (this.browserRouter) {
+            const request = {
+              tool: name,
+              params: args as Record<string, unknown>,
+              context: MCPRequestContextFactory.create({
+                teamId: context.teamId,
+                userId: context.userId,
+                metadata: {
+                  permissions: context.permissions,
+                  correlationId: context.correlationId,
+                },
+              }),
+            };
+            const response = await this.browserRouter.route(request);
+            if (!response.success) {
+              throw new Error(response.error?.message || "Get text content failed");
+            }
+            return response.result;
+          }
+          // Fallback to direct pool access
           return await this.browserPool.getTextContent(args as any);
 
         case "validate_element_presence":
+          // Phase 2: Use router for validate_element_presence
+          if (this.browserRouter) {
+            const request = {
+              tool: name,
+              params: args as Record<string, unknown>,
+              context: MCPRequestContextFactory.create({
+                teamId: context.teamId,
+                userId: context.userId,
+                metadata: {
+                  permissions: context.permissions,
+                  correlationId: context.correlationId,
+                },
+              }),
+            };
+            const response = await this.browserRouter.route(request);
+            if (!response.success) {
+              throw new Error(response.error?.message || "Validate element presence failed");
+            }
+            return response.result;
+          }
+          // Fallback to direct pool access
           return await this.browserPool.validateElementPresence(args as any);
 
         case "find_elements":

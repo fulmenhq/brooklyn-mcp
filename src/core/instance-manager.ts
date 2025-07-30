@@ -124,27 +124,39 @@ export class InstanceManager {
   }
 
   /**
+   * Get patterns used to detect Brooklyn processes
+   */
+  static getBrooklynProcessPatterns(): string[] {
+    return [
+      "brooklyn (mcp|web)",
+      "brooklyn\\.ts mcp",
+      "dist/brooklyn mcp",
+      "brooklyn\\.js mcp",
+      "/brooklyn mcp",
+    ];
+  }
+
+  /**
+   * Find all Brooklyn processes
+   */
+  static async findBrooklynProcesses(): Promise<string[]> {
+    const { execSync } = await import("node:child_process");
+    const patterns = InstanceManager.getBrooklynProcessPatterns();
+    const grepPattern = patterns.join("|");
+
+    const result = execSync(`ps aux | grep -E '${grepPattern}' | grep -v grep || true`, {
+      encoding: "utf-8",
+    });
+
+    return result.trim().split("\n").filter(Boolean);
+  }
+
+  /**
    * Clean up all Brooklyn processes (emergency cleanup)
    */
   async cleanupAllProcesses(): Promise<number> {
     try {
-      const { execSync } = await import("node:child_process");
-
-      // Find all brooklyn processes (including those run via bun/node)
-      const patterns = [
-        "brooklyn (mcp|web)",
-        "brooklyn\\.ts mcp",
-        "dist/brooklyn mcp",
-        "brooklyn\\.js mcp",
-        "/brooklyn mcp",
-      ];
-
-      const grepPattern = patterns.join("|");
-      const result = execSync(`ps aux | grep -E '${grepPattern}' | grep -v grep || true`, {
-        encoding: "utf-8",
-      });
-
-      const lines = result.trim().split("\n").filter(Boolean);
+      const lines = await InstanceManager.findBrooklynProcesses();
       let cleaned = 0;
 
       for (const line of lines) {
