@@ -227,7 +227,9 @@ describe("Allocation Strategies", () => {
         createMockInstance("instance-2"),
         createMockInstance("instance-3"),
       ];
-      instances.forEach((i) => instancesMap.set(i.id, i));
+      for (const i of instances) {
+        instancesMap.set(i.id, i);
+      }
 
       const request: AllocationRequest = { browserType: "chromium", priority: "normal" };
 
@@ -261,7 +263,9 @@ describe("Allocation Strategies", () => {
 
       const instances = [instance1, instance2, instance3];
 
-      instances.forEach((i) => instancesMap.set(i.id, i));
+      for (const i of instances) {
+        instancesMap.set(i.id, i);
+      }
 
       const request: AllocationRequest = { browserType: "chromium", priority: "normal" };
 
@@ -284,7 +288,9 @@ describe("Allocation Strategies", () => {
 
       const instances = [instance1, instance2, instance3];
 
-      instances.forEach((i) => instancesMap.set(i.id, i));
+      for (const i of instances) {
+        instancesMap.set(i.id, i);
+      }
 
       const request: AllocationRequest = {
         browserType: "chromium",
@@ -306,7 +312,9 @@ describe("Allocation Strategies", () => {
         createMockInstance("instance-2", undefined, "team-c"),
       ];
 
-      instances.forEach((i) => instancesMap.set(i.id, i));
+      for (const i of instances) {
+        instancesMap.set(i.id, i);
+      }
 
       const request: AllocationRequest = {
         browserType: "chromium",
