@@ -747,35 +747,170 @@ export class BrooklynEngine {
           }
           // Fallback to direct pool access
           return await this.browserPool.launchBrowser(args as any);
+
         case "close_browser":
+          // Phase 2: Use router for close_browser
+          if (this.browserRouter) {
+            const request = {
+              tool: name,
+              params: args as Record<string, unknown>,
+              context: MCPRequestContextFactory.create({
+                teamId: context.teamId,
+                userId: context.userId,
+                metadata: {
+                  permissions: context.permissions,
+                  correlationId: context.correlationId,
+                },
+              }),
+            };
+            const response = await this.browserRouter.route(request);
+            if (!response.success) {
+              throw new Error(response.error?.message || "Browser close failed");
+            }
+            return response.result;
+          }
+          // Fallback to direct pool access
           return await this.browserPool.closeBrowser(args as any);
+
         case "list_active_browsers":
           return await this.browserPool.listActiveBrowsers();
 
         // Navigation tools
         case "navigate_to_url":
+          // Phase 2: Use router for navigate_to_url
+          if (this.browserRouter) {
+            const request = {
+              tool: name,
+              params: args as Record<string, unknown>,
+              context: MCPRequestContextFactory.create({
+                teamId: context.teamId,
+                userId: context.userId,
+                metadata: {
+                  permissions: context.permissions,
+                  correlationId: context.correlationId,
+                },
+              }),
+            };
+            const response = await this.browserRouter.route(request);
+            if (!response.success) {
+              throw new Error(response.error?.message || "Navigation failed");
+            }
+            return response.result;
+          }
+          // Fallback to direct pool access
           return await this.browserPool.navigate(args as any);
+
         case "go_back":
           return await this.browserPool.goBack(args as any);
 
         // Element interaction tools
         case "click_element":
+          // Phase 2: Use router for click_element
+          if (this.browserRouter) {
+            const request = {
+              tool: name,
+              params: args as Record<string, unknown>,
+              context: MCPRequestContextFactory.create({
+                teamId: context.teamId,
+                userId: context.userId,
+                metadata: {
+                  permissions: context.permissions,
+                  correlationId: context.correlationId,
+                },
+              }),
+            };
+            const response = await this.browserRouter.route(request);
+            if (!response.success) {
+              throw new Error(response.error?.message || "Click element failed");
+            }
+            return response.result;
+          }
+          // Fallback to direct pool access
           return await this.browserPool.clickElement(args as any);
+
         case "fill_text":
           return await this.browserPool.fillText(args as any);
+
         case "fill_form":
+          // Phase 2: Use router for fill_form (maps to fill_form_fields in router)
+          if (this.browserRouter) {
+            const request = {
+              tool: "fill_form_fields",
+              params: args as Record<string, unknown>,
+              context: MCPRequestContextFactory.create({
+                teamId: context.teamId,
+                userId: context.userId,
+                metadata: {
+                  permissions: context.permissions,
+                  correlationId: context.correlationId,
+                },
+              }),
+            };
+            const response = await this.browserRouter.route(request);
+            if (!response.success) {
+              throw new Error(response.error?.message || "Fill form failed");
+            }
+            return response.result;
+          }
+          // Fallback to direct pool access
           return await this.browserPool.fillForm(args as any);
+
         case "wait_for_element":
           return await this.browserPool.waitForElement(args as any);
+
         case "get_text_content":
           return await this.browserPool.getTextContent(args as any);
+
         case "validate_element_presence":
           return await this.browserPool.validateElementPresence(args as any);
+
         case "find_elements":
+          // Phase 2: Use router for find_elements
+          if (this.browserRouter) {
+            const request = {
+              tool: name,
+              params: args as Record<string, unknown>,
+              context: MCPRequestContextFactory.create({
+                teamId: context.teamId,
+                userId: context.userId,
+                metadata: {
+                  permissions: context.permissions,
+                  correlationId: context.correlationId,
+                },
+              }),
+            };
+            const response = await this.browserRouter.route(request);
+            if (!response.success) {
+              throw new Error(response.error?.message || "Find elements failed");
+            }
+            return response.result;
+          }
+          // Fallback to direct pool access
           return await this.browserPool.findElements(args as any);
 
         // Content capture tools
         case "take_screenshot":
+          // Phase 2: Use router for take_screenshot
+          if (this.browserRouter) {
+            const request = {
+              tool: name,
+              params: args as Record<string, unknown>,
+              context: MCPRequestContextFactory.create({
+                teamId: context.teamId,
+                userId: context.userId,
+                metadata: {
+                  permissions: context.permissions,
+                  correlationId: context.correlationId,
+                },
+              }),
+            };
+            const response = await this.browserRouter.route(request);
+            if (!response.success) {
+              throw new Error(response.error?.message || "Screenshot failed");
+            }
+            return response.result;
+          }
+          // Fallback to direct pool access
           return await this.browserPool.screenshot(args as any);
 
         // Discovery tools
