@@ -304,8 +304,11 @@ bun run test src/core/browser-pool-manager.test.ts
 # Run tests with coverage
 bun run test:coverage
 
-# Run tests in watch mode
-bun run test:watch
+# Run unit tests (fast - for pre-commit)
+bun run test:unit
+
+# ⚠️ Anti-pattern: test:watch is not provided
+# Watch mode leaves orphaned processes and consumes memory
 ```
 
 ### Version Management

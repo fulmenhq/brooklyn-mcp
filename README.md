@@ -254,14 +254,21 @@ bun run check:versions                 # Verify version consistency
 # Run all tests
 bun run test
 
-# Watch mode
-bun run test:watch
+# Unit tests only (fast - for pre-commit)
+bun run test:unit
+
+# Integration tests
+bun run test:integration
+
+# E2E tests
+bun run test:e2e
 
 # Coverage report
 bun run test:coverage
 
-# E2E tests
-bun run test:e2e
+# ⚠️ Note: test:watch is intentionally not provided
+# Watch mode can leave orphaned processes and consume excessive memory
+# Use targeted test runs instead
 ```
 
 ## 🏢 Team Configuration

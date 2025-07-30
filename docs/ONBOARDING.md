@@ -251,8 +251,13 @@ bun run server:stop      # Stop server gracefully
 
 # Testing
 bun run test             # Run all tests
-bun run test:watch       # Watch mode for development
+bun run test:unit        # Unit tests only (fast - for pre-commit)
+bun run test:integration # Integration tests
+bun run test:e2e         # End-to-end tests
 bun run test tests/integration/stdout-purity.test.ts  # Specific test
+
+# ⚠️ Anti-pattern: test:watch is not provided
+# Watch mode leaves orphaned processes and consumes memory
 ```
 
 **File-Level Validation** (MANDATORY after editing):
