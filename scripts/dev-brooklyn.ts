@@ -103,10 +103,11 @@ class DevBrooklynManager {
     }
 
     const timestamp = Date.now();
-    const pipesPrefix = "/tmp/brooklyn-dev";
-    const inputPipe = `${pipesPrefix}-in-${timestamp}`;
-    const outputPipe = `${pipesPrefix}-out-${timestamp}`;
-    const logFile = path.join(this.logDir, `brooklyn-dev-${timestamp}.log`);
+    const instanceUuid = Math.random().toString(36).substring(2, 8); // Short UUID
+    const pipesPrefix = "/tmp";
+    const inputPipe = `${pipesPrefix}/brooklyn-mcp-dev-${instanceUuid}-${timestamp}-in`;
+    const outputPipe = `${pipesPrefix}/brooklyn-mcp-dev-${instanceUuid}-${timestamp}-out`;
+    const logFile = path.join(this.logDir, `brooklyn-mcp-dev-${timestamp}.log`);
 
     try {
       logger.info("📦 Creating named pipes...");
@@ -133,6 +134,11 @@ class DevBrooklynManager {
           detached: true,
           stdio: ["ignore", "pipe", "pipe"],
           cwd: this.getProjectRoot(),
+          env: {
+            ...process.env,
+            BROOKLYN_DEV_INPUT_PIPE: inputPipe,
+            BROOKLYN_DEV_OUTPUT_PIPE: outputPipe,
+          },
         },
       );
 

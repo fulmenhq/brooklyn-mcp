@@ -8,6 +8,9 @@ import type { ToolCallHandler, ToolListHandler, Transport } from "./transport.js
 
 import { getLogger, initializeLogging, isLoggingInitialized } from "../shared/pino-logger.js";
 import { BrowserPoolManager } from "./browser-pool-manager.js";
+import { MCPBrowserRouter } from "./browser/mcp-browser-router.js";
+import { MCPErrorHandler } from "./browser/mcp-error-handler.js";
+import { MCPRequestContextFactory } from "./browser/mcp-request-context.js";
 import type { BrooklynConfig } from "./config.js";
 import { ToolDiscoveryService } from "./discovery/tool-discovery-service.js";
 import { OnboardingTools } from "./onboarding-tools.js";
@@ -51,6 +54,8 @@ export class BrooklynEngine {
 
   private pluginManager: PluginManager;
   private browserPool: BrowserPoolManager;
+  private browserRouter: MCPBrowserRouter | null = null;
+  private errorHandler: MCPErrorHandler;
   private security: SecurityMiddleware;
   private discovery: ToolDiscoveryService;
 
@@ -65,6 +70,7 @@ export class BrooklynEngine {
 
     this.pluginManager = new PluginManager();
     this.browserPool = new BrowserPoolManager();
+    this.errorHandler = new MCPErrorHandler();
     this.security = new SecurityMiddleware({
       allowedDomains: this.config.security.allowedDomains,
       rateLimiting: this.config.security.rateLimit,
@@ -160,6 +166,9 @@ export class BrooklynEngine {
 
     // Initialize browser pool
     await this.browserPool.initialize();
+
+    // Initialize browser router (Phase 2 integration)
+    this.browserRouter = new MCPBrowserRouter(this.browserPool);
 
     // Connect onboarding tools to browser pool
     OnboardingTools.setBrowserPool(this.browserPool);
@@ -716,6 +725,27 @@ export class BrooklynEngine {
       switch (name) {
         // Browser lifecycle tools
         case "launch_browser":
+          // Phase 2: Use router for launch_browser
+          if (this.browserRouter) {
+            const request = {
+              tool: name,
+              params: args as Record<string, unknown>,
+              context: MCPRequestContextFactory.create({
+                teamId: context.teamId,
+                userId: context.userId,
+                metadata: {
+                  permissions: context.permissions,
+                  correlationId: context.correlationId,
+                },
+              }),
+            };
+            const response = await this.browserRouter.route(request);
+            if (!response.success) {
+              throw new Error(response.error?.message || "Browser launch failed");
+            }
+            return response.result;
+          }
+          // Fallback to direct pool access
           return await this.browserPool.launchBrowser(args as any);
         case "close_browser":
           return await this.browserPool.closeBrowser(args as any);
