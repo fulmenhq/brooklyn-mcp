@@ -141,6 +141,9 @@ export class LeastUsedStrategy extends AllocationStrategy {
   ): boolean {
     if (instances.size >= maxSize) return false;
 
+    // Always create first instance when pool is empty
+    if (instances.size === 0) return true;
+
     const avgPageCount =
       Array.from(instances.values()).reduce(
         (sum, instance) => sum + instance.getMetrics().pageCount,

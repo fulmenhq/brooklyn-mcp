@@ -7,7 +7,7 @@ import type { CallToolRequest, Tool } from "@modelcontextprotocol/sdk/types.js";
 import type { ToolCallHandler, ToolListHandler, Transport } from "./transport.js";
 
 import { getLogger, initializeLogging, isLoggingInitialized } from "../shared/pino-logger.js";
-import { BrowserPoolManager } from "./browser-pool-manager.js";
+import { BrowserPoolManager, type BrowserPoolManagerConfig } from "./browser-pool-manager.js";
 import { MCPBrowserRouter } from "./browser/mcp-browser-router.js";
 import { MCPErrorHandler } from "./browser/mcp-error-handler.js";
 import { MCPRequestContextFactory } from "./browser/mcp-request-context.js";
@@ -24,6 +24,8 @@ import type { EnhancedTool } from "./tool-definitions.js";
 export interface BrooklynEngineOptions {
   config: BrooklynConfig;
   correlationId?: string;
+  /** Enable MCP mode for silent browser installation (REPL, dev mode) */
+  mcpMode?: boolean;
 }
 
 /**
@@ -69,7 +71,10 @@ export class BrooklynEngine {
     // (logger.js doesn't support setGlobalContext)
 
     this.pluginManager = new PluginManager();
-    this.browserPool = new BrowserPoolManager();
+    this.browserPool = new BrowserPoolManager({
+      mcpMode: options.mcpMode,
+      maxBrowsers: this.config.browsers.maxInstances,
+    });
     this.errorHandler = new MCPErrorHandler();
     this.security = new SecurityMiddleware({
       allowedDomains: this.config.security.allowedDomains,
@@ -352,6 +357,14 @@ export class BrooklynEngine {
       count: this.transports.size,
       transports: Array.from(this.transports.keys()),
     });
+  }
+
+  /**
+   * Execute a tool call directly (for REPL and testing)
+   */
+  async executeToolCall(request: CallToolRequest, context: BrooklynContext): Promise<any> {
+    const handler = this.createToolCallHandler(context.transport);
+    return await handler(request);
   }
 
   /**

@@ -255,28 +255,44 @@ export class BrowserInstallationManager {
       }
     }
 
-    // Check Playwright's default install location
+    // Check for browser directories in Playwright cache
     try {
-      const { chromium, firefox, webkit } = await import("playwright");
-      let executablePath: string | undefined;
+      const cacheBase =
+        process.platform === "darwin"
+          ? join(homedir(), "Library", "Caches")
+          : join(homedir(), ".cache");
+      const playwrightCacheDir = join(cacheBase, "ms-playwright");
 
-      switch (type) {
-        case "chromium":
-          executablePath = chromium.executablePath();
-          break;
-        case "firefox":
-          executablePath = firefox.executablePath();
-          break;
-        case "webkit":
-          executablePath = webkit.executablePath();
-          break;
+      if (!existsSync(playwrightCacheDir)) {
+        return null;
       }
 
-      if (executablePath && existsSync(executablePath)) {
-        return executablePath;
+      // Look for browser-specific directories with version suffixes
+      const { readdir } = await import("node:fs/promises");
+      const entries = await readdir(playwrightCacheDir);
+      const browserDirs = entries.filter((entry) => entry.startsWith(`${type}-`));
+
+      if (browserDirs.length === 0) {
+        return null;
       }
-    } catch {
-      // Playwright not available or browser not installed
+
+      // Use the most recent version (highest number)  
+      const latestDir = browserDirs.sort().pop();
+      if (!latestDir) {
+        return null;
+      }
+      const browserPath = join(playwrightCacheDir, latestDir);
+
+      // Verify the directory exists and contains browser files
+      if (existsSync(browserPath)) {
+        // Return the browser directory path - Playwright will handle the executable path
+        return browserPath;
+      }
+    } catch (error) {
+      ensureLogger().debug("Browser detection failed", {
+        type,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     return null;
@@ -427,10 +443,17 @@ export class BrowserInstallationManager {
    * Get the path where a browser would be installed
    * Public method for browser info commands
    */
-  getBrowserPath(type: BrowserType): string {
-    // Use Playwright's default locations
-    const playwrightCacheDir = join(homedir(), ".cache", "ms-playwright");
-    return join(playwrightCacheDir, type);
+  getBrowserPath(_type: BrowserType): string {
+    // Use Playwright's actual cache location (macOS uses Library/Caches, Linux uses .cache)
+    const cacheBase =
+      process.platform === "darwin"
+        ? join(homedir(), "Library", "Caches")
+        : join(homedir(), ".cache");
+    const playwrightCacheDir = join(cacheBase, "ms-playwright");
+
+    // Playwright installs browsers with version suffixes, so we return the base directory
+    // The actual detection logic will scan for version-specific directories
+    return playwrightCacheDir;
   }
 
   /**

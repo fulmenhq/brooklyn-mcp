@@ -1,0 +1,26 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# Brooklyn Pre-push Hook
+# Full test suite - includes integration tests
+
+echo "🌉 Brooklyn Pre-push Validation..."
+
+# Run full test suite
+echo "🧪 Running full test suite..."
+echo "⚠️  Note: Browser integration tests may fail if Playwright browsers are not installed."
+echo "   Run 'bun run setup:browsers' to install browsers for full testing."
+
+bun run test:prepush || {
+  echo ""
+  echo "❌ Tests failed. Please fix before pushing."
+  echo ""
+  echo "💡 Tip: If browser tests are failing:"
+  echo "   - Unit tests must always pass"
+  echo "   - Integration tests requiring browsers can be skipped locally"
+  echo "   - Use 'bun run test:unit' to run only unit tests"
+  echo "   - CI will run full test suite with browsers installed"
+  exit 1
+}
+
+echo "✅ All pre-push checks passed!"

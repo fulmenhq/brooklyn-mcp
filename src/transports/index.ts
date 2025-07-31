@@ -26,7 +26,7 @@ const createMCPStdioTransport: TransportFactory = async (
   const mcpConfig = config as MCPStdioConfig;
 
   // Use FIFO transport for development mode with named pipes
-  if (mcpConfig.options?.inputPipe && mcpConfig.options?.outputPipe) {
+  if (mcpConfig.options?.inputPipe) {
     const { MCPFifoTransport } = await import("./mcp-fifo-transport.js");
     return new MCPFifoTransport(mcpConfig);
   }

@@ -96,6 +96,9 @@ CLAUDE.local.md
 claude.json
 .claude/
 
+# AI Agent Configuration Files
+AGENTS.local.md
+
 # Windsurf v8+
 .windsurfrules/
 .windsurf/rules/

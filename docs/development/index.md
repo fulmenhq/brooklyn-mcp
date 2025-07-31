@@ -310,9 +310,17 @@ bun run test:coverage
 # Run unit tests (fast - for pre-commit)
 bun run test:unit
 
+# Run integration tests with environment preparation
+bun run test:integration:with-prep
+
+# Check if environment is ready for integration tests
+bun run test:integration:check
+
 # ⚠️ Anti-pattern: test:watch is not provided
 # Watch mode leaves orphaned processes and consumes memory
 ```
+
+For comprehensive integration testing guidance, see [Integration Test Guide](../testing/integration-test-guide.md).
 
 ### Version Management
 

@@ -24,7 +24,7 @@ These files contain `any` types that are justified due to the dynamic nature of 
 | `src/core/config.ts`                    | Environment variable parsing with dynamic types and complex merging    | `noExplicitAny`, `noNonNullAssertion`, `noExcessiveCognitiveComplexity` |
 | `src/cli/brooklyn.ts`                   | Configuration initialization with dynamic environment variables        | `noExplicitAny`                                                         |
 | `src/cli/brooklyn-server.ts`            | Claude Code configuration with CLI user interaction                    | `noExplicitAny`, `noConsoleLog`, `noForEach`, `noUnusedVariables`       |
-| `src/shared/structured-logger.ts`       | Winston logging with dynamic error objects                             | `noExplicitAny`, `noDelete`                                             |
+| `src/shared/pino-logger.ts`             | Pino logging with dynamic error objects                                | `noExplicitAny`, `noDelete`                                             |
 | `src/transports/http-transport.ts`      | Node.js HTTP request/response objects (built-in any types)             | `noExplicitAny`                                                         |
 | `src/transports/mcp-stdio-transport.ts` | Process stdin/stdout replacement for named pipe development mode       | `noExplicitAny`                                                         |
 
@@ -124,6 +124,21 @@ bun run lint       # Linting with exceptions
 bun run test       # Test execution
 ```
 
+### Integration Test Preparation
+
+```bash
+# Prepare environment for integration tests
+bun run test:integration:prep        # Install browsers, cleanup processes
+bun run test:integration:check       # Check environment status
+bun run test:integration:with-prep   # Prep + run integration tests
+bun run test:all:with-prep          # Prep + run all tests
+
+# Individual test categories
+bun run test:unit                   # Fast unit tests (no dependencies)
+bun run test:integration           # Integration tests (requires browsers)
+bun run test:e2e                   # End-to-end tests (currently skipped)
+```
+
 ### Exception Verification
 
 ```bash
@@ -166,5 +181,5 @@ This document is maintained by the Integration Lead (@paris-brooklyn) and update
 - Quality standards are updated
 - File-level overrides are modified
 
-Last updated: 2025-07-19
-Next review: 2025-08-19
+Last updated: 2025-07-30
+Next review: 2025-08-30

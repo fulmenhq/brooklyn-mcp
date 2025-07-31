@@ -11,15 +11,14 @@ Brooklyn is a multi-team MCP server for browser automation using Bun, TypeScript
 ### **Core Identity & Role Definition (MANDATORY)**
 
 1. **MAINTAINERS.md** - Your specific role, responsibilities, and supervision model
-2. **TEAM-ROSTER.md** (.plans/) - Current team assignment and sprint focus
-3. **BROOKLYN-SAFETY-PROTOCOLS.md** - Non-negotiable safety requirements
+2. **BROOKLYN-SAFETY-PROTOCOLS.md** - Non-negotiable safety requirements
 
 ### **Technical Standards (MANDATORY)**
 
-4. **CLAUDE.md** - Project instructions and quality standards
-5. **package.json** - Available commands and dependencies (ALWAYS read scripts section)
-6. **docs/substaile/codex/coding.md** - Core coding principles and error patterns
-7. **docs/substaile/codex/typescript/typescript-coding.md** - TypeScript-specific standards
+3. **AGENTS.local.md** - Local development configuration and agent-specific guidelines (if present)
+4. **package.json** - Available commands and dependencies (ALWAYS read scripts section)
+5. **docs/substaile/codex/coding.md** - Core coding principles and error patterns
+6. **docs/substaile/codex/typescript/typescript-coding.md** - TypeScript-specific standards
 
 ### **Agent Accountability**
 

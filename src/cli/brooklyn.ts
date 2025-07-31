@@ -12,7 +12,7 @@
  */
 
 // Version embedded at build time from VERSION file
-const VERSION = "1.3.1";
+const VERSION = "1.3.3";
 
 import { HELP_TEXT } from "../generated/help/index.js";
 // buildConfig import removed - not used in CLI entry point
@@ -21,7 +21,7 @@ import { getLogger, initializeLogging } from "../shared/pino-logger.js";
 // Create minimal config that matches BrooklynConfig structure
 // For CLI commands, use pretty format for better readability
 const isDevCommand = process.argv.some((arg) =>
-  ["dev-start", "dev-stop", "dev-status", "dev-cleanup", "dev-restart"].includes(arg),
+  ["dev-start", "dev-stop", "dev-repl", "dev-status", "dev-cleanup", "dev-restart"].includes(arg),
 );
 const _minimalConfig = {
   serviceName: "brooklyn-mcp-server",
@@ -144,8 +144,10 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
         // 3. Only AFTER this can any logging occur
         const transport = options.devMode
           ? await createMCPStdio({
-              inputPipe: `${options.pipesPrefix}-input`,
-              outputPipe: `${options.pipesPrefix}-output`,
+              // Use environment variables for pipe paths in dev mode (set by dev-brooklyn script)
+              inputPipe: process.env["BROOKLYN_DEV_INPUT_PIPE"] || `${options.pipesPrefix}-input`,
+              outputPipe:
+                process.env["BROOKLYN_DEV_OUTPUT_PIPE"] || `${options.pipesPrefix}-output`,
             })
           : await createMCPStdio();
 
@@ -290,6 +292,7 @@ function setupMCPDevCommands(mcpCmd: Command): void {
     .command("dev-start")
     .description("Start MCP development mode with named pipes (internal use only)")
     .option("--team-id <teamId>", "Team identifier for development")
+    .option("--foreground", "Keep process in foreground")
     .action(async (options) => {
       try {
         const { MCPDevManager } = await import("../core/mcp-dev-manager.js");
@@ -298,7 +301,9 @@ function setupMCPDevCommands(mcpCmd: Command): void {
         if (options.teamId) {
           process.env["BROOKLYN_DEV_TEAM_ID"] = options.teamId;
         }
-        await devManager.start();
+        await devManager.start({
+          foreground: options.foreground,
+        });
       } catch (error) {
         try {
           const logger = getLogger("brooklyn-cli");
@@ -331,6 +336,90 @@ function setupMCPDevCommands(mcpCmd: Command): void {
         } catch {
           // Fallback if logger fails
           console.error("Failed to stop MCP development mode:", error);
+        }
+        process.exit(1);
+      }
+    });
+
+  const _devReplCmd = mcpCmd
+    .command("dev-repl")
+    .description("Start Brooklyn REPL for interactive MCP tool testing")
+    .option("--json", "Output raw JSON responses instead of pretty-formatted text")
+    .option("--verbose", "Enable verbose logging")
+    .option("--team-id <teamId>", "Team identifier for REPL session")
+    .action(async (options) => {
+      try {
+        const { BrooklynREPL } = await import("../core/brooklyn-repl.js");
+        const repl = new BrooklynREPL({
+          jsonOutput: options.json,
+          verbose: options.verbose,
+          teamId: options.teamId,
+        });
+        await repl.start();
+      } catch (error) {
+        try {
+          const logger = getLogger("brooklyn-cli");
+          logger.error("Failed to start Brooklyn REPL", {
+            error: error instanceof Error ? error.message : String(error),
+            teamId: options.teamId,
+          });
+        } catch {
+          // Fallback if logger fails
+          console.error("Failed to start Brooklyn REPL:", error);
+        }
+        process.exit(1);
+      }
+    });
+
+  const _devHttpCmd = mcpCmd
+    .command("dev-http")
+    .description("Start Brooklyn HTTP API server for programmatic tool testing")
+    .option("--port <port>", "HTTP server port", "8080")
+    .option("--host <host>", "HTTP server host", "0.0.0.0")
+    .option("--no-cors", "Disable CORS headers")
+    .option("--team-id <teamId>", "Team identifier for HTTP session")
+    .option("--verbose", "Enable verbose logging")
+    .action(async (options) => {
+      try {
+        const { BrooklynHTTP } = await import("../core/brooklyn-http.js");
+        const httpServer = new BrooklynHTTP({
+          port: Number.parseInt(options.port),
+          host: options.host,
+          cors: !options.noCors,
+          teamId: options.teamId,
+          verbose: options.verbose,
+        });
+
+        // Start HTTP server
+        await httpServer.start();
+
+        // Handle graceful shutdown
+        const shutdown = async (signal: string) => {
+          console.log(`\n📴 Received ${signal}, shutting down gracefully...`);
+          try {
+            await httpServer.stop();
+            console.log("✅ HTTP server stopped");
+          } catch (error) {
+            console.error("❌ Error during shutdown:", error);
+          }
+          process.exit(0);
+        };
+
+        process.on("SIGINT", () => shutdown("SIGINT"));
+        process.on("SIGTERM", () => shutdown("SIGTERM"));
+        process.on("SIGHUP", () => shutdown("SIGHUP"));
+      } catch (error) {
+        try {
+          const logger = getLogger("brooklyn-cli");
+          logger.error("Failed to start Brooklyn HTTP server", {
+            error: error instanceof Error ? error.message : String(error),
+            port: options.port,
+            host: options.host,
+            teamId: options.teamId,
+          });
+        } catch {
+          // Fallback if logger fails
+          console.error("Failed to start Brooklyn HTTP server:", error);
         }
         process.exit(1);
       }
@@ -384,11 +473,12 @@ function setupMCPDevCommands(mcpCmd: Command): void {
   const devCleanupCmd = mcpCmd
     .command("dev-cleanup")
     .description("Clean up MCP development mode resources (internal use only)")
-    .action(async () => {
+    .option("--all", "Also clean up orphaned cat processes reading from pipes")
+    .action(async (options) => {
       try {
         const { MCPDevManager } = await import("../core/mcp-dev-manager.js");
         const devManager = new MCPDevManager();
-        await devManager.cleanup();
+        await devManager.cleanup({ cleanupOrphanedReaders: options.all });
         // User-facing success message goes to stdout for CLI interaction
         console.info("✅ MCP development mode cleanup completed");
       } catch (error) {

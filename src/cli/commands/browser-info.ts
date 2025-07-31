@@ -36,9 +36,9 @@ export async function browserInfoCommand(): Promise<void> {
       installed: false,
     };
 
-    // Check Playwright managed browsers
-    const playwrightPath = manager.getBrowserPath(browserType);
-    if (existsSync(playwrightPath)) {
+    // Check Playwright managed browsers using proper detection
+    const isInstalled = await manager.isBrowserInstalled(browserType);
+    if (isInstalled) {
       info.installed = true;
       info.location = "Playwright managed";
 

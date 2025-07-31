@@ -102,6 +102,14 @@ interface FindElementsArgs {
   timeout?: number;
 }
 
+export interface BrowserPoolManagerConfig {
+  maxBrowsers?: number;
+  mcpMode?: boolean;
+  allocationStrategy?: "round-robin" | "least-used" | "team-isolated";
+  defaultTimeout?: number;
+  defaultHeadless?: boolean;
+}
+
 /**
  * Main browser pool manager class
  */
@@ -112,15 +120,17 @@ export class BrowserPoolManager {
   private storageManager: ScreenshotStorageManager;
   private maxBrowsers: number;
 
-  constructor() {
-    this.maxBrowsers = config.maxBrowsers || 10;
+  constructor(managerConfig: BrowserPoolManagerConfig = {}) {
+    this.maxBrowsers = managerConfig.maxBrowsers || config.maxBrowsers || 10;
     this.storageManager = new ScreenshotStorageManager();
 
     // Initialize browser factory with MCP mode awareness
+    // Prioritize explicit config over environment variable
+    const mcpMode = managerConfig.mcpMode ?? process.env["MCP_MODE"] === "true";
     this.factory = new BrowserFactory({
-      mcpMode: process.env["MCP_MODE"] === "true",
-      defaultTimeout: 30000,
-      defaultHeadless: true,
+      mcpMode,
+      defaultTimeout: managerConfig.defaultTimeout || 30000,
+      defaultHeadless: managerConfig.defaultHeadless ?? true,
     });
 
     // Initialize browser pool with enterprise configuration
@@ -129,7 +139,8 @@ export class BrowserPoolManager {
       minSize: 0,
       maxIdleTime: 30 * 60 * 1000, // 30 minutes
       warmupSize: 0,
-      allocationStrategy: config.allocationStrategy || "least-used",
+      allocationStrategy:
+        managerConfig.allocationStrategy || config.allocationStrategy || "least-used",
       createInstance: async (config: {
         teamId?: string;
         browserType?: "chromium" | "firefox" | "webkit";

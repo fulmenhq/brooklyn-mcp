@@ -1,0 +1,34 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# Brooklyn Pre-commit Hook
+# Fast tests only - no external dependencies required
+
+echo "🌉 Brooklyn Pre-commit Checks..."
+
+# 1. Code formatting
+echo "📝 Formatting code..."
+bun run format:code
+
+# 2. TypeScript validation
+echo "🔍 Type checking..."
+bun run typecheck || {
+  echo "❌ TypeScript errors found. Please fix before committing."
+  exit 1
+}
+
+# 3. Linting
+echo "🧹 Linting..."
+bun run lint || {
+  echo "❌ Linting errors found. Please fix before committing."
+  exit 1
+}
+
+# 4. Fast tests (unit + mock-based integration)
+echo "🧪 Running fast tests..."
+bun run test:precommit || {
+  echo "❌ Tests failed. Please fix before committing."
+  exit 1
+}
+
+echo "✅ All pre-commit checks passed!"
