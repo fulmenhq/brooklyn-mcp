@@ -3,7 +3,7 @@
  * Tests REST API endpoints and MCP protocol over HTTP
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { BrooklynHTTP } from "../../src/core/brooklyn-http.js";
 
 describe("Brooklyn HTTP Mode Integration", () => {

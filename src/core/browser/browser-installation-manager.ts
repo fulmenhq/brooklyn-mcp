@@ -276,7 +276,7 @@ export class BrowserInstallationManager {
         return null;
       }
 
-      // Use the most recent version (highest number)  
+      // Use the most recent version (highest number)
       const latestDir = browserDirs.sort().pop();
       if (!latestDir) {
         return null;

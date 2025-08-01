@@ -1,22 +1,25 @@
 /**
  * Brooklyn REPL - Interactive MCP tool testing environment
  * Phase 2 of dev mode refactoring - provides human and AI-friendly testing
+ *
+ * NOTE: console.log usage is intentional for REPL user interface.
+ * See biome config file-level excludes for lint rule overrides.
  */
 
+import { type Interface, createInterface } from "node:readline";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import type { CallToolRequest, Tool } from "@modelcontextprotocol/sdk/types.js";
-import { createInterface, type Interface } from "node:readline";
 
 import { getLogger } from "../shared/pino-logger.js";
-import { BrooklynEngine, type BrooklynContext } from "./brooklyn-engine.js";
+import { type BrooklynContext, BrooklynEngine } from "./brooklyn-engine.js";
 import { loadConfig } from "./config.js";
+import { OnboardingTools } from "./onboarding-tools.js";
 import {
   browserLifecycleTools,
-  navigationTools,
-  interactionTools,
   contentCaptureTools,
+  interactionTools,
+  navigationTools,
 } from "./tool-definitions.js";
-import { OnboardingTools } from "./onboarding-tools.js";
 
 export interface REPLOptions {
   jsonOutput?: boolean;
@@ -238,7 +241,7 @@ export class BrooklynREPL {
 
       // Extract result from MCP response
       let result: unknown;
-      if (response.content && response.content[0] && response.content[0].type === "text") {
+      if (response.content?.[0] && response.content[0].type === "text") {
         try {
           result = JSON.parse(response.content[0].text);
         } catch {
@@ -273,7 +276,7 @@ export class BrooklynREPL {
     for (const arg of args) {
       if (arg.includes("=")) {
         const [key, ...valueParts] = arg.split("=");
-        let value: string = valueParts.join("=");
+        const value: string = valueParts.join("=");
         let parsedValue: unknown = value;
 
         // Try to parse as JSON for complex values
@@ -288,7 +291,7 @@ export class BrooklynREPL {
           parsedValue = true;
         } else if (value === "false") {
           parsedValue = false;
-        } else if (!isNaN(Number(value))) {
+        } else if (!Number.isNaN(Number(value))) {
           parsedValue = Number(value);
         } else {
           // Remove quotes if present
@@ -354,7 +357,7 @@ export class BrooklynREPL {
         if (!categories.has(category)) {
           categories.set(category, []);
         }
-        categories.get(category)!.push(tool);
+        categories.get(category)?.push(tool);
       }
 
       for (const [category, tools] of categories) {

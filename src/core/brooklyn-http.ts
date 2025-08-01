@@ -99,29 +99,17 @@ export class BrooklynHTTP {
             tools: this.availableTools.length,
             teamId: this.context.teamId,
           });
-          // biome-ignore lint/suspicious/noConsole: CLI output for HTTP server startup
           console.log("🌉 Brooklyn HTTP Mode v1.3.3");
-          // biome-ignore lint/suspicious/noConsole: CLI output for HTTP server startup
           console.log(`🚀 Server running at http://${this.options.host}:${this.options.port}`);
-          // biome-ignore lint/suspicious/noConsole: CLI output for HTTP server startup
           console.log(`📊 Available tools: ${this.availableTools.length}`);
-          // biome-ignore lint/suspicious/noConsole: CLI output for HTTP server startup
           console.log(`🏷️  Team: ${this.context.teamId}`);
-          // biome-ignore lint/suspicious/noConsole: CLI output for HTTP server startup
           console.log("");
-          // biome-ignore lint/suspicious/noConsole: CLI output for HTTP server startup
           console.log("API Endpoints:");
-          // biome-ignore lint/suspicious/noConsole: CLI output for HTTP server startup
           console.log("  GET  /tools           - List available tools");
-          // biome-ignore lint/suspicious/noConsole: CLI output for HTTP server startup
           console.log("  POST /tools/{name}    - Call a tool directly");
-          // biome-ignore lint/suspicious/noConsole: CLI output for HTTP server startup
           console.log("  POST /mcp             - Standard MCP protocol");
-          // biome-ignore lint/suspicious/noConsole: CLI output for HTTP server startup
           console.log("  GET  /health          - Server health check");
-          // biome-ignore lint/suspicious/noConsole: CLI output for HTTP server startup
           console.log("  GET  /metrics         - Performance metrics");
-          // biome-ignore lint/suspicious/noConsole: CLI output for HTTP server startup
           console.log("");
           resolve();
         });
