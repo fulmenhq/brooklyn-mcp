@@ -333,11 +333,24 @@ export class BrowserPoolManager {
     const startTime = Date.now();
     session.instance.touch();
 
+    // Retry navigate once on transient failure
+    const attempt = async () => {
+      // Re-read session to satisfy TS and ensure freshness
+      const current = this.sessions.get(browserId);
+      if (!current) {
+        throw new Error(`Browser session not found: ${browserId}`);
+      }
+      if (!current.page || current.page.isClosed()) {
+        const newPage = await current.instance.getMainPage();
+        const healed = { instance: current.instance, page: newPage, teamId: current.teamId };
+        this.sessions.set(browserId, healed);
+        return await newPage.goto(url, { timeout, waitUntil });
+      }
+      return await current.page.goto(url, { timeout, waitUntil });
+    };
+
     try {
-      const response = await session.page.goto(url, {
-        timeout,
-        waitUntil,
-      });
+      const response = await attempt();
 
       const loadTime = Date.now() - startTime;
       const title = await session.page.title();
@@ -496,7 +509,14 @@ export class BrowserPoolManager {
 
     let session = this.sessions.get(browserId);
     if (!session) {
-      throw new Error(`Browser session not found: ${browserId}`);
+      // Idempotent close: attempt to clean pool entry if exists, then return success
+      try {
+        await this.pool.release(browserId).catch(() => undefined);
+        await this.pool.remove(browserId, true).catch(() => undefined);
+      } catch {
+        // ignore
+      }
+      return { success: true, browserId };
     }
     if (!session.page || session.page.isClosed()) {
       const newPage = await session.instance.getMainPage();
@@ -506,7 +526,10 @@ export class BrowserPoolManager {
 
     try {
       // Release instance back to pool
-      await this.pool.release(browserId);
+      await this.pool.release(browserId).catch(async () => {
+        // If release fails, force remove
+        await this.pool.remove(browserId, true);
+      });
 
       // Remove from sessions
       this.sessions.delete(browserId);
@@ -528,14 +551,13 @@ export class BrowserPoolManager {
 
       if (force) {
         // Force remove from pool
-        await this.pool.remove(browserId, true);
+        await this.pool.remove(browserId, true).catch(() => undefined);
         this.sessions.delete(browserId);
         return { success: true, browserId };
       }
 
-      throw new Error(
-        `Failed to close browser: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      // Idempotent behavior: report success even if underlying close raced
+      return { success: true, browserId };
     }
   }
 

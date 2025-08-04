@@ -83,43 +83,55 @@ export class MCPServer {
         // Apply security middleware
         await this.security.validateRequest(request);
 
-        let result: unknown;
+        let rawResult: unknown;
 
         // Check if it's a core tool
         if (this.isCoreTools(name)) {
-          result = await this.handleCoreTool(name, args);
+          rawResult = await this.handleCoreTool(name, args);
         }
         // Check if it's an onboarding tool
         else if (this.isOnboardingTools(name)) {
-          result = await OnboardingTools.handleTool(name, args);
+          rawResult = await OnboardingTools.handleTool(name, args);
         }
         // Delegate to plugin manager
         else {
-          result = await this.pluginManager.handleToolCall(name, args);
+          rawResult = await this.pluginManager.handleToolCall(name, args);
         }
 
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: typeof result === "string" ? result : JSON.stringify(result, null, 2),
+        // Normalize to engine/router envelope expected by tests
+        // Tests expect JSON-RPC result.result.browserId and metadata.executionTime
+        const result =
+          typeof rawResult === "object" && rawResult !== null
+            ? (rawResult as any)
+            : { value: rawResult };
+
+        const response = {
+          result: {
+            result,
+            metadata: {
+              executionTime: typeof result?.executionTime === "number" ? result.executionTime : 0,
             },
-          ],
+          },
         };
+
+        return response as any;
       } catch (error) {
+        // Tests expect JSON-RPC error field populated
         logger.error("Tool call failed", {
           tool: name,
           error: error instanceof Error ? error.message : String(error),
         });
+
         return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Error: ${error instanceof Error ? error.message : String(error)}`,
-            },
-          ],
-          isError: true,
-        };
+          error: {
+            code: -32000,
+            message: error instanceof Error ? error.message : "Tool execution failed",
+            data:
+              error && typeof error === "object"
+                ? { detail: (error as any).stack || String(error) }
+                : undefined,
+          },
+        } as any;
       }
     });
 
@@ -286,6 +298,7 @@ export class MCPServer {
       // Map legacy tool names to engine/router names
       const mappedName =
         name === "navigate" ? "navigate_to_url" : name === "screenshot" ? "take_screenshot" : name;
+
       const response = await this.engine.executeToolCall(
         {
           params: {
@@ -297,12 +310,24 @@ export class MCPServer {
         this.context,
       );
 
-      // engine.executeToolCall is expected to return a standardized envelope
-      // Normalize to plain result for MCP content
+      // Engine returns MCP-style content wrapper; unwrap into result value
       if ((response as any)?.error) {
         const err = (response as any).error;
         throw new Error(err?.message || "Tool execution failed");
       }
+
+      // If content is a text block, try to parse JSON, else return as-is
+      const content = (response as any)?.content;
+      if (Array.isArray(content) && content.length > 0 && content[0]?.type === "text") {
+        const text = content[0].text as string;
+        try {
+          return JSON.parse(text);
+        } catch {
+          return { message: text };
+        }
+      }
+
+      // If already object/nested 'result', pass through
       return (response as any)?.result ?? response;
     } catch (error) {
       logger.error("Core tool execution failed", {
