@@ -509,14 +509,7 @@ export class BrowserPoolManager {
 
     let session = this.sessions.get(browserId);
     if (!session) {
-      // Idempotent close: attempt to clean pool entry if exists, then return success
-      try {
-        await this.pool.release(browserId).catch(() => undefined);
-        await this.pool.remove(browserId, true).catch(() => undefined);
-      } catch {
-        // ignore
-      }
-      return { success: true, browserId };
+      throw new Error(`Browser session not found: ${browserId}`);
     }
     if (!session.page || session.page.isClosed()) {
       const newPage = await session.instance.getMainPage();
