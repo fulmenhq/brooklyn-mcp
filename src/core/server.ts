@@ -199,7 +199,7 @@ export class MCPServer {
         },
       },
       {
-        name: "navigate",
+        name: "navigate_to_url",
         description: "Navigate to a URL",
         inputSchema: {
           type: "object",
@@ -223,7 +223,7 @@ export class MCPServer {
         },
       },
       {
-        name: "screenshot",
+        name: "take_screenshot",
         description: "Take a screenshot of the page",
         inputSchema: {
           type: "object",
@@ -264,7 +264,7 @@ export class MCPServer {
   }
 
   private isCoreTools(toolName: string): boolean {
-    const coreTools = ["launch_browser", "navigate", "screenshot", "close_browser"];
+    const coreTools = ["launch_browser", "navigate_to_url", "take_screenshot", "close_browser"];
     return coreTools.includes(toolName);
   }
 
@@ -283,10 +283,13 @@ export class MCPServer {
   private async handleCoreTool(name: string, args: unknown): Promise<unknown> {
     try {
       // Route ALL core tools through BrooklynEngine → MCPBrowserRouter
+      // Map legacy tool names to engine/router names
+      const mappedName =
+        name === "navigate" ? "navigate_to_url" : name === "screenshot" ? "take_screenshot" : name;
       const response = await this.engine.executeToolCall(
         {
           params: {
-            name,
+            name: mappedName,
             arguments: (args as Record<string, unknown>) ?? {},
           },
           method: "tools/call",
