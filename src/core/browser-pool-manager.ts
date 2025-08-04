@@ -144,14 +144,20 @@ export class BrowserPoolManager {
       createInstance: async (config: {
         teamId?: string;
         browserType?: "chromium" | "firefox" | "webkit";
+        // Optionally allow per-request overrides threaded via allocation metadata
+        headless?: boolean;
+        timeout?: number;
+        viewport?: { width: number; height: number };
+        userAgent?: string;
       }) => {
         const instance = await this.factory.createInstance({
           id: `browser-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
           teamId: config.teamId,
           browserType: config.browserType || "chromium",
-          headless: true,
-          timeout: 30000,
-          viewport: { width: 1920, height: 1080 },
+          headless: config.headless ?? true,
+          timeout: config.timeout ?? 30000,
+          viewport: config.viewport ?? { width: 1920, height: 1080 },
+          userAgent: config.userAgent,
         });
         return instance;
       },
@@ -217,11 +223,17 @@ export class BrowserPoolManager {
     });
 
     try {
-      // Allocate browser from pool
+      // Allocate browser from pool, threading launch options where supported
       const allocation = await this.pool.allocate({
         teamId,
         browserType,
         priority: "normal",
+        metadata: {
+          headless,
+          timeout,
+          viewport,
+          userAgent,
+        },
       });
 
       const browserId = allocation.instance.id;
@@ -233,9 +245,27 @@ export class BrowserPoolManager {
         });
       }
 
-      await allocation.page.setViewportSize(viewport);
-      allocation.page.setDefaultTimeout(timeout);
-      allocation.page.setDefaultNavigationTimeout(timeout);
+      try {
+        await allocation.page.setViewportSize(viewport);
+      } catch {
+        // If page was closed or invalid, recreate and retry once
+        const newPage = await allocation.instance.getMainPage();
+        await newPage.setViewportSize(viewport);
+        this.sessions.set(browserId, {
+          instance: allocation.instance,
+          page: newPage,
+          teamId,
+        });
+      }
+      const activeSession = this.sessions.get(browserId) ?? {
+        instance: allocation.instance,
+        page: allocation.page,
+        teamId,
+      };
+      activeSession.page.setDefaultTimeout(timeout);
+      activeSession.page.setDefaultNavigationTimeout(timeout);
+      // Ensure session map is up to date
+      this.sessions.set(allocation.instance.id, activeSession);
 
       // Store session
       this.sessions.set(browserId, {
@@ -282,9 +312,15 @@ export class BrowserPoolManager {
 
     logger.info("Navigating browser", { browserId, url, waitUntil });
 
-    const session = this.sessions.get(browserId);
+    let session = this.sessions.get(browserId);
     if (!session) {
       throw new Error(`Browser session not found: ${browserId}`);
+    }
+    // Self-heal closed/crashed page
+    if (!session.page || session.page.isClosed()) {
+      const newPage = await session.instance.getMainPage();
+      session = { ...session, page: newPage };
+      this.sessions.set(browserId, session);
     }
 
     // Validate URL
@@ -366,9 +402,14 @@ export class BrowserPoolManager {
       returnFormat,
     });
 
-    const session = this.sessions.get(browserId);
+    let session = this.sessions.get(browserId);
     if (!session) {
       throw new Error(`Browser session not found: ${browserId}`);
+    }
+    if (!session.page || session.page.isClosed()) {
+      const newPage = await session.instance.getMainPage();
+      session = { ...session, page: newPage };
+      this.sessions.set(browserId, session);
     }
 
     session.instance.touch();
@@ -453,9 +494,14 @@ export class BrowserPoolManager {
 
     logger.info("Closing browser", { browserId, force });
 
-    const session = this.sessions.get(browserId);
+    let session = this.sessions.get(browserId);
     if (!session) {
       throw new Error(`Browser session not found: ${browserId}`);
+    }
+    if (!session.page || session.page.isClosed()) {
+      const newPage = await session.instance.getMainPage();
+      session = { ...session, page: newPage };
+      this.sessions.set(browserId, session);
     }
 
     try {
@@ -504,15 +550,23 @@ export class BrowserPoolManager {
       isActive: boolean;
     }>;
   }> {
-    const browsers = Array.from(this.sessions.entries()).map(([browserId, session]) => ({
-      browserId,
-      browserType: session.instance.browserType,
-      headless: true,
-      launchedAt: session.instance.createdAt,
-      currentUrl: session.page.url(),
-      teamId: session.teamId,
-      isActive: session.instance.isActive,
-    }));
+    const browsers = Array.from(this.sessions.entries()).map(([browserId, session]) => {
+      let currentUrl: string | undefined;
+      try {
+        currentUrl = session.page?.url();
+      } catch {
+        currentUrl = undefined;
+      }
+      return {
+        browserId,
+        browserType: session.instance.browserType,
+        headless: true,
+        launchedAt: session.instance.createdAt,
+        currentUrl,
+        teamId: session.teamId,
+        isActive: session.instance.isActive,
+      };
+    });
 
     return { browsers };
   }
@@ -588,9 +642,14 @@ export class BrowserPoolManager {
 
     logger.info("Clicking element", { browserId, selector });
 
-    const session = this.sessions.get(browserId);
+    let session = this.sessions.get(browserId);
     if (!session) {
       throw new Error(`Browser session not found: ${browserId}`);
+    }
+    if (!session.page || session.page.isClosed()) {
+      const newPage = await session.instance.getMainPage();
+      session = { ...session, page: newPage };
+      this.sessions.set(browserId, session);
     }
 
     session.instance.touch();
@@ -638,9 +697,14 @@ export class BrowserPoolManager {
       clearFirst,
     });
 
-    const session = this.sessions.get(browserId);
+    let session = this.sessions.get(browserId);
     if (!session) {
       throw new Error(`Browser session not found: ${browserId}`);
+    }
+    if (!session.page || session.page.isClosed()) {
+      const newPage = await session.instance.getMainPage();
+      session = { ...session, page: newPage };
+      this.sessions.set(browserId, session);
     }
 
     session.instance.touch();
@@ -688,9 +752,14 @@ export class BrowserPoolManager {
 
     logger.info("Filling form", { browserId, fieldsCount: fields.length });
 
-    const session = this.sessions.get(browserId);
+    let session = this.sessions.get(browserId);
     if (!session) {
       throw new Error(`Browser session not found: ${browserId}`);
+    }
+    if (!session.page || session.page.isClosed()) {
+      const newPage = await session.instance.getMainPage();
+      session = { ...session, page: newPage };
+      this.sessions.set(browserId, session);
     }
 
     session.instance.touch();
