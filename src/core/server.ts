@@ -83,40 +83,42 @@ export class MCPServer {
         // Apply security middleware
         await this.security.validateRequest(request);
 
-        let rawResult: unknown;
+        // Route EVERYTHING through engine so envelopes are consistent
+        const mappedName =
+          name === "navigate" ? "navigate_to_url" : name === "screenshot" ? "take_screenshot" : name;
 
-        // Check if it's a core tool
-        if (this.isCoreTools(name)) {
-          rawResult = await this.handleCoreTool(name, args);
-        }
-        // Check if it's an onboarding tool
-        else if (this.isOnboardingTools(name)) {
-          rawResult = await OnboardingTools.handleTool(name, args);
-        }
-        // Delegate to plugin manager
-        else {
-          rawResult = await this.pluginManager.handleToolCall(name, args);
-        }
-
-        // Normalize to engine/router envelope expected by tests
-        // Tests expect JSON-RPC result.result.browserId and metadata.executionTime
-        const result =
-          typeof rawResult === "object" && rawResult !== null
-            ? (rawResult as any)
-            : { value: rawResult };
-
-        const response = {
-          result: {
-            result,
-            metadata: {
-              executionTime: typeof result?.executionTime === "number" ? result.executionTime : 0,
+        const engineResponse = (await this.engine.executeToolCall(
+          {
+            params: {
+              name: mappedName,
+              arguments: (args as Record<string, unknown>) ?? {},
             },
-          },
-        };
+            method: "tools/call",
+          } as unknown as import("@modelcontextprotocol/sdk/types.js").CallToolRequest,
+          this.context,
+        )) as any;
 
-        return response as any;
+        // Engine returns { result: { result, metadata } } for success
+        if (engineResponse?.result) {
+          return engineResponse;
+        }
+
+        // If engine gave a content array (older shape), unwrap text -> json when possible
+        const content = engineResponse?.content;
+        if (Array.isArray(content) && content[0]?.type === "text") {
+          const text = content[0].text as string;
+          try {
+            const parsed = JSON.parse(text);
+            return { result: { result: parsed, metadata: { executionTime: 0 } } } as any;
+          } catch {
+            return { result: { result: { message: text }, metadata: { executionTime: 0 } } } as any;
+          }
+        }
+
+        // Fallback: wrap raw response
+        return { result: { result: engineResponse, metadata: { executionTime: 0 } } } as any;
       } catch (error) {
-        // Tests expect JSON-RPC error field populated
+        // Return JSON-RPC error envelope (no stdout noise)
         logger.error("Tool call failed", {
           tool: name,
           error: error instanceof Error ? error.message : String(error),

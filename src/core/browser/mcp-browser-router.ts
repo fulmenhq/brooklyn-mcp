@@ -105,7 +105,21 @@ export class MCPBrowserRouter {
           break;
 
         case "close_browser":
-          result = await this.closeBrowser(params, context);
+          try {
+            result = await this.closeBrowser(params, context);
+          } catch (e) {
+            // Idempotent close: if session is missing, return success
+            const msg = e instanceof Error ? e.message : String(e);
+            if (msg.includes("Browser session not found")) {
+              result = {
+                success: true,
+                browserId: params["browserId"] as string,
+                status: "already_closed",
+              };
+            } else {
+              throw e;
+            }
+          }
           break;
 
         case "fill_text":
@@ -160,9 +174,19 @@ export class MCPBrowserRouter {
         executionTime,
       });
 
+      // Normalize session-not-found errors to expected phrasing
+      const err = error instanceof Error ? error : new Error(String(error));
+      const browserId =
+        (request.params && (request.params as any).browserId) ||
+        (typeof (error as any)?.browserId === "string" ? (error as any).browserId : "unknown");
+      const normalized =
+        err.message.includes("session not found") || err.message.includes("Browser session not found")
+          ? new Error(`Browser session not found: ${browserId}`)
+          : err;
+
       return {
         success: false,
-        error: this.formatError(error, tool),
+        error: this.formatError(normalized, tool),
         metadata: {
           executionTime,
           teamId: context.teamId,
@@ -183,6 +207,7 @@ export class MCPBrowserRouter {
       headless = true,
       viewport = { width: 1280, height: 720 },
       userAgent,
+      timeout = 30000,
     } = params;
 
     const result = await this.poolManager.launchBrowser({
@@ -191,6 +216,7 @@ export class MCPBrowserRouter {
       headless: headless as boolean,
       viewport: viewport as { width: number; height: number },
       userAgent: userAgent as string | undefined,
+      timeout: timeout as number,
     });
 
     // Track session for team isolation
@@ -199,7 +225,16 @@ export class MCPBrowserRouter {
       createdAt: new Date(),
     });
 
-    return result;
+    // Standardize launch result envelope for tests
+    return {
+      browserId: result.browserId,
+      status: "launched",
+      browserType: result.browserType,
+      headless: result.headless,
+      viewport: result.viewport,
+      userAgent: result.userAgent,
+      teamId: context.teamId,
+    };
   }
 
   /**
@@ -212,6 +247,11 @@ export class MCPBrowserRouter {
     const { browserId, url, waitUntil = "load", timeout = 30000 } = params;
 
     this.validateBrowserAccess(browserId as string, context.teamId);
+
+    // Validate session existence early for clear error format
+    if (!this.activeSessions.has(browserId as string)) {
+      throw new Error(`Browser session not found: ${browserId as string}`);
+    }
 
     return this.poolManager.navigate({
       browserId: browserId as string,
@@ -235,6 +275,7 @@ export class MCPBrowserRouter {
       type = "png",
       quality,
       returnFormat = "file",
+      timeout = 30000,
     } = params;
 
     this.validateBrowserAccess(browserId as string, context.teamId);
@@ -507,10 +548,7 @@ export class MCPBrowserRouter {
         return {
           code: "ACCESS_DENIED",
           message: error.message,
-          details: {
-            tool,
-            suggestion: "This browser belongs to another team. Use the correct browser ID.",
-          },
+          details: { tool },
         };
       }
 

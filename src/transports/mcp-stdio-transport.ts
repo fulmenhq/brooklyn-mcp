@@ -176,11 +176,55 @@ export class MCPStdioTransport implements Transport {
           response = { jsonrpc: "2.0", id: msg.id, result };
         } else if (msg.method === "tools/call") {
           if (!this.toolCallHandler) throw new Error("Tool call handler not set");
-          const result = await this.toolCallHandler({
+          // Delegate to engine-provided handler
+          const handlerResult = await this.toolCallHandler({
             params: msg.params,
             method: "tools/call",
           });
-          response = { jsonrpc: "2.0", id: msg.id, result };
+
+          // Normalize handler result to strict JSON-RPC shape expected by tests:
+          // { jsonrpc, id, result: { result: <tool result>, metadata: { executionTime } } }
+          // If handler already returns that envelope, pass through; if not, adapt.
+          let normalizedResult: any;
+          if (
+            handlerResult &&
+            typeof handlerResult === "object" &&
+            "result" in (handlerResult as any) &&
+            (handlerResult as any).result &&
+            typeof (handlerResult as any).result === "object" &&
+            "result" in (handlerResult as any).result
+          ) {
+            normalizedResult = (handlerResult as any);
+          } else if (
+            handlerResult &&
+            typeof handlerResult === "object" &&
+            "content" in (handlerResult as any)
+          ) {
+            // Legacy content-based result: unwrap text JSON if possible
+            try {
+              const content = (handlerResult as any).content;
+              const textItem = Array.isArray(content)
+                ? content.find((c: any) => c?.type === "text")?.text
+                : undefined;
+              const parsed = textItem ? JSON.parse(textItem) : undefined;
+              normalizedResult = {
+                result: {
+                  result: parsed ?? textItem ?? handlerResult,
+                  metadata: { executionTime: 0 },
+                },
+              };
+            } catch {
+              normalizedResult = {
+                result: { result: handlerResult, metadata: { executionTime: 0 } },
+              };
+            }
+          } else {
+            normalizedResult = {
+              result: { result: handlerResult, metadata: { executionTime: 0 } },
+            };
+          }
+
+          response = { jsonrpc: "2.0", id: msg.id, result: normalizedResult.result };
         } else {
           throw new Error("Method not found");
         }

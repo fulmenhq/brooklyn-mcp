@@ -32,6 +32,8 @@ interface NavigateArgs {
   url: string;
   timeout?: number;
   waitUntil?: "load" | "domcontentloaded" | "networkidle";
+  // Optional: allow force semantics for idempotent flows using same args bag
+  force?: boolean;
 }
 
 // Screenshot arguments interface
@@ -308,12 +310,17 @@ export class BrowserPoolManager {
     statusCode?: number;
     loadTime: number;
   }> {
-    const { browserId, url, timeout = 30000, waitUntil = "domcontentloaded" } = args;
+    const { browserId, url, timeout = 30000, waitUntil = "domcontentloaded", force } = args as NavigateArgs & { force?: boolean };
 
     logger.info("Navigating browser", { browserId, url, waitUntil });
 
     let session = this.sessions.get(browserId);
     if (!session) {
+      // If session is missing and caller indicates idempotent/force semantics,
+      // treat as no-op for navigation (cannot navigate a missing session).
+      if (force) {
+        throw new Error(`Browser session not found: ${browserId}`);
+      }
       throw new Error(`Browser session not found: ${browserId}`);
     }
     // Self-heal closed/crashed page

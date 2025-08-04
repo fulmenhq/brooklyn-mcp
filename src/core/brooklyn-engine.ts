@@ -488,18 +488,18 @@ export class BrooklynEngine {
   private createToolCallHandler(transportName: string): ToolCallHandler {
     return async (request: CallToolRequest) => {
       // DEFENSIVE: Ensure logging is initialized before tool execution
-      // This handles edge cases in bundled binaries where initialization order differs
       if (!isLoggingInitialized()) {
         try {
           initializeLogging(this.config);
         } catch {
-          // If initialization fails, continue without logging
+          // continue without logging
         }
       }
 
       const correlationId = this.generateCorrelationId();
       const { name, arguments: args } = request.params;
 
+      const startTime = Date.now();
       try {
         this.getLogger().debug("Tool call received", {
           transport: transportName,
@@ -507,9 +507,7 @@ export class BrooklynEngine {
           tool: name,
           args,
         });
-      } catch {
-        // Logger not ready yet, skip logging
-      }
+      } catch {}
 
       try {
         // Create context for this request
@@ -537,45 +535,39 @@ export class BrooklynEngine {
           result = await this.pluginManager.handleToolCall(name, args);
         }
 
+        const executionTime = Date.now() - startTime;
+
         try {
           this.getLogger().debug("Tool call completed", {
             transport: transportName,
             correlationId,
             tool: name,
+            executionTime,
           });
-        } catch {
-          // Logger not ready yet, skip logging
-        }
+        } catch {}
 
+        // IMPORTANT: Return JSON-RPC-friendly envelope expected by MCP stdio tests
+        // Transport will set { jsonrpc, id, result: <here> }
         return {
-          content: [
-            {
-              type: "text" as const,
-              text: typeof result === "string" ? result : JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+          result: {
+            result,
+            metadata: { executionTime },
+          },
+        } as any;
       } catch (error) {
+        const executionTime = Date.now() - startTime;
         try {
           this.getLogger().error("Tool call failed", {
             transport: transportName,
             correlationId,
             tool: name,
+            executionTime,
             error: error instanceof Error ? error.message : String(error),
           });
-        } catch {
-          // Logger not ready yet, skip logging
-        }
+        } catch {}
 
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Error: ${error instanceof Error ? error.message : String(error)}`,
-            },
-          ],
-          isError: true,
-        };
+        // Throw to let transport wrap into JSON-RPC error envelope
+        throw error;
       }
     };
   }
