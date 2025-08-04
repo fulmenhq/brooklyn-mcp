@@ -1,40 +1,83 @@
-# Brooklyn Local Development Mode Overview
+# Brooklyn Development Modes Overview
 
-Brooklyn's development mode enables rapid iteration on MCP servers without requiring full Claude Code session restarts. It uses named pipes for communication, providing **identical MCP protocol behavior** to production while avoiding stdin/stdout conflicts.
+Brooklyn provides two powerful development modes for testing and automation without disrupting Claude Code sessions: **REPL Mode** and **HTTP Mode**. Both provide full Brooklyn capabilities with different interfaces optimized for different use cases.
 
-## What is Dev Mode?
+## Development Mode Options
 
-Dev mode creates a Brooklyn MCP server that:
+### 🔄 REPL Mode - Interactive Development
 
-- **Reads MCP requests** from a named pipe (instead of stdin)
-- **Writes MCP responses** to a named pipe (instead of stdout)
-- **Uses identical protocol** - same JSON-RPC messages as production
-- **Runs persistently** - no need to restart between tests
-- **Isolates communication** - won't interfere with Claude Code sessions
+**Best for**: Manual testing, learning Brooklyn, debugging automation flows
+
+```bash
+brooklyn repl --team-id my-project
+brooklyn> launch_browser chromium
+brooklyn> navigate_to_url browser-123 https://example.com
+brooklyn> take_screenshot browser-123
+brooklyn> exit
+```
+
+### 🌐 HTTP Mode - Programmatic Access
+
+**Best for**: CI/CD integration, automated testing, API development
+
+```bash
+brooklyn mcp dev-http --port 8080 --team-id my-project --background
+curl -X POST http://localhost:8080/tools/launch_browser \
+  -H "Content-Type: application/json" \
+  -d '{"browserType": "chromium", "headless": true}'
+```
 
 ## Key Features
 
-- **Named pipe communication** - Avoids stdin/stdout conflicts
-- **Persistent server** - Runs in background until explicitly stopped
-- **Full MCP protocol** - Identical behavior to production Brooklyn
-- **Secure permissions** - Pipes created with 600 permissions
-- **Process management** - Clean startup/shutdown with PID tracking
+### REPL Mode Features
 
-## When to Use Dev Mode
+- **Interactive shell** with command completion
+- **Real-time testing** of browser automation workflows
+- **Direct tool execution** (same as MCP mode)
+- **Session state management** maintains browser contexts
+- **Learning-friendly** with built-in help system
 
-✅ **Use dev mode for:**
+### HTTP Mode Features
 
-- Testing MCP protocol changes without restarting Claude Code
-- Debugging MCP message handling
-- Developing new MCP tools
-- Integration testing with custom MCP clients
+- **Background daemon mode** returns terminal control immediately
+- **REST API** for programmatic tool access
+- **Built-in tool discovery** via `/tools` endpoint
+- **Process management** with PID files and status monitoring
+- **CI/CD integration** with proper lifecycle management
 
-❌ **Don't use dev mode for:**
+## When to Use Each Mode
 
-- Normal Claude Code usage (use `brooklyn mcp start`)
-- Production deployments
-- When you need web interface access
+### Use REPL Mode for:
 
-For usage details, see [usage.md](usage.md).  
-For troubleshooting, see [troubleshooting.md](troubleshooting.md).  
-For architecture details, see [architecture.md](architecture.md).
+✅ **Interactive development** and manual testing  
+✅ **Learning Brooklyn** capabilities and tool syntax  
+✅ **Debugging** specific automation workflows  
+✅ **Rapid prototyping** of browser automation scripts  
+
+### Use HTTP Mode for:
+
+✅ **CI/CD pipelines** and automated testing  
+✅ **Integration** with existing web applications  
+✅ **Programmatic access** from scripts and applications  
+✅ **Performance testing** and monitoring  
+
+### Use Production MCP for:
+
+✅ **Claude Code integration** via `brooklyn mcp start`  
+✅ **AI assistant interactions** and collaborative development  
+✅ **Real-time** browser automation with Claude  
+
+## Quick Reference
+
+| Feature | REPL Mode | HTTP Mode | MCP Mode |
+|---------|-----------|-----------|----------|
+| **Interface** | Interactive CLI | REST API | stdin/stdout |
+| **Use Case** | Manual Testing | Automation | AI Integration |
+| **Background** | No | Yes (daemon) | No |
+| **Programmatic** | No | Yes | No |
+| **Learning** | Excellent | Good | Good |
+| **CI/CD** | Limited | Excellent | No |
+
+For detailed usage examples, see [usage.md](usage.md).  
+For troubleshooting common issues, see [troubleshooting.md](troubleshooting.md).  
+For technical architecture details, see [architecture.md](architecture.md).

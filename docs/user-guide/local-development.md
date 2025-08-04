@@ -1,299 +1,408 @@
-# Local Development Mode Guide
+# Brooklyn Local Development Guide
 
 ## Introduction
 
-Brooklyn's local development mode enables developers to test and iterate on MCP server changes without disrupting active Claude Code sessions. This mode uses named pipes (FIFOs) for communication, allowing a detached Brooklyn process to run independently. It's particularly useful for rapid development cycles while maintaining full MCP protocol compatibility.
+Brooklyn provides two powerful development modes for testing browser automation without disrupting Claude Code sessions:
+
+- **🔄 REPL Mode**: Interactive command-line interface for manual testing and learning
+- **🌐 HTTP Mode**: REST API server for programmatic access and CI/CD integration
+
+Both modes run independently from production MCP servers, enabling rapid development cycles with full Brooklyn capabilities.
 
 **Key Benefits:**
 
-- ✅ No Claude Code session restarts needed for MCP development
-- ✅ Independent background Brooklyn process for testing
-- ✅ Full browser automation through dev mode pipes
-- ✅ Production-identical MCP protocol compliance
-- ✅ Proper process lifecycle management
+- ✅ No Claude Code session restarts needed for development
+- ✅ Independent background processes for testing
+- ✅ Full browser automation capabilities
+- ✅ Production-identical tool behavior
+- ✅ Proper process lifecycle management with background daemon support
 
-For architectural details, see [docs/development/dev-mode-pipes.md](../development/dev-mode-pipes.md).
-
-**Note**: This mode is intended for development use only. Do not use in production environments.
+**Note**: These modes are intended for development use only. Do not use in production environments.
 
 ## Prerequisites
 
 - Brooklyn built and installed: `bun run build && bun install`
-- Brooklyn CLI available globally: `brooklyn --version` should show version 1.2.2+
+- Brooklyn CLI available globally: `brooklyn --version` should show version 1.4.0+
 - Playwright browsers installed (run `bun run setup` if needed)
-- Familiarity with Brooklyn's core concepts and MCP protocol
+- Basic understanding of Brooklyn's browser automation capabilities
 
 ## Quick Start
 
-The fastest way to get started with dev mode:
+Choose your development mode based on your needs:
+
+### 🔄 REPL Mode (Interactive Testing)
 
 ```bash
 # 1. Build and install Brooklyn CLI
 bun run build && bun install
 
-# 2. Start dev mode (runs in foreground!)
-brooklyn mcp dev-start
+# 2. Start interactive REPL
+brooklyn repl
 
-# 3. Check status (in separate terminal)
-brooklyn mcp dev-status
+# 3. Try some commands
+brooklyn> help
+brooklyn> launch_browser chromium
+brooklyn> navigate_to_url browser-123 https://google.com
+brooklyn> take_screenshot browser-123
+brooklyn> exit
+```
 
-# 4. Test communication (optional)
-node examples/brooklyn-dev-test.js
+### 🌐 HTTP Mode (Programmatic Testing)
+
+```bash
+# 1. Build and install Brooklyn CLI
+bun run build && bun install
+
+# 2. Start HTTP server in background
+brooklyn mcp dev-http --port 8080 --team-id my-team --background
+
+# 3. Test via API
+curl -s http://localhost:8080/health
+
+# 4. Use tools programmatically
+curl -X POST http://localhost:8080/tools/launch_browser \
+  -H "Content-Type: application/json" \
+  -d '{"browserType": "chromium", "headless": true}'
 
 # 5. Stop when done
-brooklyn mcp dev-stop
+brooklyn mcp dev-http-stop --port 8080
 ```
 
 ## Configuration
 
-Brooklyn dev mode uses temporary named pipes in `/tmp` by default with the pattern:
+Both development modes support flexible configuration:
 
-- Input pipe: `/tmp/brooklyn-mcp-dev-{id}-in`
-- Output pipe: `/tmp/brooklyn-mcp-dev-{id}-out`
+### REPL Mode Configuration
 
-No additional configuration is required. The dev mode automatically:
+```bash
+# Basic REPL session
+brooklyn repl
 
-- Creates unique pipe names per session
-- Manages process lifecycle and cleanup
-- Stores pipe information in `~/.brooklyn/dev/pipes.json`
+# With team context
+brooklyn repl --team-id my-team
+
+# With verbose logging
+brooklyn repl --verbose
+```
+
+### HTTP Mode Configuration
+
+```bash
+# Basic HTTP server (foreground)
+brooklyn mcp dev-http
+
+# Background daemon mode (recommended)
+brooklyn mcp dev-http --port 8080 --team-id my-team --background
+
+# Custom host and CORS settings
+brooklyn mcp dev-http --host localhost --no-cors --verbose
+```
+
+**Configuration Options:**
+- `--port <port>`: HTTP server port (default: 8080)
+- `--host <host>`: Server host (default: 0.0.0.0)
+- `--team-id <team>`: Team identifier for resource isolation
+- `--background`: Run as background daemon (returns terminal control)
+- `--verbose`: Enable detailed logging
+- `--no-cors`: Disable CORS headers
 
 ## CLI Commands
 
-All dev mode operations use the Brooklyn CLI. The commands are available after running `bun run build && bun install`.
-
-### Starting Dev Mode
-
-Launch the development server with named pipes:
+### REPL Mode Commands
 
 ```bash
-# Terminal 1: Start dev mode (runs in foreground!)
-brooklyn mcp dev-start
+# Start interactive REPL
+brooklyn repl [--team-id <team>] [--verbose]
 
-# For AI agents: Background the process
-brooklyn mcp dev-start &
+# REPL commands are entered interactively:
+brooklyn> help                          # List available commands
+brooklyn> launch_browser chromium       # Launch browser
+brooklyn> take_screenshot browser-123   # Take screenshot
+brooklyn> exit                          # Exit REPL
 ```
 
-⚠️ **Important**: Dev mode runs in the foreground by default. Use a separate terminal for other commands or background the process.
+### HTTP Mode Commands
 
-This command:
-
-- Creates unique named pipes in `/tmp`
-- Starts a detached Brooklyn MCP server process
-- Stores pipe information for status checking
-- Automatically cleans up stale resources from previous runs
-
-### Checking Status
-
-Verify the server is running and get pipe information:
+**Server Management:**
 
 ```bash
-brooklyn mcp dev-status
+# Start HTTP server (foreground)
+brooklyn mcp dev-http [options]
+
+# Start HTTP server (background daemon)
+brooklyn mcp dev-http --background [options]
+
+# Stop HTTP server on specific port
+brooklyn mcp dev-http-stop --port 8080
+
+# Stop all HTTP servers
+brooklyn mcp dev-http-stop --all
+
+# List running HTTP servers
+brooklyn mcp dev-http-list
+
+# Detailed status for HTTP servers
+brooklyn mcp dev-http-status [--port 8080]
+```
+
+**Universal Status Command:**
+
+```bash
+# Check all Brooklyn processes (REPL, HTTP, MCP)
+brooklyn status
 ```
 
 Example output:
-
 ```
-📊 Brooklyn MCP Development Mode Status
-Process: 🟢 Running
-PID: 28164
-Input Pipe: ✅ /tmp/brooklyn-mcp-dev-b99y20-1753385852073-in
-Output Pipe: ✅ /tmp/brooklyn-mcp-dev-b99y20-1753385852073-out
+📊 Brooklyn Process Status:
+
+  🌐 HTTP Servers:
+    • dev-http:8080 (PID: 70219, team: my-team)
+
+  📡 MCP Servers:
+    • stdio mode (PID: 67485)
+    • stdio mode (PID: 67470)
+
+Total: 3 Brooklyn processes running
 ```
-
-### Testing Connection
-
-Test MCP communication through the pipes:
-
-```bash
-# Use provided test clients
-node examples/brooklyn-dev-test.js       # Basic MCP protocol test
-node examples/dev-mode-client.js         # Non-blocking client example
-node test-browser-automation.js          # Full browser automation test
-```
-
-### Stopping Dev Mode
-
-Gracefully stop the server and clean up all resources:
-
-```bash
-brooklyn mcp dev-stop
-```
-
-This command:
-
-- Terminates the Brooklyn MCP process
-- Removes named pipes
-- Cleans up temporary files
-- Ensures no orphaned processes remain
-
-### Restarting
-
-Restart the development server (stop + start):
-
-```bash
-brooklyn mcp dev-restart
-```
-
-### Manual Cleanup
-
-If needed, manually clean up orphaned processes and resources:
-
-```bash
-brooklyn mcp dev-cleanup
-```
-
-**Note**: The `brooklyn mcp dev-*` commands are also available as bun scripts (`bun run dev:brooklyn:*`) for repository-based development.
 
 ## Development Workflow
 
-### Typical Development Cycle
+### REPL Mode Workflow (Interactive Testing)
 
-1. **Start dev mode**: `brooklyn mcp dev-start` (in Terminal 1, runs in foreground)
-2. **Make code changes** to Brooklyn source (in Terminal 2)
-3. **Test changes**: Use the provided client examples or create custom MCP clients
-4. **Verify functionality**: `brooklyn mcp dev-status` to check health
-5. **Iterate**: Repeat steps 2-4 as needed
-6. **Stop when done**: `brooklyn mcp dev-stop` or Ctrl+C in Terminal 1
-
-### Advanced Development
-
-For more intensive development work:
+**Best for**: Learning Brooklyn, manual testing, debugging specific automation flows
 
 ```bash
-# 1. Start dev mode (Terminal 1, runs in foreground)
-brooklyn mcp dev-start
+# 1. Start REPL session
+brooklyn repl --team-id my-project
 
-# 2. Monitor logs in real-time (Terminal 2)
-tail -f ~/.brooklyn/dev/logs/brooklyn-mcp-dev-*.log
+# 2. Explore available commands
+brooklyn> help
 
-# 3. Test browser automation
-node test-browser-automation.js
+# 3. Test browser automation interactively
+brooklyn> launch_browser chromium --headless false
+brooklyn> navigate_to_url browser-abc123 https://example.com
+brooklyn> take_screenshot browser-abc123 --full-page
+brooklyn> close_browser browser-abc123
 
-# 4. Make code changes and rebuild if needed
-bun run build
-
-# 5. Restart dev mode to pick up changes
-brooklyn mcp dev-restart
+# 4. Exit when done
+brooklyn> exit
 ```
 
-### MCP Client Development
+### HTTP Mode Workflow (Programmatic Testing)
 
-When developing MCP clients to test against Brooklyn:
+**Best for**: CI/CD integration, automated testing, API development
 
-```javascript
-// Get current pipe information
-const pipesInfo = JSON.parse(fs.readFileSync("~/.brooklyn/dev/pipes.json", "utf-8"));
-const { inputPipe, outputPipe } = pipesInfo;
+```bash
+# 1. Start HTTP server in background
+brooklyn mcp dev-http --port 8080 --team-id ci-tests --background
 
-// Use streams for non-blocking communication
-const writer = createWriteStream(inputPipe);
-const reader = spawn("cat", [outputPipe]);
+# 2. Develop/test via HTTP API
+curl -s http://localhost:8080/health
+curl -s http://localhost:8080/tools | jq '.data.tools[].name'
 
-// Send MCP messages
-writer.write(
-  JSON.stringify({
-    jsonrpc: "2.0",
-    id: 1,
-    method: "tools/list",
-  }) + "\n",
-);
+# 3. Create automation scripts
+./scripts/test-browser-workflow.sh
+
+# 4. Stop server when done
+brooklyn mcp dev-http-stop --port 8080
+```
+
+### HTTP API Discovery Workflow
+
+**How to translate Brooklyn tools to HTTP endpoints:**
+
+```bash
+# 1. Start HTTP server
+brooklyn mcp dev-http --port 8080 --background
+
+# 2. Discover available tools
+curl -s http://localhost:8080/tools | jq '.data.tools[] | {name, description}'
+
+# 3. Get tool schema
+curl -s http://localhost:8080/tools | jq '.data.tools[] | select(.name == "launch_browser")'
+
+# 4. Use tool with correct parameters
+curl -X POST http://localhost:8080/tools/launch_browser \
+  -H "Content-Type: application/json" \
+  -d '{"browserType": "chromium", "headless": true}'
+```
+
+**Key Translation Rules:**
+- Tool name becomes URL path: `launch_browser` → `/tools/launch_browser`
+- Parameters go directly in JSON body (no `"arguments"` wrapper)
+- Always use `Content-Type: application/json` header
+- Tool schema from `/tools` endpoint shows exact parameter format
+
+### Mixed Development Approach
+
+```bash
+# 1. Use REPL to learn and test manually
+brooklyn repl
+brooklyn> launch_browser chromium
+brooklyn> # interactive experimentation
+
+# 2. Translate to HTTP for automation
+brooklyn mcp dev-http --port 8080 --background
+curl -X POST http://localhost:8080/tools/launch_browser \
+  -H "Content-Type: application/json" \
+  -d '{"browserType": "chromium", "headless": true}'
+
+# 3. Build automated test scripts
+# scripts/my-automation.js uses HTTP API
 ```
 
 ## Troubleshooting
 
 ### Common Issues
 
-**Process not starting:**
+**REPL Mode Issues:**
 
 ```bash
-# Check for existing instances
-brooklyn mcp dev-status
+# REPL won't start
+brooklyn repl --verbose  # Check for error messages
 
-# Clean up if needed
-brooklyn mcp dev-stop
-brooklyn mcp dev-cleanup
+# REPL commands not working
+brooklyn> help           # Verify commands are available
+brooklyn> exit            # Exit cleanly and restart
 ```
 
-**Pipe communication errors:**
+**HTTP Mode Issues:**
 
 ```bash
-# Verify pipes exist and are accessible
-ls -la /tmp/brooklyn-mcp-dev-*
-brooklyn mcp dev-status
+# HTTP server won't start
+lsof -i :8080            # Check if port is in use
+brooklyn mcp dev-http --port 8081  # Try different port
+
+# HTTP server not responding
+curl -v http://localhost:8080/health  # Verbose connection test
+brooklyn status          # Check if server is running
+
+# Background mode not working
+brooklyn mcp dev-http-list           # List background servers
+brooklyn mcp dev-http-stop --all     # Stop all servers
 ```
 
-**FIFO/pipe blocking issues:**
-
-- Named pipes block until both reader and writer connect
-- Use stream-based clients (see examples) instead of sync file operations
-- Avoid `fs.readFileSync` on pipes - use `spawn('cat', [pipe])` instead
-
-**Connection timeouts:**
+**Tool Execution Issues:**
 
 ```bash
-# Check if Brooklyn process is actually running
-brooklyn mcp dev-status
+# Tools returning errors
+brooklyn mcp dev-http --verbose --background
+curl -s http://localhost:8080/tools | jq '.data.tools[0]'  # Check tool schema
 
-# View recent logs for errors
-tail -20 ~/.brooklyn/dev/logs/brooklyn-mcp-dev-*.log
+# Browser automation failing
+# Check if Playwright browsers are installed
+bun run setup
+```
+
+### Debugging HTTP API Calls
+
+**Correct HTTP API Format:**
+
+```bash
+# ✅ Correct format
+curl -X POST http://localhost:8080/tools/launch_browser \
+  -H "Content-Type: application/json" \
+  -d '{"browserType": "chromium", "headless": true}'
+
+# ❌ Wrong format (don't use "arguments" wrapper)
+curl -X POST http://localhost:8080/tools/launch_browser \
+  -d '{"arguments": {"browserType": "chromium"}}'  # This will fail
+```
+
+**API Discovery:**
+
+```bash
+# List all available tools
+curl -s http://localhost:8080/tools | jq '.data.tools[].name'
+
+# Get specific tool schema
+curl -s http://localhost:8080/tools | jq '.data.tools[] | select(.name == "navigate_to_url")'
+
+# Test with verbose curl to see request/response
+curl -v -X POST http://localhost:8080/tools/launch_browser \
+  -H "Content-Type: application/json" \
+  -d '{"browserType": "chromium"}'
+```
+
+### Process Management
+
+**Check Running Processes:**
+
+```bash
+# Universal status check
+brooklyn status
+
+# HTTP server specific status
+brooklyn mcp dev-http-list
+brooklyn mcp dev-http-status --port 8080
+
+# Manual process check
+ps aux | grep brooklyn
+```
+
+**Clean Up Orphaned Processes:**
+
+```bash
+# Stop specific HTTP server
+brooklyn mcp dev-http-stop --port 8080
+
+# Stop all HTTP servers
+brooklyn mcp dev-http-stop --all
+
+# Manual cleanup if needed
+pkill -f "brooklyn mcp dev-http"
 ```
 
 ### Debug Mode
 
-For detailed debugging, start dev mode with verbose logging:
+**Verbose Logging:**
 
 ```bash
-# Stop existing instance first
-brooklyn mcp dev-stop
+# REPL with verbose logging
+brooklyn repl --verbose
 
-# Start with debug logging (runs in foreground)
-brooklyn mcp dev-start --log-level debug
+# HTTP server with verbose logging
+brooklyn mcp dev-http --verbose --background
 ```
-
-### Log Locations
-
-- **Dev mode logs**: `~/.brooklyn/dev/logs/brooklyn-mcp-dev-*.log`
-- **Pipe information**: `~/.brooklyn/dev/pipes.json`
-- **Process information**: `~/.brooklyn/dev/process-info.json`
 
 ## Technical Details
 
-### Transport Architecture
+### REPL Architecture
 
-Brooklyn dev mode uses the `MCPFifoTransport` which:
+- **Interactive shell**: Built on Node.js readline interface
+- **Direct tool execution**: Calls Brooklyn tools directly (same as MCP mode)
+- **Session management**: Maintains browser state across commands
+- **Auto-completion**: Supports tab completion for commands
 
-- Opens named pipes using `cat` subprocess (avoids Node.js stream issues)
-- Uses low-level file descriptors for writing
-- Handles FIFO blocking behavior correctly
-- Provides identical MCP protocol compliance to production
+### HTTP Architecture
+
+- **Express.js server**: Lightweight REST API server
+- **Background daemon**: Proper process forking with PID file management
+- **Tool mapping**: Direct mapping from HTTP endpoints to Brooklyn tools
+- **Process isolation**: Each HTTP server runs with team-specific context
 
 ### Process Management
 
-- **Detached process**: Brooklyn runs independently of the parent shell
-- **Process tracking**: PID and status stored in `~/.brooklyn/dev/`
-- **Automatic cleanup**: Starting dev mode cleans up stale resources
-- **Orphan detection**: Status command scans for orphaned Brooklyn processes
-
-### Named Pipe Behavior
-
-- **Blocking by design**: FIFOs block until both ends connect (standard Unix behavior)
-- **Unique names**: Each session gets unique pipe names to avoid conflicts
-- **Automatic creation**: Pipes created automatically using `mkfifo`
-- **Cleanup**: Pipes removed when dev mode stops
+- **Background processes**: HTTP servers run as detached background daemons
+- **PID file tracking**: Process IDs stored in `.brooklyn-http-{port}.pid` files
+- **Signal handling**: Graceful shutdown on SIGTERM/SIGINT
+- **Orphan detection**: Status commands detect processes via PID files and ps
 
 ## Limitations
 
-- **Local development only**: No remote access capabilities
-- **Single instance per machine**: By design for resource management
-- **Manual cleanup**: May require cleanup if process crashes unexpectedly
-- **Platform specific**: Currently optimized for Unix-like systems (macOS, Linux)
+- **Local development only**: Both modes designed for local testing
+- **Resource management**: Multiple HTTP servers share browser pool limits
+- **Platform compatibility**: Optimized for Unix-like systems (macOS, Linux)
+- **Tool execution issues**: Current tool implementation has known issues (being addressed)
 
 ## Integration with Claude Code
 
-Dev mode is **completely separate** from production Claude Code integration:
+Development modes are **completely separate** from production Claude Code integration:
 
-- **Production**: Uses `brooklyn mcp start` with stdin/stdout
-- **Dev mode**: Uses `brooklyn mcp dev-start` with named pipes
-- **No conflicts**: Both can run simultaneously if needed
+- **Production MCP**: Uses `brooklyn mcp start` with stdin/stdout
+- **REPL Mode**: Interactive shell for manual testing
+- **HTTP Mode**: REST API server for programmatic access
+- **No conflicts**: All modes can run simultaneously
 
 For Claude Code integration setup, see [MCP Configuration Guide](../deployment/mcp-configuration.md).

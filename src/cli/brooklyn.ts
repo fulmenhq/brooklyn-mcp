@@ -379,8 +379,36 @@ function setupMCPDevCommands(mcpCmd: Command): void {
     .option("--no-cors", "Disable CORS headers")
     .option("--team-id <teamId>", "Team identifier for HTTP session")
     .option("--verbose", "Enable verbose logging")
+    .option("--background", "Run server in background/daemon mode")
+    .option("--pid-file <path>", "Custom PID file location")
     .action(async (options) => {
       try {
+        // In background mode, spawn detached child process
+        if (options.background) {
+          const { spawn } = await import("child_process");
+          const args = [
+            "mcp", "dev-http-daemon", // Use internal daemon command
+            "--port", options.port,
+            "--host", options.host,
+            "--team-id", options.teamId || "default"
+          ];
+          
+          if (options.noCors) args.push("--no-cors");
+          if (options.verbose) args.push("--verbose");
+          if (options.pidFile) args.push("--pid-file", options.pidFile);
+          
+          // Spawn detached process
+          const child = spawn(process.execPath, [process.argv[1], ...args], {
+            detached: true,
+            stdio: ['ignore', 'ignore', 'ignore']
+          });
+          
+          child.unref(); // Allow parent to exit
+          
+          console.log(`Brooklyn HTTP server starting in background (PID: ${child.pid}, Port: ${options.port})`);
+          return;
+        }
+
         const { BrooklynHTTP } = await import("../core/brooklyn-http.js");
         const httpServer = new BrooklynHTTP({
           port: Number.parseInt(options.port),
@@ -388,12 +416,14 @@ function setupMCPDevCommands(mcpCmd: Command): void {
           cors: !options.noCors,
           teamId: options.teamId,
           verbose: options.verbose,
+          background: false, // Always false when we get here
+          pidFile: options.pidFile,
         });
 
-        // Start HTTP server
+        // Start HTTP server (foreground mode)
         await httpServer.start();
 
-        // Handle graceful shutdown
+        // Handle graceful shutdown (foreground mode only)
         const shutdown = async (signal: string) => {
           console.log(`\n📴 Received ${signal}, shutting down gracefully...`);
           try {
@@ -421,6 +451,180 @@ function setupMCPDevCommands(mcpCmd: Command): void {
           // Fallback if logger fails
           console.error("Failed to start Brooklyn HTTP server:", error);
         }
+        process.exit(1);
+      }
+    });
+
+  // Internal daemon command for background HTTP server (not shown in help)
+  const _devHttpDaemonCmd = mcpCmd
+    .command("dev-http-daemon")
+    .description("Internal: HTTP server daemon process")
+    .option("--port <port>", "HTTP server port", "8080")
+    .option("--host <host>", "HTTP server host", "0.0.0.0")
+    .option("--no-cors", "Disable CORS headers")
+    .option("--team-id <teamId>", "Team identifier for HTTP session")
+    .option("--verbose", "Enable verbose logging")
+    .option("--pid-file <path>", "Custom PID file location")
+    .action(async (options) => {
+      try {
+        const { BrooklynHTTP } = await import("../core/brooklyn-http.js");
+        const httpServer = new BrooklynHTTP({
+          port: Number.parseInt(options.port),
+          host: options.host,
+          cors: !options.noCors,
+          teamId: options.teamId,
+          verbose: options.verbose,
+          background: true, // Always background for daemon
+          pidFile: options.pidFile,
+        });
+
+        // Start HTTP server in daemon mode
+        await httpServer.start();
+
+        // Keep process alive - no CLI interaction needed in daemon mode
+        // Process will be managed via signals and PID file
+        
+      } catch (error) {
+        console.error("Failed to start Brooklyn HTTP daemon:", error);
+        process.exit(1);
+      }
+    });
+
+  // HTTP Server Management Commands
+  const _devHttpStopCmd = mcpCmd
+    .command("dev-http-stop")
+    .description("Stop Brooklyn HTTP dev server")
+    .option("--port <port>", "Stop server on specific port")
+    .option("--all", "Stop all HTTP dev servers")
+    .action(async (options) => {
+      try {
+        const { BrooklynProcessManager } = await import("../shared/process-manager.js");
+        
+        if (options.all) {
+          const processes = await BrooklynProcessManager.findAllProcesses();
+          const httpServers = processes.filter(p => p.type === "http-server");
+          
+          if (httpServers.length === 0) {
+            console.log("No HTTP dev servers running");
+            return;
+          }
+          
+          console.log(`Stopping ${httpServers.length} HTTP dev server(s)...`);
+          let stopped = 0;
+          
+          for (const server of httpServers) {
+            const success = await BrooklynProcessManager.stopProcess(server.pid);
+            if (success) {
+              console.log(`✅ Stopped HTTP server on port ${server.port} (PID: ${server.pid})`);
+              stopped++;
+            } else {
+              console.log(`❌ Failed to stop server on port ${server.port} (PID: ${server.pid})`);
+            }
+          }
+          
+          console.log(`\nStopped ${stopped}/${httpServers.length} HTTP dev servers`);
+        } else if (options.port) {
+          const port = Number.parseInt(options.port);
+          const success = await BrooklynProcessManager.stopHttpServerByPort(port);
+          
+          if (success) {
+            console.log(`✅ Stopped HTTP server on port ${port}`);
+          } else {
+            console.log(`❌ No HTTP server found on port ${port} or failed to stop`);
+            process.exit(1);
+          }
+        } else {
+          console.error("Please specify --port or --all");
+          process.exit(1);
+        }
+      } catch (error) {
+        console.error("Failed to stop HTTP server:", error);
+        process.exit(1);
+      }
+    });
+
+  const _devHttpListCmd = mcpCmd
+    .command("dev-http-list")
+    .description("List running Brooklyn HTTP dev servers")
+    .option("--json", "Output in JSON format")
+    .action(async (options) => {
+      try {
+        const { BrooklynProcessManager } = await import("../shared/process-manager.js");
+        const processes = await BrooklynProcessManager.findAllProcesses();
+        const httpServers = processes.filter(p => p.type === "http-server");
+        
+        if (options.json) {
+          console.log(JSON.stringify(httpServers, null, 2));
+          return;
+        }
+        
+        if (httpServers.length === 0) {
+          console.log("No HTTP dev servers running");
+          return;
+        }
+        
+        console.log("🌐 Running HTTP Dev Servers:");
+        for (const server of httpServers) {
+          const teamInfo = server.teamId ? ` (team: ${server.teamId})` : "";
+          console.log(`  • Port ${server.port}: PID ${server.pid}${teamInfo}`);
+          console.log(`    URL: http://localhost:${server.port}`);
+        }
+      } catch (error) {
+        console.error("Failed to list HTTP servers:", error);
+        process.exit(1);
+      }
+    });
+
+  const _devHttpStatusCmd = mcpCmd
+    .command("dev-http-status")
+    .description("Show detailed status of HTTP dev servers")
+    .option("--port <port>", "Status for specific port")
+    .action(async (options) => {
+      try {
+        const { BrooklynProcessManager } = await import("../shared/process-manager.js");
+        const processes = await BrooklynProcessManager.findAllProcesses();
+        let httpServers = processes.filter(p => p.type === "http-server");
+        
+        if (options.port) {
+          const port = Number.parseInt(options.port);
+          httpServers = httpServers.filter(p => p.port === port);
+          
+          if (httpServers.length === 0) {
+            console.log(`No HTTP server found on port ${port}`);
+            process.exit(1);
+          }
+        }
+        
+        if (httpServers.length === 0) {
+          console.log("No HTTP dev servers running");
+          return;
+        }
+        
+        console.log("🌐 HTTP Dev Servers Status:");
+        console.log("");
+        
+        for (const server of httpServers) {
+          console.log(`📡 Port ${server.port}:`);
+          console.log(`  • PID: ${server.pid}`);
+          console.log(`  • Team: ${server.teamId || "unknown"}`);
+          console.log(`  • URL: http://localhost:${server.port}`);
+          console.log(`  • Status: ${server.status}`);
+          
+          // Test if server is responding
+          try {
+            const response = await fetch(`http://localhost:${server.port}/health`);
+            if (response.ok) {
+              console.log(`  • Health: ✅ Responding`);
+            } else {
+              console.log(`  • Health: ⚠️  Server error (${response.status})`);
+            }
+          } catch (error) {
+            console.log(`  • Health: ❌ Not responding`);
+          }
+          console.log("");
+        }
+      } catch (error) {
+        console.error("Failed to check HTTP server status:", error);
         process.exit(1);
       }
     });
@@ -644,15 +848,78 @@ function setupStatusCommand(program: Command): void {
   program
     .command("status")
     .description("Show status of all Brooklyn services")
-    .action(async () => {
+    .option("--json", "Output status in JSON format")
+    .action(async (options) => {
       try {
-        const logger = getLogger("brooklyn-cli");
-        logger.info("Brooklyn Status Check", { version: VERSION });
+        const { BrooklynProcessManager } = await import("../shared/process-manager.js");
+        
+        const processes = await BrooklynProcessManager.findAllProcesses();
+        const summary = await BrooklynProcessManager.getProcessSummary();
 
-        // TODO: Add actual status checking logic here
-        logger.info("All systems operational");
+        if (options.json) {
+          console.log(JSON.stringify({ processes, summary }, null, 2));
+          return;
+        }
+
+        // Human-readable output
+        console.log("📊 Brooklyn Process Status:");
+        console.log("");
+
+        if (processes.length === 0) {
+          console.log("  No Brooklyn processes running");
+          return;
+        }
+
+        // Group by type
+        const byType: Record<string, typeof processes> = {};
+        for (const process of processes) {
+          if (!byType[process.type]) byType[process.type] = [];
+          byType[process.type].push(process);
+        }
+
+        // Display HTTP servers
+        if (byType["http-server"]) {
+          console.log("  🌐 HTTP Servers:");
+          for (const server of byType["http-server"]) {
+            const teamInfo = server.teamId ? `, team: ${server.teamId}` : "";
+            console.log(`    • dev-http:${server.port || "unknown"} (PID: ${server.pid}${teamInfo})`);
+          }
+          console.log("");
+        }
+
+        // Display MCP servers
+        if (byType["mcp-stdio"]) {
+          console.log("  📡 MCP Servers:");
+          for (const server of byType["mcp-stdio"]) {
+            const teamInfo = server.teamId ? `, team: ${server.teamId}` : "";
+            console.log(`    • stdio mode (PID: ${server.pid}${teamInfo})`);
+          }
+          console.log("");
+        }
+
+        // Display REPL sessions
+        if (byType["repl-session"]) {
+          console.log("  🔄 REPL Sessions:");
+          for (const repl of byType["repl-session"]) {
+            const teamInfo = repl.teamId ? `, team: ${repl.teamId}` : "";
+            console.log(`    • dev-repl (PID: ${repl.pid}${teamInfo})`);
+          }
+          console.log("");
+        }
+
+        // Display dev mode processes
+        if (byType["dev-mode"]) {
+          console.log("  🛠️  Dev Mode:");
+          for (const dev of byType["dev-mode"]) {
+            const teamInfo = dev.teamId ? `, team: ${dev.teamId}` : "";
+            console.log(`    • dev-mode (PID: ${dev.pid}${teamInfo})`);
+          }
+          console.log("");
+        }
+
+        console.log(`Total: ${processes.length} Brooklyn process${processes.length === 1 ? "" : "es"} running`);
+
       } catch (error) {
-        // Don't use logger in catch block as it might not be initialized
         console.error("Status check failed:", error);
         console.error("Version:", VERSION);
         process.exit(1);

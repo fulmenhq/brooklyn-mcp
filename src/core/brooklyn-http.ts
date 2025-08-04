@@ -4,6 +4,8 @@
  */
 
 import { type IncomingMessage, type Server, type ServerResponse, createServer } from "node:http";
+import { writeFileSync, unlinkSync, existsSync } from "node:fs";
+import { join } from "node:path";
 import { parse } from "node:url";
 import type { CallToolRequest, Tool } from "@modelcontextprotocol/sdk/types.js";
 
@@ -24,6 +26,8 @@ export interface HTTPModeOptions {
   cors?: boolean;
   teamId?: string;
   verbose?: boolean;
+  background?: boolean;
+  pidFile?: string;
 }
 
 export interface ToolCallRequest {
@@ -98,19 +102,33 @@ export class BrooklynHTTP {
             host: this.options.host,
             tools: this.availableTools.length,
             teamId: this.context.teamId,
+            background: this.options.background,
+            pid: process.pid,
           });
-          console.log("🌉 Brooklyn HTTP Mode v1.3.3");
-          console.log(`🚀 Server running at http://${this.options.host}:${this.options.port}`);
-          console.log(`📊 Available tools: ${this.availableTools.length}`);
-          console.log(`🏷️  Team: ${this.context.teamId}`);
-          console.log("");
-          console.log("API Endpoints:");
-          console.log("  GET  /tools           - List available tools");
-          console.log("  POST /tools/{name}    - Call a tool directly");
-          console.log("  POST /mcp             - Standard MCP protocol");
-          console.log("  GET  /health          - Server health check");
-          console.log("  GET  /metrics         - Performance metrics");
-          console.log("");
+          
+          // Handle background mode after server starts successfully
+          if (this.options.background) {
+            this.writePidFile();
+            this.setupGracefulShutdown();
+            // Background mode - minimal output
+            console.log(`Brooklyn HTTP server started in background (PID: ${process.pid}, Port: ${this.options.port})`);
+            this.setupBackgroundMode(); // Detach after message is printed
+          } else {
+            // Only show console output in foreground mode
+            console.log("🌉 Brooklyn HTTP Mode v1.3.3");
+            console.log(`🚀 Server running at http://${this.options.host}:${this.options.port}`);
+            console.log(`📊 Available tools: ${this.availableTools.length}`);
+            console.log(`🏷️  Team: ${this.context.teamId}`);
+            console.log("");
+            console.log("API Endpoints:");
+            console.log("  GET  /tools           - List available tools");
+            console.log("  POST /tools/{name}    - Call a tool directly");
+            console.log("  POST /mcp             - Standard MCP protocol");
+            console.log("  GET  /health          - Server health check");
+            console.log("  GET  /metrics         - Performance metrics");
+            console.log("");
+          }
+          
           resolve();
         });
 
@@ -126,9 +144,64 @@ export class BrooklynHTTP {
     return new Promise((resolve) => {
       this.server.close(() => {
         this.logger.info("Brooklyn HTTP server stopped");
+        this.cleanupPidFile();
         resolve();
       });
     });
+  }
+
+  private setupBackgroundMode(): void {
+    // Detach from parent process stdin - Bun uses Web Streams API
+    try {
+      if (process.stdin && typeof process.stdin.cancel === "function") {
+        // Bun approach: cancel the ReadableStream
+        process.stdin.cancel();
+      }
+      // In background mode, we don't need to do much more
+      // The PID file and signal handlers are already set up
+    } catch (error) {
+      // Ignore stdin detachment errors - not critical for background operation
+      this.logger.debug("Could not detach stdin in background mode", { error });
+    }
+  }
+
+  private writePidFile(): void {
+    const pidFile = this.options.pidFile || join(process.cwd(), `.brooklyn-http-${this.options.port}.pid`);
+    try {
+      writeFileSync(pidFile, process.pid.toString(), "utf8");
+      this.logger.info("PID file written", { pidFile, pid: process.pid });
+    } catch (error) {
+      this.logger.warn("Failed to write PID file", { pidFile, error });
+    }
+  }
+
+  private cleanupPidFile(): void {
+    const pidFile = this.options.pidFile || join(process.cwd(), `.brooklyn-http-${this.options.port}.pid`);
+    try {
+      if (existsSync(pidFile)) {
+        unlinkSync(pidFile);
+        this.logger.info("PID file cleaned up", { pidFile });
+      }
+    } catch (error) {
+      this.logger.warn("Failed to cleanup PID file", { pidFile, error });
+    }
+  }
+
+  private setupGracefulShutdown(): void {
+    const gracefulShutdown = async (signal: string) => {
+      this.logger.info("Received shutdown signal", { signal });
+      try {
+        await this.stop();
+        process.exit(0);
+      } catch (error) {
+        this.logger.error("Error during graceful shutdown", { error });
+        process.exit(1);
+      }
+    };
+
+    process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+    process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+    process.on("SIGHUP", () => gracefulShutdown("SIGHUP"));
   }
 
   private async handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
