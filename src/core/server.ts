@@ -9,7 +9,7 @@ import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 
 import { config } from "../shared/config.js";
 import { getLogger } from "../shared/pino-logger.js";
-import { BrowserPoolManager } from "./browser-pool-manager.js";
+import { BrooklynEngine, type BrooklynContext } from "./brooklyn-engine.js";
 
 // Lazy logger initialization to avoid circular dependency
 const logger = getLogger("server");
@@ -26,8 +26,9 @@ export interface ServerContext {
 export class MCPServer {
   private server: Server;
   private pluginManager: PluginManager;
-  private browserPool: BrowserPoolManager;
   private security: SecurityMiddleware;
+  private engine!: BrooklynEngine;
+  private context!: BrooklynContext;
 
   constructor() {
     this.server = new Server(
@@ -43,7 +44,6 @@ export class MCPServer {
     );
 
     this.pluginManager = new PluginManager();
-    this.browserPool = new BrowserPoolManager();
     this.security = new SecurityMiddleware();
   }
 
@@ -123,11 +123,27 @@ export class MCPServer {
       }
     });
 
-    // Initialize browser pool
-    await this.browserPool.initialize();
+    // Initialize Brooklyn engine (unified router path)
+    this.engine = new BrooklynEngine({
+      config: (config as unknown) as import("./config.js").BrooklynConfig,
+      mcpMode: true, // enable silent browser installation in MCP mode
+    });
 
-    // Connect onboarding tools to browser pool
-    OnboardingTools.setBrowserPool(this.browserPool);
+    // Default MCP server context; tool handlers may override teamId per request
+    this.context = {
+      teamId: (config as any).teamId || "default",
+      permissions: ["browser:*"],
+      transport: "stdio",
+      correlationId: `mcp-${Date.now()}`,
+    } as BrooklynContext;
+
+    // Connect onboarding tools to unified status source
+    OnboardingTools.setBrowserPool({
+      // Adapter to preserve onboarding status queries via engine
+      async getStatus() {
+        return (await (this as any).engine?.getStatus?.()) ?? { activeSessions: 0, maxBrowsers: 0, sessions: [] };
+      },
+    } as unknown as any);
 
     // Load plugins
     await this.pluginManager.loadPlugins();
@@ -145,8 +161,10 @@ export class MCPServer {
   async stop(): Promise<void> {
     logger.info("Stopping MCP server");
 
-    // Clean up browser pool
-    await this.browserPool.cleanup();
+    // Clean up engine
+    if (this.engine) {
+      await this.engine.cleanup();
+    }
 
     // Clean up plugins
     await this.pluginManager.cleanup();
@@ -264,18 +282,25 @@ export class MCPServer {
 
   private async handleCoreTool(name: string, args: unknown): Promise<unknown> {
     try {
-      switch (name) {
-        case "launch_browser":
-          return await this.browserPool.launchBrowser(args as any);
-        case "navigate":
-          return await this.browserPool.navigate(args as any);
-        case "screenshot":
-          return await this.browserPool.screenshot(args as any);
-        case "close_browser":
-          return await this.browserPool.closeBrowser(args as any);
-        default:
-          throw new Error(`Unknown core tool: ${name}`);
+      // Route ALL core tools through BrooklynEngine → MCPBrowserRouter
+      const response = await this.engine.executeToolCall(
+        {
+          params: {
+            name,
+            arguments: (args as Record<string, unknown>) ?? {},
+          },
+          method: "tools/call",
+        } as unknown as import("@modelcontextprotocol/sdk/types.js").CallToolRequest,
+        this.context,
+      );
+
+      // engine.executeToolCall is expected to return a standardized envelope
+      // Normalize to plain result for MCP content
+      if ((response as any)?.error) {
+        const err = (response as any).error;
+        throw new Error(err?.message || "Tool execution failed");
       }
+      return (response as any)?.result ?? response;
     } catch (error) {
       logger.error("Core tool execution failed", {
         tool: name,
