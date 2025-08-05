@@ -99,6 +99,7 @@ brooklyn mcp dev-http --host localhost --no-cors --verbose
 ```
 
 **Configuration Options:**
+
 - `--port <port>`: HTTP server port (default: 8080)
 - `--host <host>`: Server host (default: 0.0.0.0)
 - `--team-id <team>`: Team identifier for resource isolation
@@ -153,6 +154,7 @@ brooklyn status
 ```
 
 Example output:
+
 ```
 📊 Brooklyn Process Status:
 
@@ -229,6 +231,7 @@ curl -X POST http://localhost:8080/tools/launch_browser \
 ```
 
 **Key Translation Rules:**
+
 - Tool name becomes URL path: `launch_browser` → `/tools/launch_browser`
 - Parameters go directly in JSON body (no `"arguments"` wrapper)
 - Always use `Content-Type: application/json` header

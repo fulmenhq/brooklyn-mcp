@@ -105,13 +105,15 @@ export class BrooklynHTTP {
             background: this.options.background,
             pid: process.pid,
           });
-          
+
           // Handle background mode after server starts successfully
           if (this.options.background) {
             this.writePidFile();
             this.setupGracefulShutdown();
             // Background mode - minimal output
-            console.log(`Brooklyn HTTP server started in background (PID: ${process.pid}, Port: ${this.options.port})`);
+            console.log(
+              `Brooklyn HTTP server started in background (PID: ${process.pid}, Port: ${this.options.port})`,
+            );
             this.setupBackgroundMode(); // Detach after message is printed
           } else {
             // Only show console output in foreground mode
@@ -128,7 +130,7 @@ export class BrooklynHTTP {
             console.log("  GET  /metrics         - Performance metrics");
             console.log("");
           }
-          
+
           resolve();
         });
 
@@ -166,7 +168,8 @@ export class BrooklynHTTP {
   }
 
   private writePidFile(): void {
-    const pidFile = this.options.pidFile || join(process.cwd(), `.brooklyn-http-${this.options.port}.pid`);
+    const pidFile =
+      this.options.pidFile || join(process.cwd(), `.brooklyn-http-${this.options.port}.pid`);
     try {
       writeFileSync(pidFile, process.pid.toString(), "utf8");
       this.logger.info("PID file written", { pidFile, pid: process.pid });
@@ -176,7 +179,8 @@ export class BrooklynHTTP {
   }
 
   private cleanupPidFile(): void {
-    const pidFile = this.options.pidFile || join(process.cwd(), `.brooklyn-http-${this.options.port}.pid`);
+    const pidFile =
+      this.options.pidFile || join(process.cwd(), `.brooklyn-http-${this.options.port}.pid`);
     try {
       if (existsSync(pidFile)) {
         unlinkSync(pidFile);

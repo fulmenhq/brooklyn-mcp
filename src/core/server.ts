@@ -85,7 +85,11 @@ export class MCPServer {
 
         // Route EVERYTHING through engine so envelopes are consistent
         const mappedName =
-          name === "navigate" ? "navigate_to_url" : name === "screenshot" ? "take_screenshot" : name;
+          name === "navigate"
+            ? "navigate_to_url"
+            : name === "screenshot"
+              ? "take_screenshot"
+              : name;
 
         const engineResponse = (await this.engine.executeToolCall(
           {
@@ -99,8 +103,10 @@ export class MCPServer {
         )) as any;
 
         // Engine returns { result: { result, metadata } } for success
-        if (engineResponse?.result) {
-          return engineResponse;
+        // We need to return just the inner content for MCP protocol
+        if (engineResponse?.result?.result !== undefined) {
+          // Return the actual tool result directly
+          return engineResponse.result.result;
         }
 
         // If engine gave a content array (older shape), unwrap text -> json when possible
@@ -108,15 +114,14 @@ export class MCPServer {
         if (Array.isArray(content) && content[0]?.type === "text") {
           const text = content[0].text as string;
           try {
-            const parsed = JSON.parse(text);
-            return { result: { result: parsed, metadata: { executionTime: 0 } } } as any;
+            return JSON.parse(text);
           } catch {
-            return { result: { result: { message: text }, metadata: { executionTime: 0 } } } as any;
+            return { message: text };
           }
         }
 
-        // Fallback: wrap raw response
-        return { result: { result: engineResponse, metadata: { executionTime: 0 } } } as any;
+        // Fallback: return the response as-is
+        return engineResponse;
       } catch (error) {
         // Return JSON-RPC error envelope (no stdout noise)
         logger.error("Tool call failed", {
@@ -139,7 +144,7 @@ export class MCPServer {
 
     // Initialize Brooklyn engine (unified router path)
     this.engine = new BrooklynEngine({
-      config: (config as unknown) as import("./config.js").BrooklynConfig,
+      config: config as unknown as import("./config.js").BrooklynConfig,
       mcpMode: true, // enable silent browser installation in MCP mode
     });
 
@@ -155,7 +160,13 @@ export class MCPServer {
     OnboardingTools.setBrowserPool({
       // Adapter to preserve onboarding status queries via engine
       async getStatus() {
-        return (await (this as any).engine?.getStatus?.()) ?? { activeSessions: 0, maxBrowsers: 0, sessions: [] };
+        return (
+          (await (this as any).engine?.getStatus?.()) ?? {
+            activeSessions: 0,
+            maxBrowsers: 0,
+            sessions: [],
+          }
+        );
       },
     } as unknown as any);
 

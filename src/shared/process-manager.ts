@@ -29,7 +29,10 @@ export class BrooklynProcessManager {
     try {
       // Find running brooklyn processes via ps
       const { stdout } = await execAsync("ps aux | grep -i brooklyn | grep -v grep");
-      const lines = stdout.trim().split("\n").filter(line => line.trim());
+      const lines = stdout
+        .trim()
+        .split("\n")
+        .filter((line) => line.trim());
 
       for (const line of lines) {
         const process = this.parseProcessLine(line);
@@ -41,7 +44,6 @@ export class BrooklynProcessManager {
       // Also check for PID files from background HTTP servers
       const pidFileProcesses = await this.findProcessesFromPidFiles();
       processes.push(...pidFileProcesses);
-
     } catch (error) {
       // No processes found or error occurred
     }
@@ -58,7 +60,9 @@ export class BrooklynProcessManager {
 
     try {
       const files = readdirSync(cwd);
-      const pidFiles = files.filter(file => file.startsWith(".brooklyn-http-") && file.endsWith(".pid"));
+      const pidFiles = files.filter(
+        (file) => file.startsWith(".brooklyn-http-") && file.endsWith(".pid"),
+      );
 
       for (const pidFile of pidFiles) {
         const pidPath = join(cwd, pidFile);
@@ -66,7 +70,7 @@ export class BrooklynProcessManager {
           try {
             const pidContent = readFileSync(pidPath, "utf8").trim();
             const pid = Number.parseInt(pidContent);
-            
+
             if (await this.isProcessRunning(pid)) {
               // Extract port from filename: .brooklyn-http-8080.pid -> 8080
               const portMatch = pidFile.match(/\.brooklyn-http-(\d+)\.pid$/);
@@ -155,7 +159,7 @@ export class BrooklynProcessManager {
    */
   private static deduplicateProcesses(processes: BrooklynProcess[]): BrooklynProcess[] {
     const seen = new Set<number>();
-    return processes.filter(process => {
+    return processes.filter((process) => {
       if (seen.has(process.pid)) {
         return false;
       }
@@ -167,14 +171,17 @@ export class BrooklynProcessManager {
   /**
    * Stop a Brooklyn process by PID
    */
-  static async stopProcess(pid: number, signal: "SIGTERM" | "SIGKILL" = "SIGTERM"): Promise<boolean> {
+  static async stopProcess(
+    pid: number,
+    signal: "SIGTERM" | "SIGKILL" = "SIGTERM",
+  ): Promise<boolean> {
     try {
       process.kill(pid, signal);
-      
+
       // Wait a bit and check if process stopped
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       const isStillRunning = await this.isProcessRunning(pid);
-      
+
       return !isStillRunning;
     } catch (error) {
       return false;
@@ -186,12 +193,12 @@ export class BrooklynProcessManager {
    */
   static async stopHttpServerByPort(port: number): Promise<boolean> {
     const processes = await this.findAllProcesses();
-    const httpProcess = processes.find(p => p.type === "http-server" && p.port === port);
-    
+    const httpProcess = processes.find((p) => p.type === "http-server" && p.port === port);
+
     if (httpProcess) {
       return await this.stopProcess(httpProcess.pid);
     }
-    
+
     return false;
   }
 
@@ -204,13 +211,13 @@ export class BrooklynProcessManager {
     httpServers: Array<{ port: number; teamId?: string; pid: number }>;
   }> {
     const processes = await this.findAllProcesses();
-    
+
     const byType: Record<string, number> = {};
     const httpServers: Array<{ port: number; teamId?: string; pid: number }> = [];
-    
+
     for (const process of processes) {
       byType[process.type] = (byType[process.type] || 0) + 1;
-      
+
       if (process.type === "http-server" && process.port) {
         httpServers.push({
           port: process.port,
@@ -219,7 +226,7 @@ export class BrooklynProcessManager {
         });
       }
     }
-    
+
     return {
       total: processes.length,
       byType,

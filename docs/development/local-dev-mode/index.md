@@ -52,31 +52,31 @@ curl -X POST http://localhost:8080/tools/launch_browser \
 ✅ **Interactive development** and manual testing  
 ✅ **Learning Brooklyn** capabilities and tool syntax  
 ✅ **Debugging** specific automation workflows  
-✅ **Rapid prototyping** of browser automation scripts  
+✅ **Rapid prototyping** of browser automation scripts
 
 ### Use HTTP Mode for:
 
 ✅ **CI/CD pipelines** and automated testing  
 ✅ **Integration** with existing web applications  
 ✅ **Programmatic access** from scripts and applications  
-✅ **Performance testing** and monitoring  
+✅ **Performance testing** and monitoring
 
 ### Use Production MCP for:
 
 ✅ **Claude Code integration** via `brooklyn mcp start`  
 ✅ **AI assistant interactions** and collaborative development  
-✅ **Real-time** browser automation with Claude  
+✅ **Real-time** browser automation with Claude
 
 ## Quick Reference
 
-| Feature | REPL Mode | HTTP Mode | MCP Mode |
-|---------|-----------|-----------|----------|
-| **Interface** | Interactive CLI | REST API | stdin/stdout |
-| **Use Case** | Manual Testing | Automation | AI Integration |
-| **Background** | No | Yes (daemon) | No |
-| **Programmatic** | No | Yes | No |
-| **Learning** | Excellent | Good | Good |
-| **CI/CD** | Limited | Excellent | No |
+| Feature          | REPL Mode       | HTTP Mode    | MCP Mode       |
+| ---------------- | --------------- | ------------ | -------------- |
+| **Interface**    | Interactive CLI | REST API     | stdin/stdout   |
+| **Use Case**     | Manual Testing  | Automation   | AI Integration |
+| **Background**   | No              | Yes (daemon) | No             |
+| **Programmatic** | No              | Yes          | No             |
+| **Learning**     | Excellent       | Good         | Good           |
+| **CI/CD**        | Limited         | Excellent    | No             |
 
 For detailed usage examples, see [usage.md](usage.md).  
 For troubleshooting common issues, see [troubleshooting.md](troubleshooting.md).  

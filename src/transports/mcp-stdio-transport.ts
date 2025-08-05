@@ -200,8 +200,7 @@ export class MCPStdioTransport implements Transport {
               result: {
                 result: (handlerResult as any).result,
                 metadata: {
-                  executionTime:
-                    Number((handlerResult as any).metadata?.executionTime) || 0,
+                  executionTime: Number((handlerResult as any).metadata?.executionTime) || 0,
                 },
               },
             };
@@ -261,10 +260,7 @@ export class MCPStdioTransport implements Transport {
 
           // SPECIAL CASES: normalize shapes for test expectations
           try {
-            const toolName =
-              (msg.params as any)?.name ||
-              (msg.params as any)?.tool ||
-              undefined;
+            const toolName = (msg.params as any)?.name || (msg.params as any)?.tool || undefined;
 
             // For launch_browser: tests expect response.result.browserId truthy
             if (

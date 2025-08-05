@@ -310,7 +310,13 @@ export class BrowserPoolManager {
     statusCode?: number;
     loadTime: number;
   }> {
-    const { browserId, url, timeout = 30000, waitUntil = "domcontentloaded", force } = args as NavigateArgs & { force?: boolean };
+    const {
+      browserId,
+      url,
+      timeout = 30000,
+      waitUntil = "domcontentloaded",
+      force,
+    } = args as NavigateArgs & { force?: boolean };
 
     logger.info("Navigating browser", { browserId, url, waitUntil });
 

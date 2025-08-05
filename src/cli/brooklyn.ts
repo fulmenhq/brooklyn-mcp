@@ -387,25 +387,31 @@ function setupMCPDevCommands(mcpCmd: Command): void {
         if (options.background) {
           const { spawn } = await import("child_process");
           const args = [
-            "mcp", "dev-http-daemon", // Use internal daemon command
-            "--port", options.port,
-            "--host", options.host,
-            "--team-id", options.teamId || "default"
+            "mcp",
+            "dev-http-daemon", // Use internal daemon command
+            "--port",
+            options.port,
+            "--host",
+            options.host,
+            "--team-id",
+            options.teamId || "default",
           ];
-          
+
           if (options.noCors) args.push("--no-cors");
           if (options.verbose) args.push("--verbose");
           if (options.pidFile) args.push("--pid-file", options.pidFile);
-          
+
           // Spawn detached process
           const child = spawn(process.execPath, [process.argv[1], ...args], {
             detached: true,
-            stdio: ['ignore', 'ignore', 'ignore']
+            stdio: ["ignore", "ignore", "ignore"],
           });
-          
+
           child.unref(); // Allow parent to exit
-          
-          console.log(`Brooklyn HTTP server starting in background (PID: ${child.pid}, Port: ${options.port})`);
+
+          console.log(
+            `Brooklyn HTTP server starting in background (PID: ${child.pid}, Port: ${options.port})`,
+          );
           return;
         }
 
@@ -483,7 +489,6 @@ function setupMCPDevCommands(mcpCmd: Command): void {
 
         // Keep process alive - no CLI interaction needed in daemon mode
         // Process will be managed via signals and PID file
-        
       } catch (error) {
         console.error("Failed to start Brooklyn HTTP daemon:", error);
         process.exit(1);
@@ -499,19 +504,19 @@ function setupMCPDevCommands(mcpCmd: Command): void {
     .action(async (options) => {
       try {
         const { BrooklynProcessManager } = await import("../shared/process-manager.js");
-        
+
         if (options.all) {
           const processes = await BrooklynProcessManager.findAllProcesses();
-          const httpServers = processes.filter(p => p.type === "http-server");
-          
+          const httpServers = processes.filter((p) => p.type === "http-server");
+
           if (httpServers.length === 0) {
             console.log("No HTTP dev servers running");
             return;
           }
-          
+
           console.log(`Stopping ${httpServers.length} HTTP dev server(s)...`);
           let stopped = 0;
-          
+
           for (const server of httpServers) {
             const success = await BrooklynProcessManager.stopProcess(server.pid);
             if (success) {
@@ -521,12 +526,12 @@ function setupMCPDevCommands(mcpCmd: Command): void {
               console.log(`❌ Failed to stop server on port ${server.port} (PID: ${server.pid})`);
             }
           }
-          
+
           console.log(`\nStopped ${stopped}/${httpServers.length} HTTP dev servers`);
         } else if (options.port) {
           const port = Number.parseInt(options.port);
           const success = await BrooklynProcessManager.stopHttpServerByPort(port);
-          
+
           if (success) {
             console.log(`✅ Stopped HTTP server on port ${port}`);
           } else {
@@ -551,18 +556,18 @@ function setupMCPDevCommands(mcpCmd: Command): void {
       try {
         const { BrooklynProcessManager } = await import("../shared/process-manager.js");
         const processes = await BrooklynProcessManager.findAllProcesses();
-        const httpServers = processes.filter(p => p.type === "http-server");
-        
+        const httpServers = processes.filter((p) => p.type === "http-server");
+
         if (options.json) {
           console.log(JSON.stringify(httpServers, null, 2));
           return;
         }
-        
+
         if (httpServers.length === 0) {
           console.log("No HTTP dev servers running");
           return;
         }
-        
+
         console.log("🌐 Running HTTP Dev Servers:");
         for (const server of httpServers) {
           const teamInfo = server.teamId ? ` (team: ${server.teamId})` : "";
@@ -583,33 +588,33 @@ function setupMCPDevCommands(mcpCmd: Command): void {
       try {
         const { BrooklynProcessManager } = await import("../shared/process-manager.js");
         const processes = await BrooklynProcessManager.findAllProcesses();
-        let httpServers = processes.filter(p => p.type === "http-server");
-        
+        let httpServers = processes.filter((p) => p.type === "http-server");
+
         if (options.port) {
           const port = Number.parseInt(options.port);
-          httpServers = httpServers.filter(p => p.port === port);
-          
+          httpServers = httpServers.filter((p) => p.port === port);
+
           if (httpServers.length === 0) {
             console.log(`No HTTP server found on port ${port}`);
             process.exit(1);
           }
         }
-        
+
         if (httpServers.length === 0) {
           console.log("No HTTP dev servers running");
           return;
         }
-        
+
         console.log("🌐 HTTP Dev Servers Status:");
         console.log("");
-        
+
         for (const server of httpServers) {
           console.log(`📡 Port ${server.port}:`);
           console.log(`  • PID: ${server.pid}`);
           console.log(`  • Team: ${server.teamId || "unknown"}`);
           console.log(`  • URL: http://localhost:${server.port}`);
           console.log(`  • Status: ${server.status}`);
-          
+
           // Test if server is responding
           try {
             const response = await fetch(`http://localhost:${server.port}/health`);
@@ -852,7 +857,7 @@ function setupStatusCommand(program: Command): void {
     .action(async (options) => {
       try {
         const { BrooklynProcessManager } = await import("../shared/process-manager.js");
-        
+
         const processes = await BrooklynProcessManager.findAllProcesses();
         const summary = await BrooklynProcessManager.getProcessSummary();
 
@@ -882,7 +887,9 @@ function setupStatusCommand(program: Command): void {
           console.log("  🌐 HTTP Servers:");
           for (const server of byType["http-server"]) {
             const teamInfo = server.teamId ? `, team: ${server.teamId}` : "";
-            console.log(`    • dev-http:${server.port || "unknown"} (PID: ${server.pid}${teamInfo})`);
+            console.log(
+              `    • dev-http:${server.port || "unknown"} (PID: ${server.pid}${teamInfo})`,
+            );
           }
           console.log("");
         }
@@ -917,8 +924,9 @@ function setupStatusCommand(program: Command): void {
           console.log("");
         }
 
-        console.log(`Total: ${processes.length} Brooklyn process${processes.length === 1 ? "" : "es"} running`);
-
+        console.log(
+          `Total: ${processes.length} Brooklyn process${processes.length === 1 ? "" : "es"} running`,
+        );
       } catch (error) {
         console.error("Status check failed:", error);
         console.error("Version:", VERSION);

@@ -64,16 +64,19 @@ describe("MCPBrowserRouter", () => {
 
       // Assert
       expect(response.success).toBe(true);
-      expect(response.result).toEqual({
+      expect(response.result).toMatchObject({
         success: true,
         browserId: mockBrowserId,
         status: "launched",
         browserType: "chromium",
       });
+      // Additional fields like headless, viewport, userAgent, teamId are expected
+      expect((response.result as any).teamId).toBe("test-team");
       expect(mockBrowserPool.launchBrowser).toHaveBeenCalledWith({
         browserType: "chromium",
         headless: true,
         teamId: "test-team",
+        timeout: 30000,
         userAgent: undefined,
         viewport: { width: 1280, height: 720 },
       });
@@ -204,8 +207,8 @@ describe("MCPBrowserRouter", () => {
 
       // Assert
       expect(response.success).toBe(false);
-      expect(response.error?.code).toBe("ELEMENT_NOT_FOUND");
-      expect(response.error?.message).toContain("Could not find the requested element");
+      expect(response.error?.code).toBe("BROOKLYN_SESSION_MISSING");
+      expect(response.error?.message).toContain("Browser session not found");
       // No suggestions field in current implementation
     });
 

@@ -285,8 +285,17 @@ export class BrowserInstallationManager {
 
       // Verify the directory exists and contains browser files
       if (existsSync(browserPath)) {
-        // Return the browser directory path - Playwright will handle the executable path
-        return browserPath;
+        // Resolve the actual executable path within the Playwright cache directory.
+        // Returning the directory here causes downstream code (or shell) to try to execute a directory,
+        // which manifests as: "<cache>/ms-playwright/chromium-1181: is a directory".
+        try {
+          const executable = await this.resolveExecutableFromPlaywrightCache(type, browserPath);
+          if (executable) {
+            return executable;
+          }
+        } catch {
+          // fall through to null
+        }
       }
     } catch (error) {
       ensureLogger().debug("Browser detection failed", {
@@ -295,6 +304,72 @@ export class BrowserInstallationManager {
       });
     }
 
+    return null;
+  }
+
+  /**
+   * Resolve the platform-specific browser executable path inside a Playwright cache directory.
+   * Playwright caches look like: .../ms-playwright/chromium-XXXX/chrome-mac/Chromium.app/Contents/MacOS/Chromium (macOS)
+   * or .../ms-playwright/chromium-XXXX/chrome-linux/chrome (Linux) or .../chrome-win/chrome.exe (Windows)
+   * We prefer delegating to Playwright's API if available; otherwise, detect common layouts.
+   */
+  private async resolveExecutableFromPlaywrightCache(
+    type: BrowserType,
+    browserCacheDir: string,
+  ): Promise<string | null> {
+    try {
+      const { join } = await import("node:path");
+      const { existsSync } = await import("node:fs");
+      // Try to leverage Playwright's own API to get the executable path
+      const { chromium, firefox, webkit } = await import("playwright");
+      const candidate =
+        type === "chromium"
+          ? chromium.executablePath()
+          : type === "firefox"
+            ? firefox.executablePath()
+            : webkit.executablePath();
+
+      // If Playwright returns a file that lives under this cache dir, use it
+      if (candidate && existsSync(candidate) && candidate.includes(browserCacheDir)) {
+        return candidate;
+      }
+
+      // Fallback: scan for known subpaths
+      const macPaths: Record<BrowserType, string[]> = {
+        chromium: ["chrome-mac/Chromium.app/Contents/MacOS/Chromium"],
+        firefox: [
+          "firefox/Nightly.app/Contents/MacOS/firefox",
+          "firefox/Firefox Nightly.app/Contents/MacOS/firefox",
+        ],
+        webkit: ["pw-webkit/WebKit.app/Contents/MacOS/WebKit"],
+      };
+      const linuxPaths: Record<BrowserType, string[]> = {
+        chromium: ["chrome-linux/chrome"],
+        firefox: ["firefox/firefox"],
+        webkit: ["pw-webkit-ubuntu-20.04/webkit-gtk/MiniBrowser"],
+      };
+      const winPaths: Record<BrowserType, string[]> = {
+        chromium: ["chrome-win/chrome.exe"],
+        firefox: ["firefox/firefox.exe"],
+        webkit: ["pw-webkit/WebKit.exe"],
+      };
+
+      const candidates =
+        process.platform === "darwin"
+          ? macPaths[type]
+          : process.platform === "win32"
+            ? winPaths[type]
+            : linuxPaths[type];
+
+      for (const rel of candidates) {
+        const full = join(browserCacheDir, rel);
+        if (existsSync(full)) {
+          return full;
+        }
+      }
+    } catch {
+      // ignore and fall through
+    }
     return null;
   }
 

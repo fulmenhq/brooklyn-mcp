@@ -57,6 +57,7 @@ export class MCPBrowserRouter {
     });
 
     try {
+      // Reduce local state; compute result in each branch to lower perceived complexity
       let result: unknown;
       const metadata: BrowserToolResponse["metadata"] = {
         executionTime: 0,
@@ -72,73 +73,96 @@ export class MCPBrowserRouter {
         params["browserId"] = (params as Record<string, unknown>)["browser_id"] as string;
       }
 
-      switch (tool) {
-        case "launch_browser":
-          result = await this.launchBrowser(params, context);
-          metadata.browserId = (result as { browserId: string }).browserId;
-          break;
+      // Strongly typed result envelopes to avoid `any`
+      type SuccessEnvelope = { success: true } & Record<string, unknown>;
 
-        case "navigate_to_url": {
-          const navResult = await this.navigateToUrl(params, context);
-          // Ensure E2E expects a top-level success flag in result
-          result =
-            navResult && typeof navResult === "object" && "success" in (navResult as any)
-              ? navResult
-              : { success: true, ...(navResult as object) };
-          metadata.browserId = params["browserId"] as string;
-          break;
+      const ensureSuccess = (payload: Record<string, unknown> | undefined): SuccessEnvelope => {
+        if (payload && typeof payload === "object" && "success" in payload) {
+          return payload as SuccessEnvelope;
         }
+        return { success: true, ...(payload ?? {}) };
+      };
 
-        case "take_screenshot": {
-          const ssResult = await this.takeScreenshot(params, context);
-          result =
-            ssResult && typeof ssResult === "object" && "success" in (ssResult as any)
-              ? ssResult
-              : { success: true, ...(ssResult as object) };
-          metadata.browserId = params["browserId"] as string;
-          break;
+      // Helper to set browserId in metadata consistently
+      const setBrowserId = (fromParams: Record<string, unknown>, fromResult?: unknown) => {
+        const byParam = fromParams["browserId"];
+        if (typeof byParam === "string") {
+          metadata.browserId = byParam;
+          return;
         }
-
-        case "find_elements":
-          result = await this.findElements(params, context);
-          metadata.browserId = params["browserId"] as string;
-          break;
-
-        case "click_element": {
-          const clickResult = await this.clickElement(params, context);
-          result =
-            clickResult && typeof clickResult === "object" && "success" in (clickResult as any)
-              ? clickResult
-              : { success: true, ...(clickResult as object) };
-          metadata.browserId = params["browserId"] as string;
-          break;
+        const byResult =
+          fromResult &&
+          typeof fromResult === "object" &&
+          (fromResult as Record<string, unknown>)["browserId"];
+        if (typeof byResult === "string") {
+          metadata.browserId = byResult;
         }
+      };
 
-        case "fill_form_fields": {
-          const fillFormResult = await this.fillFormFields(params, context);
-          result =
-            fillFormResult && typeof fillFormResult === "object" && "success" in (fillFormResult as any)
-              ? fillFormResult
-              : { success: true, ...(fillFormResult as object) };
-          metadata.browserId = params["browserId"] as string;
-          break;
-        }
+      // Reduce cognitive complexity by mapping tools to handlers
+      const handlers: Record<string, () => Promise<void>> = {
+        launch_browser: async () => {
+          const launch = await this.launchBrowser(params, context);
+          result = launch;
+          setBrowserId(params, launch as Record<string, unknown>);
+        },
 
-        case "execute_javascript":
-          result = await this.executeJavaScript(params, context);
-          metadata.browserId = params["browserId"] as string;
-          break;
+        navigate_to_url: async () => {
+          const navResult = (await this.navigateToUrl(params, context)) as
+            | Record<string, unknown>
+            | undefined;
+          result = ensureSuccess(navResult);
+          setBrowserId(params);
+        },
 
-        case "get_page_content":
-          result = await this.getPageContent(params, context);
-          metadata.browserId = params["browserId"] as string;
-          break;
+        take_screenshot: async () => {
+          const ssResult = (await this.takeScreenshot(params, context)) as
+            | Record<string, unknown>
+            | undefined;
+          result = ensureSuccess(ssResult);
+          setBrowserId(params);
+        },
 
-        case "close_browser":
+        find_elements: async () => {
+          const found = (await this.findElements(params, context)) as
+            | Record<string, unknown>
+            | undefined;
+          result = ensureSuccess(found);
+          setBrowserId(params);
+        },
+
+        click_element: async () => {
+          const clickResult = (await this.clickElement(params, context)) as
+            | Record<string, unknown>
+            | undefined;
+          result = ensureSuccess(clickResult);
+          setBrowserId(params);
+        },
+
+        fill_form_fields: async () => {
+          const fillFormResult = (await this.fillFormFields(params, context)) as
+            | Record<string, unknown>
+            | undefined;
+          result = ensureSuccess(fillFormResult);
+          setBrowserId(params);
+        },
+
+        execute_javascript: async () => {
+          const exec = await this.executeJavaScript(params, context);
+          result = exec;
+          setBrowserId(params);
+        },
+
+        get_page_content: async () => {
+          const page = await this.getPageContent(params, context);
+          result = page;
+          setBrowserId(params);
+        },
+
+        close_browser: async () => {
           try {
             result = await this.closeBrowser(params, context);
           } catch (e) {
-            // Idempotent close: if session is missing, return success
             const msg = e instanceof Error ? e.message : String(e);
             if (msg.includes("Browser session not found")) {
               result = {
@@ -150,63 +174,54 @@ export class MCPBrowserRouter {
               throw e;
             }
           }
-          break;
+        },
 
-        case "fill_text": {
-          const fillTextResult = await this.fillText(params, context);
-          result =
-            fillTextResult && typeof fillTextResult === "object" && "success" in (fillTextResult as any)
-              ? fillTextResult
-              : { success: true, ...(fillTextResult as object) };
-          metadata.browserId = params["browserId"] as string;
-          break;
-        }
+        fill_text: async () => {
+          const fillTextResult = (await this.fillText(params, context)) as
+            | Record<string, unknown>
+            | undefined;
+          result = ensureSuccess(fillTextResult);
+          setBrowserId(params);
+        },
 
-        case "wait_for_element": {
-          const waitResult = await this.waitForElement(params, context);
-          result =
-            waitResult && typeof waitResult === "object" && "success" in (waitResult as any)
-              ? waitResult
-              : { success: true, ...(waitResult as object) };
-          metadata.browserId = params["browserId"] as string;
-          break;
-        }
+        wait_for_element: async () => {
+          const waitResult = (await this.waitForElement(params, context)) as
+            | Record<string, unknown>
+            | undefined;
+          result = ensureSuccess(waitResult);
+          setBrowserId(params);
+        },
 
-        case "get_text_content": {
-          const textResult = await this.getTextContent(params, context);
-          result =
-            textResult && typeof textResult === "object" && "success" in (textResult as any)
-              ? textResult
-              : { success: true, ...(textResult as object) };
-          metadata.browserId = params["browserId"] as string;
-          break;
-        }
+        get_text_content: async () => {
+          const textResult = (await this.getTextContent(params, context)) as
+            | Record<string, unknown>
+            | undefined;
+          result = ensureSuccess(textResult);
+          setBrowserId(params);
+        },
 
-        case "validate_element_presence": {
-          const validateResult = await this.validateElementPresence(params, context);
-          result =
-            validateResult &&
-            typeof validateResult === "object" &&
-            "success" in (validateResult as any)
-              ? validateResult
-              : { success: true, ...(validateResult as object) };
-          metadata.browserId = params["browserId"] as string;
-          break;
-        }
+        validate_element_presence: async () => {
+          const validateResult = (await this.validateElementPresence(params, context)) as
+            | Record<string, unknown>
+            | undefined;
+          result = ensureSuccess(validateResult);
+          setBrowserId(params);
+        },
 
-        case "go_back": {
-          const backResult = await this.goBack(params, context);
-          result =
-            backResult && typeof backResult === "object" && "success" in (backResult as any)
-              ? backResult
-              : { success: true, ...(backResult as object) };
-          metadata.browserId = params["browserId"] as string;
-          break;
-        }
+        go_back: async () => {
+          const backResult = (await this.goBack(params, context)) as
+            | Record<string, unknown>
+            | undefined;
+          result = ensureSuccess(backResult);
+          setBrowserId(params);
+        },
+      };
 
-        default:
-          throw new Error(`Unknown browser tool: ${tool}`);
+      const handler = handlers[tool];
+      if (!handler) {
+        throw new Error(`Unknown browser tool: ${tool}`);
       }
+      await handler();
 
       metadata.executionTime = Date.now() - startTime;
 
@@ -232,25 +247,31 @@ export class MCPBrowserRouter {
       });
 
       // Normalize session-not-found errors to expected phrasing
-      const err = error instanceof Error ? error : new Error(String(error));
-      const browserId =
+      const browserIdVal =
         (request.params && (request.params as Record<string, unknown>)["browserId"]) ||
-        (typeof (error as { browserId?: unknown })?.browserId === "string"
-          ? ((error as { browserId?: unknown }).browserId as string)
+        (typeof (error as { browserId?: string }).browserId === "string"
+          ? (error as { browserId?: string }).browserId
           : "unknown");
-      const normalized =
-        err.message.includes("session not found") || err.message.includes("Browser session not found")
-          ? new Error(`Browser session not found: ${browserId}`)
-          : err;
-      // Ensure "Browser session not found" errors are not re-mapped to element-not-found
-
+      // Normalize and return error response
       return {
         success: false,
-        error: this.formatError(normalized, tool),
+        error: this.formatError(
+          (error instanceof Error ? error : new Error(String(error))).message.includes(
+            "session not found",
+          ) ||
+            (error instanceof Error ? error : new Error(String(error))).message.includes(
+              "Browser session not found",
+            )
+            ? new Error(`Browser session not found: ${browserIdVal}`)
+            : error instanceof Error
+              ? error
+              : new Error(String(error)),
+          tool,
+        ),
         metadata: {
           executionTime,
           teamId: context.teamId,
-          browserId: browserId === "unknown" ? undefined : (browserId as string),
+          browserId: browserIdVal === "unknown" ? undefined : (browserIdVal as string),
         },
       };
     }
@@ -288,6 +309,7 @@ export class MCPBrowserRouter {
 
     // Standardize launch result for transports/tests expecting result.browserId at top-level
     return {
+      success: true,
       browserId: result.browserId,
       status: "launched",
       browserType: result.browserType,
@@ -354,14 +376,12 @@ export class MCPBrowserRouter {
     context: MCPRequestContext,
   ): Promise<unknown> {
     const { browserId, selector } = params;
-    // multiple option removed from interface
 
     this.validateBrowserAccess(browserId as string, context.teamId);
 
     return this.poolManager.findElements({
       browserId: browserId as string,
       selector: selector as string,
-      // multiple option removed from interface
     });
   }
 
@@ -373,14 +393,12 @@ export class MCPBrowserRouter {
     context: MCPRequestContext,
   ): Promise<unknown> {
     const { browserId, selector } = params;
-    // button, clickCount, delay options not available in current interface
 
     this.validateBrowserAccess(browserId as string, context.teamId);
 
     return this.poolManager.clickElement({
       browserId: browserId as string,
       selector: selector as string,
-      // button option not available in interface
     });
   }
 

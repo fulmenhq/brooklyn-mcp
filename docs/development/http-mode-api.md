@@ -331,7 +331,7 @@ async function callTool(toolName, params = {}) {
 // Launch browser
 const browserResult = await callTool("launch_browser", {
   browserType: "chromium",
-  headless: true
+  headless: true,
 });
 
 if (browserResult.success) {
@@ -341,7 +341,7 @@ if (browserResult.success) {
   // Navigate to page
   const navResult = await callTool("navigate_to_url", {
     browserId: browserId,
-    url: "https://example.com"
+    url: "https://example.com",
   });
 
   if (navResult.success) {
@@ -350,7 +350,7 @@ if (browserResult.success) {
     // Take screenshot
     const screenshotResult = await callTool("take_screenshot", {
       browserId: browserId,
-      fullPage: true
+      fullPage: true,
     });
 
     if (screenshotResult.success) {
@@ -391,25 +391,25 @@ browser_result = call_tool('launch_browser', {
 if browser_result['success']:
     browser_id = browser_result['data']['browserId']
     print(f"✅ Browser launched: {browser_id}")
-    
+
     # Navigate to page
     nav_result = call_tool('navigate_to_url', {
         'browserId': browser_id,
         'url': 'https://example.com'
     })
-    
+
     if nav_result['success']:
         print("✅ Navigation completed")
-        
+
         # Take screenshot
         screenshot_result = call_tool('take_screenshot', {
             'browserId': browser_id,
             'fullPage': True
         })
-        
+
         if screenshot_result['success']:
             print(f"✅ Screenshot taken: {screenshot_result['data']}")
-    
+
     # Clean up
     call_tool('close_browser', {'browserId': browser_id})
 else:
@@ -423,7 +423,7 @@ def discover_tools():
     """Discover available Brooklyn tools and their schemas"""
     response = requests.get(f'{BASE_URL}/tools')
     tools_data = response.json()
-    
+
     for tool in tools_data['data']['tools']:
         print(f"Tool: {tool['name']}")
         print(f"Description: {tool['description']}")
@@ -474,20 +474,20 @@ jobs:
           BROWSER_RESPONSE=$(curl -s -X POST http://localhost:8080/tools/launch_browser \
             -H "Content-Type: application/json" \
             -d '{"browserType": "chromium", "headless": true}')
-          
+
           BROWSER_ID=$(echo $BROWSER_RESPONSE | jq -r '.data.browserId')
           echo "Browser launched: $BROWSER_ID"
-          
+
           # Navigate to test page
           curl -X POST http://localhost:8080/tools/navigate_to_url \
             -H "Content-Type: application/json" \
             -d "{\"browserId\": \"$BROWSER_ID\", \"url\": \"https://httpbin.org\"}"
-          
+
           # Take screenshot
           curl -X POST http://localhost:8080/tools/take_screenshot \
             -H "Content-Type: application/json" \
             -d "{\"browserId\": \"$BROWSER_ID\", \"fullPage\": true}"
-          
+
           # Clean up browser
           curl -X POST http://localhost:8080/tools/close_browser \
             -H "Content-Type: application/json" \
@@ -755,11 +755,13 @@ Choose MCP mode for:
 1. **Start HTTP server**: `brooklyn mcp dev-http --port 8080 --background`
 
 2. **Discover available tools**:
+
    ```bash
    curl -s http://localhost:8080/tools | jq '.data.tools[].name'
    ```
 
 3. **Get tool schema**:
+
    ```bash
    curl -s http://localhost:8080/tools | jq '.data.tools[] | select(.name == "TOOL_NAME")'
    ```
@@ -779,12 +781,12 @@ Choose MCP mode for:
 
 ### Common Translation Examples
 
-| Brooklyn Tool | HTTP Endpoint | JSON Body |
-|---------------|---------------|-----------|
-| `launch_browser` | `POST /tools/launch_browser` | `{"browserType": "chromium", "headless": true}` |
+| Brooklyn Tool     | HTTP Endpoint                 | JSON Body                                                    |
+| ----------------- | ----------------------------- | ------------------------------------------------------------ |
+| `launch_browser`  | `POST /tools/launch_browser`  | `{"browserType": "chromium", "headless": true}`              |
 | `navigate_to_url` | `POST /tools/navigate_to_url` | `{"browserId": "browser-123", "url": "https://example.com"}` |
-| `take_screenshot` | `POST /tools/take_screenshot` | `{"browserId": "browser-123", "fullPage": true}` |
-| `close_browser` | `POST /tools/close_browser` | `{"browserId": "browser-123"}` |
+| `take_screenshot` | `POST /tools/take_screenshot` | `{"browserId": "browser-123", "fullPage": true}`             |
+| `close_browser`   | `POST /tools/close_browser`   | `{"browserId": "browser-123"}`                               |
 
 ### Background Daemon Mode
 
@@ -824,6 +826,7 @@ The Brooklyn HTTP API provides:
 
 ---
 
-**Next Steps**: 
+**Next Steps**:
+
 - See [Local Development Guide](../user-guide/local-development.md) for REPL mode and development workflows
 - Check [Brooklyn Status](../../README.md#current-status) for tool execution issue updates
