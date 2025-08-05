@@ -2,8 +2,7 @@ import type { Command } from "commander";
 
 // Register "brooklyn cleanup" operational command
 export function registerCleanupCommand(program: Command) {
-  program
-    .command("cleanup")
+  const cleanup = new (require("commander").Command)("cleanup")
     .description("Cleanup running Brooklyn processes and resources")
     .option("--all", "Cleanup all Brooklyn processes and resources")
     .option("--http", "Cleanup HTTP mode servers")
@@ -30,6 +29,9 @@ export function registerCleanupCommand(program: Command) {
       // eslint-disable-next-line no-console
       console.log("Cleanup completed");
     });
+
+  // Attach explicitly so Commander registers the subcommand instance correctly
+  program.addCommand(cleanup);
 }
 
 /**

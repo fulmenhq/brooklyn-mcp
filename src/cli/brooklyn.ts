@@ -82,8 +82,18 @@ import { handleDebugCommand } from "./debug.js";
 
 // Logger will be initialized after configuration is loaded
 
-// Register top-level operational commands
-const program = new Command();
+/**
+ * Build the root CLI and register top-level operational commands BEFORE parsing.
+ * Use explicit addCommand pattern to ensure subcommands/flags are registered.
+ */
+const program = new Command()
+  .name("brooklyn")
+  .description("Brooklyn MCP Server - Enterprise browser automation platform")
+  .version(VERSION)
+  .option("-v, --verbose", "Enable verbose logging")
+  .option("--config <path>", "Configuration file path");
+
+// Register cleanup as a proper subcommand so its options are recognized
 registerCleanupCommand(program);
 
 /**
@@ -1171,16 +1181,7 @@ function setupBrowserCommands(program: Command): void {
  */
 async function main(): Promise<void> {
   try {
-    const program = new Command();
-
-    program
-      .name("brooklyn")
-      .description("Brooklyn MCP Server - Enterprise browser automation platform")
-      .version(VERSION)
-      .option("-v, --verbose", "Enable verbose logging")
-      .option("--config <path>", "Configuration file path");
-
-    // Set up command groups
+    // Set up command groups on the pre-built root program
     setupMCPCommands(program);
     setupWebCommands(program);
     setupBrowserCommands(program);
