@@ -516,6 +516,12 @@ export class BrowserPoolManager {
 
     let session = this.sessions.get(browserId);
     if (!session) {
+      // Idempotent: if force=true or during teardown races, treat as already closed
+      if (force) {
+        this.sessions.delete(browserId);
+        await this.pool.remove(browserId, true).catch(() => undefined);
+        return { success: true, browserId };
+      }
       throw new Error(`Browser session not found: ${browserId}`);
     }
     if (!session.page || session.page.isClosed()) {

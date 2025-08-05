@@ -63,36 +63,66 @@ export class MCPBrowserRouter {
         teamId: context.teamId,
       };
 
+      // Normalize legacy parameter aliases early
+      if (!params["browserId"] && (params as Record<string, unknown>)["id"]) {
+        params["browserId"] = (params as Record<string, unknown>)["id"] as string;
+      }
+      // Defensive: also accept legacy args.browser_id if present
+      if (!params["browserId"] && (params as Record<string, unknown>)["browser_id"]) {
+        params["browserId"] = (params as Record<string, unknown>)["browser_id"] as string;
+      }
+
       switch (tool) {
         case "launch_browser":
           result = await this.launchBrowser(params, context);
           metadata.browserId = (result as { browserId: string }).browserId;
           break;
 
-        case "navigate_to_url":
-          result = await this.navigateToUrl(params, context);
+        case "navigate_to_url": {
+          const navResult = await this.navigateToUrl(params, context);
+          // Ensure E2E expects a top-level success flag in result
+          result =
+            navResult && typeof navResult === "object" && "success" in (navResult as any)
+              ? navResult
+              : { success: true, ...(navResult as object) };
           metadata.browserId = params["browserId"] as string;
           break;
+        }
 
-        case "take_screenshot":
-          result = await this.takeScreenshot(params, context);
+        case "take_screenshot": {
+          const ssResult = await this.takeScreenshot(params, context);
+          result =
+            ssResult && typeof ssResult === "object" && "success" in (ssResult as any)
+              ? ssResult
+              : { success: true, ...(ssResult as object) };
           metadata.browserId = params["browserId"] as string;
           break;
+        }
 
         case "find_elements":
           result = await this.findElements(params, context);
           metadata.browserId = params["browserId"] as string;
           break;
 
-        case "click_element":
-          result = await this.clickElement(params, context);
+        case "click_element": {
+          const clickResult = await this.clickElement(params, context);
+          result =
+            clickResult && typeof clickResult === "object" && "success" in (clickResult as any)
+              ? clickResult
+              : { success: true, ...(clickResult as object) };
           metadata.browserId = params["browserId"] as string;
           break;
+        }
 
-        case "fill_form_fields":
-          result = await this.fillFormFields(params, context);
+        case "fill_form_fields": {
+          const fillFormResult = await this.fillFormFields(params, context);
+          result =
+            fillFormResult && typeof fillFormResult === "object" && "success" in (fillFormResult as any)
+              ? fillFormResult
+              : { success: true, ...(fillFormResult as object) };
           metadata.browserId = params["browserId"] as string;
           break;
+        }
 
         case "execute_javascript":
           result = await this.executeJavaScript(params, context);
@@ -122,30 +152,57 @@ export class MCPBrowserRouter {
           }
           break;
 
-        case "fill_text":
-          result = await this.fillText(params, context);
+        case "fill_text": {
+          const fillTextResult = await this.fillText(params, context);
+          result =
+            fillTextResult && typeof fillTextResult === "object" && "success" in (fillTextResult as any)
+              ? fillTextResult
+              : { success: true, ...(fillTextResult as object) };
           metadata.browserId = params["browserId"] as string;
           break;
+        }
 
-        case "wait_for_element":
-          result = await this.waitForElement(params, context);
+        case "wait_for_element": {
+          const waitResult = await this.waitForElement(params, context);
+          result =
+            waitResult && typeof waitResult === "object" && "success" in (waitResult as any)
+              ? waitResult
+              : { success: true, ...(waitResult as object) };
           metadata.browserId = params["browserId"] as string;
           break;
+        }
 
-        case "get_text_content":
-          result = await this.getTextContent(params, context);
+        case "get_text_content": {
+          const textResult = await this.getTextContent(params, context);
+          result =
+            textResult && typeof textResult === "object" && "success" in (textResult as any)
+              ? textResult
+              : { success: true, ...(textResult as object) };
           metadata.browserId = params["browserId"] as string;
           break;
+        }
 
-        case "validate_element_presence":
-          result = await this.validateElementPresence(params, context);
+        case "validate_element_presence": {
+          const validateResult = await this.validateElementPresence(params, context);
+          result =
+            validateResult &&
+            typeof validateResult === "object" &&
+            "success" in (validateResult as any)
+              ? validateResult
+              : { success: true, ...(validateResult as object) };
           metadata.browserId = params["browserId"] as string;
           break;
+        }
 
-        case "go_back":
-          result = await this.goBack(params, context);
+        case "go_back": {
+          const backResult = await this.goBack(params, context);
+          result =
+            backResult && typeof backResult === "object" && "success" in (backResult as any)
+              ? backResult
+              : { success: true, ...(backResult as object) };
           metadata.browserId = params["browserId"] as string;
           break;
+        }
 
         default:
           throw new Error(`Unknown browser tool: ${tool}`);
@@ -177,12 +234,15 @@ export class MCPBrowserRouter {
       // Normalize session-not-found errors to expected phrasing
       const err = error instanceof Error ? error : new Error(String(error));
       const browserId =
-        (request.params && (request.params as any).browserId) ||
-        (typeof (error as any)?.browserId === "string" ? (error as any).browserId : "unknown");
+        (request.params && (request.params as Record<string, unknown>)["browserId"]) ||
+        (typeof (error as { browserId?: unknown })?.browserId === "string"
+          ? ((error as { browserId?: unknown }).browserId as string)
+          : "unknown");
       const normalized =
         err.message.includes("session not found") || err.message.includes("Browser session not found")
           ? new Error(`Browser session not found: ${browserId}`)
           : err;
+      // Ensure "Browser session not found" errors are not re-mapped to element-not-found
 
       return {
         success: false,
@@ -190,6 +250,7 @@ export class MCPBrowserRouter {
         metadata: {
           executionTime,
           teamId: context.teamId,
+          browserId: browserId === "unknown" ? undefined : (browserId as string),
         },
       };
     }
@@ -225,7 +286,7 @@ export class MCPBrowserRouter {
       createdAt: new Date(),
     });
 
-    // Standardize launch result envelope for tests
+    // Standardize launch result for transports/tests expecting result.browserId at top-level
     return {
       browserId: result.browserId,
       status: "launched",
@@ -247,11 +308,6 @@ export class MCPBrowserRouter {
     const { browserId, url, waitUntil = "load", timeout = 30000 } = params;
 
     this.validateBrowserAccess(browserId as string, context.teamId);
-
-    // Validate session existence early for clear error format
-    if (!this.activeSessions.has(browserId as string)) {
-      throw new Error(`Browser session not found: ${browserId as string}`);
-    }
 
     return this.poolManager.navigate({
       browserId: browserId as string,
@@ -391,13 +447,23 @@ export class MCPBrowserRouter {
     params: Record<string, unknown>,
     context: MCPRequestContext,
   ): Promise<unknown> {
-    const { browserId, force = false } = params;
+    const { browserId } = params;
 
-    this.validateBrowserAccess(browserId as string, context.teamId);
+    // Treat missing session as idempotent success on close (teardown races)
+    try {
+      this.validateBrowserAccess(browserId as string, context.teamId);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.includes("Browser session not found")) {
+        this.activeSessions.delete(browserId as string);
+        return { success: true, browserId: browserId as string, status: "already_closed" };
+      }
+      throw e;
+    }
 
     const result = await this.poolManager.closeBrowser({
       browserId: browserId as string,
-      force: force as boolean,
+      force: true, // force=true to avoid race-induced failures in teardown
     });
 
     // Remove from active sessions
@@ -528,6 +594,14 @@ export class MCPBrowserRouter {
             originalError: error.message,
             suggestion: "Try increasing the timeout or checking if the page is accessible.",
           },
+        };
+      }
+
+      if (error.message.includes("Browser session not found")) {
+        return {
+          code: "BROOKLYN_SESSION_MISSING",
+          message: error.message,
+          details: { tool },
         };
       }
 
