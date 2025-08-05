@@ -9,7 +9,7 @@ import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 
 import { config } from "../shared/config.js";
 import { getLogger } from "../shared/pino-logger.js";
-import { BrooklynEngine, type BrooklynContext } from "./brooklyn-engine.js";
+import { type BrooklynContext, BrooklynEngine } from "./brooklyn-engine.js";
 
 // Lazy logger initialization to avoid circular dependency
 const logger = getLogger("server");

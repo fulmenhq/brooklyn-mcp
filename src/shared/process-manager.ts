@@ -3,7 +3,7 @@
  */
 
 import { exec } from "node:child_process";
-import { readFileSync, existsSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { promisify } from "node:util";
 
@@ -19,6 +19,7 @@ export interface BrooklynProcess {
   status: "running" | "stopped" | "unknown";
 }
 
+/* biome-ignore lint/complexity/noStaticOnlyClass: keep static class for minimal-change stability */
 export class BrooklynProcessManager {
   /**
    * Find all Brooklyn processes running on the system
@@ -35,20 +36,20 @@ export class BrooklynProcessManager {
         .filter((line) => line.trim());
 
       for (const line of lines) {
-        const process = this.parseProcessLine(line);
-        if (process) {
-          processes.push(process);
+        const parsed = BrooklynProcessManager.parseProcessLine(line);
+        if (parsed) {
+          processes.push(parsed);
         }
       }
 
       // Also check for PID files from background HTTP servers
-      const pidFileProcesses = await this.findProcessesFromPidFiles();
+      const pidFileProcesses = await BrooklynProcessManager.findProcessesFromPidFiles();
       processes.push(...pidFileProcesses);
-    } catch (error) {
+    } catch {
       // No processes found or error occurred
     }
 
-    return this.deduplicateProcesses(processes);
+    return BrooklynProcessManager.deduplicateProcesses(processes);
   }
 
   /**
@@ -66,34 +67,32 @@ export class BrooklynProcessManager {
 
       for (const pidFile of pidFiles) {
         const pidPath = join(cwd, pidFile);
-        if (existsSync(pidPath)) {
-          try {
-            const pidContent = readFileSync(pidPath, "utf8").trim();
-            const pid = Number.parseInt(pidContent);
+        if (!existsSync(pidPath)) continue;
 
-            if (await this.isProcessRunning(pid)) {
-              // Extract port from filename: .brooklyn-http-8080.pid -> 8080
-              const portMatch = pidFile.match(/\.brooklyn-http-(\d+)\.pid$/);
-              const port = portMatch ? Number.parseInt(portMatch[1]) : undefined;
+        try {
+          const pidContent = readFileSync(pidPath, "utf8").trim();
+          const pidNum = Number.parseInt(pidContent, 10);
+          if (Number.isNaN(pidNum)) continue;
 
-              processes.push({
-                pid,
-                type: "http-server",
-                port,
-                command: `brooklyn mcp dev-http --port ${port || "unknown"}`,
-                status: "running",
-                teamId: "unknown", // Could be enhanced by reading log files
-              });
-            } else {
-              // Stale PID file - process not running
-              // Could cleanup here but being conservative
-            }
-          } catch (error) {
-            // Invalid PID file
+          if (await BrooklynProcessManager.isProcessRunning(pidNum)) {
+            // Extract port from filename: .brooklyn-http-8080.pid -> 8080
+            const portMatch = pidFile.match(/\.brooklyn-http-(\d+)\.pid$/);
+            const port = portMatch?.[1] ? Number.parseInt(portMatch[1], 10) : undefined;
+
+            processes.push({
+              pid: pidNum,
+              type: "http-server",
+              port,
+              command: `brooklyn mcp dev-http --port ${port ?? "unknown"}`,
+              status: "running",
+              teamId: "unknown", // Could be enhanced by reading log files
+            });
           }
+        } catch {
+          // Invalid PID file - skip
         }
       }
-    } catch (error) {
+    } catch {
       // Directory read error
     }
 
@@ -108,7 +107,7 @@ export class BrooklynProcessManager {
       // Using kill with signal 0 to check if process exists
       process.kill(pid, 0);
       return true;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -120,32 +119,34 @@ export class BrooklynProcessManager {
     const parts = line.trim().split(/\s+/);
     if (parts.length < 11) return null;
 
-    const pid = Number.parseInt(parts[1]);
-    if (Number.isNaN(pid)) return null;
+    const pidStr = parts[1];
+    if (!pidStr) return null;
+    const pidNum = Number.parseInt(pidStr, 10);
+    if (Number.isNaN(pidNum)) return null;
 
     const command = parts.slice(10).join(" ");
 
     // Determine process type based on command
     let type: BrooklynProcess["type"] = "mcp-stdio";
     let port: number | undefined;
-    let teamId: string | undefined;
+    // teamId may be absent
+    const teamIdMatch = command.match(/--team-id\s+([^\s]+)/);
+    const teamId: string | undefined = teamIdMatch?.[1];
 
     if (command.includes("dev-http")) {
       type = "http-server";
       const portMatch = command.match(/--port\s+(\d+)/);
-      port = portMatch ? Number.parseInt(portMatch[1]) : undefined;
+      port = portMatch?.[1] ? Number.parseInt(portMatch[1], 10) : undefined;
     } else if (command.includes("dev-repl")) {
       type = "repl-session";
     } else if (command.includes("dev-start") || command.includes("dev-mode")) {
       type = "dev-mode";
     }
 
-    // Extract team ID
-    const teamMatch = command.match(/--team-id\s+([^\s]+)/);
-    teamId = teamMatch ? teamMatch[1] : undefined;
+    // teamId already extracted above
 
     return {
-      pid,
+      pid: pidNum,
       type,
       port,
       teamId,
@@ -180,10 +181,10 @@ export class BrooklynProcessManager {
 
       // Wait a bit and check if process stopped
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      const isStillRunning = await this.isProcessRunning(pid);
+      const isStillRunning = await BrooklynProcessManager.isProcessRunning(pid);
 
       return !isStillRunning;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -192,11 +193,11 @@ export class BrooklynProcessManager {
    * Stop HTTP server by port
    */
   static async stopHttpServerByPort(port: number): Promise<boolean> {
-    const processes = await this.findAllProcesses();
+    const processes = await BrooklynProcessManager.findAllProcesses();
     const httpProcess = processes.find((p) => p.type === "http-server" && p.port === port);
 
     if (httpProcess) {
-      return await this.stopProcess(httpProcess.pid);
+      return await BrooklynProcessManager.stopProcess(httpProcess.pid);
     }
 
     return false;
@@ -210,7 +211,7 @@ export class BrooklynProcessManager {
     byType: Record<string, number>;
     httpServers: Array<{ port: number; teamId?: string; pid: number }>;
   }> {
-    const processes = await this.findAllProcesses();
+    const processes = await BrooklynProcessManager.findAllProcesses();
 
     const byType: Record<string, number> = {};
     const httpServers: Array<{ port: number; teamId?: string; pid: number }> = [];
@@ -218,7 +219,7 @@ export class BrooklynProcessManager {
     for (const process of processes) {
       byType[process.type] = (byType[process.type] || 0) + 1;
 
-      if (process.type === "http-server" && process.port) {
+      if (process.type === "http-server" && typeof process.port === "number") {
         httpServers.push({
           port: process.port,
           teamId: process.teamId,

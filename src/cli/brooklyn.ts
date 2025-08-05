@@ -385,7 +385,7 @@ function setupMCPDevCommands(mcpCmd: Command): void {
       try {
         // In background mode, spawn detached child process
         if (options.background) {
-          const { spawn } = await import("child_process");
+          const { spawn } = await import("node:child_process");
           const args = [
             "mcp",
             "dev-http-daemon", // Use internal daemon command
@@ -619,12 +619,12 @@ function setupMCPDevCommands(mcpCmd: Command): void {
           try {
             const response = await fetch(`http://localhost:${server.port}/health`);
             if (response.ok) {
-              console.log(`  • Health: ✅ Responding`);
+              console.log("  • Health: ✅ Responding");
             } else {
               console.log(`  • Health: ⚠️  Server error (${response.status})`);
             }
-          } catch (error) {
-            console.log(`  • Health: ❌ Not responding`);
+          } catch {
+            console.log("  • Health: ❌ Not responding");
           }
           console.log("");
         }
@@ -878,9 +878,19 @@ function setupStatusCommand(program: Command): void {
         // Group by type
         const byType: Record<string, typeof processes> = {};
         for (const process of processes) {
-          if (!byType[process.type]) byType[process.type] = [];
-          byType[process.type].push(process);
+          const processType = process.type;
+          const existing = byType[processType];
+          if (!existing) {
+            byType[processType] = [process];
+          } else {
+            existing.push(process);
+          }
         }
+        // Ensure byType buckets exist even if no processes of that type were found
+        byType["http-server"] = byType["http-server"] || [];
+        byType["mcp-stdio"] = byType["mcp-stdio"] || [];
+        byType["repl-session"] = byType["repl-session"] || [];
+        byType["dev-mode"] = byType["dev-mode"] || [];
 
         // Display HTTP servers
         if (byType["http-server"]) {

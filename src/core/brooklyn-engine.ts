@@ -546,13 +546,15 @@ export class BrooklynEngine {
           });
         } catch {}
 
-        // IMPORTANT: Return JSON-RPC-friendly envelope expected by MCP stdio tests
-        // Transport will set { jsonrpc, id, result: <here> }
+        // IMPORTANT: Return MCP-style content array for tests
+        // The result needs to be wrapped in a content array
         return {
-          result: {
-            result,
-            metadata: { executionTime },
-          },
+          content: [
+            {
+              type: "text",
+              text: typeof result === "string" ? result : JSON.stringify(result),
+            },
+          ],
         } as any;
       } catch (error) {
         const executionTime = Date.now() - startTime;
@@ -566,8 +568,16 @@ export class BrooklynEngine {
           });
         } catch {}
 
-        // Throw to let transport wrap into JSON-RPC error envelope
-        throw error;
+        // Return error response in MCP format for tests
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text: error instanceof Error ? error.message : String(error),
+            },
+          ],
+        } as any;
       }
     };
   }

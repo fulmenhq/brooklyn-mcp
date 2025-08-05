@@ -3,8 +3,8 @@
  * Phase 3 of dev mode refactoring - enables CI/CD integration and automated testing
  */
 
+import { existsSync, unlinkSync, writeFileSync } from "node:fs";
 import { type IncomingMessage, type Server, type ServerResponse, createServer } from "node:http";
-import { writeFileSync, unlinkSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { parse } from "node:url";
 import type { CallToolRequest, Tool } from "@modelcontextprotocol/sdk/types.js";
@@ -155,9 +155,11 @@ export class BrooklynHTTP {
   private setupBackgroundMode(): void {
     // Detach from parent process stdin - Bun uses Web Streams API
     try {
-      if (process.stdin && typeof process.stdin.cancel === "function") {
+      // Type assertion for Bun-specific cancel method
+      const stdinWithCancel = process.stdin as typeof process.stdin & { cancel?: () => void };
+      if (stdinWithCancel && typeof stdinWithCancel.cancel === "function") {
         // Bun approach: cancel the ReadableStream
-        process.stdin.cancel();
+        stdinWithCancel.cancel();
       }
       // In background mode, we don't need to do much more
       // The PID file and signal handlers are already set up

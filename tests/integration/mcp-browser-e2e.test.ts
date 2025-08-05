@@ -21,7 +21,9 @@ interface MCPMessage {
 
 const TEST_TIMEOUT = 30000;
 
-describe("MCP Browser E2E Tests", () => {
+const BROWSER_AVAILABLE = !!process.env["PLAYWRIGHT_BROWSERS_PATH"] || !!process.env["CI"];
+
+describe.skipIf(!BROWSER_AVAILABLE)("MCP Browser E2E Tests", () => {
   beforeAll(async () => {
     // Enable stderr for debugging
     process.env["BROOKLYN_MCP_STDERR"] = "true";
@@ -226,7 +228,7 @@ describe("MCP Browser E2E Tests", () => {
 
         // Initialize
         child.stdin?.write(
-          JSON.stringify({
+          `${JSON.stringify({
             jsonrpc: "2.0",
             id: 0,
             method: "initialize",
@@ -235,14 +237,27 @@ describe("MCP Browser E2E Tests", () => {
               capabilities: { roots: {} },
               clientInfo: { name: "test-client", version: "1.0.0" },
             },
-          }) + "\n",
+          })}\n`,
+        );
+        // Initialize
+        child.stdin?.write(
+          `${JSON.stringify({
+            jsonrpc: "2.0",
+            id: 0,
+            method: "initialize",
+            params: {
+              protocolVersion: "2025-06-18",
+              capabilities: { roots: {} },
+              clientInfo: { name: "test-client", version: "1.0.0" },
+            },
+          })}\n`,
         );
 
         await new Promise((r) => setTimeout(r, 1000));
 
         // Launch browser
         child.stdin?.write(
-          JSON.stringify({
+          `${JSON.stringify({
             jsonrpc: "2.0",
             id: 1,
             method: "tools/call",
@@ -250,7 +265,19 @@ describe("MCP Browser E2E Tests", () => {
               name: "launch_browser",
               arguments: { browserType: "chromium", headless: true },
             },
-          }) + "\n",
+          })}\n`,
+        );
+        // Launch browser
+        child.stdin?.write(
+          `${JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: {
+              name: "launch_browser",
+              arguments: { browserType: "chromium", headless: true },
+            },
+          })}\n`,
         );
 
         await new Promise((r) => setTimeout(r, 3000));
@@ -262,7 +289,7 @@ describe("MCP Browser E2E Tests", () => {
         if (browserId) {
           // Navigate with the actual browser ID
           child.stdin?.write(
-            JSON.stringify({
+            `${JSON.stringify({
               jsonrpc: "2.0",
               id: 2,
               method: "tools/call",
@@ -273,14 +300,14 @@ describe("MCP Browser E2E Tests", () => {
                   url: "https://example.com",
                 },
               },
-            }) + "\n",
+            })}\n`,
           );
 
           await new Promise((r) => setTimeout(r, 3000));
 
           // Close browser
           child.stdin?.write(
-            JSON.stringify({
+            `${JSON.stringify({
               jsonrpc: "2.0",
               id: 3,
               method: "tools/call",
@@ -288,7 +315,7 @@ describe("MCP Browser E2E Tests", () => {
                 name: "close_browser",
                 arguments: { browserId },
               },
-            }) + "\n",
+            })}\n`,
           );
 
           await new Promise((r) => setTimeout(r, 2000));

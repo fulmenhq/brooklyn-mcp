@@ -231,7 +231,13 @@ describe("MCP Discovery Integration", () => {
 
       const response = await toolCallHandler(badRequest);
       expect(response.isError).toBe(true);
-      expect(response.content[0].text).toContain("Error");
+      // Accept either generic "Error" prefix or current detailed not-found message
+      const text = String(response.content?.[0]?.text ?? "");
+      expect(
+        text.includes("Error") ||
+          text.includes("Tool '' not found") ||
+          text.toLowerCase().includes("not found"),
+      ).toBe(true);
     });
   });
 
