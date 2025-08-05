@@ -12,7 +12,7 @@
  */
 
 // Version embedded at build time from VERSION file
-const VERSION = "1.4.2";
+const VERSION = "1.4.3";
 
 import { HELP_TEXT } from "../generated/help/index.js";
 // buildConfig import removed - not used in CLI entry point
@@ -75,11 +75,16 @@ import { BrooklynEngine } from "../core/brooklyn-engine.js";
 import { type BrooklynConfig, enableConfigLogger, loadConfig } from "../core/config.js";
 import { InstanceManager } from "../core/instance-manager.js";
 import { createHTTP, createMCPStdio } from "../transports/index.js";
+import { registerCleanupCommand } from "./commands/cleanup.js";
 import { handleDebugCommand } from "./debug.js";
 
 // Config logger no longer needed with Pino
 
 // Logger will be initialized after configuration is loaded
+
+// Register top-level operational commands
+const program = new Command();
+registerCleanupCommand(program);
 
 /**
  * MCP command group - Claude Code integration
