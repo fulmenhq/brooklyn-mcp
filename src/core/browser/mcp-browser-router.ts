@@ -161,6 +161,10 @@ export class MCPBrowserRouter {
         return await this.validateElementPresence(params, context);
       case "go_back":
         return await this.goBack(params, context);
+      case "list_screenshots":
+        return await this.listScreenshots(params, context);
+      case "get_screenshot":
+        return await this.getScreenshot(params, context);
       default:
         throw new Error(`Unknown browser tool: ${tool}`);
     }
@@ -488,6 +492,285 @@ export class MCPBrowserRouter {
     return this.poolManager.goBack({
       browserId: browserId as string,
     });
+  }
+
+  /**
+   * List screenshots saved on disk for the team / browser session
+   * params:
+   *  - browserId?: string
+   *  - since?: string (ISO8601)
+   *  - limit?: number (default 20)
+   *  - includeMetadata?: boolean
+   */
+  private async listScreenshots(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    // Small local helpers to reduce cognitive complexity
+    const toDate = (s?: string): Date | undefined => (s ? new Date(s) : undefined);
+    const earlyReturn = (cond: boolean, value: unknown) => (cond ? value : undefined);
+    const {
+      browserId,
+      since,
+      limit = 20,
+      includeMetadata = false,
+    } = params as {
+      browserId?: string;
+      since?: string;
+      limit?: number;
+      includeMetadata?: boolean;
+    };
+
+    // If browserId provided and exists, validate access to avoid cross-team leakage
+    if (browserId) {
+      this.validateBrowserAccess(browserId, context.teamId);
+      // If the browserId is active and pool exposes listing, prefer delegation
+    }
+
+    // Delegate to pool manager if it exposes listing; otherwise, perform a safe local scan fallback
+    type PoolMgrWithList = BrowserPoolManager & {
+      listScreenshots?: (args: {
+        teamId?: string;
+        browserId?: string;
+        since?: Date;
+        limit?: number;
+        includeMetadata?: boolean;
+      }) => Promise<unknown>;
+    };
+    const pm = this.poolManager as PoolMgrWithList;
+    if (typeof pm.listScreenshots === "function") {
+      const delegated = await pm.listScreenshots({
+        teamId: context.teamId,
+        browserId,
+        since: toDate(since),
+        limit,
+        includeMetadata,
+      });
+      // Early exit if delegation succeeded
+      return delegated;
+    }
+
+    // Fallback implementation: scan ~/.brooklyn/screenshots directory
+    const home =
+      (globalThis as unknown as { process?: { env?: Record<string, string> } }).process?.env?.[
+        "HOME"
+      ] || "";
+    const baseDir = `${home}/.brooklyn/screenshots`;
+
+    // For portability in Bun/Node: use Bun.file APIs if available; otherwise Node fs/promises
+    // Note: prefer Node fs/promises for portability; Bun directory iteration is not standardized.
+    // Node fs/promises is used for directory walking; avoid unused variable warnings.
+
+    // Simple recursive scan utility (extracted to reduce complexity)
+    const walkDirForPngs = async (dir: string, acc: string[] = []): Promise<string[]> => {
+      try {
+        const fsP = await import("node:fs/promises");
+        const entries = await fsP.readdir(dir, { withFileTypes: true });
+        for (const entry of entries) {
+          const full = `${dir}/${entry.name}`;
+          if (entry.isDirectory()) {
+            await walkDirForPngs(full, acc);
+          } else if (entry.name.endsWith(".png")) {
+            acc.push(full);
+          }
+        }
+      } catch {
+        // ignore errors and return current acc
+      }
+      return acc;
+    };
+
+    const allPngs = await walkDirForPngs(baseDir);
+    const sinceDate = toDate(since);
+    // Early exit to reduce complexity when nothing found
+    const nothing = earlyReturn(allPngs.length === 0, { items: [], total: 0 });
+    if (nothing) return nothing as { items: unknown[]; total: number };
+
+    // Map to stat + filter + sort desc by mtime
+    const fsP = await import("node:fs/promises");
+    const itemsRaw: Array<{
+      filePath: string;
+      filename: string;
+      createdAt: string;
+      fileSize?: number;
+      metadataPath?: string;
+    }> = [];
+
+    for (const p of allPngs) {
+      try {
+        const st = await fsP.stat(p);
+        if (sinceDate && st.mtime < sinceDate) continue;
+
+        // Optional metadata file alongside
+        const metaPath = p.replace(/\.png$/i, ".metadata.json");
+        let hasMeta = false;
+        try {
+          await fsP.access(metaPath);
+          hasMeta = true;
+        } catch {
+          hasMeta = false;
+        }
+
+        itemsRaw.push({
+          filePath: p,
+          filename: p.split("/").pop() as string,
+          createdAt: st.mtime.toISOString(),
+          fileSize: st.size,
+          metadataPath: hasMeta ? metaPath : undefined,
+        });
+      } catch {
+        // ignore
+      }
+    }
+
+    // Sort newest first
+    itemsRaw.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+    const limited = itemsRaw.slice(0, Number(limit) || 20);
+
+    if (!includeMetadata) {
+      return {
+        items: limited,
+        total: itemsRaw.length,
+      };
+    }
+
+    // Attach dimensions if metadata is requested and available
+    const withMeta = [];
+    // helper for metadata merge
+    const mergeMeta = async (it: {
+      filePath: string;
+      filename: string;
+      createdAt: string;
+      fileSize?: number;
+      metadataPath?: string;
+    }) => {
+      if (!it.metadataPath) return it;
+      try {
+        const content = await fsP.readFile(it.metadataPath, "utf8");
+        const parsed = JSON.parse(content);
+        return {
+          ...it,
+          auditId: parsed?.auditId,
+          dimensions: parsed?.dimensions,
+        };
+      } catch {
+        return it;
+      }
+    };
+
+    for (const it of limited) {
+      withMeta.push(await mergeMeta(it));
+    }
+
+    return {
+      items: withMeta,
+      total: itemsRaw.length,
+    };
+  }
+
+  /**
+   * Get a screenshot by path or auditId
+   * params:
+   *  - path?: string
+   *  - auditId?: string
+   */
+  private async getScreenshot(
+    params: Record<string, unknown>,
+    _context: MCPRequestContext,
+  ): Promise<unknown> {
+    const { path, auditId } = params as { path?: string; auditId?: string };
+
+    if (!(path || auditId)) {
+      throw new Error("get_screenshot requires either 'path' or 'auditId'");
+    }
+
+    const fsP = await import("node:fs/promises");
+
+    const resolveByAudit = async (aid: string): Promise<string | undefined> => {
+      const home =
+        (globalThis as unknown as { process?: { env?: Record<string, string> } }).process?.env?.[
+          "HOME"
+        ] || "";
+      const baseDir = `${home}/.brooklyn/screenshots`;
+
+      // split into two helpers to drop cognitive complexity
+      const readDir = async (dir: string) => {
+        try {
+          return await fsP.readdir(dir, { withFileTypes: true });
+        } catch {
+          return [];
+        }
+      };
+
+      const checkMeta = async (filePath: string): Promise<string | undefined> => {
+        try {
+          const txt = await fsP.readFile(filePath, "utf8");
+          const js = JSON.parse(txt);
+          if (js?.auditId === aid) {
+            return filePath.replace(/\.metadata\.json$/i, ".png");
+          }
+        } catch {
+          // ignore
+        }
+        return undefined;
+      };
+
+      const searchDir = async (dir: string): Promise<string | undefined> => {
+        const entries = await readDir(dir);
+        for (const entry of entries) {
+          const full = `${dir}/${entry.name}`;
+          if (entry.isDirectory()) {
+            const found = await searchDir(full);
+            if (found) return found;
+            continue;
+          }
+          if (entry.isFile() && entry.name.endsWith(".metadata.json")) {
+            const maybe = await checkMeta(full);
+            if (maybe) return maybe;
+          }
+        }
+        return undefined;
+      };
+
+      return await searchDir(baseDir);
+    };
+
+    let targetPath = path;
+    if (!targetPath && auditId) {
+      targetPath = await resolveByAudit(auditId);
+    }
+
+    // Reduce branching complexity
+    if (!targetPath) return { exists: false };
+
+    try {
+      // Normalize to string to satisfy fs.stat
+      const normalizedPath = String(targetPath);
+      const st = await fsP.stat(normalizedPath);
+      const metaPath = normalizedPath.replace(/\.png$/i, ".metadata.json");
+      let createdAt: string | undefined;
+      let metadataPath: string | undefined;
+
+      try {
+        const metaStat = await fsP.stat(metaPath);
+        if (metaStat) {
+          createdAt = st.mtime.toISOString();
+          metadataPath = metaPath;
+        }
+      } catch {
+        createdAt = st.mtime.toISOString();
+      }
+
+      return {
+        exists: true,
+        filePath: normalizedPath,
+        fileSize: st.size,
+        createdAt,
+        metadataPath,
+      };
+    } catch {
+      return { exists: false };
+    }
   }
 
   /**
