@@ -78,10 +78,11 @@
     "install": "bun run build && bun scripts/install-cli.ts"
   },
   "dependencies": {
+    "@libsql/client": "^0.15.10",
     "@modelcontextprotocol/sdk": "^0.5.0",
-    "playwright": "^1.40.0",
     "pino": "^9.0.0",
-    "pino-pretty": "^11.0.0"
+    "pino-pretty": "^11.0.0",
+    "playwright": "^1.40.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.8.3",
