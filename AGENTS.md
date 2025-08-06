@@ -15,10 +15,11 @@ Brooklyn is a multi-team MCP server for browser automation using Bun, TypeScript
 
 ### **Technical Standards (MANDATORY)**
 
-3. **AGENTS.local.md** - Local development configuration and agent-specific guidelines (if present)
-4. **package.json** - Available commands and dependencies (ALWAYS read scripts section)
-5. **docs/substaile/codex/coding.md** - Core coding principles and error patterns
-6. **docs/substaile/codex/typescript/typescript-coding.md** - TypeScript-specific standards
+3. **docs/development/standards/coding-standards.md** - The Non-Negotiables (READ THIS FIRST!)
+4. **AGENTS.local.md** - Local development configuration and agent-specific guidelines (if present)
+5. **package.json** - Available commands and dependencies (ALWAYS read scripts section)
+6. **docs/substaile/codex/coding.md** - Core coding principles and error patterns
+7. **docs/substaile/codex/typescript/typescript-coding.md** - TypeScript-specific standards
 
 ### **Agent Accountability**
 
@@ -92,12 +93,32 @@ Supervised by @[human-maintainer]
 - **Maintain transparency** about AI nature while being professional
 - **Defer to human supervisor** for policy decisions and governance matters
 
-## Code Style Guidelines
+## Code Style Guidelines (Quick Reference)
 
-- **Imports**: Node built-ins → Third-party → Local (blank lines); use `import type`; absolute paths
-- **Formatting**: Biome & Prettier; double quotes for strings, backticks for templates only
-- **Types**: Strict TS; NO `any` (use unknown); optional chaining over !; Promise<Return | undefined>
-- **Naming**: camelCase vars/functions, PascalCase classes/types; \_ for unused params
+### 🚨 CRITICAL - Will Break Production
+
+- **NEVER** initialize loggers at module level - use lazy initialization pattern
+- **ALWAYS** use `InValue[]` for database parameters (not `any[]` or `unknown[]`)
+- **ALWAYS** use bracket notation for database results: `row["field"]` not `row.field`
+
+### 🎯 MANDATORY - Will Fail Linting
+
+- **Strings**: `"double quotes"` for simple, `` `backticks` `` ONLY for templates with `${vars}`
+- **Environment**: `process.env["VAR"]` never `process.env.VAR`
+- **Imports**: Node → Third-party → Local (with blank lines); use `import type`
+- **Types**: NO `any` (use `unknown`); NO `!` in tests (use `?.`)
+- **Promises**: `Promise<T | undefined>` not `Promise<T | void>`
+- **Testing**: `bun run test` (vitest) NEVER `bun test`
+
+### 📋 File Validation (After Every Edit)
+
+```bash
+bun run check:file:fix path/to/file.ts  # Auto-fix what's possible
+bun run check:file path/to/file.ts      # Verify all checks pass
+```
+
+**Full details**: See `docs/development/standards/coding-standards.md`
+
 - **Error Handling**: Structured logging; try-catch for async; no silent failures; error boundaries
 - **General**: Template literals; process.env["VAR"]; single responsibility; JSDoc for APIs
 - **Testing**: AAA pattern; independent tests; 80%+ coverage; proper mocks; vitest only
