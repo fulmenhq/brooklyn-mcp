@@ -9,17 +9,17 @@ export interface BrooklynInstance {
   scope: "user" | "project" | "global";
   installPath: string;
   projectPath?: string;
-  
+
   // Runtime info
   pid?: number;
   startedAt: Date;
   lastHeartbeat: Date;
-  
+
   // Persistent info
   firstSeen: Date;
   lastSeen: Date;
   totalRuns: number;
-  
+
   // State
   config?: Record<string, unknown>;
   active: boolean;

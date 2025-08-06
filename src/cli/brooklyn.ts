@@ -76,6 +76,7 @@ import { type BrooklynConfig, enableConfigLogger, loadConfig } from "../core/con
 import { InstanceManager } from "../core/instance-manager.js";
 import { createHTTP, createMCPStdio } from "../transports/index.js";
 import { registerCleanupCommand } from "./commands/cleanup.js";
+import { registerOpsCommand } from "./commands/ops.js";
 import { handleDebugCommand } from "./debug.js";
 
 // Config logger no longer needed with Pino
@@ -95,6 +96,9 @@ const program = new Command()
 
 // Register cleanup as a proper subcommand so its options are recognized
 registerCleanupCommand(program);
+
+// Register ops command for database and maintenance operations
+registerOpsCommand(program);
 
 /**
  * MCP command group - Claude Code integration

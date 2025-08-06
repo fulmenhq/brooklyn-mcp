@@ -3,17 +3,23 @@
  * Centralized database management with fail-fast behavior
  */
 
-import { createClient, type Client, type ResultSet } from "@libsql/client";
 import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
+import { type Client, type InValue, type ResultSet, createClient } from "@libsql/client";
 
 import { getLogger } from "../../shared/pino-logger.js";
-import { getStableInstanceId, type InstanceContext } from "./instance-id-generator.js";
+import { type InstanceContext, getStableInstanceId } from "./instance-id-generator.js";
 import type { BrooklynInstance, DatabaseConfig } from "./types.js";
 
-// Initialize logger
-const logger = getLogger("database-manager");
+// Lazy logger initialization to avoid bundling issues
+let logger: ReturnType<typeof getLogger> | null = null;
+function ensureLogger() {
+  if (!logger) {
+    logger = getLogger("database-manager");
+  }
+  return logger;
+}
 
 /**
  * Database initialization error
@@ -69,12 +75,12 @@ export class DatabaseManager {
   private getDefaultDatabasePath(): string {
     const baseDir = join(homedir(), ".brooklyn");
     const dbPath = join(baseDir, "brooklyn.db");
-    
+
     // Ensure directory exists
     if (!existsSync(baseDir)) {
       mkdirSync(baseDir, { recursive: true });
     }
-    
+
     return `file:${dbPath}`;
   }
 
@@ -85,7 +91,7 @@ export class DatabaseManager {
     if (this.isInitialized) return;
 
     try {
-      logger.info("Initializing database", { url: this.config.url });
+      ensureLogger().info("Initializing database", { url: this.config.url });
 
       // Create database client
       this.client = createClient({
@@ -114,7 +120,7 @@ export class DatabaseManager {
       await this.cleanStaleInstances();
 
       this.isInitialized = true;
-      logger.info("Database initialized successfully", {
+      ensureLogger().info("Database initialized successfully", {
         instanceId: this.instanceId,
       });
     } catch (error) {
@@ -123,7 +129,7 @@ export class DatabaseManager {
         "DB_INIT_FAILED",
         true,
       );
-      logger.error("Database initialization failed", { error: dbError });
+      ensureLogger().error("Database initialization failed", { error: dbError });
       throw dbError;
     }
   }
@@ -157,9 +163,9 @@ export class DatabaseManager {
     try {
       await this.client.execute("PRAGMA journal_mode = WAL");
       await this.client.execute(`PRAGMA busy_timeout = ${this.config.busyTimeout}`);
-      logger.debug("WAL mode enabled");
+      ensureLogger().debug("WAL mode enabled");
     } catch (error) {
-      logger.warn("Failed to enable WAL mode", { error });
+      ensureLogger().warn("Failed to enable WAL mode", { error });
       // Non-fatal - continue without WAL
     }
   }
@@ -182,26 +188,24 @@ export class DatabaseManager {
       `);
 
       // Get current version
-      const result = await this.client.execute(
-        "SELECT MAX(version) as version FROM migrations",
-      );
+      const result = await this.client.execute("SELECT MAX(version) as version FROM migrations");
       const currentVersion = (result.rows[0]?.["version"] as number) || 0;
 
       // Import and run migrations
       const { migrations } = await import("./migrations/index.js");
-      
+
       for (const migration of migrations) {
         if (migration.version > currentVersion) {
-          logger.info(`Running migration ${migration.version}: ${migration.name}`);
-          
+          ensureLogger().info(`Running migration ${migration.version}: ${migration.name}`);
+
           // Run migration in transaction
           await this.client.batch(migration.up);
-          
+
           // Record migration
-          await this.client.execute(
-            "INSERT INTO migrations (version, name) VALUES (?, ?)",
-            [migration.version, migration.name],
-          );
+          await this.client.execute("INSERT INTO migrations (version, name) VALUES (?, ?)", [
+            migration.version,
+            migration.name,
+          ]);
         }
       }
     } catch (error) {
@@ -225,7 +229,8 @@ export class DatabaseManager {
       this.instanceContext = context;
 
       // Upsert instance record
-      await this.client.execute(`
+      await this.client.execute(
+        `
         INSERT INTO instances (
           id, display_name, type, scope, install_path, project_path,
           pid, started_at, last_heartbeat, first_seen, last_seen, total_runs, active
@@ -238,23 +243,25 @@ export class DatabaseManager {
           last_seen = CURRENT_TIMESTAMP,
           total_runs = total_runs + 1,
           active = 1
-      `, [
-        id,
-        displayName,
-        context.type,
-        context.scope,
-        context.installPath,
-        context.projectPath || null,
-        process.pid,
-      ]);
+      `,
+        [
+          id,
+          displayName,
+          context.type,
+          context.scope,
+          context.installPath,
+          context.projectPath || null,
+          process.pid,
+        ],
+      );
 
-      logger.info("Instance registered", {
+      ensureLogger().info("Instance registered", {
         instanceId: id,
         displayName,
         type: context.type,
       });
     } catch (error) {
-      logger.error("Failed to register instance", { error });
+      ensureLogger().error("Failed to register instance", { error });
       // Non-fatal - continue without registration
     }
   }
@@ -263,7 +270,7 @@ export class DatabaseManager {
    * Start heartbeat to keep instance active
    */
   private startHeartbeat(): void {
-    if (!this.instanceId || !this.client) return;
+    if (!(this.instanceId && this.client)) return;
 
     // Update heartbeat every 30 seconds
     this.heartbeatInterval = setInterval(async () => {
@@ -273,7 +280,7 @@ export class DatabaseManager {
           [this.instanceId],
         );
       } catch (error) {
-        logger.debug("Heartbeat update failed", { error });
+        ensureLogger().debug("Heartbeat update failed", { error });
       }
     }, 30000);
   }
@@ -294,13 +301,13 @@ export class DatabaseManager {
       `);
 
       if (result.rows.length > 0) {
-        logger.info("Cleaned stale instances", {
+        ensureLogger().info("Cleaned stale instances", {
           count: result.rows.length,
           instances: result.rows.map((row) => row["display_name"]),
         });
       }
     } catch (error) {
-      logger.debug("Failed to clean stale instances", { error });
+      ensureLogger().debug("Failed to clean stale instances", { error });
       // Non-fatal - continue
     }
   }
@@ -308,7 +315,7 @@ export class DatabaseManager {
   /**
    * Execute a query with fail-fast behavior
    */
-  async execute(sql: string, params?: any[]): Promise<ResultSet> {
+  async execute(sql: string, params?: InValue[]): Promise<ResultSet> {
     if (!this.client) {
       throw new DatabaseError("Database not initialized", "NOT_INITIALIZED", true);
     }
@@ -327,7 +334,7 @@ export class DatabaseManager {
   /**
    * Execute multiple queries in a transaction
    */
-  async transaction(queries: Array<{ sql: string; params?: any[] }>): Promise<ResultSet[]> {
+  async transaction(queries: Array<{ sql: string; params?: InValue[] }>): Promise<ResultSet[]> {
     if (!this.client) {
       throw new DatabaseError("Database not initialized", "NOT_INITIALIZED", true);
     }
@@ -378,7 +385,7 @@ export class DatabaseManager {
           [this.instanceId],
         );
       } catch (error) {
-        logger.debug("Failed to mark instance inactive", { error });
+        ensureLogger().debug("Failed to mark instance inactive", { error });
       }
 
       this.client.close();
@@ -387,7 +394,7 @@ export class DatabaseManager {
 
     this.isInitialized = false;
     DatabaseManager.instance = null;
-    logger.info("Database connection closed");
+    ensureLogger().info("Database connection closed");
   }
 
   /**

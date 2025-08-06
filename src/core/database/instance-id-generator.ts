@@ -19,7 +19,7 @@ export interface InstanceContext {
 export function generateStableInstanceId(context: InstanceContext): string {
   // UUID namespace for Brooklyn instances (DNS namespace)
   const DNS_NAMESPACE = "6ba7b810-9dad-11d1-80b4-00c04fd430c8";
-  
+
   // Create deterministic name from context
   const name = [
     "brooklyn",
@@ -28,28 +28,34 @@ export function generateStableInstanceId(context: InstanceContext): string {
     context.installPath,
     context.projectPath || "global",
   ].join(":");
-  
+
   // Generate UUID5 using SHA-1
   const hash = createHash("sha1");
-  
+
   // Add namespace bytes (remove hyphens first)
   const namespaceBytes = DNS_NAMESPACE.replace(/-/g, "");
   hash.update(Buffer.from(namespaceBytes, "hex"));
   hash.update(name, "utf8");
-  
+
   const hashBytes = hash.digest();
-  
+
   // Format as UUID5 (version 5, variant 10)
+  // We know hashBytes is 20 bytes from SHA-1, so these accesses are safe
+  const byte6 = hashBytes[6] ?? 0;
+  const byte7 = hashBytes[7] ?? 0;
+  const byte8 = hashBytes[8] ?? 0;
+  const byte9 = hashBytes[9] ?? 0;
+
   const uuid = [
     hashBytes.subarray(0, 4).toString("hex"),
     hashBytes.subarray(4, 6).toString("hex"),
     // Version 5 in bits 12-15
-    ((hashBytes[6]! & 0x0f) | 0x50).toString(16) + hashBytes[7]!.toString(16),
+    ((byte6 & 0x0f) | 0x50).toString(16) + byte7.toString(16),
     // Variant 10 in bits 6-7 of byte 8
-    ((hashBytes[8]! & 0x3f) | 0x80).toString(16) + hashBytes[9]!.toString(16),
+    ((byte8 & 0x3f) | 0x80).toString(16) + byte9.toString(16),
     hashBytes.subarray(10, 16).toString("hex"),
   ].join("-");
-  
+
   return uuid;
 }
 
@@ -72,7 +78,7 @@ export async function detectInstanceContext(): Promise<InstanceContext> {
   if (process.env["MCP_SERVER_NAME"] === "brooklyn") {
     const scope = (process.env["MCP_SCOPE"] as "user" | "project") || "user";
     const installPath = process.env["MCP_INSTALL_PATH"] || process.cwd();
-    
+
     return {
       type: "claude-code",
       scope,
@@ -80,7 +86,7 @@ export async function detectInstanceContext(): Promise<InstanceContext> {
       projectPath: scope === "project" ? process.cwd() : undefined,
     };
   }
-  
+
   // Check for VSCode/Cursor environment
   if (process.env["TERM_PROGRAM"] === "vscode") {
     return {
@@ -90,7 +96,7 @@ export async function detectInstanceContext(): Promise<InstanceContext> {
       projectPath: process.cwd(),
     };
   }
-  
+
   if (process.env["CURSOR_EDITOR"]) {
     return {
       type: "cursor",
@@ -99,7 +105,7 @@ export async function detectInstanceContext(): Promise<InstanceContext> {
       projectPath: process.cwd(),
     };
   }
-  
+
   // Check parent process for additional detection
   try {
     const ppid = process.ppid;
@@ -110,7 +116,7 @@ export async function detectInstanceContext(): Promise<InstanceContext> {
   } catch {
     // Process detection not available
   }
-  
+
   // Default to CLI mode
   return {
     type: "cli",
@@ -130,18 +136,18 @@ export async function getStableInstanceId(): Promise<{
   displayName: string;
   context: InstanceContext;
 }> {
-  if (cachedInstanceId) {
+  if (cachedInstanceId && cachedDisplayName) {
     return {
       id: cachedInstanceId,
-      displayName: cachedDisplayName!,
+      displayName: cachedDisplayName,
       context: await detectInstanceContext(),
     };
   }
-  
+
   const context = await detectInstanceContext();
   cachedInstanceId = generateStableInstanceId(context);
   cachedDisplayName = generateReadableInstanceId(context);
-  
+
   return {
     id: cachedInstanceId,
     displayName: cachedDisplayName,
