@@ -1,12 +1,16 @@
 {
   "name": "fulmen-mcp-forge-brooklyn",
-  "version": "1.4.3",
+  "version": "1.4.9",
   "description": "Enterprise-ready MCP server for browser automation with multi-team support",
   "type": "module",
   "private": true,
   "main": "dist/index.js",
   "module": "src/index.ts",
   "scripts": {
+    "test:cleanup": "brooklyn cleanup --mcp || true && brooklyn cleanup --mcp-all --force || true",
+    "test:safe": "if [ \"$BROOKLYN_CLEAN_BEFORE_TESTS\" = \"1\" ]; then bun run test:cleanup; fi && vitest run",
+    "check-all:safe": "bun run format && bun run typecheck && bun run lint && BROOKLYN_CLEAN_BEFORE_TESTS=1 bun run test:safe",
+    "test:ci:safe": "BROOKLYN_CLEAN_BEFORE_TESTS=1 bun run test:safe",
     "dev": "bun run --watch src/index.ts",
     "build": "bun scripts/extract-help-text.ts && mkdir -p dist && bun run version:embed && bun build src/cli/brooklyn.ts --outfile dist/brooklyn --target node --external playwright --external @playwright/test --external electron && chmod +x dist/brooklyn",
     "setup": "bun install",

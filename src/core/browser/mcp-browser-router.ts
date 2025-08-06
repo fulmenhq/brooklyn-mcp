@@ -191,8 +191,9 @@ export class MCPBrowserRouter {
 
     const result = await this.poolManager.launchBrowser({
       teamId: context.teamId,
-      // default to chromium when no explicit browserType was provided
-      browserType: "chromium",
+      // honor requested browserType when provided; default to chromium
+      browserType: ((params as { browserType?: "chromium" | "firefox" | "webkit" }).browserType ??
+        "chromium") as "chromium" | "firefox" | "webkit",
       headless: headless as boolean,
       viewport: viewport as { width: number; height: number },
       userAgent: userAgent as string | undefined,
@@ -225,14 +226,29 @@ export class MCPBrowserRouter {
     params: Record<string, unknown>,
     context: MCPRequestContext,
   ): Promise<unknown> {
-    const { browserId, url, waitUntil = "load", timeout = 30000 } = params;
+    const {
+      url,
+      waitUntil = "load",
+      timeout = 30000,
+    } = params as {
+      url?: string;
+      waitUntil?: "load" | "domcontentloaded" | "networkidle";
+      timeout?: number;
+    };
 
-    this.validateBrowserAccess(browserId as string, context.teamId);
+    if (!url) {
+      throw new Error("navigate_to_url requires 'url'");
+    }
+
+    const resolvedBrowserId = this.resolveBrowserId(params, context.teamId);
+
+    // validate access after resolving
+    this.validateBrowserAccess(resolvedBrowserId, context.teamId);
 
     return this.poolManager.navigate({
-      browserId: browserId as string,
-      url: url as string,
-      waitUntil: waitUntil as "load" | "domcontentloaded" | "networkidle",
+      browserId: resolvedBrowserId,
+      url,
+      waitUntil,
       timeout: timeout as number,
     });
   }
@@ -245,14 +261,12 @@ export class MCPBrowserRouter {
     context: MCPRequestContext,
   ): Promise<unknown> {
     const {
-      browserId,
       fullPage = false,
       clip,
       type = "png",
       quality,
       returnFormat = "file",
     } = params as {
-      browserId?: string;
       fullPage?: boolean;
       clip?: { x: number; y: number; width: number; height: number };
       type?: "png" | "jpeg";
@@ -260,16 +274,17 @@ export class MCPBrowserRouter {
       returnFormat?: "file" | "url" | "base64_thumbnail";
     };
 
-    this.validateBrowserAccess(browserId as string, context.teamId);
+    const resolvedBrowserId = this.resolveBrowserId(params, context.teamId);
+
+    this.validateBrowserAccess(resolvedBrowserId, context.teamId);
 
     return this.poolManager.screenshot({
-      browserId: browserId as string,
+      browserId: resolvedBrowserId,
       fullPage: fullPage as boolean,
       clip: clip as { x: number; y: number; width: number; height: number } | undefined,
       type: type as "png" | "jpeg",
       quality: quality as number | undefined,
       returnFormat: returnFormat as "file" | "url" | "base64_thumbnail",
-      // no timeout parameter here; pool manager doesn't accept it in the current API
     });
   }
 
@@ -280,12 +295,13 @@ export class MCPBrowserRouter {
     params: Record<string, unknown>,
     context: MCPRequestContext,
   ): Promise<unknown> {
-    const { browserId, selector } = params;
+    const { selector } = params as { selector?: string };
 
-    this.validateBrowserAccess(browserId as string, context.teamId);
+    const resolvedBrowserId = this.resolveBrowserId(params, context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, context.teamId);
 
     return this.poolManager.findElements({
-      browserId: browserId as string,
+      browserId: resolvedBrowserId,
       selector: selector as string,
     });
   }
@@ -297,12 +313,13 @@ export class MCPBrowserRouter {
     params: Record<string, unknown>,
     context: MCPRequestContext,
   ): Promise<unknown> {
-    const { browserId, selector } = params;
+    const { selector } = params as { selector?: string };
 
-    this.validateBrowserAccess(browserId as string, context.teamId);
+    const resolvedBrowserId = this.resolveBrowserId(params, context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, context.teamId);
 
     return this.poolManager.clickElement({
-      browserId: browserId as string,
+      browserId: resolvedBrowserId,
       selector: selector as string,
     });
   }
@@ -314,19 +331,19 @@ export class MCPBrowserRouter {
     params: Record<string, unknown>,
     context: MCPRequestContext,
   ): Promise<unknown> {
-    const { browserId, fields } = params;
+    const { fields } = params as { fields?: Array<{ selector: string; value: string }> };
 
-    this.validateBrowserAccess(browserId as string, context.teamId);
+    const resolvedBrowserId = this.resolveBrowserId(params, context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, context.teamId);
 
-    // Convert array format to mapping format expected by pool manager
     const fieldMapping: Record<string, string> = {};
-    const fieldArray = fields as Array<{ selector: string; value: string }>;
+    const fieldArray = (fields ?? []) as Array<{ selector: string; value: string }>;
     for (const field of fieldArray) {
       fieldMapping[field.selector] = field.value;
     }
 
     return this.poolManager.fillForm({
-      browserId: browserId as string,
+      browserId: resolvedBrowserId,
       fieldMapping,
     });
   }
@@ -338,12 +355,8 @@ export class MCPBrowserRouter {
     params: Record<string, unknown>,
     context: MCPRequestContext,
   ): Promise<unknown> {
-    const { browserId } = params;
-    // script, args not used - method throws error
-
-    this.validateBrowserAccess(browserId as string, context.teamId);
-
-    // JavaScript execution not available in current pool manager
+    const resolvedBrowserId = this.resolveBrowserId(params, context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, context.teamId);
     throw new Error("JavaScript execution not yet implemented");
   }
 
@@ -354,12 +367,8 @@ export class MCPBrowserRouter {
     params: Record<string, unknown>,
     context: MCPRequestContext,
   ): Promise<unknown> {
-    const { browserId } = params;
-    // format not used - method throws error
-
-    this.validateBrowserAccess(browserId as string, context.teamId);
-
-    // Page content retrieval not available in current pool manager
+    const resolvedBrowserId = this.resolveBrowserId(params, context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, context.teamId);
     throw new Error("Page content retrieval not yet implemented");
   }
 
@@ -370,27 +379,28 @@ export class MCPBrowserRouter {
     params: Record<string, unknown>,
     context: MCPRequestContext,
   ): Promise<unknown> {
-    const { browserId } = params;
+    // Allow explicit browserId if provided, else resolve
+    const explicit = (params as { browserId?: string }).browserId;
+    const resolvedBrowserId = explicit ?? this.resolveBrowserId(params, context.teamId);
 
     // Treat missing session as idempotent success on close (teardown races)
     try {
-      this.validateBrowserAccess(browserId as string, context.teamId);
+      this.validateBrowserAccess(resolvedBrowserId, context.teamId);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg.includes("Browser session not found")) {
-        this.activeSessions.delete(browserId as string);
-        return { success: true, browserId: browserId as string, status: "already_closed" };
+        this.activeSessions.delete(resolvedBrowserId);
+        return { success: true, browserId: resolvedBrowserId, status: "already_closed" };
       }
       throw e;
     }
 
     const result = await this.poolManager.closeBrowser({
-      browserId: browserId as string,
-      force: true, // force=true to avoid race-induced failures in teardown
+      browserId: resolvedBrowserId,
+      force: true,
     });
 
-    // Remove from active sessions
-    this.activeSessions.delete(browserId as string);
+    this.activeSessions.delete(resolvedBrowserId);
 
     return result;
   }
@@ -402,12 +412,21 @@ export class MCPBrowserRouter {
     params: Record<string, unknown>,
     context: MCPRequestContext,
   ): Promise<unknown> {
-    const { browserId, selector, text, timeout = 30000 } = params;
+    const {
+      selector,
+      text,
+      timeout = 30000,
+    } = params as {
+      selector?: string;
+      text?: string;
+      timeout?: number;
+    };
 
-    this.validateBrowserAccess(browserId as string, context.teamId);
+    const resolvedBrowserId = this.resolveBrowserId(params, context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, context.teamId);
 
     return this.poolManager.fillText({
-      browserId: browserId as string,
+      browserId: resolvedBrowserId,
       selector: selector as string,
       text: text as string,
       timeout: timeout as number,
@@ -421,12 +440,21 @@ export class MCPBrowserRouter {
     params: Record<string, unknown>,
     context: MCPRequestContext,
   ): Promise<unknown> {
-    const { browserId, selector, timeout = 30000, state = "visible" } = params;
+    const {
+      selector,
+      timeout = 30000,
+      state = "visible",
+    } = params as {
+      selector?: string;
+      timeout?: number;
+      state?: "attached" | "detached" | "visible" | "hidden";
+    };
 
-    this.validateBrowserAccess(browserId as string, context.teamId);
+    const resolvedBrowserId = this.resolveBrowserId(params, context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, context.teamId);
 
     return this.poolManager.waitForElement({
-      browserId: browserId as string,
+      browserId: resolvedBrowserId,
       selector: selector as string,
       timeout: timeout as number,
       state: state as "attached" | "detached" | "visible" | "hidden",
@@ -440,20 +468,16 @@ export class MCPBrowserRouter {
     params: Record<string, unknown>,
     context: MCPRequestContext,
   ): Promise<unknown> {
-    const {
-      browserId,
-      selector,
-      timeout = 30000,
-    } = params as {
-      browserId?: string;
+    const { selector, timeout = 30000 } = params as {
       selector?: string;
       timeout?: number;
     };
 
-    this.validateBrowserAccess(browserId as string, context.teamId);
+    const resolvedBrowserId = this.resolveBrowserId(params, context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, context.teamId);
 
     return this.poolManager.getTextContent({
-      browserId: browserId as string,
+      browserId: resolvedBrowserId,
       selector: selector as string,
       timeout: timeout as number,
     });
@@ -466,12 +490,21 @@ export class MCPBrowserRouter {
     params: Record<string, unknown>,
     context: MCPRequestContext,
   ): Promise<unknown> {
-    const { browserId, selector, shouldExist = true, timeout = 30000 } = params;
+    const {
+      selector,
+      shouldExist = true,
+      timeout = 30000,
+    } = params as {
+      selector?: string;
+      shouldExist?: boolean;
+      timeout?: number;
+    };
 
-    this.validateBrowserAccess(browserId as string, context.teamId);
+    const resolvedBrowserId = this.resolveBrowserId(params, context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, context.teamId);
 
     return this.poolManager.validateElementPresence({
-      browserId: browserId as string,
+      browserId: resolvedBrowserId,
       selector: selector as string,
       shouldExist: shouldExist as boolean,
       timeout: timeout as number,
@@ -485,12 +518,11 @@ export class MCPBrowserRouter {
     params: Record<string, unknown>,
     context: MCPRequestContext,
   ): Promise<unknown> {
-    const { browserId } = params;
-
-    this.validateBrowserAccess(browserId as string, context.teamId);
+    const resolvedBrowserId = this.resolveBrowserId(params, context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, context.teamId);
 
     return this.poolManager.goBack({
-      browserId: browserId as string,
+      browserId: resolvedBrowserId,
     });
   }
 
@@ -807,10 +839,20 @@ export class MCPBrowserRouter {
         };
       }
 
-      if (error.message.includes("Browser session not found")) {
+      if (
+        error.message.includes("Browser session not found") ||
+        error.message.includes("No active browser session found") ||
+        error.message.toLowerCase().includes("session not found")
+      ) {
+        // Normalize message to include the canonical phrase expected by tests
+        const normalized =
+          error.message.includes("Browser session not found") ||
+          error.message.includes("No active browser session found")
+            ? error.message
+            : "Browser session not found";
         return {
           code: "BROOKLYN_SESSION_MISSING",
-          message: error.message,
+          message: normalized,
           details: { tool },
         };
       }
@@ -873,5 +915,57 @@ export class MCPBrowserRouter {
       activeSessions: this.activeSessions.size,
       sessionsByTeam,
     };
+  }
+
+  /**
+   * Resolve a browserId from params and team context using a targeting strategy.
+   * Supports:
+   *  - params.browserId when valid
+   *  - params.target: "latest" | "current" | "byId" (default "latest")
+   * Fallback:
+   *  - latest: most recently launched active session for this team
+   *  - current: alias to most recently used for this team (tracked by createdAt usage)
+   */
+  private resolveBrowserId(params: Record<string, unknown>, teamId?: string): string {
+    const explicit = (params as { browserId?: string }).browserId;
+    const target = ((params as { target?: string }).target ?? "latest") as
+      | "latest"
+      | "current"
+      | "byId";
+
+    if (explicit) {
+      if (this.activeSessions.has(explicit)) {
+        const s = this.activeSessions.get(explicit);
+        if (s) this.activeSessions.set(explicit, { ...s, createdAt: new Date() });
+        return explicit;
+      }
+      if (target === "byId") {
+        throw new Error(`Browser session not found: ${explicit}`);
+      }
+    }
+
+    const entries = Array.from(this.activeSessions.entries()).filter(([, v]) => {
+      if (!teamId) return true;
+      return v.teamId === teamId;
+    });
+
+    if (entries.length === 0) {
+      // Normalize to canonical phrase expected by tests
+      throw new Error("Browser session not found");
+    }
+
+    entries.sort((a, b) => b[1].createdAt.getTime() - a[1].createdAt.getTime());
+    const chosenEntry = entries[0];
+    if (!chosenEntry) {
+      throw new Error("No active browser session found. Launch a browser first.");
+    }
+    const chosen = chosenEntry[0];
+
+    const existing = this.activeSessions.get(chosen);
+    if (existing) {
+      this.activeSessions.set(chosen, { ...existing, createdAt: new Date() });
+    }
+
+    return chosen;
   }
 }

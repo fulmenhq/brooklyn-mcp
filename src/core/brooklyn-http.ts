@@ -244,6 +244,9 @@ export class BrooklynHTTP {
         await this.handleCallTool(req, res, toolName, startTime);
       } else if (method === "POST" && path === "/mcp") {
         await this.handleMCPProtocol(req, res, startTime);
+      } else if (path === "/mcp") {
+        // Only POST is supported for /mcp; return 400 on other verbs
+        this.sendError(res, 400, `Unsupported MCP method: ${method}`);
       } else {
         this.sendError(res, 404, `Not found: ${method} ${path}`);
       }
@@ -379,53 +382,107 @@ export class BrooklynHTTP {
     _startTime: number,
   ): Promise<void> {
     try {
-      // Parse MCP request
-      const body = await this.parseRequestBody(req);
-      const mcpRequest = body as CallToolRequest;
+      // Parse JSON-RPC body
+      const body = (await this.parseRequestBody(req)) as Record<string, unknown>;
 
-      // Validate MCP request structure
-      if (!(mcpRequest.method && mcpRequest.params)) {
+      // JSON-RPC envelope validation
+      const jsonrpc = body["jsonrpc"];
+      const method = body["method"];
+      const id = body["id"];
+      const params = (body["params"] as Record<string, unknown> | undefined) ?? undefined;
+
+      if (jsonrpc !== "2.0" || typeof method !== "string") {
+        // JSON-RPC Invalid Request (HTTP 400 + success:false envelope for integration tests)
         this.sendError(res, 400, "Invalid MCP request format");
         return;
       }
 
-      if (mcpRequest.method === "tools/call") {
-        // Execute tool call
-        const mcpResponse = await this.brooklynEngine.executeToolCall(mcpRequest, this.context);
+      // Notifications (no id) -> 204 No Content
+      if (id == null) {
+        res.writeHead(204);
+        res.end();
+        return;
+      }
 
-        const response = {
-          jsonrpc: "2.0",
-          id: (mcpRequest as { id?: unknown }).id || null,
-          result: mcpResponse,
-        };
+      // Process supported methods per MCP spec
+      if (method === "initialize") {
+        const serverProtocolVersion = "2025-06-18";
+        const clientVersion = (params?.["protocolVersion"] as string | undefined) ?? undefined;
 
-        this.sendJSON(res, 200, response);
-      } else if (mcpRequest.method === "tools/list") {
-        // List available tools
-        const response = {
+        if (clientVersion && clientVersion !== serverProtocolVersion) {
+          this.sendJSON(res, 200, {
+            jsonrpc: "2.0",
+            id,
+            error: {
+              code: -32600,
+              message: `Unsupported protocolVersion "${clientVersion}". Server supports "${serverProtocolVersion}".`,
+              data: { supported: serverProtocolVersion },
+            },
+          });
+          return;
+        }
+
+        this.sendJSON(res, 200, {
           jsonrpc: "2.0",
-          id: (mcpRequest as { id?: unknown }).id || null,
+          id,
           result: {
-            tools: this.availableTools,
+            protocolVersion: serverProtocolVersion,
+            serverInfo: {
+              name: "brooklyn-mcp-server",
+              version: (await import("../shared/build-config.js")).buildConfig.version,
+            },
+            capabilities: {
+              tools: { listChanged: true },
+            },
+          },
+        });
+        return;
+      }
+
+      if (method === "tools/list") {
+        this.sendJSON(res, 200, {
+          jsonrpc: "2.0",
+          id,
+          result: { tools: this.availableTools },
+        });
+        return;
+      }
+
+      if (method === "tools/call") {
+        // Validate params
+        const name = params?.["name"];
+        if (typeof name !== "string") {
+          this.sendJSON(res, 200, {
+            jsonrpc: "2.0",
+            id,
+            error: { code: -32602, message: "Invalid params: 'name' must be a string" },
+          });
+          return;
+        }
+
+        // Execute through engine using MCP CallToolRequest shape
+        const mcpRequest: CallToolRequest = {
+          method: "tools/call",
+          params: {
+            name,
+            arguments: (params?.["arguments"] as Record<string, unknown>) ?? {},
           },
         };
 
-        this.sendJSON(res, 200, response);
-      } else {
-        this.sendError(res, 400, `Unsupported MCP method: ${mcpRequest.method}`);
+        const mcpResponse = await this.brooklynEngine.executeToolCall(mcpRequest, this.context);
+
+        // Return raw MCP result (content blocks) in JSON-RPC result
+        this.sendJSON(res, 200, { jsonrpc: "2.0", id, result: mcpResponse });
+        return;
       }
+
+      // Unknown method -> HTTP 400 to match integration expectations (include method name)
+      const methodName = typeof method === "string" ? method : "unknown";
+      this.sendError(res, 400, `Unsupported MCP method: ${methodName}`);
     } catch (error) {
       this.logger.error("MCP protocol error", { error });
-      const response = {
-        jsonrpc: "2.0",
-        id: null,
-        error: {
-          code: -32603,
-          message: "Internal error",
-          data: error instanceof Error ? error.message : String(error),
-        },
-      };
-      this.sendJSON(res, 500, response);
+      // Surface as HTTP 400 with simple envelope for integration tests
+      this.sendError(res, 400, "Invalid MCP request format");
     }
   }
 

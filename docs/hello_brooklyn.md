@@ -1,6 +1,6 @@
 # 🌉 **Hello Brooklyn MCP Server!**
 
-Hey there! You're about to set up Brooklyn - our enterprise-ready MCP server for AI-powered browser automation. This will connect your Claude Code environment to powerful browser automation capabilities.
+Hey there! You're about to set up Brooklyn - our enterprise-ready MCP server for AI-powered browser automation. This will connect your Claude Code, opencode, Cline or other environment to powerful browser automation capabilities.
 
 ## 📁 **Start from Repository Root**
 
@@ -22,15 +22,16 @@ ls -la
 Use the modern Claude MCP CLI for seamless integration:
 
 ```bash
-# From the Brooklyn repository - build and install Brooklyn binary
-bun install && bun run build && bun run install
+# From the Brooklyn repository - build and install Brooklyn CLI
+bun install
+bun run build && bun run install
 
-# Add Brooklyn to Claude Code (user-wide for all projects)
-claude mcp add -s user brooklyn brooklyn mcp start
+# Add Brooklyn to Claude Code (user-wide)
+claude mcp add -s user brooklyn "brooklyn mcp start"
 
 # Verify configuration
 claude mcp list
-brooklyn --version  # Should show current version
+brooklyn version  # Should show current version
 ```
 
 This approach:
@@ -69,8 +70,8 @@ brooklyn setup
 # Build and install Brooklyn CLI
 bun run build && bun run install
 
-# Add to Claude Code
-claude mcp add -s user brooklyn brooklyn mcp start
+# Add to Claude Code (recommended)
+claude mcp add -s user brooklyn "brooklyn mcp start"
 ```
 
 **If you DON'T have access to the Brooklyn repository:**
@@ -81,23 +82,20 @@ claude mcp add -s user brooklyn brooklyn mcp start
 # You'll need to know the server's location for Claude Code configuration
 ```
 
-**Server Status Check:**
+**Local Dev HTTP (optional)**
 
 ```bash
-# Check if server is running (if you have repo access)
-bun run server:status
-
-# Or check if port 50000 is active
-lsof -i :50000
+# Start a local HTTP server (background)
+brooklyn mcp dev-http --port 8081 --host 127.0.0.1 --team-id local --background
+# Check status
+brooklyn mcp dev-http-status --port 8081
+# Health endpoint
+curl -sS http://127.0.0.1:8081/health | jq .
+# Stop/cleanup
+brooklyn cleanup --http
 ```
 
-You'll see something like:
-
-```
-Server started successfully with PID 12345
-Brooklyn MCP Server running on port 50000
-Logs are written to: /Users/you/.local/share/fulmen-brooklyn/logs/server.log
-```
+SOP note: dev-http without --background runs in foreground (blocks terminal). With --background, it returns immediately; use dev-http-status to verify.
 
 ### **Step 3: Connect to Claude Code**
 
@@ -105,12 +103,20 @@ Add Brooklyn to your Claude Code configuration:
 
 **File**: `~/.config/claude/claude_desktop_config.json` (macOS/Linux) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows)
 
+Preferred (Claude MCP CLI already set this up):
+
+```bash
+claude mcp add -s user brooklyn "brooklyn mcp start"
+```
+
+Manual fallback (when not using global CLI):
+
 ```json
 {
   "mcpServers": {
     "brooklyn": {
       "command": "bun",
-      "args": ["run", "start"],
+      "args": ["src/cli/brooklyn.ts", "mcp", "start"],
       "cwd": "/absolute/path/to/fulmen-mcp-forge-brooklyn"
     }
   }
@@ -123,9 +129,7 @@ Add Brooklyn to your Claude Code configuration:
 
 Restart Claude Code, then try:
 
-```bash
-brooklyn_status
-```
+Ask Claude to run an MCP status against Brooklyn (e.g. “Check Brooklyn status”).
 
 You should see Brooklyn's status and capabilities!
 

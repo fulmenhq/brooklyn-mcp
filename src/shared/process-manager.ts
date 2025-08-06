@@ -126,14 +126,30 @@ export class BrooklynProcessManager {
 
     const command = parts.slice(10).join(" ");
 
-    // Determine process type based on command
-    let type: BrooklynProcess["type"] = "mcp-stdio";
+    // Explicitly exclude known false positives:
+    //  - biome servers / lsp proxies
+    //  - our own status invocations
+    const lower = command.toLowerCase();
+    if (
+      lower.includes("biome") ||
+      lower.includes("lsp-proxy") ||
+      // exclude self "brooklyn status" or similar
+      (lower.includes("brooklyn") && lower.includes("status"))
+    ) {
+      return null;
+    }
+
+    // Determine process type based on precise brooklyn command patterns
+    // Only classify mcp-stdio if it's an actual brooklyn stdio start
+    let type: BrooklynProcess["type"] | null = null;
     let port: number | undefined;
+
     // teamId may be absent
     const teamIdMatch = command.match(/--team-id\s+([^\s]+)/);
     const teamId: string | undefined = teamIdMatch?.[1];
 
-    if (command.includes("dev-http")) {
+    // HTTP dev server detection
+    if (command.includes("mcp dev-http") || command.includes("dev-http-daemon")) {
       type = "http-server";
       const portMatch = command.match(/--port\s+(\d+)/);
       port = portMatch?.[1] ? Number.parseInt(portMatch[1], 10) : undefined;
@@ -141,9 +157,25 @@ export class BrooklynProcessManager {
       type = "repl-session";
     } else if (command.includes("dev-start") || command.includes("dev-mode")) {
       type = "dev-mode";
+    } else {
+      // Strict stdio detection: match only known brooklyn stdio start invocations
+      const isBrooklynStdio =
+        // direct ts entry via bun
+        /bun\s+[^\n]*src\/cli\/brooklyn\.ts\s+mcp\s+start(\s|$)/.test(command) ||
+        // compiled dist binary usage
+        /dist\/brooklyn(\.exe)?\s+mcp\s+start(\s|$)/.test(command) ||
+        // env marker often present in our processes (not always visible via ps)
+        /BROOKLYN_MCP_STDIO=1/.test(command);
+
+      if (isBrooklynStdio) {
+        type = "mcp-stdio";
+      }
     }
 
-    // teamId already extracted above
+    if (!type) {
+      // Not a recognized Brooklyn-managed process
+      return null;
+    }
 
     return {
       pid: pidNum,

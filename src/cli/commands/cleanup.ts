@@ -1,3 +1,7 @@
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync, readdirSync, unlinkSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import type { Command } from "commander";
 
 // Register "brooklyn cleanup" operational command
@@ -6,29 +10,44 @@ export function registerCleanupCommand(program: Command) {
     .description("Cleanup running Brooklyn processes and resources")
     .option("--all", "Cleanup all Brooklyn processes and resources")
     .option("--http", "Cleanup HTTP mode servers")
-    .option("--mcp", "Cleanup MCP mode servers")
+    .option("--mcp", "Cleanup MCP mode servers (managed + unmanaged in current project)")
+    .option("--mcp-all", "Cleanup MCP stdio servers across all projects/scopes")
+    .option("--browsers", "Cleanup stray headless dev-time browser processes (safe heuristics)")
     .option("--force", "Force kill lingering processes if graceful stop fails")
-    .action(async (opts: { all?: boolean; http?: boolean; mcp?: boolean; force?: boolean }) => {
-      const { BrooklynProcessManager } = await import("../../shared/process-manager.js");
-      const pm = BrooklynProcessManager;
+    .action(
+      async (opts: {
+        all?: boolean;
+        http?: boolean;
+        mcp?: boolean;
+        mcpAll?: boolean;
+        browsers?: boolean;
+        force?: boolean;
+      }) => {
+        const { BrooklynProcessManager } = await import("../../shared/process-manager.js");
+        const pm = BrooklynProcessManager;
 
-      const doHttp = Boolean(opts.all || opts.http);
-      const doMcp = Boolean(opts.all || opts.mcp);
+        const doHttp = Boolean(opts.all || opts.http);
+        const doMcp = Boolean(opts.all || opts.mcp);
+        const doBrowsers = Boolean(opts.all || opts.browsers);
 
-      if (doHttp) {
-        await cleanupHttp(pm);
-      }
-      if (doMcp) {
-        await cleanupMcp(pm);
-      }
-      if (opts.force) {
-        await forceKillAll(pm);
-      }
-      await bestEffortScriptCleanup();
+        if (doHttp) {
+          await cleanupHttp(pm);
+        }
+        if (doMcp) {
+          await cleanupMcpAll(pm, { allProjects: Boolean(opts.all || opts.mcpAll) });
+        }
+        if (doBrowsers) {
+          await cleanupBrowsersSafe();
+        }
+        if (opts.force) {
+          await forceKillAll(pm);
+        }
+        await bestEffortScriptCleanup();
 
-      // eslint-disable-next-line no-console
-      console.log("Cleanup completed");
-    });
+        // eslint-disable-next-line no-console
+        console.log("Cleanup completed");
+      },
+    );
 
   // Attach explicitly so Commander registers the subcommand instance correctly
   program.addCommand(cleanup);
@@ -53,17 +72,136 @@ async function cleanupHttp(pm: PM): Promise<void> {
 /**
  * Stop MCP-like processes best-effort
  */
-async function cleanupMcp(pm: PM): Promise<void> {
+async function cleanupMcpAll(pm: PM, opts: { allProjects: boolean }): Promise<void> {
+  // 1) Stop managed stdio by pid files (current project unless allProjects)
+  const managedStopped = await cleanupManagedStdio(opts);
+  for (const res of managedStopped) {
+    // eslint-disable-next-line no-console
+    console.log(
+      `Stopped managed mcp-stdio scope=${res.scope} project=${res.projectKey} pid=${res.pid} stopped=${res.stopped}`,
+    );
+  }
+
+  // 2) Stop unmanaged stdio by process scan (BROOKLYN_MCP_STDIO env marker or cmd pattern)
   const processes = await pm.findAllProcesses();
-  const mcpLike = processes.filter(
-    (p: { type: string }) =>
-      p.type === "mcp-stdio" || p.type === "dev-mode" || p.type === "repl-session",
-  );
-  for (const proc of mcpLike) {
+  const cwd = process.cwd();
+  const projectKey = sha1(cwd);
+
+  // Narrow to mcp-stdio processes
+  const candidates = processes.filter((p) => p.type === "mcp-stdio");
+
+  // Helper to decide if a process belongs to current project when metadata exists
+  const belongsToCurrentProject = (p: {
+    cwd?: string;
+    projectKey?: string;
+  }): boolean => {
+    const pcwd = p.cwd;
+    if (pcwd && pcwd === cwd) return true;
+    const pkey = p.projectKey;
+    if (pkey && pkey === projectKey) return true;
+    return false;
+  };
+
+  // If not cleaning all projects, further narrow by cwd or projectKey when available
+  const filtered = opts.allProjects
+    ? candidates
+    : candidates.filter((p) => {
+        const meta = p as unknown as { cwd?: string; projectKey?: string };
+        // If metadata missing, still attempt to stop (defensive cleanup)
+        // Simplified per biome suggestion to reduce logical complexity
+        if (!(meta.cwd || meta.projectKey)) return true;
+        return belongsToCurrentProject(meta);
+      });
+
+  for (const proc of filtered) {
     const stopped = await pm.stopProcess(proc.pid);
     // eslint-disable-next-line no-console
-    console.log(`Stopped ${proc.type} pid=${proc.pid} stopped=${stopped}`);
+    console.log(
+      `Stopped unmanaged mcp-stdio pid=${proc.pid}${
+        proc.teamId ? ` team=${proc.teamId}` : ""
+      } stopped=${stopped}`,
+    );
   }
+}
+
+function sha1(s: string): string {
+  return createHash("sha1").update(s).digest("hex");
+}
+
+type ManagedStopResult = { scope: string; projectKey: string; pid: number; stopped: boolean };
+
+/**
+ * Cleanup managed stdio entries from pid registry
+ * Registry layout: ~/.brooklyn/mcp/stdio/{scope}/{projectKey}.pid
+ */
+/**
+ * Cleanup managed stdio entries from pid registry
+ * Registry layout: ~/.brooklyn/mcp/stdio/{scope}/{projectKey}.pid
+ *
+ * NOTE: keep structure flat and extract small helpers to reduce cognitive complexity.
+ */
+async function cleanupManagedStdio(opts: { allProjects: boolean }): Promise<ManagedStopResult[]> {
+  const base = join(homedir(), ".brooklyn", "mcp", "stdio");
+  const scopes = ["local", "user"];
+  const currentKey = sha1(process.cwd());
+  const results: ManagedStopResult[] = [];
+
+  const listPidFiles = (dir: string): string[] => {
+    if (!existsSync(dir)) return [];
+    return readdirSync(dir).filter((f) => f.endsWith(".pid"));
+  };
+
+  const readPidFromFile = (pidPath: string): number | undefined => {
+    try {
+      const txt = readFileSync(pidPath, "utf8");
+      const meta = JSON.parse(txt) as { pid?: number };
+      const n = Number(meta?.pid);
+      return Number.isFinite(n) ? n : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+
+  const stopPidBestEffort = (pid?: number): boolean => {
+    if (!Number.isFinite(pid as number)) return false;
+    try {
+      process.kill(pid as number, "SIGTERM");
+      return true;
+    } catch {
+      try {
+        process.kill(pid as number, "SIGKILL");
+        return true;
+      } catch {
+        return false;
+      }
+    }
+  };
+
+  const removePidArtifacts = (pidPath: string): void => {
+    try {
+      unlinkSync(pidPath);
+    } catch {
+      // ignore
+    }
+    // meta is embedded in the pid file content; nothing else to remove
+  };
+
+  for (const scope of scopes) {
+    const scopeDir = join(base, scope);
+    const files = listPidFiles(scopeDir);
+    for (const f of files) {
+      const projectKey = f.replace(/\.pid$/, "");
+      if (!opts.allProjects && projectKey !== currentKey) continue;
+
+      const pidPath = join(scopeDir, f);
+      const pid = readPidFromFile(pidPath);
+      const stopped = stopPidBestEffort(pid);
+      results.push({ scope, projectKey, pid: (pid as number) || -1, stopped });
+      removePidArtifacts(pidPath);
+    }
+  }
+
+  return results;
 }
 
 /**
@@ -98,5 +236,111 @@ async function bestEffortScriptCleanup(): Promise<void> {
     }
   } catch {
     // ignore best-effort
+  }
+}
+
+/**
+ * Best-effort cleanup for stray dev-time headless Chromium processes spawned by local tools
+ * Heuristics:
+ *  - Process command contains '--headless'
+ *  - AND one of:
+ *      * path includes 'puppeteer/.chromium-browser-snapshots'
+ *      * or user-data-dir in a tmp-like path: 'puppeteer_dev_chrome_profile-'
+ */
+async function cleanupBrowsersSafe(): Promise<void> {
+  try {
+    const psOutput = await getPsOutput();
+    const candidates = detectDevBrowserPids(psOutput);
+    await killPids(candidates);
+  } catch {
+    // eslint-disable-next-line no-console
+    console.log("Browser cleanup skipped (ps/kill not available)");
+  }
+}
+
+/**
+ * Execute ps aux and return output
+ */
+async function getPsOutput(): Promise<string> {
+  const { execSync } = await import("node:child_process");
+  return execSync("ps aux", { encoding: "utf8" });
+}
+
+/**
+ * Parse ps aux output and return candidate PIDs matching safe heuristics
+ */
+function detectDevBrowserPids(psOutput: string): Array<{ pid: number; cmd: string }> {
+  const lines = psOutput.split("\n");
+  const candidates: Array<{ pid: number; cmd: string }> = [];
+
+  const snapshotPattern = /saoudrizwan\.claude-dev\/puppeteer\/\.chromium-browser-snapshots/;
+  const anySnapshotPattern = /puppeteer\/\.chromium-browser-snapshots/;
+  const headlessFlag = /--headless/;
+  const puppeteerProfile = /puppeteer_dev_chrome_profile-/;
+  const chromiumRenderer = /Chromium Helper \(Renderer\)/;
+  const chromiumBin = /Chromium\.app\/Contents\/MacOS\/Chromium/;
+
+  for (const line of lines) {
+    const parts = line.trim().split(/\s+/);
+    if (parts.length < 11) continue;
+
+    const pidStr = parts[1];
+    if (!pidStr) continue;
+    const pid = Number.parseInt(pidStr, 10);
+    if (Number.isNaN(pid)) continue;
+
+    const cmdJoined = parts.slice(10).join(" ");
+    const cmd = typeof cmdJoined === "string" ? cmdJoined : "";
+    if (cmd.length === 0) continue;
+
+    const inSnapshotPath =
+      snapshotPattern.test(cmd) || anySnapshotPattern.test(cmd) || puppeteerProfile.test(cmd);
+
+    // (A) Headless Chromium main process with dev-time profile/snapshot path
+    const isHeadlessDev = headlessFlag.test(cmd) && inSnapshotPath;
+
+    // (B) Renderer/utility children spawned under puppeteer snapshot path (may not include --headless)
+    const isRendererChild = chromiumRenderer.test(cmd) && inSnapshotPath;
+
+    // (C) Chromium bin under snapshot path even without explicit --headless (fallback)
+    const isChromiumUnderSnapshot = chromiumBin.test(cmd) && inSnapshotPath;
+
+    if (isHeadlessDev || isRendererChild || isChromiumUnderSnapshot) {
+      candidates.push({ pid, cmd });
+    }
+  }
+
+  return candidates;
+}
+
+/**
+ * Kill PIDs (deduped) with TERM then KILL fallback
+ */
+async function killPids(candidates: Array<{ pid: number; cmd: string }>): Promise<void> {
+  if (candidates.length === 0) {
+    // eslint-disable-next-line no-console
+    console.log("No stray headless dev-time browser processes detected");
+    return;
+  }
+
+  const seen = new Set<number>();
+  for (const c of candidates) {
+    if (seen.has(c.pid)) continue;
+    seen.add(c.pid);
+
+    try {
+      process.kill(c.pid, "SIGTERM" as NodeJS.Signals);
+      // eslint-disable-next-line no-console
+      console.log(`Terminated headless dev browser pid=${c.pid}`);
+    } catch {
+      try {
+        process.kill(c.pid, "SIGKILL" as NodeJS.Signals);
+        // eslint-disable-next-line no-console
+        console.log(`Force killed headless dev browser pid=${c.pid}`);
+      } catch {
+        // eslint-disable-next-line no-console
+        console.log(`Failed to kill headless dev browser pid=${c.pid}`);
+      }
+    }
   }
 }

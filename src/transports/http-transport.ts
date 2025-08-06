@@ -19,7 +19,14 @@ export class MCPHTTPTransport implements Transport {
   readonly name = "mcp-http";
   readonly type = TransportType.HTTP;
 
-  private logger = getLogger("mcp-http-transport");
+  // Lazy logger to avoid module-level side effects and stdout pollution
+  private _logger: ReturnType<typeof getLogger> | null = null;
+  private logger() {
+    if (!this._logger) {
+      this._logger = getLogger("mcp-http-transport");
+    }
+    return this._logger;
+  }
   private readonly config: HTTPConfig;
   private server: ReturnType<typeof createServer> | null = null;
   private running = false;
@@ -31,7 +38,7 @@ export class MCPHTTPTransport implements Transport {
   }
 
   async initialize(): Promise<void> {
-    this.logger.info("Initializing MCP HTTP transport", {
+    this.logger().info("Initializing MCP HTTP transport", {
       port: this.config.options.port,
       host: this.config.options.host || "localhost",
     });
@@ -40,7 +47,7 @@ export class MCPHTTPTransport implements Transport {
       try {
         await this.handleRequest(req, res);
       } catch (error) {
-        this.logger.error("MCP HTTP request error", {
+        this.logger().error("MCP HTTP request error", {
           url: req.url,
           method: req.method,
           error: error instanceof Error ? error.message : String(error),
@@ -63,13 +70,13 @@ export class MCPHTTPTransport implements Transport {
     });
 
     this.server.on("error", (error) => {
-      this.logger.error("MCP HTTP server error", { error: error.message });
+      this.logger().error("MCP HTTP server error", { error: error.message });
     });
   }
 
   async start(): Promise<void> {
     if (this.running) {
-      this.logger.warn("MCP HTTP transport already running");
+      this.logger().warn("MCP HTTP transport already running");
       return;
     }
 
@@ -77,7 +84,7 @@ export class MCPHTTPTransport implements Transport {
       throw new Error("MCP HTTP transport not initialized");
     }
 
-    this.logger.info("Starting MCP HTTP transport");
+    this.logger().info("Starting MCP HTTP transport");
 
     return new Promise((resolve, reject) => {
       if (!this.server) {
@@ -87,7 +94,7 @@ export class MCPHTTPTransport implements Transport {
 
       this.server.listen(this.config.options.port, this.config.options.host || "localhost", () => {
         this.running = true;
-        this.logger.info("MCP HTTP transport started", {
+        this.logger().info("MCP HTTP transport started", {
           port: this.config.options.port,
           host: this.config.options.host || "localhost",
         });
@@ -95,7 +102,7 @@ export class MCPHTTPTransport implements Transport {
       });
 
       this.server.on("error", (error) => {
-        this.logger.error("Failed to start MCP HTTP transport", { error: error.message });
+        this.logger().error("Failed to start MCP HTTP transport", { error: error.message });
         this.running = false;
         reject(error);
       });
@@ -104,16 +111,16 @@ export class MCPHTTPTransport implements Transport {
 
   async stop(): Promise<void> {
     if (!this.running) {
-      this.logger.warn("MCP HTTP transport not running");
+      this.logger().warn("MCP HTTP transport not running");
       return;
     }
 
     if (!this.server) {
-      this.logger.warn("MCP HTTP server not initialized");
+      this.logger().warn("MCP HTTP server not initialized");
       return;
     }
 
-    this.logger.info("Stopping MCP HTTP transport");
+    this.logger().info("Stopping MCP HTTP transport");
 
     return new Promise((resolve, reject) => {
       if (!this.server) {
@@ -123,11 +130,11 @@ export class MCPHTTPTransport implements Transport {
 
       this.server.close((error) => {
         if (error) {
-          this.logger.error("Error stopping MCP HTTP transport", { error: error.message });
+          this.logger().error("Error stopping MCP HTTP transport", { error: error.message });
           reject(error);
         } else {
           this.running = false;
-          this.logger.info("MCP HTTP transport stopped");
+          this.logger().info("MCP HTTP transport stopped");
           resolve();
         }
       });
@@ -158,6 +165,7 @@ export class MCPHTTPTransport implements Transport {
     const msg = body as Record<string, unknown>;
 
     if (!(msg["jsonrpc"] && msg["method"])) {
+      // JSON-RPC 2.0: Invalid Request
       res.statusCode = 400;
       res.setHeader("Content-Type", "application/json");
       res.end(
@@ -199,54 +207,90 @@ export class MCPHTTPTransport implements Transport {
     const id = msg["id"];
 
     switch (method) {
-      case "initialize":
+      case "initialize": {
+        // Spec: server declares its supported protocol version; optionally validate client version
+        const clientVersion = (params?.["protocolVersion"] as string | undefined) ?? undefined;
+        const serverProtocolVersion = "2025-06-18";
+
+        if (clientVersion && clientVersion !== serverProtocolVersion) {
+          // Version mismatch: return JSON-RPC error with informative message
+          return {
+            jsonrpc: "2.0",
+            id,
+            error: {
+              code: -32600,
+              message: `Unsupported protocolVersion "${clientVersion}". Server supports "${serverProtocolVersion}".`,
+              data: { supported: serverProtocolVersion },
+            },
+          };
+        }
+
         return {
           jsonrpc: "2.0",
           id,
           result: {
-            protocolVersion: params?.["protocolVersion"] || "2025-06-18",
+            protocolVersion: serverProtocolVersion,
             serverInfo: { name: "brooklyn-mcp-server", version: buildConfig.version },
             capabilities: {
               tools: { listChanged: true },
-              resources: {},
-              roots: {},
             },
           },
         };
-      case "tools/list":
-        if (!this.toolListHandler) throw new Error("Tool list handler not set");
-        return { jsonrpc: "2.0", id, result: await this.toolListHandler() };
+      }
+      case "tools/list": {
+        if (!this.toolListHandler) {
+          return this.createJsonRpcError(id, -32601, "Method not found: tools/list");
+        }
+        const list = await this.toolListHandler();
+        return { jsonrpc: "2.0", id, result: list };
+      }
       case "tools/call": {
-        if (!this.toolCallHandler) throw new Error("Tool call handler not set");
+        if (!this.toolCallHandler) {
+          return this.createJsonRpcError(id, -32601, "Method not found: tools/call");
+        }
         const callParams = params ?? {};
-        if (typeof callParams["name"] !== "string")
-          throw new Error("Missing or invalid 'name' in params");
+        if (typeof callParams["name"] !== "string") {
+          return this.createJsonRpcError(id, -32602, "Invalid params: 'name' must be a string");
+        }
         const args = (callParams["arguments"] ?? {}) as Record<string, unknown>;
         const toolInput = {
           name: callParams["name"] as string,
           arguments: args,
         };
+        const result = await this.toolCallHandler({
+          params: toolInput,
+          method,
+        });
         return {
           jsonrpc: "2.0",
           id,
-          result: await this.toolCallHandler({
-            params: toolInput,
-            method,
-          }),
+          result,
         };
       }
       default:
-        throw new Error("Method not found");
+        return this.createJsonRpcError(id, -32601, "Method not found");
     }
   }
 
   private createErrorResponse(id: unknown, error: unknown): Record<string, unknown> {
+    // Map thrown errors to JSON-RPC Internal error by default
+    const message = error instanceof Error ? error.message : String(error);
+    return this.createJsonRpcError(id, -32603, message);
+  }
+
+  private createJsonRpcError(
+    id: unknown,
+    code: number,
+    message: string,
+    data?: unknown,
+  ): Record<string, unknown> {
     return {
       jsonrpc: "2.0",
       id,
       error: {
-        code: -32600,
-        message: error instanceof Error ? error.message : String(error),
+        code,
+        message,
+        ...(data !== undefined ? { data } : {}),
       },
     };
   }

@@ -30,14 +30,15 @@ export class MCPStdioTransport implements Transport {
   readonly name = "mcp-stdio";
   readonly type = TransportType.MCP_STDIO;
 
-  private logger: ReturnType<typeof getLogger> | null = null;
+  // Lazy logger to avoid module-level side effects and stdout pollution
+  private _logger: ReturnType<typeof getLogger> | null = null;
   private readonly config: MCPStdioConfig;
 
-  private getLogger() {
-    if (!this.logger) {
-      this.logger = getLogger("mcp-stdio-transport");
+  private logger() {
+    if (!this._logger) {
+      this._logger = getLogger("mcp-stdio-transport");
     }
-    return this.logger;
+    return this._logger;
   }
 
   private running = false;
@@ -78,7 +79,7 @@ export class MCPStdioTransport implements Transport {
 
     // Handle data events
     process.stdin.on("data", (chunk: string | Buffer | undefined) => {
-      this.getLogger().debug("Received stdin data", { length: chunk?.length });
+      this.logger().debug("Received stdin data", { length: chunk?.length });
       if (!chunk) return;
       buffer += typeof chunk === "string" ? chunk : chunk.toString();
 
@@ -89,7 +90,7 @@ export class MCPStdioTransport implements Transport {
       for (let i = 0; i < lines.length - 1; i++) {
         const line = lines[i];
         if (line?.trim()) {
-          this.getLogger().debug("Processing line", { line: line.trim() });
+          this.logger().debug("Processing line", { line: line.trim() });
           // Use setImmediate to avoid blocking
           setImmediate(() => this.handleIncomingMessage(line.trim()));
         }
@@ -111,7 +112,7 @@ export class MCPStdioTransport implements Transport {
     process.stdin.on("error", (err) => {
       // Log error but don't crash
       try {
-        this.getLogger().error("Stdin error", { error: err.message });
+        this.logger().error("Stdin error", { error: err.message });
       } catch {
         // Ignore logging errors
       }
@@ -126,69 +127,76 @@ export class MCPStdioTransport implements Transport {
   }
 
   private async handleIncomingMessage(line: string): Promise<void> {
-    this.getLogger().debug("Handling message", { line });
+    this.logger().debug("Handling message", { line });
     try {
       const msg = JSON.parse(line);
-      this.getLogger().debug("Parsed message", { msg });
+      this.logger().debug("Parsed message", { msg });
 
       // CRITICAL: MCP requires proper JSON-RPC structure
-      // The server will ONLY respond to messages with both jsonrpc and method fields
       if (!(msg.jsonrpc && msg.method)) return;
 
       // Handle notifications (no id) vs requests (with id)
       const isNotification = !("id" in msg) || msg.id === null;
       if (isNotification) {
-        // Handle notifications like "notifications/initialized"
         if (msg.method === "notifications/initialized") {
-          // Client has completed initialization, no response needed
           return;
         }
-        // Ignore other notifications for now
         return;
       }
 
       let response: any;
-      try {
-        if (msg.method === "initialize") {
-          // CRITICAL: This is the FIRST request that MUST be sent by any MCP client
-          // The server will NOT respond to ANY other request until this is received
-          // Required fields: protocolVersion, capabilities, clientInfo
-          this.getLogger().debug("Handling initialize request", { params: msg.params });
-          // Accept Claude's protocol version if provided, otherwise use default
-          const requestedVersion = msg.params?.protocolVersion || "2024-11-05";
+
+      if (msg.method === "initialize") {
+        this.logger().debug("Handling initialize request", { params: msg.params });
+        const serverProtocolVersion = "2025-06-18";
+        const requestedVersion = (msg.params?.protocolVersion as string | undefined) ?? undefined;
+
+        if (requestedVersion && requestedVersion !== serverProtocolVersion) {
+          response = this.createJsonRpcError(
+            msg.id,
+            -32600,
+            `Unsupported protocolVersion "${requestedVersion}". Server supports "${serverProtocolVersion}".`,
+            { supported: serverProtocolVersion },
+          );
+        } else {
           response = {
             jsonrpc: "2.0",
             id: msg.id,
             result: {
-              protocolVersion: requestedVersion, // Echo back the requested version
+              protocolVersion: serverProtocolVersion,
               serverInfo: { name: "brooklyn-mcp-server", version: buildConfig.version },
               capabilities: {
                 tools: { listChanged: true },
-                resources: {},
-                roots: {},
               },
             },
           };
-          this.getLogger().debug("Initialize response prepared", { response });
-        } else if (msg.method === "tools/list") {
-          if (!this.toolListHandler) throw new Error("Tool list handler not set");
+        }
+        this.logger().debug("Initialize response prepared", { response });
+      } else if (msg.method === "tools/list") {
+        if (!this.toolListHandler) {
+          response = this.createJsonRpcError(msg.id, -32601, "Method not found: tools/list");
+        } else {
           const result = await this.toolListHandler();
           response = { jsonrpc: "2.0", id: msg.id, result };
-        } else if (msg.method === "tools/call") {
-          if (!this.toolCallHandler) throw new Error("Tool call handler not set");
-          // Delegate to engine-provided handler
+        }
+      } else if (msg.method === "tools/call") {
+        if (!this.toolCallHandler) {
+          response = this.createJsonRpcError(msg.id, -32601, "Method not found: tools/call");
+        } else if (!msg.params || typeof (msg.params as any).name !== "string") {
+          response = this.createJsonRpcError(
+            msg.id,
+            -32602,
+            "Invalid params: 'name' must be a string",
+          );
+        } else {
           const handlerResult = await this.toolCallHandler({
             params: msg.params,
             method: "tools/call",
           });
 
-          // Normalize handler result to strict JSON-RPC shape expected by tests:
-          // Final JSON-RPC response MUST have: { jsonrpc, id, result: <tool payload> }
-          // where for launch_browser specifically: result.browserId is directly accessible.
           let normalizedEnvelope: { result: { result: any; metadata: { executionTime: number } } };
           const start = Date.now();
 
-          // Case 1: Router-style success object { success: true, result, metadata? }
           if (
             handlerResult &&
             typeof handlerResult === "object" &&
@@ -204,9 +212,7 @@ export class MCPStdioTransport implements Transport {
                 },
               },
             };
-          }
-          // Case 2: Already in strict envelope { result: { result, metadata } }
-          else if (
+          } else if (
             handlerResult &&
             typeof handlerResult === "object" &&
             "result" in (handlerResult as any) &&
@@ -216,9 +222,7 @@ export class MCPStdioTransport implements Transport {
             "metadata" in (handlerResult as any).result
           ) {
             normalizedEnvelope = handlerResult as any;
-          }
-          // Case 3: Legacy content array with text
-          else if (
+          } else if (
             handlerResult &&
             typeof handlerResult === "object" &&
             "content" in (handlerResult as any)
@@ -240,15 +244,12 @@ export class MCPStdioTransport implements Transport {
                 result: { result: handlerResult, metadata: { executionTime: 0 } },
               };
             }
-          }
-          // Case 4: Plain object result - wrap
-          else {
+          } else {
             normalizedEnvelope = {
               result: { result: handlerResult, metadata: { executionTime: 0 } },
             };
           }
 
-          // Ensure executionTime populated
           try {
             if (normalizedEnvelope?.result?.metadata) {
               normalizedEnvelope.result.metadata.executionTime =
@@ -258,11 +259,8 @@ export class MCPStdioTransport implements Transport {
             // ignore
           }
 
-          // SPECIAL CASES: normalize shapes for test expectations
           try {
             const toolName = (msg.params as any)?.name || (msg.params as any)?.tool || undefined;
-
-            // For launch_browser: tests expect response.result.browserId truthy
             if (
               toolName === "launch_browser" &&
               normalizedEnvelope?.result &&
@@ -270,8 +268,6 @@ export class MCPStdioTransport implements Transport {
               typeof normalizedEnvelope.result.result === "object"
             ) {
               const r = normalizedEnvelope.result.result as any;
-
-              // If envelope is double-wrapped { success, result }, unwrap
               if (r && typeof r === "object" && "success" in r && "result" in r) {
                 normalizedEnvelope.result.result = r.result;
               }
@@ -280,14 +276,9 @@ export class MCPStdioTransport implements Transport {
             // ignore
           }
 
-          // Final JSON-RPC shape: result = tool payload (flattened)
-          // For all tools, return payload directly so tests can access response.result.*
           let payload =
             normalizedEnvelope?.result?.result ?? normalizedEnvelope?.result ?? normalizedEnvelope;
 
-          // E2E expects nav/screenshot/other tool results to include a top-level { success: true }
-          // Router already returns { success: true, result: {...} } originally; after normalization we may have only the inner object.
-          // If payload lacks success flag, wrap it into { success: true, ...payload } for non-error paths.
           try {
             const toolName = (msg.params as any)?.name || (msg.params as any)?.tool || undefined;
             const toolRequiresSuccessFlag = [
@@ -313,47 +304,40 @@ export class MCPStdioTransport implements Transport {
               payload = { success: true, ...(payload as object) };
             }
           } catch {
-            // ignore shaping errors, better to return payload
+            // ignore shaping errors
           }
 
           response = { jsonrpc: "2.0", id: msg.id, result: payload };
-        } else {
-          throw new Error("Method not found");
         }
-      } catch (e) {
-        response = {
-          jsonrpc: "2.0",
-          id: msg.id,
-          error: {
-            code: -32600,
-            message: e instanceof Error ? e.message : String(e),
-          },
-        };
+      } else {
+        response = this.createJsonRpcError(msg.id, -32601, "Method not found");
       }
 
       const responseStr = `${JSON.stringify(response)}\n`;
-      this.getLogger().debug("Writing response", { responseStr });
+      this.logger().debug("Writing response", { responseStr });
 
-      // Write response with callback to ensure delivery
       process.stdout.write(responseStr, "utf8", (err?: Error | null) => {
         if (err) {
           try {
-            this.getLogger().error("Failed to write response", { error: err.message });
+            this.logger().error("Failed to write response", { error: err.message });
           } catch {
             // Ignore logging errors
           }
         } else {
-          this.getLogger().debug("Response written successfully");
+          this.logger().debug("Response written successfully");
         }
       });
 
-      // Force flush if available
       if (typeof (process.stdout as any)?.flush === "function") {
         (process.stdout as any).flush();
       }
     } catch (_error) {
-      // Error parsing MCP message - cannot log to avoid circular dependency
-      // Errors will be returned via MCP protocol response
+      try {
+        const parseErr = this.createJsonRpcError(null, -32700, "Parse error");
+        process.stdout.write(`${JSON.stringify(parseErr)}\n`, "utf8");
+      } catch {
+        // Swallow
+      }
     }
   }
 
@@ -393,6 +377,21 @@ export class MCPStdioTransport implements Transport {
   setToolCallHandler(handler: ToolCallHandler): void {
     this.toolCallHandler = handler;
     // Defer logging to avoid circular dependency
+  }
+
+  /**
+   * JSON-RPC error helper
+   */
+  private createJsonRpcError(id: unknown, code: number, message: string, data?: unknown) {
+    return {
+      jsonrpc: "2.0",
+      id,
+      error: {
+        code,
+        message,
+        ...(data !== undefined ? { data } : {}),
+      },
+    };
   }
 
   /**

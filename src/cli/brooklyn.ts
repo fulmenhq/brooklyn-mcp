@@ -12,7 +12,7 @@
  */
 
 // Version embedded at build time from VERSION file
-const VERSION = "1.4.3";
+const VERSION = "1.4.8";
 
 import { HELP_TEXT } from "../generated/help/index.js";
 // buildConfig import removed - not used in CLI entry point
@@ -129,20 +129,64 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
     .option("--dev-mode", "Enable development mode with named pipes")
     .option("--pipes-prefix <prefix>", "Named pipes prefix (dev mode only)", "/tmp/brooklyn-dev")
     .action(async (options) => {
+      // Lightweight imports to avoid top-level side effects
+      const { createHash } = await import("node:crypto");
+      const { mkdirSync, existsSync, readFileSync, writeFileSync, unlinkSync } = await import(
+        "node:fs"
+      );
+      const { homedir } = await import("node:os");
+      const { join } = await import("node:path");
+
+      // Helper: compute project key for "local" scope based on cwd
+      const cwd = process.cwd();
+      const projectKey = createHash("sha1").update(cwd).digest("hex");
+      const scope = "local"; // For stdio via Claude Code, default to local project scope
+      const baseDir = join(homedir(), ".brooklyn", "mcp", "stdio", scope);
+      const pidFile = join(baseDir, `${projectKey}.pid`);
+
       try {
-        // Check for existing instance in MCP mode
-        if (!options.devMode) {
-          const instanceManager = new InstanceManager();
-          const { running } = await instanceManager.checkExistingInstance();
+        // Ensure registry directory exists
+        if (!existsSync(baseDir)) {
+          mkdirSync(baseDir, { recursive: true });
+        }
 
-          if (running) {
-            // In MCP mode, we should not have console output
-            // But we need to signal failure somehow
-            process.exit(1);
+        // Fast-fail if an existing live PID is registered for same scope+project
+        if (existsSync(pidFile)) {
+          try {
+            const txt = readFileSync(pidFile, "utf8");
+            const meta = JSON.parse(txt) as {
+              pid: number;
+              projectKey: string;
+              scope: string;
+              startedAt?: string;
+              brooklynVersion?: string;
+            };
+            if (meta?.pid && Number.isFinite(meta.pid)) {
+              try {
+                // Signal 0 checks existence without killing
+                process.kill(meta.pid, 0);
+                // Process exists -> refuse to start duplicate
+                // MCP stdio must not write arbitrary text to stdout; emit JSON-RPC error
+                if (!options.devMode) {
+                  const err = {
+                    jsonrpc: "2.0",
+                    id: null,
+                    error: {
+                      code: -32603,
+                      message: "MCP stdio server already running for this project",
+                      data: { pid: meta.pid, scope: meta.scope, projectKey: meta.projectKey },
+                    },
+                  };
+                  process.stdout.write(`${JSON.stringify(err)}\n`);
+                }
+                process.exit(1);
+              } catch {
+                // Stale PID file -> will be overwritten below
+              }
+            }
+          } catch {
+            // Corrupted pid file -> overwrite below
           }
-
-          // Register this instance
-          await instanceManager.registerInstance();
         }
 
         // Load configuration with CLI overrides
@@ -152,76 +196,87 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
 
         const config = await loadConfig(cliOverrides);
 
-        // CRITICAL: Create transport FIRST - this determines if we're in MCP mode
-        // The transport creation:
-        // 1. Calls setGlobalTransport() which sets isMCPMode flag
-        // 2. Marks logger as initialized (isInitialized = true)
-        // 3. Only AFTER this can any logging occur
+        // Create transport first to enter MCP mode
         const transport = options.devMode
           ? await createMCPStdio({
-              // Use environment variables for pipe paths in dev mode (set by dev-brooklyn script)
               inputPipe: process.env["BROOKLYN_DEV_INPUT_PIPE"] || `${options.pipesPrefix}-input`,
               outputPipe:
                 process.env["BROOKLYN_DEV_OUTPUT_PIPE"] || `${options.pipesPrefix}-output`,
             })
           : await createMCPStdio();
 
-        // Now it's safe to initialize logging configuration
-        // Logger is no longer silent, but in MCP mode all logs go to file, not stdout
+        // Write PID registry entry (managed)
+        try {
+          const meta = {
+            pid: process.pid,
+            scope,
+            projectKey,
+            startedAt: new Date().toISOString(),
+            brooklynVersion: VERSION,
+          };
+          writeFileSync(pidFile, JSON.stringify(meta), "utf8");
+          // Tag the process for heuristic discovery as well
+          process.env["BROOKLYN_MCP_STDIO"] = "1";
+          process.env["BROOKLYN_MCP_STDIO_SCOPE"] = scope;
+          process.env["BROOKLYN_MCP_STDIO_PROJECT"] = projectKey;
+        } catch {
+          // If registry write fails, continue; cleanup can still kill unmanaged via env marker
+        }
+
+        // Initialize logging now that transport mode is set
         await initializeLogging(config);
 
-        // Don't log immediately - let the engine start first
-        // This ensures clean MCP protocol startup
-
-        // Create Brooklyn engine
         const engine = new BrooklynEngine({
           config: { ...config, devMode: options.devMode },
           correlationId: `mcp-${Date.now()}`,
         });
 
-        // Initialize the engine before adding transports
         await engine.initialize();
 
-        // Add and start the transport we already created
         const transportName = options.devMode ? "dev-mcp" : "mcp";
         await engine.addTransport(transportName, transport);
         await engine.startTransport(transportName);
 
-        // Keep process alive for stdin/stdout mode
+        // Graceful shutdown + pidFile unlink
+        const unlinkPid = () => {
+          try {
+            if (existsSync(pidFile)) unlinkSync(pidFile);
+          } catch {
+            // ignore
+          }
+        };
+
+        const shutdown = async (_signal: string) => {
+          try {
+            await engine.cleanup();
+          } catch {
+            // ignore
+          } finally {
+            unlinkPid();
+          }
+          process.exit(0);
+        };
+
         if (!options.devMode) {
-          // stdin.resume() is handled by the transport itself
-
-          // Handle graceful shutdown for MCP mode
-          const shutdown = async (_signal: string) => {
-            try {
-              await engine.cleanup();
-            } catch {
-              // Ignore cleanup errors
-            }
-            process.exit(0);
-          };
-
           process.on("SIGINT", () => shutdown("SIGINT"));
           process.on("SIGTERM", () => shutdown("SIGTERM"));
           process.on("SIGHUP", () => shutdown("SIGHUP"));
-
-          // Handle stdin close (Claude disconnected)
           process.stdin.on("end", () => shutdown("stdin-end"));
           process.stdin.on("close", () => shutdown("stdin-close"));
         }
 
-        // Only log startup message in dev mode (uses named pipes, not stdio)
         if (options.devMode) {
           const logger = getLogger("brooklyn-cli");
           logger.info("MCP server started successfully", {
             mode: "dev-pipes",
             transport: "named-pipes",
             teamId: config.teamId,
+            pid: process.pid,
           });
         }
-        // In production MCP mode, stay completely silent
+        // Remain silent in stdio production mode
       } catch (error) {
-        // In MCP mode, we need to output a proper JSON-RPC error response
+        // Attempt to emit JSON-RPC error for stdio mode
         if (!options.devMode) {
           const errorResponse = {
             jsonrpc: "2.0",
@@ -232,9 +287,12 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
               data: error instanceof Error ? error.message : String(error),
             },
           };
-          process.stdout.write(`${JSON.stringify(errorResponse)}\n`);
+          try {
+            process.stdout.write(`${JSON.stringify(errorResponse)}\n`);
+          } catch {
+            // ignore
+          }
         } else {
-          // In dev mode, we can use regular error logging
           try {
             const logger = getLogger("brooklyn-cli");
             logger.error("Failed to start MCP server", {
@@ -243,7 +301,6 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
               mode: "dev-pipes",
             });
           } catch {
-            // Fallback if logger fails
             console.error("Failed to start MCP server:", error);
           }
         }

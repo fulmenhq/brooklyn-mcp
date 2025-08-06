@@ -149,13 +149,22 @@ export const navigationTools: EnhancedTool[] = [
   {
     name: "navigate_to_url",
     category: "navigation",
-    description: "Navigate browser to a specific URL and wait for page load",
+    description:
+      "Navigate browser to a specific URL and wait for page load. If browserId is omitted, the most recently launched active browser for your team is used (target=latest).",
     inputSchema: {
       type: "object",
       properties: {
         browserId: {
           type: "string",
-          description: "ID of the browser to navigate",
+          description:
+            "Optional. ID of the browser to navigate. If omitted or invalid, the server will resolve based on 'target'.",
+        },
+        target: {
+          type: "string",
+          enum: ["latest", "current", "byId"],
+          description:
+            "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+          default: "latest",
         },
         url: {
           type: "string",
@@ -168,13 +177,12 @@ export const navigationTools: EnhancedTool[] = [
           default: "load",
         },
       },
-      required: ["browserId", "url"],
+      required: ["url"],
     },
     examples: [
       {
-        description: "Navigate to a website and wait for full load",
+        description: "Navigate using defaults (no browserId) to latest active browser",
         input: {
-          browserId: "browser-123",
           url: "https://example.com",
           waitUntil: "networkidle",
         },
@@ -182,6 +190,19 @@ export const navigationTools: EnhancedTool[] = [
           status: "navigated",
           url: "https://example.com",
           loadTime: 1234,
+          browserId: "resolved-latest",
+        },
+      },
+      {
+        description: "Navigate by explicit browserId",
+        input: {
+          browserId: "browser-123",
+          url: "https://example.com/docs",
+        },
+        expectedOutput: {
+          status: "navigated",
+          url: "https://example.com/docs",
+          browserId: "browser-123",
         },
       },
     ],
@@ -195,6 +216,11 @@ export const navigationTools: EnhancedTool[] = [
         code: "NAVIGATION_TIMEOUT",
         message: "Page load timed out",
         solution: "Increase timeout or check network connectivity",
+      },
+      {
+        code: "NO_ACTIVE_BROWSER",
+        message: "No active browser session found to navigate",
+        solution: "Run launch_browser first or provide a valid browserId.",
       },
     ],
   },
@@ -230,13 +256,21 @@ export const contentCaptureTools: EnhancedTool[] = [
     name: "take_screenshot",
     category: "content-capture",
     description:
-      "Capture a screenshot and store as file to avoid MCP token limits (Architecture Committee approved)",
+      "Capture a screenshot and store as file to avoid MCP token limits (Architecture Committee approved). If browserId is omitted, the most recently launched active browser for your team is used (target=latest).",
     inputSchema: {
       type: "object",
       properties: {
         browserId: {
           type: "string",
-          description: "ID of the browser",
+          description:
+            "Optional. ID of the browser. If omitted or invalid, the server will resolve based on 'target'.",
+        },
+        target: {
+          type: "string",
+          enum: ["latest", "current", "byId"],
+          description:
+            "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+          default: "latest",
         },
         fullPage: {
           type: "boolean",
@@ -294,13 +328,11 @@ export const contentCaptureTools: EnhancedTool[] = [
           description: "Override instance detection (advanced usage)",
         },
       },
-      required: ["browserId"],
     },
     examples: [
       {
-        description: "Capture full page screenshot with file storage (recommended)",
+        description: "Capture full page screenshot with file storage (recommended, no browserId)",
         input: {
-          browserId: "browser-123",
           fullPage: true,
           type: "png",
           returnFormat: "file",
@@ -316,6 +348,7 @@ export const contentCaptureTools: EnhancedTool[] = [
           fileSize: 245760,
           auditId: "audit-uuid-123",
           returnFormat: "file",
+          browserId: "resolved-latest",
         },
       },
       {

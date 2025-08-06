@@ -241,40 +241,44 @@ export class BrowserPoolManager {
       const browserId = allocation.instance.id;
 
       // Configure page
-      if (userAgent) {
-        await allocation.page.setExtraHTTPHeaders({
-          "User-Agent": userAgent,
-        });
+      let page = allocation.page;
+      try {
+        if (userAgent) {
+          await page.setExtraHTTPHeaders({
+            "User-Agent": userAgent,
+          });
+        }
+      } catch {
+        // recover if page is closed
+        page = await allocation.instance.getMainPage();
+        if (userAgent) {
+          await page.setExtraHTTPHeaders({
+            "User-Agent": userAgent,
+          });
+        }
       }
 
       try {
-        await allocation.page.setViewportSize(viewport);
+        await page.setViewportSize(viewport);
       } catch {
         // If page was closed or invalid, recreate and retry once
         const newPage = await allocation.instance.getMainPage();
         await newPage.setViewportSize(viewport);
-        this.sessions.set(browserId, {
-          instance: allocation.instance,
-          page: newPage,
-          teamId,
-        });
+        page = newPage;
       }
-      const activeSession = this.sessions.get(browserId) ?? {
+
+      // Ensure session is registered before returning so router can navigate immediately
+      const sessionRecord = {
         instance: allocation.instance,
-        page: allocation.page,
+        page,
         teamId,
       };
-      activeSession.page.setDefaultTimeout(timeout);
-      activeSession.page.setDefaultNavigationTimeout(timeout);
-      // Ensure session map is up to date
-      this.sessions.set(allocation.instance.id, activeSession);
+      // set default timeouts on the active page
+      page.setDefaultTimeout(timeout);
+      page.setDefaultNavigationTimeout(timeout);
 
-      // Store session
-      this.sessions.set(browserId, {
-        instance: allocation.instance,
-        page: allocation.page,
-        teamId,
-      });
+      // Store session keyed by browserId
+      this.sessions.set(browserId, sessionRecord);
 
       logger.info("Browser launched successfully", {
         browserId,
@@ -288,7 +292,7 @@ export class BrowserPoolManager {
         browserId,
         browserType,
         headless,
-        userAgent: userAgent || (await allocation.page.evaluate(() => navigator.userAgent)),
+        userAgent: userAgent || (await page.evaluate(() => navigator.userAgent)),
         viewport,
       };
     } catch (error) {
