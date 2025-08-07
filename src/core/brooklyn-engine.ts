@@ -700,6 +700,7 @@ export class BrooklynEngine {
       "find_elements",
       // Content capture
       "take_screenshot",
+      "list_screenshots",
       // Discovery
       "brooklyn_list_tools",
       "brooklyn_tool_help",
@@ -1032,6 +1033,30 @@ export class BrooklynEngine {
           }
           // Fallback to direct pool access
           return await this.browserPool.screenshot(args as any);
+
+        case "list_screenshots":
+          // Phase 2: Use router for list_screenshots
+          if (this.browserRouter) {
+            const request = {
+              tool: name,
+              params: args as Record<string, unknown>,
+              context: MCPRequestContextFactory.create({
+                teamId: context.teamId,
+                userId: context.userId,
+                metadata: {
+                  permissions: context.permissions,
+                  correlationId: context.correlationId,
+                },
+              }),
+            };
+            const response = await this.browserRouter.route(request);
+            if (!response.success) {
+              throw new Error(response.error?.message || "List screenshots failed");
+            }
+            return response.result;
+          }
+          // No fallback for list_screenshots - requires database
+          throw new Error("Screenshot inventory requires database connection");
 
         // Discovery tools
         case "brooklyn_list_tools":

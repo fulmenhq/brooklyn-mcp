@@ -11,7 +11,7 @@ import { join, normalize, relative, resolve } from "node:path";
 
 import { getLogger } from "../shared/pino-logger.js";
 import { getDatabaseManager } from "./database/database-manager.js";
-import { ScreenshotRepository } from "./database/repositories/screenshot-repository.js";
+import { ScreenshotRepositoryOptimized as ScreenshotRepository } from "./database/repositories/screenshot-repository-optimized.js";
 import type {
   ScreenshotQuery as DBScreenshotQuery,
   ScreenshotListResult,

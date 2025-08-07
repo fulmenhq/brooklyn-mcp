@@ -542,7 +542,7 @@ export class MCPBrowserRouter {
     const {
       instanceId,
       sessionId,
-      teamId = context.teamId, // Default to context team if not specified
+      teamId: _teamId = context.teamId, // SECURITY: Ignored - always use context.teamId
       userId,
       tag,
       format,
@@ -579,10 +579,11 @@ export class MCPBrowserRouter {
     };
 
     // Build database query from parameters
+    // SECURITY: Always enforce team isolation - use context.teamId, never params.teamId
     const query: DBScreenshotQuery = {
       instanceId,
       sessionId: sessionId || browserId, // Map legacy browserId to sessionId
-      teamId,
+      teamId: context.teamId, // CRITICAL: Enforce team context over request parameters
       userId,
       tag,
       format,

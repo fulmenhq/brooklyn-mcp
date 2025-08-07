@@ -11,7 +11,10 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import type { Command } from "commander";
 
+import { BackgroundSyncService } from "../../core/database/background-sync-service.js";
 import { getDatabaseManager } from "../../core/database/database-manager.js";
+import { PerformanceBenchmark } from "../../core/database/performance-benchmark.js";
+import { ScreenshotRepositoryOptimized } from "../../core/database/repositories/screenshot-repository-optimized.js";
 import { ScreenshotRepository } from "../../core/database/repositories/screenshot-repository.js";
 
 // For ops commands, use console.log directly to avoid logger initialization issues
@@ -316,6 +319,220 @@ export function registerOpsCommand(program: Command): void {
         await dbManager.close();
       } catch {
         console.log("\n⚠️  Database not initialized");
+      }
+    });
+
+  // Performance benchmarking commands
+  const benchmark = ops.command("benchmark").description("Performance benchmarking tools");
+
+  benchmark
+    .command("quick")
+    .description("Run quick performance benchmark (1k records)")
+    .action(async () => {
+      console.log("🚀 Running quick performance benchmark...");
+      console.log("This will take approximately 1-2 minutes\n");
+
+      try {
+        const results = await PerformanceBenchmark.runQuick();
+        console.log("\n✅ Benchmark complete!");
+        console.log(`Duration: ${(results.totalDuration / 1000).toFixed(2)} seconds`);
+        console.log(`Peak Memory: ${results.peakMemoryMB.toFixed(2)} MB`);
+
+        // Check cache stats
+        const cacheStats = ScreenshotRepositoryOptimized.getCacheStats();
+        console.log("\n📊 Cache Performance:");
+        console.log(`  List Cache Hit Rate: ${(cacheStats.listCache.hitRate * 100).toFixed(2)}%`);
+        console.log(
+          `  Single Cache Hit Rate: ${(cacheStats.singleCache.hitRate * 100).toFixed(2)}%`,
+        );
+        console.log(`  Stats Cache Hit Rate: ${(cacheStats.statsCache.hitRate * 100).toFixed(2)}%`);
+      } catch (error) {
+        console.error("❌ Benchmark failed:", error);
+        process.exit(1);
+      }
+    });
+
+  benchmark
+    .command("full")
+    .description("Run full performance benchmark (10k records)")
+    .option("--no-cleanup", "Don't clean up test data after benchmark")
+    .action(async (options) => {
+      console.log("🚀 Running full performance benchmark...");
+      console.log("This will take approximately 5-10 minutes\n");
+
+      try {
+        const results = await PerformanceBenchmark.runFull();
+        console.log("\n✅ Benchmark complete!");
+        console.log(`Duration: ${(results.totalDuration / 1000).toFixed(2)} seconds`);
+        console.log(`Peak Memory: ${results.peakMemoryMB.toFixed(2)} MB`);
+
+        // Show detailed results
+        console.log("\n📈 Key Performance Metrics:");
+        const metricsToShow = ["list-simple", "list-filtered", "getById", "getById-cached"];
+        for (const metric of metricsToShow) {
+          const result = results.results.find((r) => r.operation === metric);
+          if (result) {
+            console.log(`  ${metric}:`);
+            console.log(`    Average: ${result.averageMs.toFixed(2)}ms`);
+            console.log(`    P95: ${result.p95Ms.toFixed(2)}ms`);
+            console.log(`    Throughput: ${result.throughput.toFixed(2)} ops/sec`);
+          }
+        }
+
+        if (options.cleanup !== false) {
+          console.log("\n🧹 Cleaning up test data...");
+          // Clean up test data
+          const dbManager = await getDatabaseManager();
+          await dbManager.execute("DELETE FROM screenshots WHERE session_id LIKE 'session-%'");
+          await dbManager.close();
+        }
+      } catch (error) {
+        console.error("❌ Benchmark failed:", error);
+        process.exit(1);
+      }
+    });
+
+  benchmark
+    .command("cache")
+    .description("Show cache statistics")
+    .action(async () => {
+      const cacheStats = ScreenshotRepositoryOptimized.getCacheStats();
+
+      console.log("📊 Cache Statistics\n");
+
+      console.log("List Cache:");
+      console.log(`  Hits: ${cacheStats.listCache.hits}`);
+      console.log(`  Misses: ${cacheStats.listCache.misses}`);
+      console.log(`  Hit Rate: ${(cacheStats.listCache.hitRate * 100).toFixed(2)}%`);
+      console.log(`  Size: ${cacheStats.listCache.size}`);
+      console.log(`  Evictions: ${cacheStats.listCache.evictions}`);
+
+      console.log("\nSingle Cache:");
+      console.log(`  Hits: ${cacheStats.singleCache.hits}`);
+      console.log(`  Misses: ${cacheStats.singleCache.misses}`);
+      console.log(`  Hit Rate: ${(cacheStats.singleCache.hitRate * 100).toFixed(2)}%`);
+      console.log(`  Size: ${cacheStats.singleCache.size}`);
+      console.log(`  Evictions: ${cacheStats.singleCache.evictions}`);
+
+      console.log("\nStats Cache:");
+      console.log(`  Hits: ${cacheStats.statsCache.hits}`);
+      console.log(`  Misses: ${cacheStats.statsCache.misses}`);
+      console.log(`  Hit Rate: ${(cacheStats.statsCache.hitRate * 100).toFixed(2)}%`);
+      console.log(`  Size: ${cacheStats.statsCache.size}`);
+      console.log(`  Evictions: ${cacheStats.statsCache.evictions}`);
+    });
+
+  benchmark
+    .command("clear-cache")
+    .description("Clear all query caches")
+    .action(async () => {
+      ScreenshotRepositoryOptimized.clearCaches();
+      console.log("✅ All caches cleared");
+    });
+
+  // Background sync commands
+  const sync = ops.command("sync").description("Background synchronization service");
+
+  sync
+    .command("run")
+    .description("Run a one-time sync of filesystem to database")
+    .option("--dry-run", "Show what would be synced without making changes")
+    .option("--batch-size <size>", "Number of files to process in each batch", "50")
+    .action(async (options) => {
+      console.log("🔄 Running filesystem to database sync...");
+
+      try {
+        const stats = await BackgroundSyncService.runOnce({
+          dryRun: options.dryRun,
+          batchSize: Number.parseInt(options.batchSize, 10),
+        });
+
+        console.log("\n✅ Sync complete!");
+        console.log(`  Files scanned: ${stats.filesScanned}`);
+        console.log(`  Files added: ${stats.filesAdded}`);
+        console.log(`  Files skipped: ${stats.filesSkipped}`);
+        console.log(`  Orphans removed: ${stats.orphansRemoved}`);
+        console.log(`  Errors: ${stats.errors}`);
+        console.log(`  Duration: ${(stats.duration / 1000).toFixed(2)} seconds`);
+
+        if (options.dryRun) {
+          console.log("\n⚠️  This was a dry run - no changes were made");
+        }
+      } catch (error) {
+        console.error("❌ Sync failed:", error);
+        process.exit(1);
+      }
+    });
+
+  sync
+    .command("start")
+    .description("Start background sync service")
+    .option("--interval <ms>", "Sync interval in milliseconds", "300000")
+    .option("--max-age <days>", "Delete screenshots older than N days", "30")
+    .action(async (options) => {
+      console.log("🚀 Starting background sync service...");
+
+      const service = new BackgroundSyncService({
+        intervalMs: Number.parseInt(options.interval, 10),
+        maxAge: Number.parseInt(options.maxAge, 10),
+      });
+
+      await service.start();
+      console.log(`✅ Sync service started (interval: ${options.interval}ms)`);
+      console.log("Press Ctrl+C to stop");
+
+      // Keep process alive
+      process.on("SIGINT", () => {
+        console.log("\n⏹️  Stopping sync service...");
+        service.stop();
+        process.exit(0);
+      });
+    });
+
+  sync
+    .command("stats")
+    .description("Show sync statistics from last run")
+    .action(async () => {
+      // Get stats from database
+      try {
+        const dbManager = await getDatabaseManager();
+        const instanceId = dbManager.getInstanceId();
+
+        if (!instanceId) {
+          console.log("⚠️  No instance ID available");
+          return;
+        }
+
+        const result = await dbManager.execute("SELECT config FROM instances WHERE id = ?", [
+          instanceId,
+        ]);
+
+        if (result.rows.length > 0) {
+          const config = result.rows[0]?.["config"];
+          if (config) {
+            const parsed = JSON.parse(config as string);
+            if (parsed.screenshot_stats) {
+              console.log("📊 Screenshot Statistics:");
+              console.log(`  Total Count: ${parsed.screenshot_stats.totalCount}`);
+              console.log(
+                `  Total Size: ${(parsed.screenshot_stats.totalSize / 1024 / 1024).toFixed(2)} MB`,
+              );
+              console.log(
+                `  Average Size: ${(parsed.screenshot_stats.avgSize / 1024).toFixed(2)} KB`,
+              );
+              if (parsed.screenshot_stats.formats) {
+                console.log("  Formats:");
+                for (const [format, count] of Object.entries(parsed.screenshot_stats.formats)) {
+                  console.log(`    ${format}: ${count}`);
+                }
+              }
+            }
+          }
+        }
+
+        await dbManager.close();
+      } catch (error) {
+        console.error("Failed to get statistics:", error);
       }
     });
 }
