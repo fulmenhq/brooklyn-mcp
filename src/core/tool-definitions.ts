@@ -432,6 +432,150 @@ export const contentCaptureTools: EnhancedTool[] = [
       },
     ],
   },
+  {
+    name: "list_screenshots",
+    category: "content-capture",
+    description:
+      "List stored screenshots from the inventory database with filtering and pagination support",
+    inputSchema: {
+      type: "object",
+      properties: {
+        instanceId: {
+          type: "string",
+          description: "Filter by Brooklyn instance ID (defaults to current instance)",
+        },
+        sessionId: {
+          type: "string",
+          description: "Filter by browser session ID",
+        },
+        teamId: {
+          type: "string",
+          description: "Filter by team ID",
+        },
+        userId: {
+          type: "string",
+          description: "Filter by user ID",
+        },
+        tag: {
+          type: "string",
+          description: "Filter by user-provided tag (prefix match)",
+        },
+        format: {
+          type: "string",
+          enum: ["png", "jpeg"],
+          description: "Filter by screenshot format",
+        },
+        maxAge: {
+          type: "number",
+          description: "Maximum age in seconds (e.g., 3600 for last hour)",
+        },
+        startDate: {
+          type: "string",
+          format: "date-time",
+          description: "Filter screenshots created after this date (ISO 8601)",
+        },
+        endDate: {
+          type: "string",
+          format: "date-time",
+          description: "Filter screenshots created before this date (ISO 8601)",
+        },
+        orderBy: {
+          type: "string",
+          enum: ["created_at", "file_size", "filename"],
+          description: "Field to order results by",
+          default: "created_at",
+        },
+        orderDirection: {
+          type: "string",
+          enum: ["ASC", "DESC"],
+          description: "Sort direction",
+          default: "DESC",
+        },
+        limit: {
+          type: "number",
+          description: "Maximum number of results (1-100)",
+          minimum: 1,
+          maximum: 100,
+          default: 10,
+        },
+        offset: {
+          type: "number",
+          description: "Number of results to skip for pagination",
+          minimum: 0,
+          default: 0,
+        },
+      },
+    },
+    examples: [
+      {
+        description: "List recent screenshots for current session",
+        input: {
+          sessionId: "session-123",
+          limit: 5,
+        },
+        expectedOutput: {
+          items: [
+            {
+              id: "screenshot-id-1",
+              filename: "screenshot-2025-01-26T10-30-00-abc123.png",
+              filePath: "/path/to/screenshot.png",
+              sessionId: "session-123",
+              browserId: "browser-456",
+              format: "png",
+              fileSize: 245678,
+              width: 1920,
+              height: 1080,
+              tag: "happy-blue-fox",
+              createdAt: "2025-01-26T10:30:00Z",
+            },
+          ],
+          total: 15,
+          hasMore: true,
+          nextOffset: 5,
+        },
+      },
+      {
+        description: "List screenshots by tag from last hour",
+        input: {
+          tag: "login-test",
+          maxAge: 3600,
+          orderBy: "file_size",
+          orderDirection: "DESC",
+        },
+        expectedOutput: {
+          items: ["..."],
+          total: 3,
+          hasMore: false,
+        },
+      },
+      {
+        description: "List team screenshots with pagination",
+        input: {
+          teamId: "team-ux",
+          limit: 20,
+          offset: 40,
+        },
+        expectedOutput: {
+          items: ["..."],
+          total: 150,
+          hasMore: true,
+          nextOffset: 60,
+        },
+      },
+    ],
+    errors: [
+      {
+        code: "DATABASE_ERROR",
+        message: "Failed to query screenshot database",
+        solution: "Check database status with 'brooklyn ops db status'",
+      },
+      {
+        code: "INVALID_DATE_FORMAT",
+        message: "Invalid date format provided",
+        solution: "Use ISO 8601 format: YYYY-MM-DDTHH:mm:ssZ",
+      },
+    ],
+  },
 ];
 
 /**

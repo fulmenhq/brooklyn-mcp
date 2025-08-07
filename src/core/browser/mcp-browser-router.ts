@@ -5,6 +5,8 @@
 
 import { getLogger } from "../../shared/pino-logger.js";
 import type { BrowserPoolManager } from "../browser-pool-manager.js";
+import type { ScreenshotQuery as DBScreenshotQuery } from "../database/types.js";
+import { ScreenshotStorageManager } from "../screenshot-storage-manager.js";
 import type { MCPRequestContext } from "./mcp-request-context.js";
 
 const logger = getLogger("mcp-browser-router");
@@ -36,10 +38,12 @@ export interface BrowserToolResponse {
 export class MCPBrowserRouter {
   private poolManager: BrowserPoolManager;
   private activeSessions: Map<string, { teamId?: string; createdAt: Date }>;
+  private screenshotStorage: ScreenshotStorageManager;
 
   constructor(poolManager: BrowserPoolManager) {
     this.poolManager = poolManager;
     this.activeSessions = new Map();
+    this.screenshotStorage = new ScreenshotStorageManager();
   }
 
   /**
@@ -527,71 +531,139 @@ export class MCPBrowserRouter {
   }
 
   /**
-   * List screenshots saved on disk for the team / browser session
-   * params:
-   *  - browserId?: string
-   *  - since?: string (ISO8601)
-   *  - limit?: number (default 20)
-   *  - includeMetadata?: boolean
+   * List screenshots from database inventory
+   * Supports all parameters from the list_screenshots tool definition
    */
   private async listScreenshots(
     params: Record<string, unknown>,
     context: MCPRequestContext,
   ): Promise<unknown> {
-    // Small local helpers to reduce cognitive complexity
-    const toDate = (s?: string): Date | undefined => (s ? new Date(s) : undefined);
-    const earlyReturn = (cond: boolean, value: unknown) => (cond ? value : undefined);
+    // Extract and map parameters to database query format
     const {
+      instanceId,
+      sessionId,
+      teamId = context.teamId, // Default to context team if not specified
+      userId,
+      tag,
+      format,
+      maxAge,
+      startDate,
+      endDate,
+      orderBy = "created_at",
+      orderDirection = "DESC",
+      limit = 10,
+      offset = 0,
+      // Legacy parameters for backward compatibility
       browserId,
       since,
-      limit = 20,
-      includeMetadata = false,
+      includeMetadata = true,
     } = params as {
+      // New database-backed parameters
+      instanceId?: string;
+      sessionId?: string;
+      teamId?: string;
+      userId?: string;
+      tag?: string;
+      format?: "png" | "jpeg";
+      maxAge?: number;
+      startDate?: string;
+      endDate?: string;
+      orderBy?: "created_at" | "file_size" | "filename";
+      orderDirection?: "ASC" | "DESC";
+      limit?: number;
+      offset?: number;
+      // Legacy parameters
       browserId?: string;
       since?: string;
-      limit?: number;
       includeMetadata?: boolean;
     };
 
-    // If browserId provided and exists, validate access to avoid cross-team leakage
-    if (browserId) {
-      this.validateBrowserAccess(browserId, context.teamId);
-      // If the browserId is active and pool exposes listing, prefer delegation
-    }
-
-    // Delegate to pool manager if it exposes listing; otherwise, perform a safe local scan fallback
-    type PoolMgrWithList = BrowserPoolManager & {
-      listScreenshots?: (args: {
-        teamId?: string;
-        browserId?: string;
-        since?: Date;
-        limit?: number;
-        includeMetadata?: boolean;
-      }) => Promise<unknown>;
+    // Build database query from parameters
+    const query: DBScreenshotQuery = {
+      instanceId,
+      sessionId: sessionId || browserId, // Map legacy browserId to sessionId
+      teamId,
+      userId,
+      tag,
+      format,
+      maxAge:
+        maxAge || (since ? Math.floor((Date.now() - new Date(since).getTime()) / 1000) : undefined),
+      startDate: startDate ? new Date(startDate) : since ? new Date(since) : undefined,
+      endDate: endDate ? new Date(endDate) : undefined,
+      orderBy,
+      orderDirection,
+      limit: Math.min(limit, 100), // Cap at 100 as per tool definition
+      offset,
     };
-    const pm = this.poolManager as PoolMgrWithList;
-    if (typeof pm.listScreenshots === "function") {
-      const delegated = await pm.listScreenshots({
+
+    try {
+      // Use the database-backed screenshot inventory
+      const result = await this.screenshotStorage.listScreenshots(query);
+
+      logger.info("Listed screenshots from inventory", {
         teamId: context.teamId,
-        browserId,
-        since: toDate(since),
+        count: result.items.length,
+        total: result.total,
+        hasMore: result.hasMore,
+      });
+
+      // Transform result to match expected MCP response format
+      return {
+        items: includeMetadata
+          ? result.items
+          : result.items.map((item) => ({
+              id: item.id,
+              filename: item.filename,
+              filePath: item.filePath,
+              sessionId: item.sessionId,
+              browserId: item.browserId,
+              format: item.format,
+              fileSize: item.fileSize,
+              width: item.width,
+              height: item.height,
+              tag: item.tag,
+              createdAt: item.createdAt,
+            })),
+        total: result.total,
+        hasMore: result.hasMore,
+        nextOffset: result.nextOffset,
+      };
+    } catch (error) {
+      logger.error("Failed to list screenshots", {
+        error: error instanceof Error ? error.message : String(error),
+        teamId: context.teamId,
+      });
+
+      // Fallback to filesystem scan if database fails
+      logger.info("Falling back to filesystem scan");
+
+      return this.fallbackFilesystemScan({
+        since,
         limit,
         includeMetadata,
       });
-      // Early exit if delegation succeeded
-      return delegated;
     }
+  }
 
-    // Fallback implementation: scan ~/.brooklyn/screenshots directory
+  /**
+   * Fallback filesystem scan for screenshots when database is unavailable
+   */
+  private async fallbackFilesystemScan(params: {
+    since?: string;
+    limit?: number;
+    includeMetadata?: boolean;
+  }): Promise<{ items: unknown[]; total: number }> {
+    // Helper functions
+    const toDate = (s?: string): Date | undefined => (s ? new Date(s) : undefined);
+    const earlyReturn = (cond: boolean, value: unknown) => (cond ? value : undefined);
+    const { since, limit = 20, includeMetadata = true } = params;
+    const sinceDate = toDate(since);
+
     const home =
       (globalThis as unknown as { process?: { env?: Record<string, string> } }).process?.env?.[
         "HOME"
       ] || "";
     const baseDir = `${home}/.brooklyn/screenshots`;
-
-    // For portability in Bun/Node: use Bun.file APIs if available; otherwise Node fs/promises
-    // Note: prefer Node fs/promises for portability; Bun directory iteration is not standardized.
-    // Node fs/promises is used for directory walking; avoid unused variable warnings.
 
     // Simple recursive scan utility (extracted to reduce complexity)
     const walkDirForPngs = async (dir: string, acc: string[] = []): Promise<string[]> => {
@@ -602,7 +674,7 @@ export class MCPBrowserRouter {
           const full = `${dir}/${entry.name}`;
           if (entry.isDirectory()) {
             await walkDirForPngs(full, acc);
-          } else if (entry.name.endsWith(".png")) {
+          } else if (entry.name.endsWith(".png") || entry.name.endsWith(".jpeg")) {
             acc.push(full);
           }
         }
@@ -613,7 +685,6 @@ export class MCPBrowserRouter {
     };
 
     const allPngs = await walkDirForPngs(baseDir);
-    const sinceDate = toDate(since);
     // Early exit to reduce complexity when nothing found
     const nothing = earlyReturn(allPngs.length === 0, { items: [], total: 0 });
     if (nothing) return nothing as { items: unknown[]; total: number };
@@ -634,7 +705,7 @@ export class MCPBrowserRouter {
         if (sinceDate && st.mtime < sinceDate) continue;
 
         // Optional metadata file alongside
-        const metaPath = p.replace(/\.png$/i, ".metadata.json");
+        const metaPath = p.replace(/\.(png|jpeg)$/i, ".metadata.json");
         let hasMeta = false;
         try {
           await fsP.access(metaPath);

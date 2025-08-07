@@ -10,6 +10,12 @@ import { homedir } from "node:os";
 import { join, normalize, relative, resolve } from "node:path";
 
 import { getLogger } from "../shared/pino-logger.js";
+import { getDatabaseManager } from "./database/database-manager.js";
+import { ScreenshotRepository } from "./database/repositories/screenshot-repository.js";
+import type {
+  ScreenshotQuery as DBScreenshotQuery,
+  ScreenshotListResult,
+} from "./database/types.js";
 
 // Direct logger initialization - no lazy pattern needed!
 const logger = getLogger("screenshot-storage");
@@ -288,6 +294,43 @@ export class ScreenshotStorageManager {
       // Write metadata
       const metadataPath = filePath.replace(/\.(png|jpeg|jpg)$/, ".metadata.json");
       await writeFile(metadataPath, JSON.stringify(metadata, null, 2), { mode: 0o600 });
+
+      // Save to database for inventory tracking
+      try {
+        const dbManager = await getDatabaseManager();
+        const actualInstanceId = instanceId || dbManager.getInstanceId() || this.instanceId;
+
+        await ScreenshotRepository.save({
+          instanceId: actualInstanceId,
+          filePath,
+          filename,
+          sessionId: options.sessionId,
+          browserId: options.browserId,
+          teamId: options.teamId,
+          userId: options.userId,
+          tag,
+          format: (options.format || this.config.defaultFormat) as "png" | "jpeg",
+          fileSize: buffer.length,
+          width: dimensions.width,
+          height: dimensions.height,
+          fullPage: Boolean(options.fullPage),
+          quality: options.quality,
+          hash: metadata.hash,
+          metadata: options.metadata,
+        });
+
+        logger.debug("Screenshot metadata saved to database", {
+          auditId,
+          filename,
+          instanceId: actualInstanceId,
+        });
+      } catch (dbError) {
+        // Log but don't fail the save operation - database is supplementary
+        logger.warn("Failed to save screenshot metadata to database", {
+          auditId,
+          error: dbError instanceof Error ? dbError.message : String(dbError),
+        });
+      }
 
       // Audit log
       logger.info("Screenshot saved successfully", {
@@ -765,6 +808,59 @@ export class ScreenshotStorageManager {
         error: error instanceof Error ? error.message : String(error),
       });
       throw error;
+    }
+  }
+
+  /**
+   * List screenshots from database inventory
+   * This is the primary method for MCP tool integration
+   */
+  async listScreenshots(query?: DBScreenshotQuery): Promise<ScreenshotListResult> {
+    try {
+      // Use database as primary source of truth for inventory
+      const result = await ScreenshotRepository.list(query || {});
+
+      logger.debug("Listed screenshots from database", {
+        query,
+        count: result.items.length,
+        total: result.total,
+      });
+
+      return result;
+    } catch (error) {
+      logger.error("Failed to list screenshots from database", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      // Fallback to filesystem scan if database fails
+      logger.info("Falling back to filesystem scan");
+      const fsResults = await this.findScreenshot(query || {});
+
+      // Convert filesystem results to database format
+      return {
+        items: fsResults.map((r) => ({
+          id: r.metadata.auditId,
+          instanceId: r.instanceId,
+          filePath: r.filePath,
+          filename: r.filename,
+          sessionId: r.metadata.sessionId,
+          browserId: r.metadata.browserId,
+          teamId: r.metadata.teamId,
+          userId: r.metadata.userId,
+          tag: r.tag,
+          format: r.metadata.format as "png" | "jpeg",
+          fileSize: r.metadata.fileSize,
+          width: r.metadata.dimensions.width,
+          height: r.metadata.dimensions.height,
+          fullPage: Boolean(r.metadata.options.fullPage),
+          quality: r.metadata.options.quality,
+          hash: r.metadata.hash,
+          createdAt: new Date(r.metadata.created),
+          metadata: r.metadata as unknown as Record<string, unknown>,
+        })),
+        total: fsResults.length,
+        hasMore: false,
+      };
     }
   }
 

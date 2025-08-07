@@ -9,6 +9,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { getDatabaseManager } from "../../src/core/database/database-manager.js";
+import { ScreenshotRepository } from "../../src/core/database/repositories/screenshot-repository.js";
 import {
   type ScreenshotMetadata,
   ScreenshotStorageManager,
@@ -486,6 +488,194 @@ describe("ScreenshotStorageManager", () => {
       // But filenames and audit IDs should be different
       expect(result1.filename).not.toBe(result2.filename);
       expect(result1.auditId).not.toBe(result2.auditId);
+    });
+  });
+
+  describe("database integration", () => {
+    beforeEach(async () => {
+      // Mock the database manager to avoid actual database operations
+      vi.mock("../../src/core/database/database-manager.js", () => ({
+        getDatabaseManager: vi.fn().mockResolvedValue({
+          getInstanceId: vi.fn().mockReturnValue("test-instance-123"),
+        }),
+      }));
+
+      // Mock the screenshot repository
+      vi.mock("../../src/core/database/repositories/screenshot-repository.js", () => ({
+        ScreenshotRepository: {
+          save: vi.fn().mockResolvedValue("db-record-id"),
+          list: vi.fn(),
+        },
+      }));
+    });
+
+    it("should save screenshot metadata to database on successful save", async () => {
+      const saveSpy = vi.spyOn(ScreenshotRepository, "save");
+
+      const result = await storageManager.saveScreenshot(
+        testBuffer,
+        { width: 1920, height: 1080 },
+        {
+          sessionId: "db-test-session",
+          browserId: "db-test-browser",
+          teamId: "db-test-team",
+          tag: "database-test",
+        },
+      );
+
+      // File should be saved successfully
+      expect(result.filePath).toBeDefined();
+      expect(existsSync(result.filePath)).toBe(true);
+
+      // Database save should have been called with correct parameters
+      expect(saveSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sessionId: "db-test-session",
+          browserId: "db-test-browser",
+          teamId: "db-test-team",
+          tag: "database-test",
+          format: "png",
+          fileSize: testBuffer.length,
+          width: 1920,
+          height: 1080,
+        }),
+      );
+    });
+
+    it("should not fail screenshot save if database save fails", async () => {
+      // Make database save fail
+      vi.spyOn(ScreenshotRepository, "save").mockRejectedValue(
+        new Error("Database connection failed"),
+      );
+
+      // Should still save screenshot successfully
+      const result = await storageManager.saveScreenshot(
+        testBuffer,
+        { width: 1920, height: 1080 },
+        {
+          sessionId: "db-fail-session",
+          browserId: "db-fail-browser",
+        },
+      );
+
+      // File should be saved despite database failure
+      expect(result.filePath).toBeDefined();
+      expect(existsSync(result.filePath)).toBe(true);
+    });
+  });
+
+  describe("listScreenshots", () => {
+    it("should query screenshots from database", async () => {
+      const mockResults = {
+        items: [
+          {
+            id: "screenshot-1",
+            instanceId: "test-instance-123",
+            filename: "screenshot-2025-01-26T10-00-00-abc.png",
+            filePath: "/path/to/screenshot1.png",
+            sessionId: "session-1",
+            browserId: "browser-1",
+            format: "png" as const,
+            fileSize: 100000,
+            width: 1920,
+            height: 1080,
+            fullPage: false,
+            hash: "sha256:abcdef1234567890",
+            createdAt: new Date("2025-01-26T10:00:00Z"),
+          },
+          {
+            id: "screenshot-2",
+            instanceId: "test-instance-123",
+            filename: "screenshot-2025-01-26T10-01-00-def.png",
+            filePath: "/path/to/screenshot2.png",
+            sessionId: "session-1",
+            browserId: "browser-1",
+            format: "png" as const,
+            fileSize: 150000,
+            width: 1920,
+            height: 1080,
+            fullPage: false,
+            hash: "sha256:fedcba0987654321",
+            createdAt: new Date("2025-01-26T10:01:00Z"),
+          },
+        ],
+        total: 2,
+        hasMore: false,
+      };
+
+      vi.spyOn(ScreenshotRepository, "list").mockResolvedValue(mockResults);
+
+      const results = await storageManager.listScreenshots({
+        sessionId: "session-1",
+        limit: 10,
+      });
+
+      expect(results).toEqual(mockResults);
+      expect(ScreenshotRepository.list).toHaveBeenCalledWith({
+        sessionId: "session-1",
+        limit: 10,
+      });
+    });
+
+    it("should fallback to filesystem scan if database query fails", async () => {
+      // Make database query fail
+      vi.spyOn(ScreenshotRepository, "list").mockRejectedValue(new Error("Database unavailable"));
+
+      // Save a screenshot first
+      await storageManager.saveScreenshot(
+        testBuffer,
+        { width: 1920, height: 1080 },
+        {
+          sessionId: "fallback-session",
+          browserId: "fallback-browser",
+        },
+      );
+
+      // Now try to list - should fallback to filesystem
+      const results = await storageManager.listScreenshots({
+        sessionId: "fallback-session",
+      });
+
+      // Should return results from filesystem scan
+      expect(results.items).toBeDefined();
+      expect(results.total).toBeGreaterThanOrEqual(0);
+    });
+
+    it("should support filtering by various parameters", async () => {
+      const listSpy = vi.spyOn(ScreenshotRepository, "list");
+      listSpy.mockResolvedValue({
+        items: [],
+        total: 0,
+        hasMore: false,
+      });
+
+      const testDate = new Date("2025-01-26T10:00:00Z");
+
+      await storageManager.listScreenshots({
+        teamId: "test-team",
+        tag: "test-tag",
+        format: "png",
+        maxAge: 3600,
+        startDate: testDate,
+        endDate: testDate,
+        orderBy: "file_size",
+        orderDirection: "DESC",
+        limit: 50,
+        offset: 10,
+      });
+
+      expect(listSpy).toHaveBeenCalledWith({
+        teamId: "test-team",
+        tag: "test-tag",
+        format: "png",
+        maxAge: 3600,
+        startDate: testDate,
+        endDate: testDate,
+        orderBy: "file_size",
+        orderDirection: "DESC",
+        limit: 50,
+        offset: 10,
+      });
     });
   });
 });
