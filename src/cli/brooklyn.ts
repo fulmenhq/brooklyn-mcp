@@ -12,7 +12,7 @@
  */
 
 // Version embedded at build time from VERSION file
-const VERSION = "1.4.13";
+const VERSION = "1.4.15";
 
 import { HELP_TEXT } from "../generated/help/index.js";
 // buildConfig import removed - not used in CLI entry point

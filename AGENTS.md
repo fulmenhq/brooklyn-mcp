@@ -198,6 +198,35 @@ function ensureLogger() {
 
 **See docs/development/logging_and_telemetry_guide.md for full details**
 
+## Project Structure
+
+```
+brooklyn/
+├── src/
+│   ├── core/           # Core MCP server logic
+│   ├── adapters/       # Playwright integration
+│   ├── ports/          # Interface definitions
+│   ├── shared/         # Shared utilities
+│   └── plugins/        # Team-specific extensions
+├── tests/             # Test suite
+├── configs/           # Team configurations
+├── scripts/           # Management scripts
+└── docs/              # Documentation
+```
+
+## Template Variables (Fulmen CDRL System)
+
+```typescript
+// Single source of truth for template values
+const templateVars = {
+  EXEC_NAME: "fulmen-brooklyn",
+  REPO_NAME: "fulmen-mcp-forge-brooklyn",
+  SERVICE_NAME: "fulmen-brooklyn",
+  DISPLAY_NAME: "Fulmen MCP Brooklyn",
+  PACKAGE_SCOPE: "{{PACKAGE_SCOPE}}", // For organization refit
+};
+```
+
 ## Pre-Commit Quality Gates (MANDATORY)
 
 **ZERO-TOLERANCE POLICY**: All quality gates must pass before commit. Only maintainer can approve `--no-verify` for emergency situations.
@@ -338,4 +367,4 @@ git commit --no-verify -m "EMERGENCY/URGENT/INTEGRATION - [reason]"
 
 **Reference**: See `docs/fulmen/spark/commit-attribution.md` for complete Fulmen Spark standards.
 
-**Note**: Read source first, run quality gates before commits. See docs/substaile/codex/ for details. For onboarding, see CLAUDE.md.
+**Note**: Read source first, run quality gates before commits. See docs/substaile/codex/ for details. For onboarding, see MAINTAINERS.md.

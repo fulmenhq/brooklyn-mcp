@@ -91,7 +91,6 @@ cline_mcp_settings.json # MCP server configuration
 cline.json              # Potential Cline configuration
 
 # Claude (Anthropic)
-CLAUDE.md
 CLAUDE.local.md
 claude.json
 .claude/
