@@ -156,7 +156,11 @@
       }
     },
     {
-      "include": ["src/core/onboarding-tools.ts", "src/core/transport.ts"],
+      "include": [
+        "src/core/onboarding-tools.ts",
+        "src/core/transport.ts",
+        "src/core/database/repositories/screenshot-repository-optimized.ts"
+      ],
       "linter": {
         "rules": {
           "complexity": {

@@ -493,46 +493,106 @@ export function registerOpsCommand(program: Command): void {
     .command("stats")
     .description("Show sync statistics from last run")
     .action(async () => {
-      // Get stats from database
-      try {
-        const dbManager = await getDatabaseManager();
-        const instanceId = dbManager.getInstanceId();
-
-        if (!instanceId) {
-          console.log("⚠️  No instance ID available");
-          return;
-        }
-
-        const result = await dbManager.execute("SELECT config FROM instances WHERE id = ?", [
-          instanceId,
-        ]);
-
-        if (result.rows.length > 0) {
-          const config = result.rows[0]?.["config"];
-          if (config) {
-            const parsed = JSON.parse(config as string);
-            if (parsed.screenshot_stats) {
-              console.log("📊 Screenshot Statistics:");
-              console.log(`  Total Count: ${parsed.screenshot_stats.totalCount}`);
-              console.log(
-                `  Total Size: ${(parsed.screenshot_stats.totalSize / 1024 / 1024).toFixed(2)} MB`,
-              );
-              console.log(
-                `  Average Size: ${(parsed.screenshot_stats.avgSize / 1024).toFixed(2)} KB`,
-              );
-              if (parsed.screenshot_stats.formats) {
-                console.log("  Formats:");
-                for (const [format, count] of Object.entries(parsed.screenshot_stats.formats)) {
-                  console.log(`    ${format}: ${count}`);
-                }
-              }
-            }
-          }
-        }
-
-        await dbManager.close();
-      } catch (error) {
-        console.error("Failed to get statistics:", error);
-      }
+      await showSyncStatistics();
     });
+}
+
+interface ScreenshotStats {
+  totalCount: number;
+  totalSize: number;
+  avgSize: number;
+  formats?: Record<string, number>;
+}
+
+/**
+ * Helper function to fetch screenshot statistics from database
+ */
+async function fetchScreenshotStats(): Promise<{
+  instanceId: string;
+  stats: ScreenshotStats | null;
+} | null> {
+  const dbManager = await getDatabaseManager();
+  const instanceId = dbManager.getInstanceId();
+
+  if (!instanceId) {
+    return null;
+  }
+
+  try {
+    const result = await dbManager.execute("SELECT config FROM instances WHERE id = ?", [
+      instanceId,
+    ]);
+
+    if (result.rows.length === 0) {
+      return { instanceId, stats: null };
+    }
+
+    const config = result.rows[0]?.["config"];
+    if (!config) {
+      return { instanceId, stats: null };
+    }
+
+    const parsed = JSON.parse(config as string);
+    return { instanceId, stats: parsed.screenshot_stats || null };
+  } finally {
+    await dbManager.close();
+  }
+}
+
+/**
+ * Helper function to format and display screenshot statistics
+ */
+function displayScreenshotStats(stats: ScreenshotStats): void {
+  console.log("📊 Screenshot Statistics:");
+  console.log(`  Total Count: ${stats.totalCount}`);
+  console.log(`  Total Size: ${formatBytes(stats.totalSize, "MB")}`);
+  console.log(`  Average Size: ${formatBytes(stats.avgSize, "KB")}`);
+
+  if (stats.formats) {
+    displayFormatStats(stats.formats);
+  }
+}
+
+/**
+ * Helper function to display format statistics
+ */
+function displayFormatStats(formats: Record<string, number>): void {
+  console.log("  Formats:");
+  for (const [format, count] of Object.entries(formats)) {
+    console.log(`    ${format}: ${count}`);
+  }
+}
+
+/**
+ * Helper function to format bytes to specified unit
+ */
+function formatBytes(bytes: number, unit: "KB" | "MB"): string {
+  if (unit === "MB") {
+    return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+  }
+  return `${(bytes / 1024).toFixed(2)} KB`;
+}
+
+/**
+ * Main function to show sync statistics
+ */
+async function showSyncStatistics(): Promise<void> {
+  try {
+    const result = await fetchScreenshotStats();
+
+    if (!result) {
+      console.log("⚠️  No instance ID available");
+      return;
+    }
+
+    if (!result.stats) {
+      console.log("ℹ️  No screenshot statistics available yet");
+      console.log("Run 'brooklyn ops sync run' to generate statistics");
+      return;
+    }
+
+    displayScreenshotStats(result.stats);
+  } catch (error) {
+    console.error("Failed to get statistics:", error);
+  }
 }
