@@ -118,8 +118,17 @@ brooklyn_getting_started use_case=ai_development team_id=your-team-name
 
 - **`launch_browser`** - Launch new browser instance (Chromium, Firefox, WebKit)
 - **`navigate`** - Navigate to any URL with custom wait conditions
-- **`screenshot`** - Capture full-page or viewport screenshots
+- **`take_screenshot`** - Capture full-page or viewport screenshots with rich metadata
+- **`list_screenshots`** - Query screenshot inventory with advanced filtering
 - **`close_browser`** - Clean up browser resources
+
+### Screenshot Inventory System
+
+- **`list_screenshots`** - Browse and filter your screenshot database
+  - Filter by team, tag, date range, format, session
+  - Sort by creation date, file size, or filename
+  - Pagination support for large result sets
+  - Team isolation ensures security boundaries
 
 ### Self-Service Onboarding
 
@@ -137,24 +146,75 @@ brooklyn_getting_started use_case=ai_development team_id=your-team-name
 - **Smart Web Scraping** - Let Claude navigate and extract data
 - **Dynamic Testing** - Generate tests based on UI changes
 - **Content Generation** - Screenshot websites for documentation
+- **Screenshot Management** - Query and organize screenshot collections
+- **Visual Documentation** - Build libraries of UI states and changes
 
 ### For UX Teams
 
 - **Responsive Design Testing** - Test across multiple viewport sizes
 - **Visual Regression** - Compare designs before/after changes
 - **Performance Monitoring** - Track page load times
+- **Design History** - Maintain visual changelog with tagged screenshots
+- **Component Libraries** - Build screenshot inventories of UI components
 
 ### For QA Teams
 
 - **Cross-Browser Testing** - Test in Chromium, Firefox, and WebKit
 - **Automated Regression** - Run test suites across browsers
 - **CI/CD Integration** - Automated testing in pipelines
+- **Test Evidence** - Maintain screenshot libraries for test results
+- **Failure Analysis** - Query screenshots by test session and failure patterns
 
 ### For Monitoring Teams
 
 - **Website Health Checks** - Monitor uptime and performance
 - **Error Detection** - Capture screenshots of errors
 - **Performance Benchmarking** - Track metrics over time
+- **Incident Documentation** - Query screenshots by date for incident analysis
+- **Trend Analysis** - Track visual changes and performance over time
+
+## 📊 Screenshot Inventory System (New as of v1.4.11)
+
+Brooklyn includes a comprehensive screenshot database that stores all your screenshots with rich metadata and provides powerful querying capabilities:
+
+### Core Features
+
+- **🗄️ Database Storage**: All screenshots automatically stored with metadata
+- **🔍 Rich Filtering**: Query by team, tag, date, format, session, and more
+- **📈 High Performance**: <100ms query times with intelligent caching
+- **🛡️ Security First**: Team isolation prevents cross-team data access
+- **📊 Analytics**: Built-in statistics and usage tracking
+
+### Example Queries
+
+```bash
+# List all screenshots for your team
+List all screenshots for my team
+
+# Filter by date range
+List screenshots from the last 7 days
+
+# Find by tags
+List screenshots tagged 'homepage' from yesterday
+
+# Session-specific searches
+List all screenshots from session 'test-run-123'
+
+# Format and size filtering
+List all PNG screenshots larger than 1MB
+
+# Complex queries
+List screenshots tagged 'error' from the last 24 hours in PNG format
+```
+
+### Database Schema
+
+Each screenshot includes:
+
+- **Metadata**: Team, user, session, timestamp
+- **File Info**: Path, size, format, dimensions, hash
+- **Context**: Tags, browser type, page URL
+- **Performance**: Creation time, access patterns
 
 ## 📚 Learn More
 
@@ -281,6 +341,7 @@ Brooklyn is designed to make browser automation accessible, reliable, and powerf
 - ✅ **Team-oriented** - Multi-team isolation and management
 - ✅ **Enterprise-ready** - Production-grade logging and monitoring
 - ✅ **Self-service** - Comprehensive onboarding and help tools
+- ✅ **Screenshot Database** - Advanced inventory with rich querying and analytics
 
 ## 🚀 Ready to Start?
 

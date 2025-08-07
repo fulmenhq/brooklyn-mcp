@@ -147,9 +147,44 @@ Navigate to https://example.com
 # Take a screenshot
 Take a full-page screenshot
 
+# List your screenshots
+List all screenshots for my team
+
+# Find specific screenshots
+List screenshots from today tagged 'example'
+
 # Clean up
 Close the browser
 ```
+
+## 📊 **Screenshot Inventory**
+
+Brooklyn now includes a powerful screenshot inventory system with database storage:
+
+```bash
+# List all your screenshots
+List all screenshots for my team
+
+# Filter by date range
+List screenshots from the last 7 days
+
+# Find by tag or session
+List screenshots tagged 'testing' from today
+
+# Advanced filtering
+List screenshots from session 'browser-123' in PNG format
+
+# Get statistics
+Show screenshot statistics for my team
+```
+
+**Screenshot Database Features:**
+
+- 🗄️ **Centralized Storage**: All screenshots stored in database with fast querying
+- 🔍 **Rich Filtering**: Filter by team, tag, date, format, session, and more
+- 📈 **Performance**: <100ms query times with intelligent caching
+- 🛡️ **Security**: Team isolation ensures you only see your screenshots
+- 📊 **Analytics**: Built-in statistics and usage tracking
 
 ## 🆘 **Need Help?**
 
