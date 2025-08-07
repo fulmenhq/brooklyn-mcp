@@ -1,5 +1,4 @@
 #!/bin/sh
-. "$(dirname "$0")/_/husky.sh"
 
 # Brooklyn Pre-commit Hook
 # Fast tests only - no external dependencies required
