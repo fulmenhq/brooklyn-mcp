@@ -7,19 +7,36 @@
 
 **Enterprise-ready MCP server for browser automation with multi-team support**
 
-> **⚡ 15-minute onboarding**: Read [CLAUDE.md 5-minute section](CLAUDE.md#5-minute-team-onboarding-start-here-first) for instant productivity
+> **⚡ 15-minute onboarding**: Read [AGENTS.md 5-minute section](AGENTS.md#5-minute-team-onboarding-start-here-first) for instant productivity
 
 🎯 **Latest**: v1.1.4 introduces **file-based screenshots** eliminating MCP token limitations and enabling enterprise-scale browser automation workflows.
 
 Brooklyn is a Model Context Protocol (MCP) server that provides AI developers and teams with powerful browser automation capabilities. Built on the Fulmen ecosystem principles, Brooklyn serves as a bridge between AI models and web browsers, enabling seamless automation, testing, and monitoring workflows.
 
+## 📚 Choose Your Documentation Path
+
+**New to Brooklyn?** Pick the guide that matches your needs:
+
+### For Getting Started
+
+- **🚀 [docs/hello_brooklyn.md](docs/hello_brooklyn.md)** - **5-minute setup** for immediate Claude Code connection
+- **📚 [docs/welcome.md](docs/welcome.md)** - **Comprehensive user guide** with examples, use cases, and detailed features
+
+### For Team Members
+
+- **👥 [docs/ONBOARDING.md](docs/ONBOARDING.md)** - **Team onboarding** with architecture, development philosophy, and coding standards
+- **⚡ [AGENTS.md 5-minute section](AGENTS.md#5-minute-team-onboarding-start-here-first)** - **Instant productivity** for developers
+
+### Quick Comparison
+
+| Guide                 | Time   | Audience     | Focus                       |
+| --------------------- | ------ | ------------ | --------------------------- |
+| **hello_brooklyn.md** | 5 min  | Anyone       | Quick setup, first test     |
+| **welcome.md**        | 15 min | End users    | Complete features, examples |
+| **ONBOARDING.md**     | 15 min | Team members | Architecture, development   |
+| **AGENTS.md**         | 5 min  | Developers   | Instant productivity        |
+
 ## 🚀 Quick Start
-
-**New to Brooklyn?** Choose your path:
-
-- **👤 Users**: **[docs/welcome.md](docs/welcome.md)** - Complete setup and first automation
-- **👥 Team Members**: **[docs/ONBOARDING.md](docs/ONBOARDING.md)** - Architecture, development, and team context
-- **⚡ 5-Minute Start**: **[CLAUDE.md 5-minute section](CLAUDE.md#5-minute-team-onboarding-start-here-first)** - Instant productivity
 
 ### Prerequisites
 

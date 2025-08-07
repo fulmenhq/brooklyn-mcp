@@ -148,6 +148,7 @@ _Making quality practices the fastest way to get assignment-ready_
 - ✅ **Screenshot Database**: Enterprise-ready inventory system with libSQL
 - ✅ **Performance & Caching**: <100ms query times with intelligent caching
 - ✅ **E2E Testing Framework**: Comprehensive security and protocol testing
+- ✅ **Robust CLI Implementation**: Process management, timeout protection, and proper exit handling
 
 **Roadmap**: Advanced Automation Features
 
@@ -350,6 +351,8 @@ bun run check:file src/path/to/file.ts       # Verify all checks pass
 - 📖 **`docs/substaile/codex/coding.md`** - Core coding principles, error patterns
 - 📖 **`docs/substaile/codex/typescript/typescript-coding.md`** - TypeScript-specific practices
 - 📖 **`docs/substaile/codex/testing.md`** - Testing patterns, AAA structure
+- 📖 **`docs/development/standards/cli-implementation-sop.md`** - CLI development patterns and process management
+- 📖 **`docs/development/standards/logger-usage-sop.md`** - Logger usage patterns for CLI vs Server code
 - 📖 **`FULMEN-TECHNICAL-MANIFESTO.md`** - Fulmen forge principles and philosophy
 
 **Team Context**:
@@ -365,6 +368,7 @@ bun run check:file src/path/to/file.ts       # Verify all checks pass
 - **`docs/architecture/tool-discovery-architecture.md`** - How MCP tools are discovered
 - **`docs/architecture/browser-capabilities-v1.md`** - Browser automation capabilities
 - **`docs/development/logging_and_telemetry_guide.md`** - Structured logging patterns
+- **`docs/development/standards/`** - Complete implementation standards directory
 
 **User Experience**:
 

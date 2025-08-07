@@ -53,7 +53,7 @@ This is the critical step to connect Brooklyn to your Claude Code environment:
   "mcpServers": {
     "brooklyn": {
       "command": "bun",
-      "args": ["run", "start"],
+      "args": ["src/cli/brooklyn.ts", "mcp", "start"],
       "cwd": "/absolute/path/to/fulmen-mcp-forge-brooklyn"
     }
   }
@@ -255,17 +255,16 @@ Brooklyn includes a powerful CLI for server management from anywhere:
 bun run install
 
 # Global server management
-brooklyn-server start       # Start the server
-brooklyn-server stop        # Stop the server
-brooklyn-server restart     # Restart the server
-brooklyn-server status      # Check server status
-brooklyn-server logs        # View server logs (continuous)
-brooklyn-server logs --recent  # View recent logs only
-brooklyn-server cleanup     # Clean up resources
-brooklyn-server info        # Show installation information
+brooklyn status              # Check server status
+brooklyn version             # Show version information
+brooklyn cleanup            # Clean up resources
+brooklyn --help             # Comprehensive help
 
-# Comprehensive help available
-brooklyn-server --help
+# MCP server management
+brooklyn mcp start           # Start MCP server
+brooklyn mcp dev-http        # Start HTTP server (background mode)
+brooklyn mcp dev-http-status # Check HTTP server status
+brooklyn mcp dev-http-stop   # Stop HTTP server
 ```
 
 **Installation Options:**
@@ -279,20 +278,19 @@ brooklyn-server --help
 From the Brooklyn repository directory:
 
 ```bash
-# Start server
-bun run server:start
+# Development mode
+bun run dev
 
-# Check server status
-bun run server:status
+# Build and install Brooklyn CLI
+bun run build && bun run install
 
-# View recent logs
-bun run server:logs:recent
+# Quality checks
+bun run check-all           # Format + typecheck + lint + test
 
-# View logs (continuous)
-bun run server:logs
-
-# Stop server
-bun run server:stop
+# Server management
+bun run server:start        # Start development server
+bun run server:status       # Check server status
+bun run server:stop         # Stop development server
 ```
 
 ### Common Issues & Solutions

@@ -85,8 +85,8 @@ claude mcp add -s user brooklyn "brooklyn mcp start"
 **Local Dev HTTP (optional)**
 
 ```bash
-# Start a local HTTP server (background)
-brooklyn mcp dev-http --port 8081 --host 127.0.0.1 --team-id local --background
+# Start a local HTTP server (defaults to background)
+brooklyn mcp dev-http --port 8081 --host 127.0.0.1 --team-id local
 # Check status
 brooklyn mcp dev-http-status --port 8081
 # Health endpoint
@@ -95,7 +95,7 @@ curl -sS http://127.0.0.1:8081/health | jq .
 brooklyn cleanup --http
 ```
 
-SOP note: dev-http without --background runs in foreground (blocks terminal). With --background, it returns immediately; use dev-http-status to verify.
+SOP note: dev-http now defaults to background mode (AI-friendly). Use --foreground for debugging (blocks terminal). Use dev-http-status to verify.
 
 ### **Step 3: Connect to Claude Code**
 
