@@ -23,7 +23,7 @@ Key commands (learn these first)
 - HTTP Dev server lifecycle:
   - `brooklyn mcp dev-http --help`
   - `brooklyn mcp dev-http-status`
-  - `brooklyn mcp dev-http --port 8081 --team-id <team> --background --verbose`
+  - `brooklyn mcp dev-http --port 8081 --team-id <team> --verbose`
   - `brooklyn mcp dev-http-stop --all`
   - `brooklyn mcp dev-http-list`
 
@@ -31,7 +31,7 @@ Golden Rules
 
 1. Issue exactly one command at a time. Read the output. Only then proceed.
 2. Always check status before starting and after stopping.
-3. Avoid foreground servers for AI/automation. Use `--background` for control return.
+3. Background mode is now the default for AI-friendly operation. Use `--foreground` only for debugging.
 4. If you see “Port undefined” or unhealthy entries, clean up with `dev-http-stop --all` and recheck.
 5. For HTTP requests, the /mcp endpoint returns MCP-style content as a text block containing JSON. Parse the `text` field to extract structured results.
 
@@ -52,10 +52,10 @@ A) Status and Cleanup
 
    Expected: Clean state (no running dev-http instances).
 
-B) Start the HTTP Dev Server (Background) 3. Start:
-brooklyn mcp dev-http --port 8081 --team-id http-test --background --verbose
+B) Start the HTTP Dev Server (Background by Default) 3. Start:
+brooklyn mcp dev-http --port 8081 --team-id http-test --verbose
 
-Expected: “Brooklyn HTTP server starting in background (PID: #####, Port: 8081)”
+Expected: "Brooklyn HTTP server started in background (PID: #####, Port: 8081)"
 
 4. Verify:
    brooklyn mcp dev-http-status

@@ -169,6 +169,32 @@ export class BrooklynEngine {
       // Logger not ready yet, skip logging
     }
 
+    // Initialize database for screenshot inventory
+    try {
+      const { getDatabaseManager } = await import("./database/database-manager.js");
+      const dbManager = await getDatabaseManager();
+      const isHealthy = await dbManager.isHealthy();
+
+      try {
+        this.getLogger().info("Database initialized", {
+          healthy: isHealthy,
+          instanceId: dbManager.getInstanceId(),
+        });
+      } catch {
+        // Logger not ready yet, skip logging
+      }
+    } catch (error) {
+      // Log database initialization failure but continue
+      // Some features like screenshot inventory won't work without DB
+      try {
+        this.getLogger().warn("Database initialization failed - screenshot inventory disabled", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      } catch {
+        // Logger not ready yet, skip logging
+      }
+    }
+
     // Initialize browser pool
     await this.browserPool.initialize();
 
@@ -386,6 +412,18 @@ export class BrooklynEngine {
 
     // Clean up plugins
     await this.pluginManager.cleanup();
+
+    // Clean up database connection
+    try {
+      const { getDatabaseManager } = await import("./database/database-manager.js");
+      const dbManager = await getDatabaseManager();
+      await dbManager.close();
+      this.getLogger().info("Database connection closed");
+    } catch (error) {
+      this.getLogger().debug("Database cleanup skipped", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
 
     this.transports.clear();
     this.isInitialized = false;
@@ -701,6 +739,7 @@ export class BrooklynEngine {
       // Content capture
       "take_screenshot",
       "list_screenshots",
+      "get_screenshot",
       // Discovery
       "brooklyn_list_tools",
       "brooklyn_tool_help",
@@ -1057,6 +1096,30 @@ export class BrooklynEngine {
           }
           // No fallback for list_screenshots - requires database
           throw new Error("Screenshot inventory requires database connection");
+
+        case "get_screenshot":
+          // Phase 2: Use router for get_screenshot
+          if (this.browserRouter) {
+            const request = {
+              tool: name,
+              params: args as Record<string, unknown>,
+              context: MCPRequestContextFactory.create({
+                teamId: context.teamId,
+                userId: context.userId,
+                metadata: {
+                  permissions: context.permissions,
+                  correlationId: context.correlationId,
+                },
+              }),
+            };
+            const response = await this.browserRouter.route(request);
+            if (!response.success) {
+              throw new Error(response.error?.message || "Get screenshot failed");
+            }
+            return response.result;
+          }
+          // No fallback for get_screenshot - requires database
+          throw new Error("Screenshot retrieval requires database connection");
 
         // Discovery tools
         case "brooklyn_list_tools":

@@ -37,6 +37,36 @@ const logger = {
 };
 
 /**
+ * Output rows as CSV format
+ */
+function outputCsv(rows: Array<Record<string, unknown>>): void {
+  if (rows.length === 0) return;
+
+  const firstRow = rows[0];
+  if (!firstRow) return;
+
+  const headers = Object.keys(firstRow);
+  console.log(headers.join(","));
+
+  for (const row of rows) {
+    const values = headers.map((h) => {
+      const value = row[h];
+      // Quote strings with commas or newlines
+      if (typeof value === "string") {
+        const hasComma = value.includes(",");
+        const hasNewline = value.includes("\n");
+        if (hasComma || hasNewline) {
+          return `"${value.replace(/"/g, '""')}"`;
+        }
+        return value;
+      }
+      return value ?? "";
+    });
+    console.log(values.join(","));
+  }
+}
+
+/**
  * Register the ops command and its subcommands
  */
 export function registerOpsCommand(program: Command): void {
@@ -50,9 +80,10 @@ export function registerOpsCommand(program: Command): void {
   db.command("init")
     .description("Initialize the database")
     .action(async () => {
+      let dbManager: Awaited<ReturnType<typeof getDatabaseManager>> | undefined;
       try {
         logger.info("🚀 Initializing Brooklyn database...");
-        const dbManager = await getDatabaseManager();
+        dbManager = await getDatabaseManager();
         const healthy = await dbManager.isHealthy();
         if (healthy) {
           logger.info("✅ Database initialized successfully");
@@ -63,16 +94,27 @@ export function registerOpsCommand(program: Command): void {
             type: context?.type,
             scope: context?.scope,
           });
+
+          // Close database before exit
+          await dbManager.close();
+
+          // Explicitly exit to return control to console
+          process.exit(0);
         } else {
           logger.error("❌ Database initialization failed");
+          if (dbManager) await dbManager.close();
           process.exit(1);
         }
       } catch (error) {
         console.error("❌ Failed to initialize database:", error);
+        if (dbManager) {
+          try {
+            await dbManager.close();
+          } catch {
+            // Ignore cleanup errors
+          }
+        }
         process.exit(1);
-      } finally {
-        const dbManager = await getDatabaseManager();
-        await dbManager.close();
       }
     });
 
@@ -112,6 +154,9 @@ export function registerOpsCommand(program: Command): void {
 
           await dbManager.close();
         }
+
+        // Explicitly exit to return control to console
+        process.exit(0);
       } catch (error) {
         logger.error("❌ Failed to check database status", { error });
         process.exit(1);
@@ -139,6 +184,9 @@ export function registerOpsCommand(program: Command): void {
         logger.info("Applied migrations", { migrations });
 
         await dbManager.close();
+
+        // Explicitly exit to return control to console
+        process.exit(0);
       } catch (error) {
         logger.error("❌ Migration failed", { error });
         process.exit(1);
@@ -178,6 +226,9 @@ export function registerOpsCommand(program: Command): void {
         logger.info("✅ Database optimized");
 
         await dbManager.close();
+
+        // Explicitly exit to return control to console
+        process.exit(0);
       } catch (error) {
         logger.error("❌ Cleanup failed", { error });
         process.exit(1);
@@ -210,6 +261,147 @@ export function registerOpsCommand(program: Command): void {
         await dbManager.close();
       } catch (error) {
         console.error("❌ Reset failed:", error);
+        process.exit(1);
+      }
+    });
+
+  db.command("query")
+    .description("Execute a read-only SQL query (for debugging)")
+    .argument("<sql>", "SQL query to execute")
+    .option("-j, --json", "Output as JSON")
+    .option("-t, --table", "Output as formatted table (default)")
+    .option("-c, --csv", "Output as CSV")
+    .action(async (sql, options) => {
+      let dbManager: Awaited<ReturnType<typeof getDatabaseManager>> | undefined;
+      try {
+        // Safety check - only allow SELECT queries by default
+        const normalizedSql = sql.trim().toUpperCase();
+        if (!(normalizedSql.startsWith("SELECT") || normalizedSql.startsWith("PRAGMA"))) {
+          logger.error("❌ Only SELECT and PRAGMA queries are allowed for safety");
+          logger.info("💡 Use 'brooklyn ops db exec' for write operations (if needed)");
+          process.exit(1);
+        }
+
+        dbManager = await getDatabaseManager();
+        const result = await dbManager.execute(sql);
+
+        // Format output based on options
+        if (options.json) {
+          console.log(JSON.stringify(result.rows, null, 2));
+        } else if (options.csv) {
+          outputCsv(result.rows);
+        } else {
+          // Table format (default)
+          if (result.rows.length === 0) {
+            console.log("📊 Query returned no results");
+          } else {
+            console.log(`📊 Query returned ${result.rows.length} row(s):\n`);
+            console.table(result.rows);
+          }
+        }
+
+        await dbManager.close();
+        process.exit(0);
+      } catch (error) {
+        logger.error("❌ Query failed", { error });
+        if (dbManager) {
+          try {
+            await dbManager.close();
+          } catch {
+            // Ignore cleanup errors
+          }
+        }
+        process.exit(1);
+      }
+    });
+
+  db.command("inventory")
+    .description("Show screenshot inventory")
+    .option("-s, --session <sessionId>", "Filter by session ID")
+    .option("-t, --tag <tag>", "Filter by tag prefix")
+    .option("-l, --limit <limit>", "Limit results (default: 10)", "10")
+    .action(async (options) => {
+      let dbManager: Awaited<ReturnType<typeof getDatabaseManager>> | undefined;
+      try {
+        logger.info("📸 Screenshot Inventory");
+
+        dbManager = await getDatabaseManager();
+        const instanceId = dbManager.getInstanceId();
+
+        // Build query
+        const conditions: string[] = [];
+        const params: Array<string | number> = [];
+
+        if (instanceId) {
+          conditions.push("instance_id = ?");
+          params.push(instanceId);
+        }
+
+        if (options.session) {
+          conditions.push("session_id = ?");
+          params.push(options.session);
+        }
+
+        if (options.tag) {
+          conditions.push("tag LIKE ?");
+          params.push(`${options.tag}%`);
+        }
+
+        const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+        const limit = Number.parseInt(options.limit, 10);
+
+        const sql = `
+          SELECT 
+            id,
+            filename,
+            session_id,
+            browser_id,
+            tag,
+            format,
+            file_size,
+            width,
+            height,
+            created_at
+          FROM screenshots
+          ${whereClause}
+          ORDER BY created_at DESC
+          LIMIT ?
+        `;
+
+        params.push(limit);
+
+        const result = await dbManager.execute(sql, params);
+
+        if (result.rows.length === 0) {
+          logger.info("No screenshots found matching criteria");
+        } else {
+          logger.info(`Found ${result.rows.length} screenshot(s):\n`);
+
+          // Format for display
+          const formatted = result.rows.map((row) => ({
+            id: `${(row["id"] as string).substring(0, 8)}...`,
+            filename: row["filename"],
+            session: row["session_id"],
+            tag: row["tag"] || "-",
+            size: `${((row["file_size"] as number) / 1024).toFixed(1)}KB`,
+            dimensions: `${row["width"]}x${row["height"]}`,
+            created: new Date(row["created_at"] as string).toLocaleString(),
+          }));
+
+          console.table(formatted);
+        }
+
+        await dbManager.close();
+        process.exit(0);
+      } catch (error) {
+        logger.error("❌ Failed to get inventory", { error });
+        if (dbManager) {
+          try {
+            await dbManager.close();
+          } catch {
+            // Ignore cleanup errors
+          }
+        }
         process.exit(1);
       }
     });
@@ -286,19 +478,19 @@ export function registerOpsCommand(program: Command): void {
     .command("info")
     .description("Show system and configuration information")
     .action(async () => {
-      console.log("🌉 Brooklyn System Information");
-      console.log("─".repeat(40));
+      console.log("Brooklyn System Information");
+      console.log("=".repeat(40));
 
       // Basic info
-      console.log(`📦 Version: ${process.env["BROOKLYN_VERSION"] || "unknown"}`);
-      console.log(`🖥️  Platform: ${process.platform}`);
-      console.log(`📁 Home: ${homedir()}`);
-      console.log(`🔧 Node: ${process.version}`);
-      console.log(`🐰 Bun: ${process.versions.bun || "N/A"}`);
+      console.log(`Version: ${process.env["BROOKLYN_VERSION"] || "unknown"}`);
+      console.log(`Platform: ${process.platform}`);
+      console.log(`Home: ${homedir()}`);
+      console.log(`Node: ${process.version}`);
+      console.log(`Bun: ${process.versions.bun || "N/A"}`);
 
       // Brooklyn directories
       const brooklynHome = join(homedir(), ".brooklyn");
-      console.log("\n📂 Brooklyn Directories:");
+      console.log("\nBrooklyn Directories:");
       console.log(`  Config: ${brooklynHome}`);
       console.log(`  Database: ${join(brooklynHome, "brooklyn.db")}`);
       console.log(`  Screenshots: ${join(brooklynHome, "screenshots")}`);
@@ -310,16 +502,21 @@ export function registerOpsCommand(program: Command): void {
         const instanceId = dbManager.getInstanceId();
         const context = dbManager.getInstanceContext();
 
-        console.log("\n🔑 Current Instance:");
+        console.log("\nCurrent Instance:");
         console.log(`  ID: ${instanceId}`);
         console.log(`  Type: ${context?.type}`);
         console.log(`  Scope: ${context?.scope}`);
         console.log(`  Path: ${context?.installPath}`);
 
         await dbManager.close();
-      } catch {
-        console.log("\n⚠️  Database not initialized");
+        console.log("Database connection closed successfully");
+      } catch (error) {
+        console.log("\nDatabase not initialized");
+        console.log("Error details:", error);
       }
+
+      // Explicitly exit to return control to console
+      process.exit(0);
     });
 
   // Performance benchmarking commands
@@ -396,38 +593,81 @@ export function registerOpsCommand(program: Command): void {
     .command("cache")
     .description("Show cache statistics")
     .action(async () => {
-      const cacheStats = ScreenshotRepositoryOptimized.getCacheStats();
+      try {
+        // Use lazy logger initialization for emoji display
+        const { getLogger } = await import("../../shared/pino-logger.js");
+        let cacheLogger: ReturnType<typeof getLogger> | null = null;
 
-      console.log("📊 Cache Statistics\n");
+        function ensureCacheLogger() {
+          if (!cacheLogger) {
+            cacheLogger = getLogger("brooklyn-benchmark-cache");
+          }
+          return cacheLogger;
+        }
 
-      console.log("List Cache:");
-      console.log(`  Hits: ${cacheStats.listCache.hits}`);
-      console.log(`  Misses: ${cacheStats.listCache.misses}`);
-      console.log(`  Hit Rate: ${(cacheStats.listCache.hitRate * 100).toFixed(2)}%`);
-      console.log(`  Size: ${cacheStats.listCache.size}`);
-      console.log(`  Evictions: ${cacheStats.listCache.evictions}`);
+        const cacheStats = ScreenshotRepositoryOptimized.getCacheStats();
 
-      console.log("\nSingle Cache:");
-      console.log(`  Hits: ${cacheStats.singleCache.hits}`);
-      console.log(`  Misses: ${cacheStats.singleCache.misses}`);
-      console.log(`  Hit Rate: ${(cacheStats.singleCache.hitRate * 100).toFixed(2)}%`);
-      console.log(`  Size: ${cacheStats.singleCache.size}`);
-      console.log(`  Evictions: ${cacheStats.singleCache.evictions}`);
+        ensureCacheLogger().info("📊 Cache Statistics\n");
 
-      console.log("\nStats Cache:");
-      console.log(`  Hits: ${cacheStats.statsCache.hits}`);
-      console.log(`  Misses: ${cacheStats.statsCache.misses}`);
-      console.log(`  Hit Rate: ${(cacheStats.statsCache.hitRate * 100).toFixed(2)}%`);
-      console.log(`  Size: ${cacheStats.statsCache.size}`);
-      console.log(`  Evictions: ${cacheStats.statsCache.evictions}`);
+        ensureCacheLogger().info("List Cache:");
+        ensureCacheLogger().info(`  Hits: ${cacheStats.listCache.hits}`);
+        ensureCacheLogger().info(`  Misses: ${cacheStats.listCache.misses}`);
+        ensureCacheLogger().info(`  Hit Rate: ${(cacheStats.listCache.hitRate * 100).toFixed(2)}%`);
+        ensureCacheLogger().info(`  Size: ${cacheStats.listCache.size}`);
+        ensureCacheLogger().info(`  Evictions: ${cacheStats.listCache.evictions}`);
+
+        ensureCacheLogger().info("\nSingle Cache:");
+        ensureCacheLogger().info(`  Hits: ${cacheStats.singleCache.hits}`);
+        ensureCacheLogger().info(`  Misses: ${cacheStats.singleCache.misses}`);
+        ensureCacheLogger().info(
+          `  Hit Rate: ${(cacheStats.singleCache.hitRate * 100).toFixed(2)}%`,
+        );
+        ensureCacheLogger().info(`  Size: ${cacheStats.singleCache.size}`);
+        ensureCacheLogger().info(`  Evictions: ${cacheStats.singleCache.evictions}`);
+
+        ensureCacheLogger().info("\nStats Cache:");
+        ensureCacheLogger().info(`  Hits: ${cacheStats.statsCache.hits}`);
+        ensureCacheLogger().info(`  Misses: ${cacheStats.statsCache.misses}`);
+        ensureCacheLogger().info(
+          `  Hit Rate: ${(cacheStats.statsCache.hitRate * 100).toFixed(2)}%`,
+        );
+        ensureCacheLogger().info(`  Size: ${cacheStats.statsCache.size}`);
+        ensureCacheLogger().info(`  Evictions: ${cacheStats.statsCache.evictions}`);
+
+        // Explicitly exit to return control to console
+        process.exit(0);
+      } catch (error) {
+        console.error("❌ Failed to show cache statistics:", error);
+        process.exit(1);
+      }
     });
 
   benchmark
     .command("clear-cache")
     .description("Clear all query caches")
     .action(async () => {
-      ScreenshotRepositoryOptimized.clearCaches();
-      console.log("✅ All caches cleared");
+      try {
+        ScreenshotRepositoryOptimized.clearCaches();
+
+        // Use lazy logger initialization for emoji display
+        const { getLogger } = await import("../../shared/pino-logger.js");
+        let clearLogger: ReturnType<typeof getLogger> | null = null;
+
+        function ensureClearLogger() {
+          if (!clearLogger) {
+            clearLogger = getLogger("brooklyn-clear-cache");
+          }
+          return clearLogger;
+        }
+
+        ensureClearLogger().info("✅ All caches cleared");
+
+        // Explicitly exit to return control to console
+        process.exit(0);
+      } catch (error) {
+        console.error("❌ Failed to clear caches:", error);
+        process.exit(1);
+      }
     });
 
   // Background sync commands
@@ -447,7 +687,7 @@ export function registerOpsCommand(program: Command): void {
           batchSize: Number.parseInt(options.batchSize, 10),
         });
 
-        console.log("\n✅ Sync complete!");
+        console.log("\n[OK] Sync complete!");
         console.log(`  Files scanned: ${stats.filesScanned}`);
         console.log(`  Files added: ${stats.filesAdded}`);
         console.log(`  Files skipped: ${stats.filesSkipped}`);
@@ -456,8 +696,11 @@ export function registerOpsCommand(program: Command): void {
         console.log(`  Duration: ${(stats.duration / 1000).toFixed(2)} seconds`);
 
         if (options.dryRun) {
-          console.log("\n⚠️  This was a dry run - no changes were made");
+          console.log("\n[WARN] This was a dry run - no changes were made");
         }
+
+        // Explicitly exit to return control to console
+        process.exit(0);
       } catch (error) {
         console.error("❌ Sync failed:", error);
         process.exit(1);
@@ -493,7 +736,15 @@ export function registerOpsCommand(program: Command): void {
     .command("stats")
     .description("Show sync statistics from last run")
     .action(async () => {
-      await showSyncStatistics();
+      try {
+        await showSyncStatistics();
+
+        // Explicitly exit to return control to console
+        process.exit(0);
+      } catch (error) {
+        console.error("❌ Failed to show sync statistics:", error);
+        process.exit(1);
+      }
     });
 }
 

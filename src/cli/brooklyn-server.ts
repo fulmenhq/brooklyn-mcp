@@ -132,7 +132,7 @@ function setupClaudeCode(options: { project?: boolean } = {}): void {
     log.success(`✅ Brooklyn is already configured as '${serverName}' in Claude Code!`);
     log.info(`Config file: ${configPath}`);
     log.info(`Scope: ${scopeDesc}`);
-    return;
+    process.exit(0);
   }
 
   // Check for conflicts with other Brooklyn instances
@@ -140,7 +140,7 @@ function setupClaudeCode(options: { project?: boolean } = {}): void {
     log.warn(
       `MCP server '${serverName}' already exists but points to different Brooklyn installation`,
     );
-    return;
+    process.exit(1);
   }
 
   // Ensure config directory exists
@@ -167,6 +167,7 @@ function setupClaudeCode(options: { project?: boolean } = {}): void {
   log.success(`Brooklyn MCP server configured as '${serverName}' in Claude Code!`);
   log.info(`Config file: ${configPath}`);
   log.info(`Scope: ${scopeDesc}`);
+  process.exit(0);
 }
 
 /**
@@ -190,7 +191,7 @@ function removeFromClaude(options: { project?: boolean } = {}): void {
 
     if (brooklynServers.length > 0) {
     }
-    return;
+    process.exit(0);
   }
 
   delete config.mcpServers[serverName];
@@ -198,6 +199,7 @@ function removeFromClaude(options: { project?: boolean } = {}): void {
 
   log.success(`MCP server '${serverName}' removed from Claude Code configuration!`);
   log.info(`Config file: ${configPath}`);
+  process.exit(0);
 }
 
 /**
@@ -207,7 +209,8 @@ function checkClaude(): void {
   const { configPath, config } = checkClaudeConfig();
 
   if (!config?.mcpServers) {
-    return;
+    log.info("No MCP servers configured in Claude Code");
+    process.exit(0);
   }
 
   // Find all Brooklyn-related servers
@@ -220,7 +223,8 @@ function checkClaude(): void {
     }));
 
   if (brooklynServers.length === 0) {
-    return;
+    log.info("No Brooklyn servers configured in Claude Code");
+    process.exit(0);
   }
   brooklynServers.forEach(({ name, config: serverConfig, isThisInstance }) => {
     const _status = isThisInstance ? "✅ This instance" : "❌ Different instance";
@@ -229,7 +233,11 @@ function checkClaude(): void {
   const thisInstanceConfigured = brooklynServers.some((s) => s.isThisInstance);
 
   if (!thisInstanceConfigured) {
+    log.info("This Brooklyn instance is not configured in Claude Code");
+  } else {
+    log.info("This Brooklyn instance is configured in Claude Code");
   }
+  process.exit(0);
 }
 
 /**
@@ -270,6 +278,7 @@ function startServer(): void {
   log.title("Starting Brooklyn MCP Server");
 
   execInBrooklyn("bun run server:start", { stdio: "inherit" });
+  process.exit(0);
 }
 
 /**
@@ -279,6 +288,7 @@ function stopServer(): void {
   log.title("Stopping Brooklyn MCP Server");
 
   execInBrooklyn("bun run server:stop", { stdio: "inherit" });
+  process.exit(0);
 }
 
 /**
@@ -288,6 +298,7 @@ function restartServer(): void {
   log.title("Restarting Brooklyn MCP Server");
 
   execInBrooklyn("bun run server:restart", { stdio: "inherit" });
+  process.exit(0);
 }
 
 /**
@@ -295,6 +306,7 @@ function restartServer(): void {
  */
 function showStatus(): void {
   execInBrooklyn("bun run server:status", { stdio: "inherit" });
+  process.exit(0);
 }
 
 /**
@@ -303,6 +315,7 @@ function showStatus(): void {
 function showLogs(options: { recent?: boolean } = {}): void {
   const command = options.recent ? "bun run server:logs:recent" : "bun run server:logs";
   execInBrooklyn(command, { stdio: "inherit" });
+  // Note: Don't force exit - logs command might be continuous
 }
 
 /**
@@ -312,12 +325,23 @@ function cleanupServer(): void {
   log.title("Cleaning up Brooklyn resources");
 
   execInBrooklyn("bun run server:cleanup", { stdio: "inherit" });
+  process.exit(0);
 }
 
 /**
  * Show Brooklyn information
  */
-function showInfo(): void {}
+function showInfo(): void {
+  log.title("Brooklyn Installation Information");
+  log.info(`Brooklyn Path: ${BROOKLYN_PATH}`);
+  log.info(`Brooklyn Version: ${BROOKLYN_VERSION}`);
+
+  const { configured, configPath } = checkClaudeConfig();
+  log.info(`Claude Code Config: ${configPath}`);
+  log.info(`Claude Code Status: ${configured ? "✅ Configured" : "❌ Not configured"}`);
+
+  process.exit(0);
+}
 
 /**
  * Main CLI setup

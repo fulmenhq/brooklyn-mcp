@@ -576,6 +576,78 @@ export const contentCaptureTools: EnhancedTool[] = [
       },
     ],
   },
+  {
+    name: "get_screenshot",
+    category: "content-capture",
+    description: "Retrieve a specific screenshot by file path or audit ID with metadata",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: {
+          type: "string",
+          description: "File path to the screenshot",
+        },
+        auditId: {
+          type: "string",
+          description: "Unique audit ID of the screenshot to retrieve",
+        },
+      },
+      anyOf: [{ required: ["path"] }, { required: ["auditId"] }],
+    },
+    examples: [
+      {
+        description: "Get screenshot by file path",
+        input: {
+          path: "/Users/user/.brooklyn/screenshots/team-ux/sessions/session-123/screenshot-2025-01-26T10-30-00-abc123.png",
+        },
+        expectedOutput: {
+          exists: true,
+          filePath:
+            "/Users/user/.brooklyn/screenshots/team-ux/sessions/session-123/screenshot-2025-01-26T10-30-00-abc123.png",
+          fileSize: 245678,
+          createdAt: "2025-01-26T10:30:00Z",
+          metadataPath:
+            "/Users/user/.brooklyn/screenshots/team-ux/sessions/session-123/screenshot-2025-01-26T10-30-00-abc123.metadata.json",
+        },
+      },
+      {
+        description: "Get screenshot by audit ID",
+        input: {
+          auditId: "audit-uuid-abc123",
+        },
+        expectedOutput: {
+          exists: true,
+          filePath:
+            "/Users/user/.brooklyn/screenshots/team-ux/sessions/session-456/screenshot-2025-01-26T11-15-00-def456.png",
+          fileSize: 312456,
+          createdAt: "2025-01-26T11:15:00Z",
+          metadataPath:
+            "/Users/user/.brooklyn/screenshots/team-ux/sessions/session-456/screenshot-2025-01-26T11-15-00-def456.metadata.json",
+        },
+      },
+      {
+        description: "Screenshot not found",
+        input: {
+          auditId: "non-existent-audit-id",
+        },
+        expectedOutput: {
+          exists: false,
+        },
+      },
+    ],
+    errors: [
+      {
+        code: "INVALID_PARAMETERS",
+        message: "Either 'path' or 'auditId' must be provided",
+        solution: "Provide either a file path or audit ID to retrieve the screenshot",
+      },
+      {
+        code: "FILE_NOT_FOUND",
+        message: "Screenshot file not found at specified path",
+        solution: "Check the file path or use list_screenshots to find available screenshots",
+      },
+    ],
+  },
 ];
 
 /**

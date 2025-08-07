@@ -12,11 +12,22 @@ import { getLogger } from "../../shared/pino-logger.js";
 import { type InstanceContext, getStableInstanceId } from "./instance-id-generator.js";
 import type { BrooklynInstance, DatabaseConfig } from "./types.js";
 
-// Lazy logger initialization to avoid bundling issues
+// Lazy logger initialization with safe fallback
 let logger: ReturnType<typeof getLogger> | null = null;
 function ensureLogger() {
   if (!logger) {
-    logger = getLogger("database-manager");
+    try {
+      logger = getLogger("database-manager");
+    } catch {
+      // Logger not ready yet - use console as fallback
+      // This ensures database operations don't fail due to logger issues
+      return {
+        debug: (...args: unknown[]) => console.debug("[database-manager]", ...args),
+        info: (...args: unknown[]) => console.log("[database-manager]", ...args),
+        warn: (...args: unknown[]) => console.warn("[database-manager]", ...args),
+        error: (...args: unknown[]) => console.error("[database-manager]", ...args),
+      } as ReturnType<typeof getLogger>;
+    }
   }
   return logger;
 }

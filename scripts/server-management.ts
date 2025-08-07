@@ -203,18 +203,27 @@ export async function getServerStatus(): Promise<void> {
     console.log(`Status: Running (PID: ${pid})`);
     console.log(`Log file: ${LOG_FILE}`);
 
-    // Try to get additional process info
+    // Try to get additional process info with timeout
     try {
-      const { stdout } = await execAsync(`ps -p ${pid} -o pid,ppid,etime,cmd`);
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("Timeout")), 2000); // 2 second timeout
+      });
+
+      const psPromise = execAsync(`ps -p ${pid} -o pid,ppid,etime,cmd`);
+
+      const { stdout } = await Promise.race([psPromise, timeoutPromise]);
       console.log("\nProcess info:");
       console.log(stdout);
     } catch {
-      // Process info not available, continue
+      // Process info not available or timed out, continue silently
     }
   } else {
     console.log(`Status: Stopped (stale PID file: ${pid})`);
     removePidFile();
   }
+
+  // Explicitly ensure function completes
+  return;
 }
 
 /**

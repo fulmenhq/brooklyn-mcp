@@ -156,27 +156,51 @@ export class BackgroundSyncService {
    * Sync filesystem screenshots to database
    */
   private async syncFilesystemToDatabase(): Promise<void> {
-    const screenshotDir = join(homedir(), ".brooklyn", "screenshots");
+    const db = await getDatabaseManager();
+    const currentInstanceId = db.getInstanceId();
+
+    if (!currentInstanceId) {
+      ensureLogger().warn("No instance ID available, skipping sync");
+      return;
+    }
+
+    // Screenshots can be stored under any instance ID, not just the current one
+    // Scan all instance directories
+    const instancesDir = join(homedir(), ".brooklyn", "screenshots", "instances");
 
     try {
-      const sessions = await readdir(screenshotDir).catch(() => []);
+      // Get all instance directories
+      const instanceDirs = await readdir(instancesDir).catch(() => []);
 
-      for (const sessionDir of sessions) {
-        const sessionPath = join(screenshotDir, sessionDir);
-        const sessionStat = await stat(sessionPath).catch(() => null);
+      for (const instanceId of instanceDirs) {
+        const instancePath = join(instancesDir, instanceId);
+        const instanceStat = await stat(instancePath).catch(() => null);
 
-        if (!sessionStat?.isDirectory()) continue;
+        if (!instanceStat?.isDirectory()) continue;
 
-        const files = await readdir(sessionPath).catch(() => []);
+        ensureLogger().debug("Scanning instance directory", { instanceId, currentInstanceId });
 
-        // Process files in batches
-        for (let i = 0; i < files.length; i += this.batchSize) {
-          const batch = files.slice(i, i + this.batchSize);
-          await this.processBatch(sessionPath, sessionDir, batch);
+        // Get all session directories for this instance
+        const sessions = await readdir(instancePath).catch(() => []);
+
+        for (const sessionDir of sessions) {
+          const sessionPath = join(instancePath, sessionDir);
+          const sessionStat = await stat(sessionPath).catch(() => null);
+
+          if (!sessionStat?.isDirectory()) continue;
+
+          const files = await readdir(sessionPath).catch(() => []);
+
+          // Process files in batches
+          for (let i = 0; i < files.length; i += this.batchSize) {
+            const batch = files.slice(i, i + this.batchSize);
+            // Pass the actual instanceId that owns these files, not the current one
+            await this.processBatch(sessionPath, sessionDir, batch, instanceId);
+          }
         }
       }
     } catch (error) {
-      ensureLogger().error("Failed to scan screenshot directory", { error });
+      ensureLogger().error("Failed to scan screenshot directory", { error, path: instancesDir });
       this.stats.errors++;
     }
   }
@@ -188,11 +212,14 @@ export class BackgroundSyncService {
     sessionPath: string,
     sessionId: string,
     files: string[],
+    instanceId?: string,
   ): Promise<void> {
     const db = await getDatabaseManager();
-    const instanceId = db.getInstanceId();
 
-    if (!instanceId) {
+    // Use provided instanceId (from directory) or fall back to current instance
+    const targetInstanceId = instanceId || db.getInstanceId();
+
+    if (!targetInstanceId) {
       ensureLogger().warn("No instance ID available, skipping sync");
       return;
     }
@@ -226,7 +253,7 @@ export class BackgroundSyncService {
         if (!this.dryRun) {
           // Add to database
           await ScreenshotRepository.save({
-            instanceId,
+            instanceId: targetInstanceId,
             filePath,
             filename: file,
             sessionId,
@@ -249,7 +276,13 @@ export class BackgroundSyncService {
         ensureLogger().debug("Added file to database", { file, sessionId });
       } catch (error) {
         this.stats.errors++;
-        ensureLogger().error("Failed to process file", { file, error });
+        ensureLogger().error("Failed to process file", {
+          file,
+          filePath,
+          targetInstanceId,
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        });
       }
     }
   }

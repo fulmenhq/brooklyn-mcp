@@ -1,6 +1,6 @@
 {
   "name": "fulmen-mcp-forge-brooklyn",
-  "version": "1.4.11",
+  "version": "1.4.14",
   "description": "Enterprise-ready MCP server for browser automation with multi-team support",
   "type": "module",
   "private": true,

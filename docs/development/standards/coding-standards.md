@@ -209,7 +209,7 @@ bun run test
 - Full coding standards: `docs/substaile/codex/coding.md`
 - TypeScript specifics: `docs/substaile/codex/typescript/typescript-coding.md`
 - Testing patterns: `docs/substaile/codex/typescript/typescript-testing.md`
-- Logger patterns: `docs/development/LOGGER-PATTERN.md`
+- Logger patterns: `docs/development/standards/logger-usage-sop.md`
 
 ---
 

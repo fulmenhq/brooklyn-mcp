@@ -12,11 +12,22 @@ import { getDatabaseManager } from "../database-manager.js";
 import { QueryCache, createCacheKey } from "../query-cache.js";
 import type { ScreenshotListResult, ScreenshotQuery, ScreenshotRecord } from "../types.js";
 
-// Lazy logger initialization
+// Lazy logger initialization with safe fallback
 let logger: ReturnType<typeof getLogger> | null = null;
 function ensureLogger() {
   if (!logger) {
-    logger = getLogger("screenshot-repository-optimized");
+    try {
+      logger = getLogger("screenshot-repository-optimized");
+    } catch {
+      // Logger not ready yet - use console as fallback
+      // This ensures database operations don't fail due to logger issues
+      return {
+        debug: (...args: unknown[]) => console.debug("[screenshot-repo]", ...args),
+        info: (...args: unknown[]) => console.log("[screenshot-repo]", ...args),
+        warn: (...args: unknown[]) => console.warn("[screenshot-repo]", ...args),
+        error: (...args: unknown[]) => console.error("[screenshot-repo]", ...args),
+      } as ReturnType<typeof getLogger>;
+    }
   }
   return logger;
 }

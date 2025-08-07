@@ -22,14 +22,65 @@ export interface BrooklynProcess {
 /* biome-ignore lint/complexity/noStaticOnlyClass: keep static class for minimal-change stability */
 export class BrooklynProcessManager {
   /**
+   * Find HTTP dev servers using targeted search (PID files + narrow process search)
+   */
+  static async findHttpDevServers(): Promise<BrooklynProcess[]> {
+    const processes: BrooklynProcess[] = [];
+
+    try {
+      // Primary: Check PID files first (most reliable)
+      const pidFileProcesses = await BrooklynProcessManager.findProcessesFromPidFiles();
+      processes.push(...pidFileProcesses);
+
+      // Secondary: Targeted process search for any missed servers
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("PS command timeout")), 3000);
+      });
+
+      // Use narrower search pattern to avoid false positives
+      // Specifically look for dev-http-daemon or dev-http server processes, not stop/list commands
+      const psPromise = execAsync(
+        "ps aux | grep 'brooklyn.*dev-http' | grep -v grep | grep -v 'dev-http-stop' | grep -v 'dev-http-list' | grep -v 'dev-http-status'",
+      );
+
+      try {
+        const { stdout } = await Promise.race([psPromise, timeoutPromise]);
+        const lines = stdout
+          .trim()
+          .split("\n")
+          .filter((line) => line.trim());
+
+        for (const line of lines) {
+          const parsed = BrooklynProcessManager.parseProcessLine(line);
+          if (parsed && parsed.type === "http-server") {
+            processes.push(parsed);
+          }
+        }
+      } catch {
+        // PS search failed - rely on PID files only
+      }
+    } catch {
+      // Error in PID file reading - continue with empty array
+    }
+
+    return BrooklynProcessManager.deduplicateProcesses(processes);
+  }
+
+  /**
    * Find all Brooklyn processes running on the system
    */
   static async findAllProcesses(): Promise<BrooklynProcess[]> {
     const processes: BrooklynProcess[] = [];
 
     try {
-      // Find running brooklyn processes via ps
-      const { stdout } = await execAsync("ps aux | grep -i brooklyn | grep -v grep");
+      // Find running brooklyn processes via ps with timeout protection
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("PS command timeout")), 3000); // 3 second timeout
+      });
+
+      const psPromise = execAsync("ps aux | grep -i brooklyn | grep -v grep");
+
+      const { stdout } = await Promise.race([psPromise, timeoutPromise]);
       const lines = stdout
         .trim()
         .split("\n")
@@ -46,7 +97,7 @@ export class BrooklynProcessManager {
       const pidFileProcesses = await BrooklynProcessManager.findProcessesFromPidFiles();
       processes.push(...pidFileProcesses);
     } catch {
-      // No processes found or error occurred
+      // No processes found, error occurred, or timed out - continue silently
     }
 
     return BrooklynProcessManager.deduplicateProcesses(processes);
@@ -66,30 +117,9 @@ export class BrooklynProcessManager {
       );
 
       for (const pidFile of pidFiles) {
-        const pidPath = join(cwd, pidFile);
-        if (!existsSync(pidPath)) continue;
-
-        try {
-          const pidContent = readFileSync(pidPath, "utf8").trim();
-          const pidNum = Number.parseInt(pidContent, 10);
-          if (Number.isNaN(pidNum)) continue;
-
-          if (await BrooklynProcessManager.isProcessRunning(pidNum)) {
-            // Extract port from filename: .brooklyn-http-8080.pid -> 8080
-            const portMatch = pidFile.match(/\.brooklyn-http-(\d+)\.pid$/);
-            const port = portMatch?.[1] ? Number.parseInt(portMatch[1], 10) : undefined;
-
-            processes.push({
-              pid: pidNum,
-              type: "http-server",
-              port,
-              command: `brooklyn mcp dev-http --port ${port ?? "unknown"}`,
-              status: "running",
-              teamId: "unknown", // Could be enhanced by reading log files
-            });
-          }
-        } catch {
-          // Invalid PID file - skip
+        const process = await BrooklynProcessManager.processPidFile(pidFile, cwd);
+        if (process) {
+          processes.push(process);
         }
       }
     } catch {
@@ -97,6 +127,74 @@ export class BrooklynProcessManager {
     }
 
     return processes;
+  }
+
+  /**
+   * Process a single PID file and return Brooklyn process info if valid
+   */
+  private static async processPidFile(
+    pidFile: string,
+    cwd: string,
+  ): Promise<BrooklynProcess | null> {
+    const pidPath = join(cwd, pidFile);
+    if (!existsSync(pidPath)) return null;
+
+    try {
+      const pidContent = readFileSync(pidPath, "utf8").trim();
+      const pidNum = Number.parseInt(pidContent, 10);
+      if (Number.isNaN(pidNum)) return null;
+
+      // Verify the PID is actually a Brooklyn dev-http process
+      if (await BrooklynProcessManager.isProcessRunning(pidNum)) {
+        return await BrooklynProcessManager.verifyDevHttpProcess(pidNum, pidFile, pidPath);
+      }
+      // Process not running - clean up stale PID file
+      await BrooklynProcessManager.cleanupPidFile(pidPath);
+      return null;
+    } catch {
+      // Invalid PID file - skip
+      return null;
+    }
+  }
+
+  /**
+   * Verify process is a dev-http server and return process info
+   */
+  private static async verifyDevHttpProcess(
+    pidNum: number,
+    pidFile: string,
+    pidPath: string,
+  ): Promise<BrooklynProcess | null> {
+    const processInfo = await BrooklynProcessManager.getProcessCommand(pidNum);
+    if (processInfo?.includes("dev-http")) {
+      // Extract port from filename: .brooklyn-http-8080.pid -> 8080
+      const portMatch = pidFile.match(/\.brooklyn-http-(\d+)\.pid$/);
+      const port = portMatch?.[1] ? Number.parseInt(portMatch[1], 10) : undefined;
+
+      return {
+        pid: pidNum,
+        type: "http-server",
+        port,
+        command: processInfo,
+        status: "running",
+        teamId: "unknown", // Could be enhanced by reading log files
+      };
+    }
+    // PID file exists but process is not a dev-http server - clean up stale PID file
+    await BrooklynProcessManager.cleanupPidFile(pidPath);
+    return null;
+  }
+
+  /**
+   * Clean up a stale PID file
+   */
+  private static async cleanupPidFile(pidPath: string): Promise<void> {
+    try {
+      const { unlinkSync } = await import("node:fs");
+      unlinkSync(pidPath);
+    } catch {
+      // Ignore cleanup errors
+    }
   }
 
   /**
@@ -109,6 +207,23 @@ export class BrooklynProcessManager {
       return true;
     } catch {
       return false;
+    }
+  }
+
+  /**
+   * Get command line for a specific PID
+   */
+  static async getProcessCommand(pid: number): Promise<string | null> {
+    try {
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("PS command timeout")), 2000);
+      });
+
+      const psPromise = execAsync(`ps -p ${pid} -o command=`);
+      const { stdout } = await Promise.race([psPromise, timeoutPromise]);
+      return stdout.trim();
+    } catch {
+      return null;
     }
   }
 
@@ -211,12 +326,31 @@ export class BrooklynProcessManager {
     try {
       process.kill(pid, signal);
 
-      // Wait a bit and check if process stopped
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      const isStillRunning = await BrooklynProcessManager.isProcessRunning(pid);
+      // Wait longer for graceful shutdown, with timeout protection
+      const waitTime = signal === "SIGKILL" ? 2000 : 5000; // SIGKILL needs less time
+      await new Promise((resolve) => setTimeout(resolve, waitTime));
 
-      return !isStillRunning;
-    } catch {
+      // Check if process stopped with timeout protection
+      try {
+        const timeoutPromise = new Promise<boolean>((resolve) => {
+          setTimeout(() => resolve(false), 3000); // Assume failed after timeout
+        });
+
+        const checkPromise = BrooklynProcessManager.isProcessRunning(pid).then(
+          (running) => !running,
+        );
+
+        const result = await Promise.race([checkPromise, timeoutPromise]);
+        return result;
+      } catch {
+        // If check fails, assume process is stopped
+        return true;
+      }
+    } catch (error) {
+      // Process might already be dead (ESRCH error) - that's success
+      if (error instanceof Error && error.message.includes("ESRCH")) {
+        return true;
+      }
       return false;
     }
   }

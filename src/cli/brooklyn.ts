@@ -12,7 +12,7 @@
  */
 
 // Version embedded at build time from VERSION file
-const VERSION = "1.4.11";
+const VERSION = "1.4.13";
 
 import { HELP_TEXT } from "../generated/help/index.js";
 // buildConfig import removed - not used in CLI entry point
@@ -449,18 +449,20 @@ function setupMCPDevCommands(mcpCmd: Command): void {
 
   const _devHttpCmd = mcpCmd
     .command("dev-http")
-    .description("Start Brooklyn HTTP API server for programmatic tool testing")
+    .description(
+      "Start Brooklyn HTTP API server (RECOMMENDED for AI agents - defaults to background)",
+    )
     .option("--port <port>", "HTTP server port", "8080")
     .option("--host <host>", "HTTP server host", "0.0.0.0")
     .option("--no-cors", "Disable CORS headers")
     .option("--team-id <teamId>", "Team identifier for HTTP session")
     .option("--verbose", "Enable verbose logging")
-    .option("--background", "Run server in background/daemon mode")
+    .option("--foreground", "Run server in foreground (blocks terminal)")
     .option("--pid-file <path>", "Custom PID file location")
     .action(async (options) => {
       try {
-        // In background mode, spawn detached child process
-        if (options.background) {
+        // Default to background mode for AI-friendly operation
+        if (!options.foreground) {
           const { spawn } = await import("node:child_process");
           const args = [
             "mcp",
@@ -486,9 +488,10 @@ function setupMCPDevCommands(mcpCmd: Command): void {
           child.unref(); // Allow parent to exit
 
           console.log(
-            `Brooklyn HTTP server starting in background (PID: ${child.pid}, Port: ${options.port})`,
+            `Brooklyn HTTP server started in background (PID: ${child.pid}, Port: ${options.port})`,
           );
-          return;
+          console.log(`Use 'brooklyn mcp dev-http-status' to check status`);
+          process.exit(0); // Exit to return control to terminal
         }
 
         const { BrooklynHTTP } = await import("../core/brooklyn-http.js");
@@ -503,6 +506,8 @@ function setupMCPDevCommands(mcpCmd: Command): void {
         });
 
         // Start HTTP server (foreground mode)
+        console.log(`Starting Brooklyn HTTP server in foreground mode (Port: ${options.port})`);
+        console.log("Press Ctrl+C to stop server");
         await httpServer.start();
 
         // Handle graceful shutdown (foreground mode only)
@@ -571,53 +576,193 @@ function setupMCPDevCommands(mcpCmd: Command): void {
       }
     });
 
+  // Helper functions for targeted dev-http stopping
+  async function stopAllDevHttpProcesses(force: boolean): Promise<void> {
+    const { exec } = await import("node:child_process");
+    const { promisify } = await import("node:util");
+    const execAsync = promisify(exec);
+
+    try {
+      // Targeted search for dev-http processes only (same pattern as findHttpDevServers)
+      // Exclude management commands to avoid killing ourselves
+      const { stdout } = await execAsync(
+        "ps aux | grep 'brooklyn.*dev-http' | grep -v grep | grep -v 'dev-http-stop' | grep -v 'dev-http-list' | grep -v 'dev-http-status'",
+      );
+      const lines = stdout
+        .trim()
+        .split("\n")
+        .filter((line) => line.trim());
+
+      if (lines.length === 0) {
+        console.log("No dev-http processes running");
+        return;
+      }
+
+      console.log(`Stopping ${lines.length} dev-http process(es)...`);
+      let stopped = 0;
+
+      for (const line of lines) {
+        const parts = line.trim().split(/\s+/);
+        const pidStr = parts[1];
+        if (!pidStr) continue;
+        const pid = Number.parseInt(pidStr);
+        if (Number.isNaN(pid)) continue;
+
+        const command = parts.slice(10).join(" ");
+        console.log(`Stopping PID ${pid}: ${command}`);
+
+        let success = false;
+        try {
+          process.kill(pid, "SIGTERM");
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+
+          // Check if still running
+          try {
+            process.kill(pid, 0);
+            // Still running, try SIGKILL if --force
+            if (force) {
+              console.log(`⚠️  SIGTERM failed for PID ${pid}, trying SIGKILL...`);
+              process.kill(pid, "SIGKILL");
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+            }
+          } catch {
+            // Process is gone - success!
+            success = true;
+          }
+        } catch (_error) {
+          // Process might already be dead
+          success = true;
+        }
+
+        if (success) {
+          console.log(`✅ Stopped dev-http process (PID: ${pid})`);
+          stopped++;
+        } else {
+          console.log(`❌ Failed to stop dev-http process (PID: ${pid})`);
+          if (!force) {
+            console.log("   💡 Try using --force to use SIGKILL");
+          }
+        }
+      }
+
+      console.log(`\nStopped ${stopped}/${lines.length} dev-http processes`);
+    } catch (_error) {
+      console.log("No dev-http processes found");
+    }
+  }
+
+  async function stopDevHttpFromPidFiles(port?: string, force?: boolean): Promise<void> {
+    const { readFileSync, existsSync, unlinkSync, readdirSync } = await import("node:fs");
+    const cwd = process.cwd();
+
+    if (port) {
+      // Stop specific port
+      const pidFile = `${cwd}/.brooklyn-http-${port}.pid`;
+      if (!existsSync(pidFile)) {
+        console.log(`❌ No dev-http server found on port ${port} (no PID file)`);
+        process.exit(1);
+      }
+
+      const pid = Number.parseInt(readFileSync(pidFile, "utf8").trim());
+      const success = await stopHttpProcess(pid, force, port);
+
+      if (success) {
+        console.log(`✅ Stopped HTTP server on port ${port}`);
+        if (existsSync(pidFile)) {
+          unlinkSync(pidFile);
+        }
+      } else {
+        console.log(`❌ Failed to stop server on port ${port}`);
+        process.exit(1);
+      }
+    } else {
+      // Stop all PID file servers in current directory
+      try {
+        const files = readdirSync(cwd);
+        const pidFiles = files.filter((f) => f.startsWith(".brooklyn-http-") && f.endsWith(".pid"));
+
+        if (pidFiles.length === 0) {
+          console.log("No dev-http servers running (no PID files found)");
+          return;
+        }
+
+        console.log(`Stopping ${pidFiles.length} dev-http server(s) from PID files...`);
+        let stopped = 0;
+
+        for (const pidFile of pidFiles) {
+          const port = pidFile.match(/\.brooklyn-http-(\d+)\.pid$/)?.[1];
+          const pidPath = `${cwd}/${pidFile}`;
+          const pid = Number.parseInt(readFileSync(pidPath, "utf8").trim());
+
+          const success = await stopHttpProcess(pid, force, port);
+          if (success) {
+            console.log(`✅ Stopped HTTP server on port ${port} (PID: ${pid})`);
+            if (existsSync(pidPath)) {
+              unlinkSync(pidPath);
+            }
+            stopped++;
+          } else {
+            console.log(`❌ Failed to stop server on port ${port} (PID: ${pid})`);
+            if (!force) {
+              console.log("   💡 Try using --force to use SIGKILL");
+            }
+          }
+        }
+
+        console.log(`\nStopped ${stopped}/${pidFiles.length} dev-http servers`);
+      } catch (_error) {
+        console.log("No dev-http servers found");
+      }
+    }
+  }
+
+  async function stopHttpProcess(pid: number, force?: boolean, port?: string): Promise<boolean> {
+    try {
+      process.kill(pid, "SIGTERM");
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+
+      // Check if still running
+      try {
+        process.kill(pid, 0);
+        // Still running, try SIGKILL if --force
+        if (force) {
+          console.log(
+            `⚠️  SIGTERM failed for PID ${pid}${port ? ` (port ${port})` : ""}, trying SIGKILL...`,
+          );
+          process.kill(pid, "SIGKILL");
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          return true;
+        }
+        return false;
+      } catch {
+        // Process is gone - success!
+        return true;
+      }
+    } catch {
+      // Process might already be dead (ESRCH) - that's success
+      return true;
+    }
+  }
+
   // HTTP Server Management Commands
   const _devHttpStopCmd = mcpCmd
     .command("dev-http-stop")
     .description("Stop Brooklyn HTTP dev server")
     .option("--port <port>", "Stop server on specific port")
     .option("--all", "Stop all HTTP dev servers")
+    .option("--force", "Force kill processes with SIGKILL if SIGTERM fails")
     .action(async (options) => {
       try {
-        const { BrooklynProcessManager } = await import("../shared/process-manager.js");
-
         if (options.all) {
-          const processes = await BrooklynProcessManager.findAllProcesses();
-          const httpServers = processes.filter((p) => p.type === "http-server");
-
-          if (httpServers.length === 0) {
-            console.log("No HTTP dev servers running");
-            return;
-          }
-
-          console.log(`Stopping ${httpServers.length} HTTP dev server(s)...`);
-          let stopped = 0;
-
-          for (const server of httpServers) {
-            const success = await BrooklynProcessManager.stopProcess(server.pid);
-            if (success) {
-              console.log(`✅ Stopped HTTP server on port ${server.port} (PID: ${server.pid})`);
-              stopped++;
-            } else {
-              console.log(`❌ Failed to stop server on port ${server.port} (PID: ${server.pid})`);
-            }
-          }
-
-          console.log(`\nStopped ${stopped}/${httpServers.length} HTTP dev servers`);
-        } else if (options.port) {
-          const port = Number.parseInt(options.port);
-          const success = await BrooklynProcessManager.stopHttpServerByPort(port);
-
-          if (success) {
-            console.log(`✅ Stopped HTTP server on port ${port}`);
-          } else {
-            console.log(`❌ No HTTP server found on port ${port} or failed to stop`);
-            process.exit(1);
-          }
+          // --all: Search for dev-http processes specifically
+          await stopAllDevHttpProcesses(options.force);
         } else {
-          console.error("Please specify --port or --all");
-          process.exit(1);
+          // Default: Use PID files for targeted stopping
+          await stopDevHttpFromPidFiles(options.port, options.force);
         }
+
+        // Explicitly exit to return control to console
+        process.exit(0);
       } catch (error) {
         console.error("Failed to stop HTTP server:", error);
         process.exit(1);
@@ -631,16 +776,17 @@ function setupMCPDevCommands(mcpCmd: Command): void {
     .action(async (options) => {
       try {
         const { BrooklynProcessManager } = await import("../shared/process-manager.js");
-        const processes = await BrooklynProcessManager.findAllProcesses();
-        const httpServers = processes.filter((p) => p.type === "http-server");
+        const httpServers = await BrooklynProcessManager.findHttpDevServers();
 
         if (options.json) {
           console.log(JSON.stringify(httpServers, null, 2));
+          process.exit(0);
           return;
         }
 
         if (httpServers.length === 0) {
           console.log("No HTTP dev servers running");
+          process.exit(0);
           return;
         }
 
@@ -650,6 +796,9 @@ function setupMCPDevCommands(mcpCmd: Command): void {
           console.log(`  • Port ${server.port}: PID ${server.pid}${teamInfo}`);
           console.log(`    URL: http://localhost:${server.port}`);
         }
+
+        // Explicitly exit to return control to console
+        process.exit(0);
       } catch (error) {
         console.error("Failed to list HTTP servers:", error);
         process.exit(1);
@@ -663,8 +812,7 @@ function setupMCPDevCommands(mcpCmd: Command): void {
     .action(async (options) => {
       try {
         const { BrooklynProcessManager } = await import("../shared/process-manager.js");
-        const processes = await BrooklynProcessManager.findAllProcesses();
-        let httpServers = processes.filter((p) => p.type === "http-server");
+        let httpServers = await BrooklynProcessManager.findHttpDevServers();
 
         if (options.port) {
           const port = Number.parseInt(options.port);
@@ -678,7 +826,7 @@ function setupMCPDevCommands(mcpCmd: Command): void {
 
         if (httpServers.length === 0) {
           console.log("No HTTP dev servers running");
-          return;
+          process.exit(0);
         }
 
         console.log("🌐 HTTP Dev Servers Status:");
@@ -691,19 +839,33 @@ function setupMCPDevCommands(mcpCmd: Command): void {
           console.log(`  • URL: http://localhost:${server.port}`);
           console.log(`  • Status: ${server.status}`);
 
-          // Test if server is responding
+          // Test if server is responding (with timeout)
           try {
-            const response = await fetch(`http://localhost:${server.port}/health`);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+
+            const response = await fetch(`http://localhost:${server.port}/health`, {
+              signal: controller.signal,
+            });
+            clearTimeout(timeoutId);
+
             if (response.ok) {
               console.log("  • Health: ✅ Responding");
             } else {
               console.log(`  • Health: ⚠️  Server error (${response.status})`);
             }
-          } catch {
-            console.log("  • Health: ❌ Not responding");
+          } catch (error) {
+            if (error instanceof Error && error.name === "AbortError") {
+              console.log("  • Health: ⏰ Timeout (not responding)");
+            } else {
+              console.log("  • Health: ❌ Not responding");
+            }
           }
           console.log("");
         }
+
+        // Explicitly exit to prevent hanging
+        process.exit(0);
       } catch (error) {
         console.error("Failed to check HTTP server status:", error);
         process.exit(1);
@@ -948,7 +1110,7 @@ function setupStatusCommand(program: Command): void {
 
         if (processes.length === 0) {
           console.log("  No Brooklyn processes running");
-          return;
+          process.exit(0);
         }
 
         // Group by type
@@ -1013,6 +1175,9 @@ function setupStatusCommand(program: Command): void {
         console.log(
           `Total: ${processes.length} Brooklyn process${processes.length === 1 ? "" : "es"} running`,
         );
+
+        // Explicitly exit to prevent hanging
+        process.exit(0);
       } catch (error) {
         console.error("Status check failed:", error);
         console.error("Version:", VERSION);

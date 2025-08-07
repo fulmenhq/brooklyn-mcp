@@ -44,8 +44,10 @@ export function registerCleanupCommand(program: Command) {
         }
         await bestEffortScriptCleanup();
 
-        // eslint-disable-next-line no-console
         console.log("Cleanup completed");
+
+        // Explicitly exit to return control to console
+        process.exit(0);
       },
     );
 

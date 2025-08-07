@@ -378,7 +378,7 @@ brooklyn/
 
 ### Contributing
 
-⚠️ **CRITICAL**: Read [Logger Pattern Guide](docs/development/LOGGER-PATTERN.md) FIRST to avoid common bundling failures!
+⚠️ **CRITICAL**: Read [Logger Usage SOP](docs/development/LOGGER-USAGE-SOP.md) FIRST to avoid common bundling failures!
 
 1. **Fork** the repository
 2. **Create** a feature branch
@@ -447,5 +447,23 @@ Brooklyn is named after the Brooklyn Bridge - a testament to engineering excelle
 
 ---
 
-**Built with 💙 by the 3leaps Team**  
-Part of the [Fulmen Ecosystem](https://github.com/3leaps/fulmen-ecosystem)
+**Built with 🧡 by the 3 Leaps team**  
+Part of the [Fulmen Ecosystem](https://github.com/fulmenhq/fulmen-ecosystem)
+
+---
+
+**Fulmen Ecosystem**
+
+This project is part of the [Fulmen ecosystem](https://fulmen.dev), supported and maintained by [3 Leaps](https://3leaps.net).
+
+Released under MIT License. See [LICENSE](LICENSE) for details.
+
+For contributions, see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Trademark Notices
+
+"3 Leaps®" is a registered trademark of 3 Leaps, LLC, a Florida LLC with offices in South Carolina. "Fulmen™" is a trademark of 3 Leaps, LLC, claimed through use in commerce, with plans for USPTO registration. "Fulmens" and "FulmenHQ" are trademarks of 3 Leaps, LLC.
+
+While code and documentation are open under MIT, usage of these trademarks is reserved for official implementations to prevent confusion and benefit the ecosystem. Use of these marks in derivative works does not imply endorsement by 3 Leaps, LLC. For the benefit of the community, please rename your project folder and configurations to avoid using "3leaps", "fulmen", "fulmens", or "fulmenhq" in derivative works.
+
+For questions regarding trademark usage, contact legal@3leaps.net.
