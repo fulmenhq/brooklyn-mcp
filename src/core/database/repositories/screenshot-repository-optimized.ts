@@ -22,10 +22,10 @@ function ensureLogger() {
       // Logger not ready yet - use console as fallback
       // This ensures database operations don't fail due to logger issues
       return {
-        debug: (...args: unknown[]) => console.debug("[screenshot-repo]", ...args),
-        info: (...args: unknown[]) => console.log("[screenshot-repo]", ...args),
-        warn: (...args: unknown[]) => console.warn("[screenshot-repo]", ...args),
-        error: (...args: unknown[]) => console.error("[screenshot-repo]", ...args),
+        debug: (..._args: unknown[]) => {},
+        info: (..._args: unknown[]) => {},
+        warn: (..._args: unknown[]) => {},
+        error: (..._args: unknown[]) => {},
       } as ReturnType<typeof getLogger>;
     }
   }

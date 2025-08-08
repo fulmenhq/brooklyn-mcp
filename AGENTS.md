@@ -20,6 +20,7 @@ Brooklyn is a multi-team MCP server for browser automation using Bun, TypeScript
 5. **package.json** - Available commands and dependencies (ALWAYS read scripts section)
 6. **docs/substaile/codex/coding.md** - Core coding principles and error patterns
 7. **docs/substaile/codex/typescript/typescript-coding.md** - TypeScript-specific standards
+8. **docs/development/standards/git-squash-rebase-sop.md** - Git history management and commit standards
 
 ### **Agent Accountability**
 

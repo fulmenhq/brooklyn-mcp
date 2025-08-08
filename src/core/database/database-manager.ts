@@ -22,10 +22,10 @@ function ensureLogger() {
       // Logger not ready yet - use console as fallback
       // This ensures database operations don't fail due to logger issues
       return {
-        debug: (...args: unknown[]) => console.debug("[database-manager]", ...args),
-        info: (...args: unknown[]) => console.log("[database-manager]", ...args),
-        warn: (...args: unknown[]) => console.warn("[database-manager]", ...args),
-        error: (...args: unknown[]) => console.error("[database-manager]", ...args),
+        debug: (..._args: unknown[]) => {},
+        info: (..._args: unknown[]) => {},
+        warn: (..._args: unknown[]) => {},
+        error: (..._args: unknown[]) => {},
       } as ReturnType<typeof getLogger>;
     }
   }

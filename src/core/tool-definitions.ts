@@ -579,20 +579,20 @@ export const contentCaptureTools: EnhancedTool[] = [
   {
     name: "get_screenshot",
     category: "content-capture",
-    description: "Retrieve a specific screenshot by file path or audit ID with metadata",
+    description:
+      "Retrieve a specific screenshot by file path or audit ID with metadata. Either 'path' or 'auditId' must be provided.",
     inputSchema: {
       type: "object",
       properties: {
         path: {
           type: "string",
-          description: "File path to the screenshot",
+          description: "File path to the screenshot (optional if auditId provided)",
         },
         auditId: {
           type: "string",
-          description: "Unique audit ID of the screenshot to retrieve",
+          description: "Unique audit ID of the screenshot to retrieve (optional if path provided)",
         },
       },
-      anyOf: [{ required: ["path"] }, { required: ["auditId"] }],
     },
     examples: [
       {
