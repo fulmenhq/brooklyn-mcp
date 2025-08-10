@@ -248,10 +248,14 @@ export class ScreenshotStorageManager {
       await this.validateQuotas(options.sessionId, options.teamId, buffer.length);
 
       // Generate filename and paths (Architecture Committee v2)
+      // IMPORTANT: Prefer database instance ID so inventory queries (which default to DB instance)
+      // see newly saved screenshots without needing explicit instanceId filters.
+      const dbManager = await getDatabaseManager();
+      const actualInstanceId = options.instanceId || dbManager.getInstanceId() || this.instanceId;
+
       const filename = this.generateFilename(options.format || this.config.defaultFormat);
-      const instanceId = options.instanceId || this.instanceId;
       const tag = this.generateUserTag(options.tag);
-      const storageDir = this.getStorageDirectory(instanceId, tag);
+      const storageDir = this.getStorageDirectory(actualInstanceId, tag);
       const filePath = join(storageDir, filename);
 
       // Validate path security
@@ -284,7 +288,7 @@ export class ScreenshotStorageManager {
         },
         created: timestamp,
         // NEW: Architecture Committee v2 enhancements
-        instanceId,
+        instanceId: actualInstanceId,
         tag,
       };
 
@@ -297,8 +301,7 @@ export class ScreenshotStorageManager {
 
       // Save to database for inventory tracking
       try {
-        const dbManager = await getDatabaseManager();
-        const actualInstanceId = instanceId || dbManager.getInstanceId() || this.instanceId;
+        // Reuse actualInstanceId computed above
 
         await ScreenshotRepository.save({
           instanceId: actualInstanceId,
