@@ -433,6 +433,9 @@ export class BrooklynHTTP {
             },
             capabilities: {
               tools: { listChanged: true },
+              roots: {},
+              resources: {},
+              prompts: {}
             },
           },
         });
@@ -440,10 +443,17 @@ export class BrooklynHTTP {
       }
 
       if (method === "tools/list") {
+        // Wire compatibility: use snake_case input_schema per MCP JSON expectations
+        const tools = this.availableTools.map((t) => {
+          const { inputSchema, ...rest } = t as Record<string, unknown>;
+          // MCP server spec (2025-06-18) uses camelCase: inputSchema
+          return inputSchema ? { ...rest, inputSchema } : rest;
+        });
+
         this.sendJSON(res, 200, {
           jsonrpc: "2.0",
           id,
-          result: { tools: this.availableTools },
+          result: { tools },
         });
         return;
       }

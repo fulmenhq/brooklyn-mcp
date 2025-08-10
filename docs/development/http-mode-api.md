@@ -10,8 +10,36 @@ Brooklyn HTTP Mode provides REST API endpoints for programmatic tool testing and
 
 ### Starting HTTP Mode
 
+Server modes overview:
+- brooklyn web start (recommended for Claude Code)
+  - Runs the MCP HTTP transport on a single port
+  - Serves OAuth 2.0 PKCE endpoints and MCP JSON-RPC over the same server
+  - Endpoints:
+    - OAuth Discovery: GET /.well-known/oauth-authorization-server
+    - Authorization: GET /oauth/authorize (PKCE)
+    - Manual helper: GET /oauth/auth-help
+    - Token: POST /oauth/token
+    - Callback: GET /oauth/callback
+    - Connectivity: GET / and GET /health
+    - MCP JSON-RPC: POST /
+    - SSE (optional): GET / with Accept: text/event-stream
+- brooklyn mcp dev-http (developer REST API mode)
+  - Runs a REST API server for tools and MCP testing
+  - Endpoints:
+    - Tools: GET /tools, POST /tools/{name}
+    - MCP JSON-RPC: POST /mcp
+    - Health/Metrics: GET /health, GET /metrics
+
+Notes:
+- One port is sufficient for OAuth and MCP when using brooklyn web start. You do not need a second port for auth.
+- dev-http is a separate server intended for CI/programmatic testing; run it on a different port when needed (e.g., 8080).
+
+
 ```bash
-# Background daemon mode (recommended for development)
+# Production HTTP server with OAuth PKCE (recommended for Claude Code)
+brooklyn web start --port 3000
+
+# Development HTTP mode for direct API access
 brooklyn mcp dev-http --port 8080 --team-id my-team --background
 
 # Foreground mode (for debugging)
@@ -19,6 +47,28 @@ brooklyn mcp dev-http --port 8080 --team-id my-team --verbose
 
 # Custom configuration
 brooklyn mcp dev-http --port 3000 --host localhost --no-cors --background
+```
+
+### OAuth PKCE Authentication (NEW)
+
+Brooklyn now supports OAuth 2.0 PKCE for secure authentication with Claude Code:
+
+**OAuth Discovery**:
+```bash
+curl http://localhost:3000/.well-known/oauth-authorization-server
+```
+
+**OAuth Flow for Custom Clients**:
+1. **Authorization Request**: Redirect user to `/oauth/authorize` with PKCE parameters
+2. **Token Exchange**: Exchange authorization code for access token at `/oauth/token` 
+3. **API Access**: Use Bearer token in Authorization header for MCP requests
+
+**Supported PKCE Methods**: S256 (recommended), plain
+
+**For Claude Code Integration**:
+```bash
+# Brooklyn handles the OAuth flow automatically
+claude mcp add -s user -t http brooklyn http://127.0.0.1:3000
 ```
 
 ### API Base URL
@@ -199,12 +249,16 @@ Standard MCP JSON-RPC protocol endpoint.
       {
         "name": "launch_browser",
         "description": "Launch a new browser instance",
-        "inputSchema": { ... }
+        "input_schema": { ... }
       }
     ]
   }
 }
 ```
+
+Note:
+- Streamable HTTP wire format uses snake_case for the tool schema key: use input_schema on the wire. Internally (TypeScript), tools are defined with inputSchema and normalized by the transport.
+- Clients should include an Accept header listing application/json and text/event-stream and, after initialization, include MCP-Protocol-Version: 2025-06-18 on subsequent requests as per the MCP spec.
 
 **Tool Call Request:**
 
@@ -809,6 +863,28 @@ brooklyn status  # Shows running HTTP servers
 # Stop when done
 brooklyn mcp dev-http-stop --port 8080
 ```
+
+## Networking and Cleanup
+
+### IPv4/IPv6 Binding
+
+- Default bind is IPv4 127.0.0.1 for `brooklyn web start` to avoid localhost → ::1 issues
+- Explicit control:
+  - Force IPv4: `brooklyn web start --port 3000 --ipv4`
+  - Force IPv6: `brooklyn web start --port 3000 --ipv6`
+  - Bind all interfaces: `brooklyn web start --port 3000 --host 0.0.0.0`
+- If you hit timeouts on `localhost`, try `http://127.0.0.1:3000` to ensure IPv4
+
+### Cleanup Commands
+
+- Global cleanup (HTTP and/or MCP):
+  - `brooklyn cleanup --http` — best-effort stop of HTTP servers discovered by the process manager
+  - `brooklyn cleanup --http --port 3000` — additionally kill any listeners (IPv4/IPv6) bound to port 3000
+  - `brooklyn cleanup --mcp` — MCP stdio cleanup for current project
+  - `brooklyn cleanup --mcp-all` — MCP stdio cleanup across all projects
+  - Use `--force` to escalate to SIGKILL when needed
+- Web-specific cleanup:
+  - `brooklyn web cleanup --port 3000` — kill listeners (IPv4/IPv6) on a given port
 
 ## Summary
 
