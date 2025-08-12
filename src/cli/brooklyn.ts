@@ -12,7 +12,7 @@
  */
 
 // Version embedded at build time from VERSION file
-const VERSION = "1.4.16";
+const VERSION = "1.4.22";
 
 import { HELP_TEXT } from "../generated/help/index.js";
 // buildConfig import removed - not used in CLI entry point
@@ -319,6 +319,7 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
       try {
         const { getServerStatus } = await import("../../scripts/server-management.js");
         await getServerStatus();
+        process.exit(0);
       } catch (error) {
         const logger = getLogger("brooklyn-cli");
         logger.error("Failed to get MCP server status", {
@@ -348,6 +349,7 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
 
         logger.info("MCP cleanup completed", { processesKilled: cleaned });
         console.log(`✅ Cleaned up ${cleaned} stale Brooklyn processes`);
+        process.exit(0);
       } catch (error) {
         console.error("Failed to cleanup MCP processes:", error);
         process.exit(1);
@@ -965,12 +967,27 @@ function setupWebCommands(program: Command): void {
     .command("start")
     .description("Start HTTP web server")
     .option("--port <port>", "HTTP port", "3000")
-    .option("--host <host>", "HTTP host", "localhost")
+    .option("--host <host>", "HTTP host", "127.0.0.1")
+    .option("--ipv4", "Force IPv4 binding (sets host to 127.0.0.1 if --host not provided)")
+    .option("--ipv6", "Force IPv6 binding (sets host to ::1 if --host not provided)")
     .option("--daemon", "Run as background daemon")
     .option("--team-id <teamId>", "Team identifier")
     .option("--log-level <level>", "Log level (debug, info, warn, error)")
     .action(async (options) => {
       try {
+        // Resolve host/stack preferences
+        const argvHasHost = process.argv.includes("--host");
+        if (options.ipv4 && options.ipv6) {
+          console.error("Cannot use --ipv4 and --ipv6 together. Choose one.");
+          process.exit(1);
+        }
+        let resolvedHost: string = options.host;
+        if (options.ipv6 && !argvHasHost) {
+          resolvedHost = "::1";
+        } else if (options.ipv4 && !argvHasHost) {
+          resolvedHost = "127.0.0.1";
+        }
+
         // Load configuration with CLI overrides
         const cliOverrides: Partial<BrooklynConfig> = {};
         if (options.teamId) cliOverrides.teamId = options.teamId;
@@ -983,7 +1000,7 @@ function setupWebCommands(program: Command): void {
             http: {
               enabled: true,
               port: Number.parseInt(options.port, 10),
-              host: "localhost",
+              host: resolvedHost,
               cors: true,
               rateLimiting: false,
             },
@@ -993,15 +1010,69 @@ function setupWebCommands(program: Command): void {
         const config = await loadConfig(cliOverrides);
 
         // Initialize logging for non-MCP commands
+        // If daemon mode, spawn detached process and exit
+        if (options.daemon) {
+          const { spawn } = await import("node:child_process");
+          const args = ["web", "start", "--port", options.port, "--host", resolvedHost];
+
+          if (options.teamId) args.push("--team-id", options.teamId);
+          if (options.logLevel) args.push("--log-level", options.logLevel);
+
+          // Spawn detached process
+          const child = spawn(process.execPath, [process.argv[1], ...args], {
+            detached: true,
+            stdio: ["ignore", "ignore", "ignore"],
+            env: {
+              ...process.env,
+              BROOKLYN_WEB_DAEMON: "true", // Mark as daemon child
+            },
+          });
+
+          child.unref(); // Allow parent to exit
+
+          // Initialize logging briefly to show success message
+          await initializeLogging(config);
+          const logger = getLogger("brooklyn-cli");
+
+          logger.info(`Starting Brooklyn web server on ${resolvedHost}:${options.port}`, {
+            mode: "http-daemon",
+            port: options.port,
+            host: resolvedHost,
+            pid: child.pid,
+          });
+
+          logger.info("Web server started successfully", {
+            url: `http://${resolvedHost}:${options.port}`,
+            pid: child.pid,
+          });
+
+          logger.info("OAuth endpoints ready", {
+            discovery: `http://${resolvedHost}:${options.port}/.well-known/oauth-authorization-server`,
+          });
+
+          // Write PID file for tracking
+          const { writeFileSync } = await import("node:fs");
+          const { join } = await import("node:path");
+          const pidFile = join(process.cwd(), `.brooklyn-web-${options.port}.pid`);
+          writeFileSync(pidFile, String(child.pid), "utf8");
+
+          process.exit(0); // Exit parent, return control to shell
+        }
+
+        // Non-daemon mode or daemon child process continues here
         await initializeLogging(config);
         enableConfigLogger(); // Safe to enable config logging now
         const logger = getLogger("brooklyn-cli");
 
-        logger.info("Starting Brooklyn web server", {
-          mode: "http",
-          port: options.port,
-          daemon: options.daemon,
-        });
+        // Only log startup message if not a daemon child
+        if (!process.env["BROOKLYN_WEB_DAEMON"]) {
+          logger.info(`Starting Brooklyn web server on ${resolvedHost}:${options.port}`, {
+            mode: "http",
+            port: options.port,
+            host: options.host,
+            url: `http://${resolvedHost}:${options.port}`,
+          });
+        }
 
         // Create Brooklyn engine
         const engine = new BrooklynEngine({
@@ -1012,7 +1083,7 @@ function setupWebCommands(program: Command): void {
         // Create and add HTTP transport
         const httpTransport = await createHTTP(
           Number.parseInt(options.port, 10),
-          options.host,
+          resolvedHost,
           true, // CORS enabled
         );
         await engine.addTransport("http", httpTransport);
@@ -1020,26 +1091,52 @@ function setupWebCommands(program: Command): void {
         // Start HTTP transport
         await engine.startTransport("http");
 
-        logger.info("Web server started successfully", {
-          url: `http://${options.host}:${options.port}`,
-          teamId: config.teamId,
-        });
+        if (!process.env["BROOKLYN_WEB_DAEMON"]) {
+          logger.info("Web server started successfully", {
+            url: `http://${resolvedHost}:${options.port}`,
+            teamId: config.teamId,
+          });
+
+          // Helpful OAuth endpoint hints for Claude Code auth and manual fallback
+          logger.info("OAuth endpoints ready", {
+            discovery: `http://${resolvedHost}:${options.port}/.well-known/oauth-authorization-server`,
+            authorize: `http://${resolvedHost}:${options.port}/oauth/authorize`,
+            authHelp: `http://${resolvedHost}:${options.port}/oauth/auth-help`,
+            token: `http://${resolvedHost}:${options.port}/oauth/token`,
+            callback: `http://${resolvedHost}:${options.port}/oauth/callback`,
+          });
+        }
 
         // Handle graceful shutdown
         const shutdown = async () => {
           logger.info("Shutting down web server");
           await engine.cleanup();
+
+          // Clean up PID file if daemon
+          if (process.env["BROOKLYN_WEB_DAEMON"]) {
+            try {
+              const { unlinkSync } = await import("node:fs");
+              const { join } = await import("node:path");
+              const pidFile = join(process.cwd(), `.brooklyn-web-${options.port}.pid`);
+              unlinkSync(pidFile);
+            } catch {
+              // Ignore PID file cleanup errors
+            }
+          }
+
           process.exit(0);
         };
 
         process.on("SIGINT", shutdown);
         process.on("SIGTERM", shutdown);
 
-        if (!options.daemon) {
+        // Keep process alive
+        if (!process.env["BROOKLYN_WEB_DAEMON"]) {
           logger.info("Web server running (press Ctrl+C to stop)");
           // Keep process alive for non-daemon mode
           process.stdin.resume();
         }
+        // Daemon child stays alive via the server
       } catch (error) {
         const logger = getLogger("brooklyn-cli");
         logger.error("Failed to start web server", {
@@ -1070,15 +1167,138 @@ function setupWebCommands(program: Command): void {
   webCmd
     .command("status")
     .description("Check web server status")
-    .action(async () => {
+    .option("--port <port>", "HTTP port to check", "3000")
+    .action(async (options) => {
       try {
-        const { getServerStatus } = await import("../../scripts/server-management.js");
-        await getServerStatus();
+        // Detect listener on port even if no PID file exists (foreground web start)
+        const port = Number.parseInt(options.port, 10) || 3000;
+
+        // Find listeners (IPv4 and IPv6) on the port
+        const { exec } = await import("node:child_process");
+        const { promisify } = await import("node:util");
+        const execAsync = promisify(exec);
+
+        let pids: number[] = [];
+        try {
+          const { stdout } = await execAsync(
+            `lsof -iTCP:${port} -sTCP:LISTEN -n -P | awk 'NR>1 {print $2}' | sort -u`,
+          );
+          pids = stdout
+            .trim()
+            .split("\n")
+            .map((s) => Number.parseInt(s.trim(), 10))
+            .filter((n) => Number.isFinite(n));
+        } catch {
+          // lsof may not be present or permission issues; continue to HTTP probe.
+        }
+
+        // Basic console output
+        if (pids.length > 0) {
+          console.log(`Status: Running (listeners on port ${port}: ${pids.join(", ")})`);
+        } else {
+          console.log(`Status: Unknown (no PID file). Checking HTTP endpoint on port ${port}...`);
+        }
+
+        // Probe health endpoint over IPv4
+        const url = `http://127.0.0.1:${port}/health`;
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 2000);
+          const resp = await fetch(url, { signal: controller.signal });
+          clearTimeout(timeout);
+
+          if (resp.ok) {
+            const body = await resp.json();
+            console.log("Health: ✅ Responding");
+            console.log(JSON.stringify(body, null, 2));
+            process.exit(0);
+          } else {
+            console.log(`Health: ⚠️ HTTP ${resp.status}`);
+            process.exit(0);
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.log(`Health: ❌ Not responding (${msg})`);
+          console.log(
+            "Tip: If you started brooklyn web start in a foreground shell, status may not have a PID file. You can also check listeners with:",
+          );
+          console.log(`  lsof -iTCP:${port} -sTCP:LISTEN -n -P`);
+          process.exit(1);
+        }
       } catch (error) {
         const logger = getLogger("brooklyn-cli");
-        logger.error("Failed to get server status", {
+        logger.error("Failed to get web server status", {
           error: error instanceof Error ? error.message : String(error),
+          port: options?.port,
         });
+        process.exit(1);
+      }
+    });
+
+  // Unified web cleanup (kills IPv4/IPv6 listeners on a port)
+  webCmd
+    .command("cleanup")
+    .description("Clean up Brooklyn web servers (kills listeners for the specified port)")
+    .option("--port <port>", "HTTP port to clean up (default: 3000)", "3000")
+    .option("--force", "Force kill with SIGKILL if graceful SIGTERM fails")
+    .action(async (options) => {
+      try {
+        const { exec } = await import("node:child_process");
+        const { promisify } = await import("node:util");
+        const execAsync = promisify(exec);
+
+        const port = Number.parseInt(options.port, 10) || 3000;
+
+        // Find listeners (IPv4 and IPv6) on the port
+        const { stdout } = await execAsync(
+          `lsof -iTCP:${port} -sTCP:LISTEN -n -P | awk 'NR>1 {print $2}' | sort -u`,
+        );
+        const pids = stdout
+          .trim()
+          .split("\n")
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0);
+
+        if (pids.length === 0) {
+          console.log(`No listeners found on port ${port}`);
+          process.exit(0); // Exit cleanly when no listeners found
+        }
+
+        console.log(`Found ${pids.length} listener(s) on port ${port}: ${pids.join(", ")}`);
+        for (const pidStr of pids) {
+          const pid = Number.parseInt(pidStr, 10);
+          if (!Number.isFinite(pid)) continue;
+
+          try {
+            process.kill(pid, "SIGTERM");
+          } catch {
+            // ignore
+          }
+
+          // Wait briefly for graceful stop
+          await new Promise((r) => setTimeout(r, 1000));
+
+          let stillRunning = true;
+          try {
+            process.kill(pid, 0);
+          } catch {
+            stillRunning = false;
+          }
+
+          if (stillRunning && options.force) {
+            console.log(`Forcing kill for PID ${pid}...`);
+            try {
+              process.kill(pid, "SIGKILL");
+            } catch {
+              // ignore
+            }
+          }
+        }
+
+        console.log("Web cleanup completed");
+        process.exit(0); // Exit cleanly after cleanup
+      } catch (error) {
+        console.error("Failed to cleanup web servers:", error);
         process.exit(1);
       }
     });

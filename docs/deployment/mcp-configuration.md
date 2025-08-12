@@ -32,10 +32,10 @@ Use the Claude Code CLI to add Brooklyn:
 
 ```help-text-mcp-setup
 Add Brooklyn for all your projects (user-wide):
-  claude mcp add -s user brooklyn brooklyn mcp start
+  claude mcp add -s user -t stdio brooklyn brooklyn mcp start
 
 Alternative - add for current project only:
-  claude mcp add brooklyn brooklyn mcp start
+  claude mcp add -t stdio brooklyn brooklyn mcp start
 
 Verify configuration:
   claude mcp list
@@ -50,7 +50,7 @@ Add Brooklyn with team-specific configuration:
 
 ```bash
 # Add with environment variables
-claude mcp add -s user brooklyn brooklyn mcp start \
+claude mcp add -s user -t stdio brooklyn brooklyn mcp start \
   -e BROOKLYN_TEAM_ID=your-team \
   -e BROOKLYN_LOG_LEVEL=info
 ```
@@ -61,13 +61,13 @@ Brooklyn supports different configuration scopes:
 
 ```bash
 # User-wide (recommended for individual use)
-claude mcp add -s user brooklyn brooklyn mcp start
+claude mcp add -s user -t stdio brooklyn brooklyn mcp start
 
 # Project-specific (for team collaboration)
-claude mcp add -s project brooklyn brooklyn mcp start
+claude mcp add -s project -t stdio brooklyn brooklyn mcp start
 
 # Local (private to current project directory)
-claude mcp add brooklyn brooklyn mcp start
+claude mcp add -t stdio brooklyn brooklyn mcp start
 ```
 
 ### Legacy Manual Configuration (Not Recommended)
@@ -289,7 +289,7 @@ brooklyn mcp cleanup
 # Note: MCP removal does NOT automatically kill running processes
 
 # 4. Re-add MCP Configuration
-claude mcp add -s user brooklyn brooklyn mcp start
+claude mcp add -s user -t stdio brooklyn brooklyn mcp start
 
 # 5. COMPLETE CLAUDE SESSION RESTART (Required!)
 # Close ALL Claude Code sessions on the machine

@@ -21,7 +21,7 @@ Welcome to the Fulmen MCP Forge Brooklyn project! This document outlines how to 
 
 1. **Read the Documentation**
    - Review `README.md` for project overview
-   - Check `AGENTS.md` for coding standards and commands
+   - Check `AGENT.md` for coding standards and commands
    - Read `docs/` for detailed technical documentation
 
 2. **Development Setup**
@@ -221,7 +221,7 @@ paris.brooklyn@fulmenhq.com
 ### Documentation
 
 - **Technical**: See `docs/` directory
-- **Development**: Check `AGENTS.md` for commands and standards
+- **Development**: Check `AGENT.md` for commands and standards
 - **Architecture**: Review `docs/architecture/` for system design
 
 ### Support Channels

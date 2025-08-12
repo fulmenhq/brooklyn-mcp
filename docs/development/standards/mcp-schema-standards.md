@@ -57,7 +57,7 @@ inputSchema: {
       description: "Field A (optional if fieldB provided)",
     },
     fieldB: {
-      type: "string", 
+      type: "string",
       description: "Field B (optional if fieldA provided)",
     },
   },
@@ -71,10 +71,11 @@ inputSchema: {
 // ✅ ALLOWED - oneOf/anyOf within property definitions
 properties: {
   target: {
-    oneOf: [ // ✅ OK within property
+    oneOf: [
+      // ✅ OK within property
       { enum: ["latest", "current"] },
-      { pattern: "^browser-[a-zA-Z0-9]+$" }
-    ]
+      { pattern: "^browser-[a-zA-Z0-9]+$" },
+    ];
   }
 }
 ```
@@ -85,18 +86,19 @@ properties: {
 
 ```typescript
 interface EnhancedTool extends Tool {
-  name: string;                    // Tool identifier
-  category: string;                // Organizational category
-  description: string;             // Clear, action-oriented description
-  inputSchema: JSONSchema7;        // Claude Code compatible schema
-  examples?: ToolExample[];        // Usage examples (highly recommended)
-  errors?: ToolError[];           // Common error scenarios
+  name: string; // Tool identifier
+  category: string; // Organizational category
+  description: string; // Clear, action-oriented description
+  inputSchema: JSONSchema7; // Claude Code compatible schema
+  examples?: ToolExample[]; // Usage examples (highly recommended)
+  errors?: ToolError[]; // Common error scenarios
 }
 ```
 
 ### 2. Parameter Design Patterns
 
 #### Optional Parameter Pattern
+
 ```typescript
 // For tools that accept either parameter A or B
 {
@@ -110,7 +112,7 @@ interface EnhancedTool extends Tool {
         description: "Parameter A (optional if paramB provided)",
       },
       paramB: {
-        type: "string", 
+        type: "string",
         description: "Parameter B (optional if paramA provided)",
       },
     },
@@ -120,6 +122,7 @@ interface EnhancedTool extends Tool {
 ```
 
 #### Browser Targeting Pattern
+
 ```typescript
 // Standard pattern for browser-related tools
 {
@@ -141,19 +144,21 @@ interface EnhancedTool extends Tool {
 ### 3. Description Standards
 
 #### Action-Oriented Descriptions
+
 ```typescript
 // ✅ GOOD - Clear action and context
-"Navigate browser to a specific URL and wait for page load"
-"Capture a screenshot and store as file to avoid MCP token limits"
-"Extract text content from an element using CSS selector"
+"Navigate browser to a specific URL and wait for page load";
+"Capture a screenshot and store as file to avoid MCP token limits";
+"Extract text content from an element using CSS selector";
 
 // ❌ AVOID - Vague or technical jargon
-"URL navigation functionality"
-"Screenshot utility"  
-"Text extraction"
+"URL navigation functionality";
+"Screenshot utility";
+"Text extraction";
 ```
 
 #### Parameter Descriptions
+
 ```typescript
 properties: {
   selector: {
@@ -173,8 +178,9 @@ properties: {
 ### 4. Category System
 
 **Standard Categories:**
+
 - `browser-lifecycle` - Launch, close, manage browsers
-- `navigation` - URL navigation, history management 
+- `navigation` - URL navigation, history management
 - `content-capture` - Screenshots, page content extraction
 - `interaction` - Clicking, form filling, waiting
 - `discovery` - Tool help, capability discovery
@@ -193,15 +199,17 @@ export const contentCaptureTools: EnhancedTool[] = [
 ## Schema Validation Patterns
 
 ### 1. Type Safety
+
 ```typescript
 // ✅ STRICT - Use specific types
-type: "string" | "number" | "boolean" | "object" | "array"
+type: "string" | "number" | "boolean" | "object" | "array";
 
 // ❌ AVOID - Generic types
-type: "any"
+type: "any";
 ```
 
 ### 2. Enum Constraints
+
 ```typescript
 // ✅ GOOD - Explicit allowed values
 browserType: {
@@ -219,6 +227,7 @@ browserType: {
 ```
 
 ### 3. Numeric Constraints
+
 ```typescript
 quality: {
   type: "number",
@@ -230,6 +239,7 @@ quality: {
 ```
 
 ### 4. Object Properties
+
 ```typescript
 viewport: {
   type: "object",
@@ -245,24 +255,25 @@ viewport: {
 ## Testing and Validation
 
 ### 1. Schema Validation Testing
+
 ```typescript
 // Test schema compatibility
 describe("MCP Schema Compatibility", () => {
   test("tools should not use top-level anyOf/oneOf/allOf", () => {
     const tools = getAllTools();
-    
+
     tools.forEach(tool => {
       const schema = tool.inputSchema;
       expect(schema).not.toHaveProperty("anyOf");
-      expect(schema).not.toHaveProperty("oneOf"); 
+      expect(schema).not.toHaveProperty("oneOf");
       expect(schema).not.toHaveProperty("allOf");
     });
   });
-  
+
   test("all tools should have valid JSON schema", () => {
     const tools = getAllTools();
     const validator = ajv.compile(metaSchema);
-    
+
     tools.forEach(tool => {
       const isValid = validator(tool.inputSchema);
       expect(isValid).toBe(true);
@@ -272,10 +283,11 @@ describe("MCP Schema Compatibility", () => {
 ```
 
 ### 2. Claude Code Compatibility Testing
+
 ```bash
 # Manual testing process
 bun run build && bun run install
-claude mcp remove brooklyn  
+claude mcp remove brooklyn
 claude mcp add -s user brooklyn brooklyn mcp start
 claude mcp list  # Should show no errors
 
@@ -284,6 +296,7 @@ claude mcp list  # Should show no errors
 ```
 
 ### 3. Tool Definition Validation
+
 ```typescript
 // Validate tool definitions at build time
 export function validateToolDefinitions(tools: EnhancedTool[]): void {
@@ -292,10 +305,10 @@ export function validateToolDefinitions(tools: EnhancedTool[]): void {
     if (!tool.name || !tool.category || !tool.description) {
       throw new Error(`Invalid tool definition: ${tool.name}`);
     }
-    
+
     // Check schema compliance
     validateSchemaCompliance(tool.inputSchema);
-    
+
     // Check examples if provided
     if (tool.examples) {
       validateExamples(tool, tool.examples);
@@ -307,26 +320,33 @@ export function validateToolDefinitions(tools: EnhancedTool[]): void {
 ## Migration Guidelines
 
 ### From Constrained Schemas
+
 When migrating existing tools with `anyOf`/`oneOf`/`allOf` constraints:
 
 1. **Document requirements in description**:
- ```typescript
-   description: "Tool description. Either 'paramA' or 'paramB' must be provided."
- ```
+
+```typescript
+description: "Tool description. Either 'paramA' or 'paramB' must be provided.";
+```
+
 2. **Make parameters optional in schema**:
- ```typescript
-   // Remove from required array, handle validation server-side
- ```
+
+```typescript
+// Remove from required array, handle validation server-side
+```
+
 3. **Add server-side validation**:
- ```typescript
-   function validateInput(input: ToolInput): void {
-     if (!input.paramA && !input.paramB) {
-       throw new Error("Either paramA or paramB must be provided");
-     }
-   }
- ```
+
+```typescript
+function validateInput(input: ToolInput): void {
+  if (!input.paramA && !input.paramB) {
+    throw new Error("Either paramA or paramB must be provided");
+  }
+}
+```
 
 ### Schema Evolution
+
 ```typescript
 // Version your schemas for major changes
 interface ToolSchemaV1 {
@@ -346,54 +366,58 @@ function migrateSchemaV1ToV2(input: ToolSchemaV1): ToolSchemaV2 {
 ## Common Anti-Patterns
 
 ### 1. ❌ Top-Level Constraints
+
 ```typescript
 // FORBIDDEN
 inputSchema: {
-  anyOf: [{ required: ["path"] }, { required: ["auditId"] }]
+  anyOf: [{ required: ["path"] }, { required: ["auditId"] }];
 }
 ```
 
-### 2. ❌ Vague Descriptions 
+### 2. ❌ Vague Descriptions
+
 ```typescript
 // BAD
-description: "Does something with browser"
+description: "Does something with browser";
 
-// GOOD  
-description: "Navigate browser to a specific URL and wait for page load"
+// GOOD
+description: "Navigate browser to a specific URL and wait for page load";
 ```
 
 ### 3. ❌ Missing Parameter Context
+
 ```typescript
 // BAD
 browserId: {
   type: "string",
-  description: "Browser ID", 
+  description: "Browser ID",
 }
 
 // GOOD
 browserId: {
-  type: "string", 
+  type: "string",
   description: "Optional. ID of the browser. If omitted or invalid, the server will resolve based on 'target'.",
 }
 ```
 
 ### 4. ❌ Inconsistent Categorization
+
 ```typescript
 // BAD - Mixed naming conventions
-category: "Browser_Lifecycle"  // PascalCase
-category: "content capture"    // spaces
-category: "nav"               // abbreviation
+category: "Browser_Lifecycle"; // PascalCase
+category: "content capture"; // spaces
+category: "nav"; // abbreviation
 
-// GOOD - Consistent kebab-case  
-category: "browser-lifecycle"
-category: "content-capture"
-category: "navigation"
+// GOOD - Consistent kebab-case
+category: "browser-lifecycle";
+category: "content-capture";
+category: "navigation";
 ```
 
 ## Best Practices Summary
 
 1. **✅ Never use `anyOf`/`oneOf`/`allOf` at top level of inputSchema**
-2. **✅ Move complex validation to server-side implementation** 
+2. **✅ Move complex validation to server-side implementation**
 3. **✅ Use clear, action-oriented descriptions**
 4. **✅ Specify parameter optionality and relationships**
 5. **✅ Include examples for complex tools**
@@ -406,13 +430,13 @@ category: "navigation"
 
 ## Error Codes and Solutions
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| `oneOf, allOf, or anyOf at the top level` | Top-level schema constraint | Move to server-side validation |
-| `Invalid JSON Schema` | Malformed schema structure | Validate with JSON Schema validator |
-| `Tool not found` | Missing tool in category exports | Check `getAllTools()` includes tool |
-| `Parameter validation failed` | Server-side validation error | Check parameter requirements in description |
-| `Schema key mismatch` | Emitting `inputSchema` on the wire | Normalize to `input_schema` at transport boundary |
+| Error                                     | Cause                              | Solution                                          |
+| ----------------------------------------- | ---------------------------------- | ------------------------------------------------- |
+| `oneOf, allOf, or anyOf at the top level` | Top-level schema constraint        | Move to server-side validation                    |
+| `Invalid JSON Schema`                     | Malformed schema structure         | Validate with JSON Schema validator               |
+| `Tool not found`                          | Missing tool in category exports   | Check `getAllTools()` includes tool               |
+| `Parameter validation failed`             | Server-side validation error       | Check parameter requirements in description       |
+| `Schema key mismatch`                     | Emitting `inputSchema` on the wire | Normalize to `input_schema` at transport boundary |
 
 ## Related Documentation
 

@@ -27,7 +27,7 @@ bun install
 bun run build && bun run install
 
 # Add Brooklyn to Claude Code (user-wide)
-claude mcp add -s user brooklyn "brooklyn mcp start"
+claude mcp add -s user -t stdio brooklyn "brooklyn mcp start"
 
 # Verify configuration
 claude mcp list
@@ -71,7 +71,7 @@ brooklyn setup
 bun run build && bun run install
 
 # Add to Claude Code (recommended)
-claude mcp add -s user brooklyn "brooklyn mcp start"
+claude mcp add -s user -t stdio brooklyn "brooklyn mcp start"
 ```
 
 **If you DON'T have access to the Brooklyn repository:**
@@ -106,7 +106,7 @@ Add Brooklyn to your Claude Code configuration:
 Preferred (Claude MCP CLI already set this up):
 
 ```bash
-claude mcp add -s user brooklyn "brooklyn mcp start"
+claude mcp add -s user -t stdio brooklyn "brooklyn mcp start"
 ```
 
 Manual fallback (when not using global CLI):

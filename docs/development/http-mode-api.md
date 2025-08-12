@@ -11,6 +11,7 @@ Brooklyn HTTP Mode provides REST API endpoints for programmatic tool testing and
 ### Starting HTTP Mode
 
 Server modes overview:
+
 - brooklyn web start (recommended for Claude Code)
   - Runs the MCP HTTP transport on a single port
   - Serves OAuth 2.0 PKCE endpoints and MCP JSON-RPC over the same server
@@ -31,9 +32,9 @@ Server modes overview:
     - Health/Metrics: GET /health, GET /metrics
 
 Notes:
+
 - One port is sufficient for OAuth and MCP when using brooklyn web start. You do not need a second port for auth.
 - dev-http is a separate server intended for CI/programmatic testing; run it on a different port when needed (e.g., 8080).
-
 
 ```bash
 # Production HTTP server with OAuth PKCE (recommended for Claude Code)
@@ -54,18 +55,21 @@ brooklyn mcp dev-http --port 3000 --host localhost --no-cors --background
 Brooklyn now supports OAuth 2.0 PKCE for secure authentication with Claude Code:
 
 **OAuth Discovery**:
+
 ```bash
 curl http://localhost:3000/.well-known/oauth-authorization-server
 ```
 
 **OAuth Flow for Custom Clients**:
+
 1. **Authorization Request**: Redirect user to `/oauth/authorize` with PKCE parameters
-2. **Token Exchange**: Exchange authorization code for access token at `/oauth/token` 
+2. **Token Exchange**: Exchange authorization code for access token at `/oauth/token`
 3. **API Access**: Use Bearer token in Authorization header for MCP requests
 
 **Supported PKCE Methods**: S256 (recommended), plain
 
 **For Claude Code Integration**:
+
 ```bash
 # Brooklyn handles the OAuth flow automatically
 claude mcp add -s user -t http brooklyn http://127.0.0.1:3000
@@ -257,6 +261,7 @@ Standard MCP JSON-RPC protocol endpoint.
 ```
 
 Note:
+
 - Streamable HTTP wire format uses snake_case for the tool schema key: use input_schema on the wire. Internally (TypeScript), tools are defined with inputSchema and normalized by the transport.
 - Clients should include an Accept header listing application/json and text/event-stream and, after initialization, include MCP-Protocol-Version: 2025-06-18 on subsequent requests as per the MCP spec.
 

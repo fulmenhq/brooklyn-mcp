@@ -273,7 +273,7 @@ If ANY command shows "Logger registry not initialized", you haven't fixed all in
 ## See Also
 
 - [Full Logging Guide](./logging_and_telemetry_guide.md) - Complete documentation
-- [AGENTS.md](../../AGENTS.md) - Critical coding rules
+- [AGENT.md](../../AGENT.md) - Critical coding rules
 - [CLAUDE.md](../../CLAUDE.md) - Common mistakes section
 
 ---

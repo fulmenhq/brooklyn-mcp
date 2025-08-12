@@ -5,6 +5,7 @@
 
 import * as fs from "node:fs";
 
+import { MCPDebugMiddleware } from "../core/mcp-debug-middleware.js";
 import type {
   MCPStdioConfig,
   ToolCallHandler,
@@ -45,6 +46,9 @@ export class MCPStdioTransport implements Transport {
 
   private toolListHandler?: ToolListHandler;
   private toolCallHandler?: ToolCallHandler;
+
+  // MCP debug middleware for tracing (STDIO: file-only for Claude Code compatibility)
+  private debugMiddleware = new MCPDebugMiddleware({ traceToStderr: false });
 
   constructor(config: MCPStdioConfig) {
     this.config = config;
@@ -131,6 +135,9 @@ export class MCPStdioTransport implements Transport {
     try {
       const msg = JSON.parse(line);
       this.logger().debug("Parsed message", { msg });
+
+      // MCP request tracing (file-only for STDIO compatibility)
+      this.debugMiddleware.traceRequest(msg.method, msg.params || {}, msg.id);
 
       // CRITICAL: MCP requires proper JSON-RPC structure
       if (!(msg.jsonrpc && msg.method)) return;
@@ -315,6 +322,9 @@ export class MCPStdioTransport implements Transport {
 
       const responseStr = `${JSON.stringify(response)}\n`;
       this.logger().debug("Writing response", { responseStr });
+
+      // MCP response tracing (file-only for STDIO compatibility)
+      this.debugMiddleware.traceResponse(msg.method, response, msg.id);
 
       process.stdout.write(responseStr, "utf8", (err?: Error | null) => {
         if (err) {

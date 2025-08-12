@@ -1,4 +1,4 @@
-# AGENTS.md: Guidelines for Agentic Coding in fulmen-mcp-forge-brooklyn
+# AGENT.md: Guidelines for Agentic Coding in fulmen-mcp-forge-brooklyn
 
 ## Project Overview
 
@@ -16,7 +16,7 @@ Brooklyn is a multi-team MCP server for browser automation using Bun, TypeScript
 ### **Technical Standards (MANDATORY)**
 
 3. **docs/development/standards/coding-standards.md** - The Non-Negotiables (READ THIS FIRST!)
-4. **AGENTS.local.md** - Local development configuration and agent-specific guidelines (if present)
+4. **AGENT.local.md** - Local development configuration and agent-specific guidelines (if present)
 5. **package.json** - Available commands and dependencies (ALWAYS read scripts section)
 6. **docs/substaile/codex/coding.md** - Core coding principles and error patterns
 7. **docs/substaile/codex/typescript/typescript-coding.md** - TypeScript-specific standards

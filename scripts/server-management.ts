@@ -196,6 +196,7 @@ export async function getServerStatus(): Promise<void> {
 
   if (!pid) {
     console.log("Status: Stopped (no PID file)");
+    process.exit(0);
     return;
   }
 
@@ -217,13 +218,12 @@ export async function getServerStatus(): Promise<void> {
     } catch {
       // Process info not available or timed out, continue silently
     }
+    process.exit(0);
   } else {
     console.log(`Status: Stopped (stale PID file: ${pid})`);
     removePidFile();
+    process.exit(0);
   }
-
-  // Explicitly ensure function completes
-  return;
 }
 
 /**

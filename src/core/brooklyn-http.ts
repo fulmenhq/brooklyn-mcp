@@ -435,7 +435,7 @@ export class BrooklynHTTP {
               tools: { listChanged: true },
               roots: {},
               resources: {},
-              prompts: {}
+              prompts: {},
             },
           },
         });

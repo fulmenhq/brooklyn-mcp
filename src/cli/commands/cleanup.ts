@@ -10,6 +10,7 @@ export function registerCleanupCommand(program: Command) {
     .description("Cleanup running Brooklyn processes and resources")
     .option("--all", "Cleanup all Brooklyn processes and resources")
     .option("--http", "Cleanup HTTP mode servers")
+    .option("--port <port>", "Target HTTP port to kill listeners on (IPv4/IPv6)")
     .option("--mcp", "Cleanup MCP mode servers (managed + unmanaged in current project)")
     .option("--mcp-all", "Cleanup MCP stdio servers across all projects/scopes")
     .option("--browsers", "Cleanup stray headless dev-time browser processes (safe heuristics)")
@@ -18,6 +19,7 @@ export function registerCleanupCommand(program: Command) {
       async (opts: {
         all?: boolean;
         http?: boolean;
+        port?: string;
         mcp?: boolean;
         mcpAll?: boolean;
         browsers?: boolean;
@@ -26,11 +28,22 @@ export function registerCleanupCommand(program: Command) {
         const { BrooklynProcessManager } = await import("../../shared/process-manager.js");
         const pm = BrooklynProcessManager;
 
-        const doHttp = Boolean(opts.all || opts.http);
+        const doHttp = Boolean(opts.all || opts.http || opts.port);
         const doMcp = Boolean(opts.all || opts.mcp);
         const doBrowsers = Boolean(opts.all || opts.browsers);
 
         if (doHttp) {
+          // If a specific port is provided, kill listeners on that port (IPv4/IPv6)
+          if (opts.port) {
+            const portNum = Number.parseInt(opts.port, 10);
+            if (Number.isFinite(portNum)) {
+              await cleanupHttpPort(portNum, Boolean(opts.force));
+            } else {
+              // eslint-disable-next-line no-console
+              console.log(`Invalid port: ${opts.port}`);
+            }
+          }
+          // Also run process-manager based HTTP cleanup (covers dev-http, managed servers)
           await cleanupHttp(pm);
         }
         if (doMcp) {
@@ -71,6 +84,81 @@ async function cleanupHttp(pm: PM): Promise<void> {
   }
 }
 
+/**
+ * Kill all listeners (IPv4 and IPv6) bound to a specific HTTP port (best-effort).
+ * Uses lsof to find PIDs, sends SIGTERM then optional SIGKILL (--force).
+ */
+async function cleanupHttpPort(port: number, force: boolean): Promise<void> {
+  try {
+    const pids = await listListenerPids(port);
+    if (pids.length === 0) {
+      // eslint-disable-next-line no-console
+      console.log(`No listeners found on port ${port}`);
+      return;
+    }
+
+    // eslint-disable-next-line no-console
+    console.log(`Found ${pids.length} listener(s) on port ${port}: ${pids.join(", ")}`);
+
+    for (const pid of pids) {
+      await terminateListenerPid(pid, force, port);
+    }
+
+    // eslint-disable-next-line no-console
+    console.log(`HTTP port ${port} cleanup completed`);
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error(`Failed to cleanup HTTP port ${port}:`, error);
+  }
+}
+
+/**
+ * List unique listener PIDs on the given TCP port (IPv4/IPv6).
+ */
+async function listListenerPids(port: number): Promise<number[]> {
+  const { exec } = await import("node:child_process");
+  const { promisify } = await import("node:util");
+  const execAsync = promisify(exec);
+  const { stdout } = await execAsync(
+    `lsof -iTCP:${port} -sTCP:LISTEN -n -P | awk 'NR>1 {print $2}' | sort -u`,
+  );
+  return stdout
+    .trim()
+    .split("\n")
+    .map((s) => Number.parseInt(s.trim(), 10))
+    .filter((n) => Number.isFinite(n));
+}
+
+/**
+ * Terminate a single PID with SIGTERM and optional SIGKILL.
+ */
+async function terminateListenerPid(pid: number, force: boolean, port: number): Promise<void> {
+  try {
+    process.kill(pid, "SIGTERM");
+  } catch {
+    // ignore TERM failures
+  }
+
+  // wait briefly for graceful stop
+  await new Promise((r) => setTimeout(r, 1000));
+
+  let stillRunning = true;
+  try {
+    process.kill(pid, 0);
+  } catch {
+    stillRunning = false;
+  }
+
+  if (stillRunning && force) {
+    // eslint-disable-next-line no-console
+    console.log(`Forcing kill for PID ${pid} on port ${port}...`);
+    try {
+      process.kill(pid, "SIGKILL");
+    } catch {
+      // ignore KILL failures
+    }
+  }
+}
 /**
  * Stop MCP-like processes best-effort
  */

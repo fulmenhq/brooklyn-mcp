@@ -1,1 +1,1 @@
-Please read [AGENTS.md](./AGENTS.md) and follow instructions there.
+Please read [./AGENT.md](./AGENT.md) and follow instructions there.

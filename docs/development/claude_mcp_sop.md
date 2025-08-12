@@ -69,11 +69,13 @@ Brooklyn supports two transport modes for Claude Code MCP integration:
 **Current Status**: Broken in recent versions - switching to HTTP temporarily.
 
 **Add stdio configuration**:
+
 ```bash
 claude mcp add -s user -t stdio brooklyn brooklyn mcp start
 ```
 
 **Key Points**:
+
 - Claude runs `brooklyn mcp start` in foreground mode
 - Uses stdin/stdout for MCP communication
 - Default transport mode (most efficient)
@@ -89,6 +91,7 @@ Brooklyn now implements complete OAuth 2.0 PKCE (Proof Key for Code Exchange) su
 **Add HTTP configuration**:
 
 Important:
+
 - Claude Code cannot start HTTP servers. You must start the Brooklyn HTTP server yourself and keep it running while using Claude.
 - After starting the server, add the HTTP transport in Claude with the -t http flag and an IPv4 URL.
 
@@ -105,6 +108,7 @@ claude mcp get brooklyn
 ```
 
 **Key Benefits**:
+
 - **✅ OAuth 2.0 PKCE compliant** - Works with Claude Code's security requirements
 - **✅ No client secrets needed** - Uses public client flow (PKCE)
 - **✅ Better debugging** - Can monitor HTTP requests and responses
@@ -127,6 +131,7 @@ Default base URL (example): `http://localhost:3000`
 - SSE (optional): GET `/` with `Accept: text/event-stream`
 
 Notes:
+
 - You do NOT need a second server or port for OAuth; Claude Code works against this single port.
 - The separate `brooklyn mcp dev-http` server is for CI/programmatic testing (e.g. `/tools`); run it on a different port (e.g. 8080) if needed.
 - Wire schema key: MCP tools/list responses use `input_schema` (snake_case). Internally (TypeScript) we define `inputSchema`; the HTTP transport normalizes to `input_schema` on the wire.
@@ -156,6 +161,7 @@ Notes:
 - If requests to `http://localhost:3000` time out, try IPv4 explicitly: `http://127.0.0.1:3000`
 
 Unified cleanup:
+
 - Global cleanup:
   - `brooklyn cleanup --http` — best-effort stop of HTTP servers discovered by the process manager
   - `brooklyn cleanup --http --port 3000` — also kill any listeners (IPv4/IPv6) bound to port 3000
@@ -173,23 +179,21 @@ curl http://localhost:3000/.well-known/oauth-authorization-server
 ```
 
 Response includes:
+
 ```json
 {
   "issuer": "http://localhost:3000",
-  "authorization_endpoint": "http://localhost:3000/oauth/authorize", 
+  "authorization_endpoint": "http://localhost:3000/oauth/authorize",
   "token_endpoint": "http://localhost:3000/oauth/token",
   "code_challenge_methods_supported": ["S256", "plain"],
-  "token_endpoint_auth_methods_supported": [
-    "client_secret_basic", 
-    "client_secret_post", 
-    "none"
-  ],
+  "token_endpoint_auth_methods_supported": ["client_secret_basic", "client_secret_post", "none"],
   "grant_types_supported": ["authorization_code"],
   "response_types_supported": ["code"]
 }
 ```
 
 **Environment Variables for HTTP Mode**:
+
 ```bash
 # Server Configuration
 BROOKLYN_HTTP_PORT=3000                    # HTTP server port
@@ -197,7 +201,7 @@ BROOKLYN_HTTP_CORS_ORIGIN=*                # CORS allowed origins
 BROOKLYN_HTTP_RATE_LIMIT_REQUESTS=100     # Rate limit requests per window
 BROOKLYN_HTTP_RATE_LIMIT_WINDOW=60000     # Rate limit window (ms)
 
-# OAuth Configuration  
+# OAuth Configuration
 BROOKLYN_OAUTH_ISSUER=http://localhost:3000  # OAuth issuer URL
 BROOKLYN_OAUTH_CLIENT_ID=brooklyn-client     # Default client ID
 
@@ -207,6 +211,7 @@ BROOKLYN_HTTP_COOKIE_DOMAIN=localhost     # Cookie domain
 ```
 
 **Testing HTTP Transport**:
+
 ```bash
 # 1. Test OAuth discovery
 curl -s http://localhost:3000/.well-known/oauth-authorization-server | jq
@@ -239,6 +244,7 @@ This is similar to how AWS CLI and Azure CLI handle OAuth when browsers don't op
 ### Configuration Management
 
 **Remove configuration**:
+
 ```bash
 # Remove from default scope
 claude mcp remove brooklyn
@@ -249,19 +255,23 @@ claude mcp remove -s project brooklyn
 ```
 
 **List and test configurations**:
+
 ```bash
 claude mcp list
 ```
+
 - Shows both user and project scope configurations
 - Actually starts servers temporarily to test if they work
 - Useful for debugging configuration issues
 
 **Configuration scopes**:
+
 - `-s user`: Available to all Claude Code instances for this user
 - `-s project`: Available only within current project directory
 - Default: `-s local` (project-specific)
 
 **Environment variables** (optional):
+
 ```bash
 claude mcp add -s user -e BROOKLYN_LOG_LEVEL=debug brooklyn brooklyn mcp start
 ```
@@ -269,12 +279,14 @@ claude mcp add -s user -e BROOKLYN_LOG_LEVEL=debug brooklyn brooklyn mcp start
 ### Transport Selection Guidelines
 
 **Use HTTP when**:
+
 - Debugging MCP communication issues
 - stdio transport is experiencing problems
 - Need to monitor network traffic
 - Multiple concurrent Claude sessions
 
 **Use stdio when**:
+
 - Maximum performance needed
 - Transport is working reliably
 - Single Claude session workflows

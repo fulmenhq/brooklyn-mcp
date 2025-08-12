@@ -7,7 +7,7 @@
 
 **Enterprise-ready MCP server for browser automation with multi-team support**
 
-> **⚡ 15-minute onboarding**: Read [AGENTS.md 5-minute section](AGENTS.md#5-minute-team-onboarding-start-here-first) for instant productivity
+> **⚡ 15-minute onboarding**: Read [AGENT.md 5-minute section](AGENT.md#5-minute-team-onboarding-start-here-first) for instant productivity
 
 🎯 **Latest**: v1.1.4 introduces **file-based screenshots** eliminating MCP token limitations and enabling enterprise-scale browser automation workflows.
 
@@ -25,7 +25,7 @@ Brooklyn is a Model Context Protocol (MCP) server that provides AI developers an
 ### For Team Members
 
 - **👥 [docs/ONBOARDING.md](docs/ONBOARDING.md)** - **Team onboarding** with architecture, development philosophy, and coding standards
-- **⚡ [AGENTS.md 5-minute section](AGENTS.md#5-minute-team-onboarding-start-here-first)** - **Instant productivity** for developers
+- **⚡ [AGENT.md 5-minute section](AGENT.md#5-minute-team-onboarding-start-here-first)** - **Instant productivity** for developers
 
 ### Quick Comparison
 
@@ -34,7 +34,7 @@ Brooklyn is a Model Context Protocol (MCP) server that provides AI developers an
 | **hello_brooklyn.md** | 5 min  | Anyone       | Quick setup, first test     |
 | **welcome.md**        | 15 min | End users    | Complete features, examples |
 | **ONBOARDING.md**     | 15 min | Team members | Architecture, development   |
-| **AGENTS.md**         | 5 min  | Developers   | Instant productivity        |
+| **AGENT.md**          | 5 min  | Developers   | Instant productivity        |
 
 ## 🚀 Quick Start
 

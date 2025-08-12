@@ -810,7 +810,7 @@ export class MCPHTTPTransport implements Transport {
                 tools: { listChanged: true },
                 roots: {},
                 resources: {},
-                prompts: {}
+                prompts: {},
               },
             },
           };
