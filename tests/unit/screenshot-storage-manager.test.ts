@@ -72,7 +72,7 @@ describe("ScreenshotStorageManager", () => {
       });
 
       // Verify new structure: instances/{instanceId}/{tag}/
-      expect(result.filePath).toMatch(/instances\/[a-f0-9]+\/[a-z-]+\/screenshot-.*\.png$/);
+      expect(result.filePath).toMatch(/instances\/[a-z0-9-]+\/[a-z0-9-]+\/screenshot-.*\.png$/);
       expect(result.metadata.instanceId).toBeDefined();
       expect(result.metadata.tag).toBeDefined();
 

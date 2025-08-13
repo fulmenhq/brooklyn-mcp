@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "brooklyn": {
+      "type": "http",
+      "url": "http://localhost:3000"
+    }
+  }
+}

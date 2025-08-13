@@ -94,10 +94,10 @@ export class ScreenshotRepository {
       params.push(query.sessionId);
     }
 
-    if (query.teamId) {
-      conditions.push("team_id = ?");
-      params.push(query.teamId);
-    }
+    // BUGFIX: Apply team filter with fallback to "default" for security
+    const teamId = query.teamId || "default";
+    conditions.push("team_id = ?");
+    params.push(teamId);
 
     if (query.userId) {
       conditions.push("user_id = ?");

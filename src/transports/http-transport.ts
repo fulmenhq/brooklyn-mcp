@@ -421,7 +421,7 @@ export class MCPHTTPTransport implements Transport {
               <p><strong>Claude Code</strong> is requesting access to Brooklyn MCP</p>
               <p>Client ID: <code>${clientId}</code></p>
               <p>This will allow Claude Code to use Brooklyn's browser automation tools.</p>
-              <button class="approve-btn" onclick="approve()">✅ Approve Access</button>
+              <button class="approve-btn" onclick="approve()">&#x2705;<!-- ✅ --> Approve Access</button>
               <p><small>This is a local development server. Access is automatically approved.</small></p>
             </div>
             <script>
@@ -495,11 +495,11 @@ export class MCPHTTPTransport implements Transport {
               <div class="url-box" id="authUrl">
                 http://${req.headers.host}/oauth/authorize?response_type=code&client_id=brooklyn-client&redirect_uri=http://${req.headers.host}/oauth/callback&state=manual&code_challenge=manual-dev-pkce&code_challenge_method=plain
               </div>
-              <button class="copy-btn" onclick="copyUrl()">📋 Copy URL</button>
+              <button class="copy-btn" onclick="copyUrl()">&#x1f4cb;<!-- 📋 --> Copy URL</button>
               
               <h3>Option 2: Click this link</h3>
               <p><a href="http://${req.headers.host}/oauth/authorize?response_type=code&client_id=brooklyn-client&redirect_uri=http://${req.headers.host}/oauth/callback&state=manual&code_challenge=manual-dev-pkce&code_challenge_method=plain" target="_blank">
-                🔗 Open Authorization Page
+                &#x1f517;<!-- 🔗 --> Open Authorization Page
               </a></p>
               
               <hr>

@@ -56,7 +56,7 @@ export class MCPRequestContextFactory {
     return {
       requestId: randomUUID(),
       timestamp: new Date(),
-      teamId: options.teamId,
+      teamId: options.teamId || "default", // BUGFIX: Default to "default" team when undefined
       userId: options.userId,
       source: options.source || "unknown",
       metadata: options.metadata,

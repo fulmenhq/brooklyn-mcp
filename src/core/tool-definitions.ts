@@ -101,10 +101,17 @@ export const browserLifecycleTools: EnhancedTool[] = [
       properties: {
         browserId: {
           type: "string",
-          description: "ID of the browser to close",
+          description:
+            "Optional. ID of the browser to close. If omitted or invalid, the server will resolve based on 'target'.",
+        },
+        target: {
+          type: "string",
+          enum: ["latest", "current", "byId"],
+          description:
+            "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+          default: "latest",
         },
       },
-      required: ["browserId"],
     },
     examples: [
       {
@@ -117,7 +124,7 @@ export const browserLifecycleTools: EnhancedTool[] = [
   {
     name: "list_active_browsers",
     category: "browser-lifecycle",
-    description: "List all currently active browser instances",
+    description: "Retrieve a list of all currently active browser instances",
     inputSchema: {
       type: "object",
       properties: {},
@@ -233,10 +240,17 @@ export const navigationTools: EnhancedTool[] = [
       properties: {
         browserId: {
           type: "string",
-          description: "ID of the browser",
+          description:
+            "Optional. ID of the browser. If omitted or invalid, the server will resolve based on 'target'.",
+        },
+        target: {
+          type: "string",
+          enum: ["latest", "current", "byId"],
+          description:
+            "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+          default: "latest",
         },
       },
-      required: ["browserId"],
     },
     examples: [
       {
@@ -436,7 +450,7 @@ export const contentCaptureTools: EnhancedTool[] = [
     name: "list_screenshots",
     category: "content-capture",
     description:
-      "List stored screenshots from the inventory database with filtering and pagination support",
+      "Retrieve stored screenshots from the inventory database with filtering and pagination support",
     inputSchema: {
       type: "object",
       properties: {
@@ -468,6 +482,8 @@ export const contentCaptureTools: EnhancedTool[] = [
         maxAge: {
           type: "number",
           description: "Maximum age in seconds (e.g., 3600 for last hour)",
+          minimum: 1,
+          maximum: 31536000,
         },
         startDate: {
           type: "string",
@@ -580,7 +596,7 @@ export const contentCaptureTools: EnhancedTool[] = [
     name: "get_screenshot",
     category: "content-capture",
     description:
-      "Retrieve a specific screenshot by file path or audit ID with metadata. Either 'path' or 'auditId' must be provided.",
+      "Fetch a specific screenshot by file path or audit ID with metadata. Either 'path' or 'auditId' must be provided.",
     inputSchema: {
       type: "object",
       properties: {
@@ -657,7 +673,7 @@ export const discoveryTools: EnhancedTool[] = [
   {
     name: "brooklyn_list_tools",
     category: "discovery",
-    description: "List all available Brooklyn tools organized by category",
+    description: "Retrieve all available Brooklyn tools organized by category",
     inputSchema: {
       type: "object",
       properties: {
@@ -727,7 +743,15 @@ export const interactionTools: EnhancedTool[] = [
       properties: {
         browserId: {
           type: "string",
-          description: "ID of the browser instance",
+          description:
+            "Optional. ID of the browser instance. If omitted or invalid, the server will resolve based on 'target'.",
+        },
+        target: {
+          type: "string",
+          enum: ["latest", "current", "byId"],
+          description:
+            "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+          default: "latest",
         },
         selector: {
           type: "string",
@@ -742,9 +766,11 @@ export const interactionTools: EnhancedTool[] = [
           type: "number",
           description: "Timeout in milliseconds",
           default: 5000,
+          minimum: 100,
+          maximum: 300000,
         },
       },
-      required: ["browserId", "selector"],
+      required: ["selector"],
     },
     examples: [
       {
@@ -789,13 +815,21 @@ export const interactionTools: EnhancedTool[] = [
   {
     name: "fill_text",
     category: "interaction",
-    description: "Fill text into an input field using CSS selector",
+    description: "Enter text into an input field using CSS selector",
     inputSchema: {
       type: "object",
       properties: {
         browserId: {
           type: "string",
-          description: "ID of the browser instance",
+          description:
+            "Optional. ID of the browser instance. If omitted or invalid, the server will resolve based on 'target'.",
+        },
+        target: {
+          type: "string",
+          enum: ["latest", "current", "byId"],
+          description:
+            "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+          default: "latest",
         },
         selector: {
           type: "string",
@@ -814,9 +848,11 @@ export const interactionTools: EnhancedTool[] = [
           type: "number",
           description: "Timeout in milliseconds",
           default: 5000,
+          minimum: 100,
+          maximum: 300000,
         },
       },
-      required: ["browserId", "selector", "text"],
+      required: ["selector", "text"],
     },
     examples: [
       {
@@ -865,13 +901,21 @@ export const interactionTools: EnhancedTool[] = [
   {
     name: "fill_form",
     category: "interaction",
-    description: "Fill multiple form fields using a field mapping object",
+    description: "Populate multiple form fields using a field mapping object",
     inputSchema: {
       type: "object",
       properties: {
         browserId: {
           type: "string",
-          description: "ID of the browser instance",
+          description:
+            "Optional. ID of the browser instance. If omitted or invalid, the server will resolve based on 'target'.",
+        },
+        target: {
+          type: "string",
+          enum: ["latest", "current", "byId"],
+          description:
+            "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+          default: "latest",
         },
         fieldMapping: {
           type: "object",
@@ -884,9 +928,11 @@ export const interactionTools: EnhancedTool[] = [
           type: "number",
           description: "Timeout in milliseconds for each field",
           default: 5000,
+          minimum: 100,
+          maximum: 300000,
         },
       },
-      required: ["browserId", "fieldMapping"],
+      required: ["fieldMapping"],
     },
     examples: [
       {
@@ -947,7 +993,15 @@ export const interactionTools: EnhancedTool[] = [
       properties: {
         browserId: {
           type: "string",
-          description: "ID of the browser instance",
+          description:
+            "Optional. ID of the browser instance. If omitted or invalid, the server will resolve based on 'target'.",
+        },
+        target: {
+          type: "string",
+          enum: ["latest", "current", "byId"],
+          description:
+            "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+          default: "latest",
         },
         selector: {
           type: "string",
@@ -963,9 +1017,11 @@ export const interactionTools: EnhancedTool[] = [
           type: "number",
           description: "Timeout in milliseconds",
           default: 30000,
+          minimum: 100,
+          maximum: 300000,
         },
       },
-      required: ["browserId", "selector"],
+      required: ["selector"],
     },
     examples: [
       {
@@ -1002,7 +1058,15 @@ export const interactionTools: EnhancedTool[] = [
       properties: {
         browserId: {
           type: "string",
-          description: "ID of the browser instance",
+          description:
+            "Optional. ID of the browser instance. If omitted or invalid, the server will resolve based on 'target'.",
+        },
+        target: {
+          type: "string",
+          enum: ["latest", "current", "byId"],
+          description:
+            "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+          default: "latest",
         },
         selector: {
           type: "string",
@@ -1012,9 +1076,11 @@ export const interactionTools: EnhancedTool[] = [
           type: "number",
           description: "Timeout in milliseconds",
           default: 5000,
+          minimum: 100,
+          maximum: 300000,
         },
       },
-      required: ["browserId", "selector"],
+      required: ["selector"],
     },
     examples: [
       {
@@ -1041,13 +1107,21 @@ export const interactionTools: EnhancedTool[] = [
   {
     name: "validate_element_presence",
     category: "interaction",
-    description: "Check if an element exists on the page",
+    description: "Verify if an element exists on the page",
     inputSchema: {
       type: "object",
       properties: {
         browserId: {
           type: "string",
-          description: "ID of the browser instance",
+          description:
+            "Optional. ID of the browser instance. If omitted or invalid, the server will resolve based on 'target'.",
+        },
+        target: {
+          type: "string",
+          enum: ["latest", "current", "byId"],
+          description:
+            "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+          default: "latest",
         },
         selector: {
           type: "string",
@@ -1062,9 +1136,11 @@ export const interactionTools: EnhancedTool[] = [
           type: "number",
           description: "Timeout in milliseconds",
           default: 5000,
+          minimum: 100,
+          maximum: 300000,
         },
       },
-      required: ["browserId", "selector"],
+      required: ["selector"],
     },
     examples: [
       {
@@ -1086,13 +1162,21 @@ export const interactionTools: EnhancedTool[] = [
   {
     name: "find_elements",
     category: "interaction",
-    description: "Find all elements matching a CSS selector",
+    description: "Locate all elements matching a CSS selector",
     inputSchema: {
       type: "object",
       properties: {
         browserId: {
           type: "string",
-          description: "ID of the browser instance",
+          description:
+            "Optional. ID of the browser instance. If omitted or invalid, the server will resolve based on 'target'.",
+        },
+        target: {
+          type: "string",
+          enum: ["latest", "current", "byId"],
+          description:
+            "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+          default: "latest",
         },
         selector: {
           type: "string",
@@ -1102,9 +1186,11 @@ export const interactionTools: EnhancedTool[] = [
           type: "number",
           description: "Timeout in milliseconds",
           default: 5000,
+          minimum: 100,
+          maximum: 300000,
         },
       },
-      required: ["browserId", "selector"],
+      required: ["selector"],
     },
     examples: [
       {
