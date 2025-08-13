@@ -62,7 +62,33 @@ Claude Code caches MCP binary references at session initialization. **Complete s
 
 ## Claude Code Configuration
 
-Brooklyn supports two transport modes for Claude Code MCP integration:
+Brooklyn supports two transport modes for Claude Code MCP integration with two configuration scopes:
+
+### Configuration Scopes
+
+Choose your preferred scope for MCP configuration:
+
+- **`-s user`**: User-wide configuration - available to all Claude Code instances for this user
+- **`-s project`**: Project-specific configuration - available only within current project directory
+
+**Recommendation**: Use `-s project` when developing Brooklyn itself, as it allows you to set up different configurations in different project locations. This is particularly valuable since updating the binary when using stdio transport can be difficult.
+
+**Scope Comparison**:
+
+| Aspect                   | `-s user`                       | `-s project`                      |
+| ------------------------ | ------------------------------- | --------------------------------- |
+| **Availability**         | All Claude sessions system-wide | Only in current project directory |
+| **Configuration file**   | User's global Claude config     | Project's `.claude_mcp.json`      |
+| **Binary updates**       | Requires global session restart | Can isolate to project            |
+| **Development workflow** | Good for stable releases        | Better for active development     |
+| **Team sharing**         | Personal configuration          | Can be version controlled         |
+
+**When developing Brooklyn**: Project scope (`-s project`) is preferable because:
+
+1. You can have different configurations for different Brooklyn development environments
+2. Binary updates don't affect your global Claude configuration
+3. You can test different Brooklyn versions simultaneously in different project directories
+4. Easier to troubleshoot issues in isolation
 
 ### stdio Transport (Standard)
 
@@ -71,11 +97,19 @@ Brooklyn supports two transport modes for Claude Code MCP integration:
 **Add stdio configuration**:
 
 ```bash
-claude mcp add -s user -t stdio brooklyn brooklyn mcp start
+# User scope (available everywhere for this user)
+claude mcp add -s user -t stdio brooklyn -- brooklyn mcp start
+
+# Project scope (recommended for Brooklyn development)
+claude mcp add -s project -t stdio brooklyn -- brooklyn mcp start
+
+# With additional args (team-id example)
+claude mcp add -s project -t stdio brooklyn -- brooklyn mcp start --team-id myteam
 ```
 
 **Key Points**:
 
+- Notice the `--` separator before brooklyn command arguments
 - Claude runs `brooklyn mcp start` in foreground mode
 - Uses stdin/stdout for MCP communication
 - Default transport mode (most efficient)
@@ -97,15 +131,34 @@ Important:
 
 ```bash
 # Start Brooklyn HTTP server (required; Claude will NOT start this for you)
+# Option 1: Foreground mode (stays in terminal)
 brooklyn web start --port 3000 --host 0.0.0.0
 
-# Add to Claude Code (user-wide) using explicit HTTP transport and IPv4 URL
+# Option 2: Background daemon mode
+brooklyn web start --port 3000 --host 0.0.0.0 --daemon
+
+# Add to Claude Code using explicit HTTP transport and IPv4 URL
+# User scope (available everywhere for this user)
 claude mcp add -s user -t http brooklyn http://127.0.0.1:3000
+
+# Project scope (recommended for Brooklyn development)
+claude mcp add -s project -t http brooklyn http://127.0.0.1:3000
+
+# With team-id in the URL (if needed)
+claude mcp add -s project -t http brooklyn http://127.0.0.1:3000/team/myteam
 
 # Verify configuration
 claude mcp list
 claude mcp get brooklyn
 ```
+
+**Server Startup Options**:
+
+- **Foreground mode**: Server runs in the terminal window and stops when you close it
+- **Daemon mode**: Server runs in the background using `--daemon` option
+- **Port selection**: Use `--port <port>` to specify different port (default: 3000)
+- **Host binding**: Use `--host <IP>` to bind to specific IP (default: 127.0.0.1)
+- **Team configuration**: Add `--team-id <teamId>` for team-specific configurations
 
 **Key Benefits**:
 
@@ -141,14 +194,17 @@ Notes:
 - Rebuild + reinstall the CLI when code changes:
   - `bun run build && bun run install`
 - Prefer explicit IPv4 binding to avoid localhost/::1 pitfalls:
-  - `brooklyn web start --port 3000 --host 0.0.0.0`
+  - `brooklyn web start --port 3000 --host 0.0.0.0` (foreground)
+  - `brooklyn web start --port 3000 --host 0.0.0.0 --daemon` (background)
 - Quick verification (new terminal):
   - `curl -v http://localhost:3000/health`
   - `curl -v http://localhost:3000/.well-known/oauth-authorization-server`
 - Manual authorization when auto-open fails:
   - Open `http://localhost:3000/oauth/auth-help` in your browser and follow the link.
 - If Claude still references an old binary or URL:
-  - `claude mcp remove brooklyn` then `claude mcp add -s user brooklyn http://localhost:3000`
+  - `claude mcp remove brooklyn`
+  - For HTTP: `claude mcp add -s project brooklyn http://localhost:3000`
+  - For stdio: `claude mcp add -s project brooklyn -- brooklyn mcp start`
   - Fully restart Claude sessions.
 
 ### Networking and Cleanup
@@ -267,13 +323,17 @@ claude mcp list
 **Configuration scopes**:
 
 - `-s user`: Available to all Claude Code instances for this user
-- `-s project`: Available only within current project directory
-- Default: `-s local` (project-specific)
+- `-s project`: Available only within current project directory (recommended for Brooklyn development)
+- Default: `-s user` if no scope specified
 
 **Environment variables** (optional):
 
 ```bash
-claude mcp add -s user -e BROOKLYN_LOG_LEVEL=debug brooklyn brooklyn mcp start
+# For stdio transport (note the -- separator)
+claude mcp add -s user -e BROOKLYN_LOG_LEVEL=debug brooklyn -- brooklyn mcp start
+
+# For HTTP transport
+claude mcp add -s user -e BROOKLYN_LOG_LEVEL=debug brooklyn http://127.0.0.1:3000
 ```
 
 ### Transport Selection Guidelines
@@ -333,7 +393,14 @@ claude mcp remove brooklyn
 ### 5. Re-add MCP Configuration
 
 ```bash
-claude mcp add -s user brooklyn brooklyn mcp start
+# For stdio transport (note the -- separator)
+claude mcp add -s user brooklyn -- brooklyn mcp start
+
+# For HTTP transport (remember to start server first)
+brooklyn web start --port 3000 --daemon
+claude mcp add -s user brooklyn http://127.0.0.1:3000
+
+# Verify configuration
 claude mcp list
 claude mcp get brooklyn
 ```
@@ -401,7 +468,12 @@ bun run version:bump:patch && bun run build && bun run install
 pkill -f brooklyn
 claude mcp remove brooklyn
 # [Close all Claude sessions]
-claude mcp add -s user brooklyn brooklyn mcp start
+
+# Stdio transport
+claude mcp add -s user brooklyn -- brooklyn mcp start
+# OR HTTP transport
+brooklyn web start --port 3000 --daemon && claude mcp add -s user brooklyn http://127.0.0.1:3000
+
 # [Restart Claude]
 ```
 
