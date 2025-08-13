@@ -5,12 +5,12 @@
 
 import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { type Client, type InValue, type ResultSet, createClient } from "@libsql/client";
 
 import { getLogger } from "../../shared/pino-logger.js";
 import { type InstanceContext, getStableInstanceId } from "./instance-id-generator.js";
-import type { BrooklynInstance, DatabaseConfig } from "./types.js";
+import type { DatabaseConfig } from "./types.js";
 
 // Lazy logger initialization with safe fallback
 let logger: ReturnType<typeof getLogger> | null = null;
@@ -78,6 +78,18 @@ export class DatabaseManager {
       await DatabaseManager.instance.initialize();
     }
     return DatabaseManager.instance;
+  }
+
+  /**
+   * Reset singleton instance (for testing only)
+   * @internal
+   */
+  static async resetInstance(): Promise<void> {
+    if (DatabaseManager.instance) {
+      // Use the close method which properly cleans up
+      await DatabaseManager.instance.close();
+    }
+    // instance is already set to null by close()
   }
 
   /**
@@ -431,4 +443,13 @@ export async function getDatabaseManager(
     dbManager = await DatabaseManager.getInstance(config);
   }
   return dbManager;
+}
+
+/**
+ * Reset database manager for testing
+ * @internal
+ */
+export async function resetDatabaseManager(): Promise<void> {
+  await DatabaseManager.resetInstance();
+  dbManager = null;
 }

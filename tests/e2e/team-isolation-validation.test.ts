@@ -8,16 +8,23 @@
  * This is a production security requirement - teams must not access each other's data
  */
 
+import { unlinkSync } from "node:fs";
+import { join } from "node:path";
 import type { CallToolRequest } from "@modelcontextprotocol/sdk/types.js";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { BrooklynEngine } from "../../src/core/brooklyn-engine.js";
 import type { BrooklynContext } from "../../src/core/brooklyn-engine.js";
-import { getDatabaseManager } from "../../src/core/database/database-manager.js";
+import {
+  getDatabaseManager,
+  resetDatabaseManager,
+} from "../../src/core/database/database-manager.js";
 import { ScreenshotRepositoryOptimized as ScreenshotRepository } from "../../src/core/database/repositories/screenshot-repository-optimized.js";
 
 // Test isolation
 const TEST_INSTANCE_ID = "test-team-isolation";
+const TEST_DB_PATH = join(process.cwd(), "tests", "test-databases", "team-isolation.test.db");
+const TEST_DB_URL = `file:${TEST_DB_PATH}`;
 
 // Helper function to parse MCP tool responses
 function parseMCPResponse(result: any): any {
@@ -38,6 +45,19 @@ describe("Team Isolation Security Validation", () => {
   let teamBContext: BrooklynContext;
 
   beforeAll(async () => {
+    // Clean up any existing test database files first
+    try {
+      unlinkSync(TEST_DB_PATH);
+      unlinkSync(`${TEST_DB_PATH}-shm`);
+      unlinkSync(`${TEST_DB_PATH}-wal`);
+    } catch {
+      // Files may not exist, that's fine
+    }
+
+    // Reset database singleton to ensure clean state
+    // This must be done AFTER cleaning files and BEFORE initializing new database
+    await resetDatabaseManager();
+
     // Initialize logging
     const { initializeLogging } = await import("../../src/shared/pino-logger.js");
     const testConfig = {
@@ -78,12 +98,19 @@ describe("Team Isolation Security Validation", () => {
 
     await initializeLogging(testConfig);
 
-    // Initialize in-memory database for testing
-    const _dbManager = await getDatabaseManager({
-      url: ":memory:",
+    // IMPORTANT: Initialize database BEFORE creating BrooklynEngine
+    // This ensures the singleton is set up with our test database
+    const dbManager = await getDatabaseManager({
+      url: TEST_DB_URL,
     });
 
-    // Create Brooklyn engine with test configuration
+    // Wait for database to be fully initialized
+    const healthy = await dbManager.isHealthy();
+    if (!healthy) {
+      throw new Error("Database failed health check");
+    }
+
+    // Now create Brooklyn engine - it will use the already-initialized singleton
     engine = new BrooklynEngine({
       config: testConfig,
       mcpMode: true,
@@ -110,22 +137,33 @@ describe("Team Isolation Security Validation", () => {
   });
 
   afterAll(async () => {
-    if (engine) {
-      await engine.cleanup();
+    try {
+      if (engine) {
+        await engine.cleanup();
+      }
+
+      // Reset database manager to close connections
+      await resetDatabaseManager();
+    } finally {
+      // Clean up test database files regardless of errors above
+      try {
+        unlinkSync(TEST_DB_PATH);
+        unlinkSync(`${TEST_DB_PATH}-shm`);
+        unlinkSync(`${TEST_DB_PATH}-wal`);
+      } catch {
+        // Files may not exist, that's fine
+      }
     }
-    // Clean up test data
-    const dbManager = await getDatabaseManager();
-    await dbManager.execute("DELETE FROM screenshots WHERE instance_id = ?", [TEST_INSTANCE_ID]);
-    await dbManager.execute("DELETE FROM instances WHERE id = ?", [TEST_INSTANCE_ID]);
   });
 
   beforeEach(async () => {
-    // Clear database before each test
+    // Clear existing test data to ensure test isolation
     const dbManager = await getDatabaseManager();
-    await dbManager.execute("DELETE FROM screenshots WHERE instance_id = ?", [TEST_INSTANCE_ID]);
-    await dbManager.execute("DELETE FROM instances WHERE id = ?", [TEST_INSTANCE_ID]);
 
-    // Register test instance to satisfy foreign key constraint
+    // Clear any existing screenshots for this test instance
+    await dbManager.execute("DELETE FROM screenshots WHERE instance_id = ?", [TEST_INSTANCE_ID]);
+
+    // Register test instance (use INSERT OR REPLACE to handle if it already exists)
     await dbManager.execute(
       `INSERT OR REPLACE INTO instances (
         id, display_name, type, scope, install_path, project_path,

@@ -7,9 +7,9 @@ import type { CallToolRequest, Tool } from "@modelcontextprotocol/sdk/types.js";
 import type { ToolCallHandler, ToolListHandler, Transport } from "./transport.js";
 
 import { getLogger, initializeLogging, isLoggingInitialized } from "../shared/pino-logger.js";
-import { BrowserPoolManager, type BrowserPoolManagerConfig } from "./browser-pool-manager.js";
+import { BrowserPoolManager } from "./browser-pool-manager.js";
 import { MCPBrowserRouter } from "./browser/mcp-browser-router.js";
-import { MCPErrorHandler } from "./browser/mcp-error-handler.js";
+
 import { MCPRequestContextFactory } from "./browser/mcp-request-context.js";
 import type { BrooklynConfig } from "./config.js";
 import { ToolDiscoveryService } from "./discovery/tool-discovery-service.js";
@@ -57,7 +57,6 @@ export class BrooklynEngine {
   private pluginManager: PluginManager;
   private browserPool: BrowserPoolManager;
   private browserRouter: MCPBrowserRouter | null = null;
-  private errorHandler: MCPErrorHandler;
   private security: SecurityMiddleware;
   private discovery: ToolDiscoveryService;
 
@@ -75,7 +74,6 @@ export class BrooklynEngine {
       mcpMode: options.mcpMode,
       maxBrowsers: this.config.browsers.maxInstances,
     });
-    this.errorHandler = new MCPErrorHandler();
     this.security = new SecurityMiddleware({
       allowedDomains: this.config.security.allowedDomains,
       rateLimiting: this.config.security.rateLimit,
@@ -389,7 +387,7 @@ export class BrooklynEngine {
    * Execute a tool call directly (for REPL and testing)
    */
   async executeToolCall(request: CallToolRequest, context: BrooklynContext): Promise<any> {
-    const handler = this.createToolCallHandler(context.transport);
+    const handler = this.createToolCallHandlerWithContext(context);
     return await handler(request);
   }
 
@@ -523,6 +521,89 @@ export class BrooklynEngine {
   /**
    * Create tool call handler for a transport
    */
+  /**
+   * Create a tool call handler with a specific context (for testing)
+   */
+  private createToolCallHandlerWithContext(context: BrooklynContext): ToolCallHandler {
+    return async (request: CallToolRequest) => {
+      // DEFENSIVE: Ensure logging is initialized before tool execution
+      if (!isLoggingInitialized()) {
+        try {
+          initializeLogging(this.config);
+        } catch {
+          // continue without logging
+        }
+      }
+
+      const { name, arguments: args } = request.params;
+
+      const startTime = Date.now();
+      try {
+        this.getLogger().debug("Tool call received", {
+          transport: context.transport,
+          correlationId: context.correlationId,
+          tool: name,
+          args,
+        });
+      } catch {}
+
+      try {
+        // Apply security middleware with context
+        await this.security.validateRequest(request, {
+          teamId: context.teamId,
+          userId: context.userId,
+        });
+
+        let result: unknown;
+
+        // Route to appropriate handler
+        if (this.isCoreTools(name)) {
+          result = await this.handleCoreTool(name, args, context);
+        } else if (this.isOnboardingTools(name)) {
+          result = await OnboardingTools.handleTool(name, args);
+        } else {
+          result = await this.pluginManager.handleToolCall(name, args);
+        }
+
+        const duration = Date.now() - startTime;
+        try {
+          this.getLogger().info("Tool call successful", {
+            transport: context.transport,
+            correlationId: context.correlationId,
+            tool: name,
+            duration,
+          });
+        } catch {}
+
+        // IMPORTANT: Return MCP-style content array for tests
+        // The result needs to be wrapped in a content array
+        return {
+          content: [
+            {
+              type: "text",
+              text: typeof result === "string" ? result : JSON.stringify(result),
+            },
+          ],
+        } as any;
+      } catch (error) {
+        const duration = Date.now() - startTime;
+        try {
+          this.getLogger().error("Tool call failed", {
+            transport: context.transport,
+            correlationId: context.correlationId,
+            tool: name,
+            duration,
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+          });
+        } catch {}
+
+        // Let the error propagate - transport will handle MCP formatting
+        throw error;
+      }
+    };
+  }
+
   private createToolCallHandler(transportName: string): ToolCallHandler {
     return async (request: CallToolRequest) => {
       // DEFENSIVE: Ensure logging is initialized before tool execution
