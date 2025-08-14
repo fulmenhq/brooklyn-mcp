@@ -1,5 +1,47 @@
 # Claude MCP Update Standard Operating Procedures
 
+## 🚨 CRITICAL: MCP Tool Discovery & Caching Behavior
+
+**Key Finding**: Claude Code **does NOT have a cache refresh command** for MCP tools. When new tools are added to Brooklyn, the **complete remove/add cycle** is the ONLY way to force tool re-discovery.
+
+### Available Claude MCP Commands
+
+- `claude mcp list` - List configured servers
+- `claude mcp add <name> <command>` - Add new MCP server
+- `claude mcp remove <name>` - Remove MCP server
+- `claude mcp get <name>` - Get server details
+- **NO** cache refresh or tool re-discovery command exists
+
+### Development Iteration Impact
+
+**When adding new MCP tools** to Brooklyn (JavaScript/CSS automation, etc.):
+
+1. **Code changes work correctly** - tools are properly registered in server
+2. **Server version updates** - Brooklyn picks up new versions
+3. **Transport works** - HTTP/stdio both function properly
+4. **BUT: Tool discovery fails** - Claude doesn't see new tools without cache refresh
+
+**Required Workflow for New Tools**:
+
+```bash
+# 1. Make tool changes and verify quality
+bun run check-all
+
+# 2. Build and install updated server
+bun run build && bun run install
+
+# 3. REQUIRED: Force Claude tool cache refresh
+claude mcp remove brooklyn
+claude mcp add brooklyn brooklyn mcp start    # For stdio
+# OR
+claude mcp add brooklyn http://127.0.0.1:3000  # For HTTP
+
+# 4. Verify new tool count (should increase)
+# Use brooklyn_list_tools in Claude
+```
+
+**This is NOT a bug** - this is how Claude Code's MCP caching works. The `/mcp` reconnection command only re-establishes the connection; it does not clear cached tool definitions.
+
 ## MCP Message Format Reference
 
 Brooklyn implements the MCP JSON-RPC 2.0 protocol. Key details from debugging Claude integration:
@@ -56,9 +98,15 @@ Notes:
 
 For full MCP spec: https://modelcontextprotocol.io/specification/latest
 
-## Critical Discovery: Binary Caching
+## Critical Discovery: Binary and Tool Caching
 
-Claude Code caches MCP binary references at session initialization. **Complete session restart required** for binary updates.
+### Binary Caching (stdio transport)
+
+Claude Code caches MCP binary references at session initialization. **Complete session restart required** for binary updates when using stdio transport.
+
+### Tool Caching (both transports)
+
+Claude Code caches MCP tool definitions and **has no refresh command**. **Complete remove/add cycle required** for new tools to be discovered, regardless of transport type.
 
 ## Claude Code Configuration
 
@@ -115,6 +163,23 @@ claude mcp add -s project -t stdio brooklyn -- brooklyn mcp start --team-id myte
 - Default transport mode (most efficient)
 - Currently experiencing connection issues
 
+**Development Iteration (stdio)**:
+
+```bash
+# For binary changes (requires full session restart)
+bun run build && bun run install
+pkill -f brooklyn
+claude mcp remove brooklyn
+# [Close ALL Claude sessions]
+claude mcp add brooklyn -- brooklyn mcp start
+# [Restart Claude sessions]
+
+# For new tools only (no binary change needed)
+claude mcp remove brooklyn
+claude mcp add brooklyn -- brooklyn mcp start
+# No session restart needed for tool discovery refresh
+```
+
 ### HTTP Transport (Production Ready - RECOMMENDED)
 
 Brooklyn now fully supports HTTP-based MCP transport with OAuth 2.0 PKCE authentication, making it compatible with Claude Code and other web-based MCP clients.
@@ -152,6 +217,21 @@ claude mcp list
 claude mcp get brooklyn
 ```
 
+**Development Iteration (HTTP)**:
+
+```bash
+# For server changes (no session restart needed)
+bun run build && bun run install
+brooklyn web cleanup --port 3000  # Stop old server
+brooklyn web start --port 3000 --daemon  # Start new server
+# Server picks up changes automatically
+
+# For new tools only (no server restart needed)
+claude mcp remove brooklyn
+claude mcp add brooklyn http://127.0.0.1:3000
+# No session restart needed for tool discovery refresh
+```
+
 **Server Startup Options**:
 
 - **Foreground mode**: Server runs in the terminal window and stops when you close it
@@ -167,6 +247,8 @@ claude mcp get brooklyn
 - **✅ Better debugging** - Can monitor HTTP requests and responses
 - **✅ Multiple concurrent sessions** - Each Claude instance gets independent access
 - **✅ Production ready** - Full MCP protocol compliance
+- **✅ No binary caching issues** - Server updates work without Claude session restarts
+- **✅ Better development iteration** - Only need remove/add for new tools, not server changes
 
 ### Endpoints Summary (Single Port)
 
@@ -338,12 +420,14 @@ claude mcp add -s user -e BROOKLYN_LOG_LEVEL=debug brooklyn http://127.0.0.1:300
 
 ### Transport Selection Guidelines
 
-**Use HTTP when**:
+**Use HTTP when** (RECOMMENDED for development):
 
+- Adding new tools frequently (no session restarts needed)
 - Debugging MCP communication issues
 - stdio transport is experiencing problems
 - Need to monitor network traffic
 - Multiple concurrent Claude sessions
+- Rapid development iteration cycles
 
 **Use stdio when**:
 
@@ -351,65 +435,157 @@ claude mcp add -s user -e BROOKLYN_LOG_LEVEL=debug brooklyn http://127.0.0.1:300
 - Transport is working reliably
 - Single Claude session workflows
 - Following MCP best practices
+- Stable tool set (not adding new tools frequently)
+
+## 🚨 CRITICAL: Tool Registration Requirements
+
+**NEW REQUIREMENT**: When adding new MCP tools to Brooklyn, **THREE LOCATIONS** must be updated to prevent "Tool not found" errors:
+
+### Required Registration Steps
+
+1. **Tool Schema Definition** (`src/core/tool-definitions.ts`)
+   - Add tool to appropriate category array (e.g., `javascriptTools`, `stylingTools`)
+   - Define complete `inputSchema` with required parameters
+   - Include examples and error cases
+
+2. **Tool Classification** (`src/core/brooklyn-engine.ts`)
+   - Add tool name to `isCoreTools()` array (for core tools)
+   - OR add to `isOnboardingTools()` array (for help/status tools)
+   - **CRITICAL**: Missing this causes "Tool not found" error
+
+3. **Execution Routing** (`src/core/brooklyn-engine.ts`)
+   - Add case to `handleCoreTool()` switch statement
+   - Route through browser router with proper parameter handling
+   - **CRITICAL**: Missing this causes "Unknown core tool" error
+
+### Automated Prevention
+
+**Quality Gate**: Run this test before adding tools:
+
+```bash
+bun run test tests/quality-gates/tool-registration-completeness.test.ts
+```
+
+This test automatically catches:
+
+- ✅ Tools defined but not classified
+- ✅ Tools classified but missing execution routing
+- ✅ Missing category registrations
+- ✅ Inconsistent tool definitions
+
+**Integration**: This test runs as part of `bun run check-all` and will **fail the build** if registration gaps exist.
+
+### Historical Context
+
+This requirement was discovered after **two separate incidents** where tools were properly implemented but missing from registration locations:
+
+1. **Category Registration Gap**: New tool categories not added to discovery endpoints
+2. **Execution Routing Gap**: Tools registered and classified but missing from switch cases
+
+Both resulted in working implementations that returned "Tool not found" errors, requiring investigation and manual fixes.
+
+### Complete Development Workflow
+
+```bash
+# 1. Verify system integrity BEFORE adding tools
+bun run test tests/quality-gates/tool-registration-completeness.test.ts
+
+# 2. Add tool following all three requirements
+# See: docs/development/adding-new-commands.md
+
+# 3. Verify quality gates pass
+bun run check-all
+
+# 4. Test the complete flow
+bun run build && bun run install
+brooklyn web cleanup --port 3000
+brooklyn web start --port 3000 --daemon
+claude mcp remove brooklyn
+claude mcp add brooklyn http://127.0.0.1:3000
+```
+
+**Documentation**: See `docs/development/adding-new-commands.md` for complete step-by-step guide.
 
 ## Update Procedure
 
-### 1. Build and Install New Binary
+### For HTTP Transport (RECOMMENDED)
 
 ```bash
+# 1. Build and install new binary
 bun run version:bump:patch
 bun run build
 bun run install
 brooklyn --version  # Verify new version
+
+# 2. Restart Brooklyn HTTP server
+brooklyn web cleanup --port 3000
+brooklyn web start --port 3000 --daemon
+
+# 3. For new tools: Force tool cache refresh
+claude mcp remove brooklyn
+claude mcp add brooklyn http://127.0.0.1:3000
+
+# No Claude session restart needed!
 ```
 
-### 2. Kill ALL Brooklyn Processes
+### For stdio Transport
 
 ```bash
-# Check running processes
-ps aux | grep brooklyn | grep -v grep
+# 1. Build and install new binary
+bun run version:bump:patch
+bun run build
+bun run install
+brooklyn --version  # Verify new version
 
-# Kill all Brooklyn processes
+# 2. Kill ALL Brooklyn processes
 ps aux | grep brooklyn | grep -v grep | awk '{print $2}' | xargs kill -9
 
-# Or use Brooklyn's cleanup (dev mode only)
-brooklyn mcp dev-cleanup
-```
-
-### 3. Remove MCP Configuration
-
-```bash
+# 3. Remove MCP configuration
 claude mcp remove brooklyn
-```
 
-### 4. Close ALL Claude Sessions
+# 4. Close ALL Claude sessions (REQUIRED for binary updates)
+# - All terminal sessions running `claude`
+# - All IDE integrations
+# - All background Claude processes
 
-**CRITICAL**: Must close EVERY Claude session on the machine
-
-- All terminal sessions running `claude`
-- All IDE integrations
-- All background Claude processes
-
-### 5. Re-add MCP Configuration
-
-```bash
-# For stdio transport (note the -- separator)
+# 5. Re-add MCP configuration
 claude mcp add -s user brooklyn -- brooklyn mcp start
 
-# For HTTP transport (remember to start server first)
-brooklyn web start --port 3000 --daemon
-claude mcp add -s user brooklyn http://127.0.0.1:3000
-
-# Verify configuration
-claude mcp list
-claude mcp get brooklyn
+# 6. Restart Claude sessions
+# Only after complete restart will new binary be recognized
 ```
 
-### 6. Restart Claude Sessions
+### Quick Tool Addition Workflow (Both Transports)
 
-Only after complete restart will new binary be recognized.
+When adding **new tools only** (no binary changes needed):
+
+```bash
+# HTTP Transport
+claude mcp remove brooklyn
+claude mcp add brooklyn http://127.0.0.1:3000
+
+# stdio Transport
+claude mcp remove brooklyn
+claude mcp add brooklyn -- brooklyn mcp start
+
+# No session restarts needed for tool discovery refresh!
+```
 
 ## Troubleshooting
+
+### Tool Discovery Issues
+
+**Symptoms**: New tools not appearing in Claude, tool count doesn't increase
+
+**Root Cause**: Claude Code caches tool definitions with no refresh command
+
+**Solution**:
+
+```bash
+# Always required for new tools
+claude mcp remove brooklyn
+claude mcp add brooklyn [your-transport-config]
+```
 
 ### Silent Logger Issues (v1.2.17+)
 
@@ -435,11 +611,17 @@ echo '{"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilit
 
 ### Common Issues
 
-**Claude still using old version**:
+**Claude still using old version** (stdio transport):
 
 - Incomplete session restart
 - Check: `ps aux | grep claude`
-- Solution: Kill all Claude processes
+- Solution: Kill all Claude processes and restart sessions
+
+**New tools not appearing** (both transports):
+
+- Tool caching in Claude Code
+- Check: `brooklyn_list_tools` shows old count
+- Solution: Complete remove/add cycle (no session restart needed)
 
 **Connection timeouts**:
 
@@ -455,29 +637,79 @@ echo '{"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilit
 
 ## Development Workflow Impact
 
-- Plan version updates during breaks
-- Coordinate with team (affects all Claude work)
-- Batch changes before version bumps
-- Consider using dev mode for rapid iteration
+### For HTTP Transport (Recommended)
+
+- **Server changes**: Restart server only, no Claude session restart
+- **New tools**: Remove/add MCP config only, no Claude session restart
+- **Rapid iteration**: Much faster development cycle
+- **Team coordination**: Less disruptive to concurrent work
+
+### For stdio Transport
+
+- **Binary changes**: Full Claude session restart required
+- **New tools**: Remove/add MCP config, no session restart needed
+- **Slower iteration**: Must coordinate session restarts
+- **Team coordination**: Affects all Claude work during updates
+
+## Rapid Development SOP
+
+**For Brooklyn UX automation development** (HTTP transport recommended):
+
+```bash
+# 1. Make JavaScript/CSS tool changes
+# Edit src/core/javascript/ and src/core/styling/ services
+
+# 2. Verify quality
+bun run check-all
+
+# 3. Update running server (no session restart needed)
+bun run build && bun run install
+brooklyn web cleanup --port 3000
+brooklyn web start --port 3000 --daemon
+
+# 4. Refresh tool cache (< 10 seconds)
+claude mcp remove brooklyn
+claude mcp add brooklyn http://127.0.0.1:3000
+
+# 5. Test new tools immediately
+# Should see increased tool count (e.g., 24 → 32 tools)
+```
+
+**Expected Results**:
+
+- **Tool discovery**: New tools appear in <10 seconds
+- **No session restarts**: Continue working in same Claude session
+- **Rapid iteration**: <3 second UX modification cycles possible
 
 ## Quick Reference
 
 ```bash
+# HTTP Transport (Recommended for Development)
+# Server update
+bun run build && bun run install
+brooklyn web cleanup --port 3000 && brooklyn web start --port 3000 --daemon
+
+# Tool cache refresh
+claude mcp remove brooklyn && claude mcp add brooklyn http://127.0.0.1:3000
+
+# stdio Transport (Stable Release)
 # Full update cycle
 bun run version:bump:patch && bun run build && bun run install
-pkill -f brooklyn
-claude mcp remove brooklyn
+pkill -f brooklyn && claude mcp remove brooklyn
 # [Close all Claude sessions]
-
-# Stdio transport
 claude mcp add -s user brooklyn -- brooklyn mcp start
-# OR HTTP transport
-brooklyn web start --port 3000 --daemon && claude mcp add -s user brooklyn http://127.0.0.1:3000
-
 # [Restart Claude]
+
+# Tool-only refresh (both transports)
+claude mcp remove brooklyn && claude mcp add brooklyn [transport-config]
 ```
 
 ---
 
-Last Updated: July 26, 2025
-Critical Change: v1.2.17+ implements silent MCP startup
+**Last Updated**: January 13, 2025  
+**Critical Changes**:
+
+- v1.2.17+ implements silent MCP startup
+- **New**: Tool caching behavior and refresh procedures documented
+- **New**: HTTP transport recommended for development iteration
+- **New**: Remove/add cycle required for tool discovery refresh

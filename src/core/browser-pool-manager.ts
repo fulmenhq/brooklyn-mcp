@@ -10,9 +10,31 @@ import { BrowserFactory } from "./browser/browser-factory.js";
 import type { BrowserInstance } from "./browser/browser-instance.js";
 import { type AllocationRequest, BrowserPool } from "./browser/browser-pool.js";
 import {
+  type AddScriptTagArgs,
+  type AddScriptTagResult,
+  type EvaluateExpressionArgs,
+  type EvaluateExpressionResult,
+  type ExecuteScriptArgs,
+  type ExecuteScriptResult,
+  type GetConsoleMessagesArgs,
+  type GetConsoleMessagesResult,
+  JavaScriptExecutionService,
+} from "./javascript/javascript-execution-service.js";
+import {
   ScreenshotStorageManager,
   type ScreenshotStorageResult,
 } from "./screenshot-storage-manager.js";
+import {
+  type AnalyzeSpecificityArgs,
+  type AnalyzeSpecificityResult,
+  CSSAnalysisService,
+  type DiffCSSArgs,
+  type DiffCSSResult,
+  type ExtractCSSArgs,
+  type ExtractCSSResult,
+  type GetComputedStylesArgs,
+  type GetComputedStylesResult,
+} from "./styling/css-analysis-service.js";
 
 const logger = getLogger("browser-pool-manager");
 
@@ -121,10 +143,14 @@ export class BrowserPoolManager {
   private sessions = new Map<string, { instance: BrowserInstance; page: Page; teamId?: string }>();
   private storageManager: ScreenshotStorageManager;
   private maxBrowsers: number;
+  private jsExecutor: JavaScriptExecutionService;
+  private cssAnalyzer: CSSAnalysisService;
 
   constructor(managerConfig: BrowserPoolManagerConfig = {}) {
     this.maxBrowsers = managerConfig.maxBrowsers || config.maxBrowsers || 10;
     this.storageManager = new ScreenshotStorageManager();
+    this.jsExecutor = new JavaScriptExecutionService();
+    this.cssAnalyzer = new CSSAnalysisService();
 
     // Initialize browser factory with MCP mode awareness
     // Prioritize explicit config over environment variable
@@ -279,6 +305,9 @@ export class BrowserPoolManager {
 
       // Store session keyed by browserId
       this.sessions.set(browserId, sessionRecord);
+
+      // Initialize page services for JavaScript and CSS analysis
+      this.initializePageServices(page, browserId);
 
       logger.info("Browser launched successfully", {
         browserId,
@@ -1036,5 +1065,129 @@ export class BrowserPoolManager {
         `Failed to find elements: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
+  }
+
+  // ========== JavaScript Execution Methods (UX Speed Tools) ==========
+
+  /**
+   * Execute JavaScript in browser context - enables instant UX modifications
+   * Critical for achieving <10 second time to first design change
+   */
+  async executeScript(args: ExecuteScriptArgs): Promise<ExecuteScriptResult> {
+    const session = this.sessions.get(args.browserId);
+    if (!session) {
+      throw new Error(`Browser session not found: ${args.browserId}`);
+    }
+
+    session.instance.touch();
+    return await this.jsExecutor.executeScript(session.page, args);
+  }
+
+  /**
+   * Evaluate JavaScript expression and return value
+   * Perfect for getting computed values from the page
+   */
+  async evaluateExpression(args: EvaluateExpressionArgs): Promise<EvaluateExpressionResult> {
+    const session = this.sessions.get(args.browserId);
+    if (!session) {
+      throw new Error(`Browser session not found: ${args.browserId}`);
+    }
+
+    session.instance.touch();
+    return await this.jsExecutor.evaluateExpression(session.page, args);
+  }
+
+  /**
+   * Get console messages for debugging
+   * Essential for understanding JavaScript execution results
+   */
+  async getConsoleMessages(args: GetConsoleMessagesArgs): Promise<GetConsoleMessagesResult> {
+    const session = this.sessions.get(args.browserId);
+    if (!session) {
+      throw new Error(`Browser session not found: ${args.browserId}`);
+    }
+
+    session.instance.touch();
+    return await this.jsExecutor.getConsoleMessages(args);
+  }
+
+  /**
+   * Add script tag to inject utilities or libraries
+   */
+  async addScriptTag(args: AddScriptTagArgs): Promise<AddScriptTagResult> {
+    const session = this.sessions.get(args.browserId);
+    if (!session) {
+      throw new Error(`Browser session not found: ${args.browserId}`);
+    }
+
+    session.instance.touch();
+    return await this.jsExecutor.addScriptTag(session.page, args);
+  }
+
+  // ========== CSS Analysis Methods (UX Understanding Tools) ==========
+
+  /**
+   * Extract CSS styles for an element - understand current state in <1 second
+   * Core tool for rapid UX iteration
+   */
+  async extractCSS(args: ExtractCSSArgs): Promise<ExtractCSSResult> {
+    const session = this.sessions.get(args.browserId);
+    if (!session) {
+      throw new Error(`Browser session not found: ${args.browserId}`);
+    }
+
+    session.instance.touch();
+    return await this.cssAnalyzer.extractCSS(session.page, args);
+  }
+
+  /**
+   * Get computed styles with inheritance information
+   * Shows what's inherited vs directly applied
+   */
+  async getComputedStyles(args: GetComputedStylesArgs): Promise<GetComputedStylesResult> {
+    const session = this.sessions.get(args.browserId);
+    if (!session) {
+      throw new Error(`Browser session not found: ${args.browserId}`);
+    }
+
+    session.instance.touch();
+    return await this.cssAnalyzer.getComputedStyles(session.page, args);
+  }
+
+  /**
+   * Diff CSS to track changes after modifications
+   * Essential for validating UX changes
+   */
+  async diffCSS(args: DiffCSSArgs): Promise<DiffCSSResult> {
+    const session = this.sessions.get(args.browserId);
+    if (!session) {
+      throw new Error(`Browser session not found: ${args.browserId}`);
+    }
+
+    session.instance.touch();
+    return await this.cssAnalyzer.diffCSS(session.page, args);
+  }
+
+  /**
+   * Analyze CSS specificity to debug cascade issues
+   * Helps understand why styles aren't applying
+   */
+  async analyzeSpecificity(args: AnalyzeSpecificityArgs): Promise<AnalyzeSpecificityResult> {
+    const session = this.sessions.get(args.browserId);
+    if (!session) {
+      throw new Error(`Browser session not found: ${args.browserId}`);
+    }
+
+    session.instance.touch();
+    return await this.cssAnalyzer.analyzeSpecificity(session.page, args);
+  }
+
+  /**
+   * Initialize console capture when launching a browser
+   * Must be called after page creation
+   */
+  private initializePageServices(page: Page, browserId: string): void {
+    // Initialize console capture for JavaScript debugging
+    this.jsExecutor.initializeConsoleCapture(page, browserId);
   }
 }

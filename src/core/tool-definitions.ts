@@ -664,6 +664,60 @@ export const contentCaptureTools: EnhancedTool[] = [
       },
     ],
   },
+  // CSS analysis tools moved here from stylingTools array
+  {
+    name: "extract_css",
+    category: "content-capture",
+    description: "Extract CSS styles for an element - understand current state in <1 second",
+    inputSchema: {
+      type: "object",
+      properties: {
+        browserId: { type: "string" },
+        selector: { type: "string" },
+      },
+      required: ["selector"],
+    },
+  },
+  {
+    name: "get_computed_styles",
+    category: "content-capture",
+    description: "Get computed styles with inheritance information",
+    inputSchema: {
+      type: "object",
+      properties: {
+        browserId: { type: "string" },
+        selector: { type: "string" },
+      },
+      required: ["selector"],
+    },
+  },
+  {
+    name: "diff_css",
+    category: "content-capture",
+    description: "Compare CSS styles to track changes after modifications",
+    inputSchema: {
+      type: "object",
+      properties: {
+        browserId: { type: "string" },
+        selector: { type: "string" },
+        baseline: { type: "object" },
+      },
+      required: ["selector", "baseline"],
+    },
+  },
+  {
+    name: "analyze_specificity",
+    category: "content-capture",
+    description: "Analyze CSS specificity to debug cascade issues",
+    inputSchema: {
+      type: "object",
+      properties: {
+        browserId: { type: "string" },
+        selector: { type: "string" },
+      },
+      required: ["selector"],
+    },
+  },
 ];
 
 /**
@@ -1211,6 +1265,201 @@ export const interactionTools: EnhancedTool[] = [
       },
     ],
   },
+  // JavaScript execution tools moved here from javascriptTools array
+  {
+    name: "execute_script",
+    category: "interaction",
+    description: "Execute JavaScript in browser context for instant UX modifications",
+    inputSchema: {
+      type: "object",
+      properties: {
+        browserId: {
+          type: "string",
+          description: "Browser instance ID (optional, defaults to latest)",
+        },
+        script: {
+          type: "string",
+          description: "JavaScript code to execute",
+        },
+        args: {
+          type: "array",
+          description: "Arguments to pass to the script",
+          items: {},
+        },
+        timeout: {
+          type: "number",
+          description: "Timeout in milliseconds",
+          default: 30000,
+        },
+        awaitPromise: {
+          type: "boolean",
+          description: "Whether to await Promise results",
+          default: false,
+        },
+      },
+      required: ["script"],
+    },
+    examples: [
+      {
+        description: "Instantly change button color for UX iteration",
+        input: {
+          script:
+            "document.querySelector('.btn').style.background = 'blue'; return 'Style updated';",
+        },
+        expectedOutput: {
+          success: true,
+          result: "Style updated",
+          executionTime: 45,
+        },
+      },
+    ],
+  },
+  {
+    name: "evaluate_expression",
+    category: "interaction",
+    description: "Evaluate JavaScript expression and return its value",
+    inputSchema: {
+      type: "object",
+      properties: {
+        browserId: {
+          type: "string",
+          description: "Browser instance ID (optional, defaults to latest)",
+        },
+        expression: {
+          type: "string",
+          description: "JavaScript expression to evaluate",
+        },
+        timeout: {
+          type: "number",
+          description: "Timeout in milliseconds",
+          default: 30000,
+        },
+        awaitPromise: {
+          type: "boolean",
+          description: "Whether to await Promise results",
+          default: false,
+        },
+      },
+      required: ["expression"],
+    },
+    examples: [
+      {
+        description: "Get computed style value for UX analysis",
+        input: {
+          expression: "getComputedStyle(document.querySelector('.btn')).backgroundColor",
+        },
+        expectedOutput: {
+          success: true,
+          value: "rgb(255, 0, 0)",
+          type: "string",
+          serializable: true,
+        },
+      },
+    ],
+  },
+  {
+    name: "get_console_messages",
+    category: "interaction",
+    description: "Get console messages for debugging UX modifications",
+    inputSchema: {
+      type: "object",
+      properties: {
+        browserId: {
+          type: "string",
+          description: "Browser instance ID (optional, defaults to latest)",
+        },
+        level: {
+          type: "string",
+          enum: ["log", "info", "warn", "error", "debug"],
+          description: "Filter by console message level",
+        },
+        since: {
+          type: "string",
+          description: "ISO timestamp to filter messages since",
+        },
+        limit: {
+          type: "number",
+          description: "Maximum number of messages to return",
+          default: 100,
+        },
+      },
+    },
+    examples: [
+      {
+        description: "Check for JavaScript errors after UX modification",
+        input: {
+          level: "error",
+          limit: 10,
+        },
+        expectedOutput: {
+          messages: [
+            {
+              type: "error",
+              text: "TypeError: Cannot read property 'style' of null",
+              timestamp: "2025-01-13T10:30:00.000Z",
+            },
+          ],
+          hasMore: false,
+        },
+      },
+    ],
+  },
+  {
+    name: "add_script_tag",
+    category: "interaction",
+    description: "Add script tag to inject utilities or libraries",
+    inputSchema: {
+      type: "object",
+      properties: {
+        browserId: {
+          type: "string",
+          description: "Browser instance ID (optional, defaults to latest)",
+        },
+        content: {
+          type: "string",
+          description: "JavaScript content to inject",
+        },
+        url: {
+          type: "string",
+          description: "External script URL to load",
+        },
+        type: {
+          type: "string",
+          description: "Script type attribute",
+          default: "text/javascript",
+        },
+      },
+    },
+    examples: [
+      {
+        description: "Inject utility library for UX development",
+        input: {
+          content:
+            "window.uxUtils = { updateStyles: (selector, styles) => { /* utility code */ } };",
+        },
+        expectedOutput: {
+          success: true,
+          elementHandle: "script-element",
+        },
+      },
+    ],
+  },
+];
+
+/**
+ * JavaScript execution tools - moved to interactionTools
+ * @deprecated Use interactionTools array instead
+ */
+export const javascriptTools: EnhancedTool[] = [
+  // Tools moved to interactionTools array above
+];
+
+/**
+ * CSS analysis tools - moved to contentCaptureTools
+ * @deprecated Use contentCaptureTools array instead
+ */
+export const stylingTools: EnhancedTool[] = [
+  // Tools moved to contentCaptureTools array above
 ];
 
 /**
@@ -1222,6 +1471,8 @@ export function getAllTools(): EnhancedTool[] {
     ...navigationTools,
     ...interactionTools,
     ...contentCaptureTools,
+    ...javascriptTools,
+    ...stylingTools,
     ...discoveryTools,
   ];
 }
@@ -1229,14 +1480,6 @@ export function getAllTools(): EnhancedTool[] {
 /**
  * Get tools by category
  */
-export function getToolsByCategory(category: string): EnhancedTool[] {
-  return getAllTools().filter((tool) => tool.category === category);
-}
-
-/**
- * Get tool categories
- */
 export function getToolCategories(): string[] {
-  const categories = new Set(getAllTools().map((tool) => tool.category));
-  return Array.from(categories);
+  return ["browser-lifecycle", "navigation", "interaction", "content-capture", "discovery"];
 }

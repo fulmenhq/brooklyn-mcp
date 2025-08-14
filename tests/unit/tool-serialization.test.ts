@@ -159,4 +159,27 @@ describe("Tool Serialization", () => {
     expect(parsed.result.tools).toBeDefined();
     expect(Array.isArray(parsed.result.tools)).toBe(true);
   });
+
+  it("should validate all tool categories are unique and valid", () => {
+    const tools = getAllTools();
+    const categories = new Set();
+
+    for (const tool of tools) {
+      expect(tool.category).toBeDefined();
+      expect(typeof tool.category).toBe("string");
+      expect(tool.category.length).toBeGreaterThan(0);
+
+      // Categories should follow naming convention (lowercase, hyphenated)
+      expect(tool.category).toMatch(/^[a-z]+(-[a-z]+)*$/);
+
+      categories.add(tool.category);
+    }
+
+    // Should have reasonable number of categories (not too many, not too few)
+    expect(categories.size).toBeGreaterThan(3); // At least 4 categories
+    expect(categories.size).toBeLessThan(15); // Not more than 15 categories
+
+    // Log categories for debugging (commented to avoid console output)
+    // console.log("Tool categories found:", Array.from(categories).sort());
+  });
 });

@@ -129,6 +129,18 @@ export class BrooklynEngine {
         icon: "🖱️",
       },
       {
+        id: "javascript",
+        name: "JavaScript Execution",
+        description: "Tools for JavaScript execution and browser scripting",
+        icon: "⚡",
+      },
+      {
+        id: "styling",
+        name: "CSS Styling",
+        description: "Tools for CSS analysis and style extraction",
+        icon: "🎨",
+      },
+      {
         id: "discovery",
         name: "Discovery",
         description: "Tools for discovering and understanding available capabilities",
@@ -821,6 +833,16 @@ export class BrooklynEngine {
       "take_screenshot",
       "list_screenshots",
       "get_screenshot",
+      // JavaScript execution (UX automation)
+      "execute_script",
+      "evaluate_expression",
+      "get_console_messages",
+      "add_script_tag",
+      // CSS analysis (UX understanding)
+      "extract_css",
+      "get_computed_styles",
+      "diff_css",
+      "analyze_specificity",
       // Discovery
       "brooklyn_list_tools",
       "brooklyn_tool_help",
@@ -1201,6 +1223,38 @@ export class BrooklynEngine {
           }
           // No fallback for get_screenshot - requires database
           throw new Error("Screenshot retrieval requires database connection");
+
+        // JavaScript execution tools (UX automation)
+        case "execute_script":
+        case "evaluate_expression":
+        case "get_console_messages":
+        case "add_script_tag":
+        // CSS analysis tools (UX understanding)
+        case "extract_css":
+        case "get_computed_styles":
+        case "diff_css":
+        case "analyze_specificity":
+          // Route all JavaScript and CSS tools through the browser router
+          if (this.browserRouter) {
+            const request = {
+              tool: name,
+              params: args as Record<string, unknown>,
+              context: MCPRequestContextFactory.create({
+                teamId: context.teamId,
+                userId: context.userId,
+                metadata: {
+                  permissions: context.permissions,
+                  correlationId: context.correlationId,
+                },
+              }),
+            };
+            const response = await this.browserRouter.route(request);
+            if (!response.success) {
+              throw new Error(response.error?.message || `${name} failed`);
+            }
+            return response.result;
+          }
+          throw new Error(`${name} requires browser pool connection`);
 
         // Discovery tools
         case "brooklyn_list_tools":

@@ -156,7 +156,11 @@ describe("MCP Discovery Integration", () => {
       expect(categoryIds).toContain("browser-lifecycle");
       expect(categoryIds).toContain("navigation");
       expect(categoryIds).toContain("content-capture");
+      expect(categoryIds).toContain("interaction");
+      expect(categoryIds).toContain("javascript");
+      expect(categoryIds).toContain("styling");
       expect(categoryIds).toContain("discovery");
+      expect(categoryIds).toContain("onboarding");
     });
 
     it("should provide tool help with examples and errors", async () => {
@@ -198,6 +202,41 @@ describe("MCP Discovery Integration", () => {
       const response = await toolCallHandler(helpRequest);
       expect(response.isError).toBe(true);
       expect(response.content[0].text).toContain("not found");
+    });
+
+    it("should ensure all tool categories from definitions are registered", async () => {
+      // Import tool definitions to get all actual categories used
+      const { getAllTools } = await import("../../src/core/tool-definitions.js");
+      const allTools = getAllTools();
+
+      // Extract unique categories from tool definitions
+      const definedCategories = new Set(allTools.map((tool) => tool.category));
+
+      // Get registered categories from discovery service
+      const toolCallHandler = (engine as any).createToolCallHandler("test");
+      const listRequest = {
+        method: "tools/call" as const,
+        params: {
+          name: "brooklyn_list_tools",
+          arguments: {},
+        },
+      };
+
+      const response = await toolCallHandler(listRequest);
+      const result = JSON.parse(response.content[0].text);
+      const registeredCategories = new Set(result.categories.map((c: any) => c.id));
+
+      // CRITICAL: Every category used in tool definitions MUST be registered
+      // This prevents the issue where tools are counted but not accessible
+      for (const definedCategory of definedCategories) {
+        expect(
+          registeredCategories.has(definedCategory),
+          `Category '${definedCategory}' is used in tool definitions but not registered in brooklyn-engine.ts registerStandardCategories(). This causes tools to be counted but not accessible.`,
+        ).toBe(true);
+      }
+
+      // Verify tool count matches (all tools should be accessible)
+      expect(result.totalTools).toBe(allTools.length);
     });
   });
 

@@ -169,6 +169,24 @@ export class MCPBrowserRouter {
         return await this.listScreenshots(params, context);
       case "get_screenshot":
         return await this.getScreenshot(params, context);
+      // JavaScript Execution Tools (UX Speed)
+      case "execute_script":
+        return await this.executeScript(params, context);
+      case "evaluate_expression":
+        return await this.evaluateExpression(params, context);
+      case "get_console_messages":
+        return await this.getConsoleMessages(params, context);
+      case "add_script_tag":
+        return await this.addScriptTag(params, context);
+      // CSS Analysis Tools (UX Understanding)
+      case "extract_css":
+        return await this.extractCSS(params, context);
+      case "get_computed_styles":
+        return await this.getComputedStyles(params, context);
+      case "diff_css":
+        return await this.diffCSS(params, context);
+      case "analyze_specificity":
+        return await this.analyzeSpecificity(params, context);
       default:
         throw new Error(`Unknown browser tool: ${tool}`);
     }
@@ -1039,5 +1057,306 @@ export class MCPBrowserRouter {
     }
 
     return chosen;
+  }
+
+  // ========== JavaScript Execution Handlers (UX Speed Tools) ==========
+
+  /**
+   * Execute JavaScript in browser context
+   * Enables instant UX modifications
+   */
+  private async executeScript(
+    params: Record<string, unknown>,
+    _context: MCPRequestContext,
+  ): Promise<unknown> {
+    const {
+      browserId: _browserId,
+      script,
+      args,
+      timeout,
+      awaitPromise,
+    } = params as {
+      browserId: string;
+      script: string;
+      args?: unknown[];
+      timeout?: number;
+      awaitPromise?: boolean;
+    };
+
+    if (!script) {
+      throw new Error("execute_script requires 'script' parameter");
+    }
+
+    const resolvedBrowserId = this.resolveBrowserId(params, _context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, _context.teamId);
+
+    const result = await this.poolManager.executeScript({
+      browserId: resolvedBrowserId,
+      script,
+      args,
+      timeout,
+      awaitPromise,
+    });
+
+    return result;
+  }
+
+  /**
+   * Evaluate JavaScript expression and return value
+   */
+  private async evaluateExpression(
+    params: Record<string, unknown>,
+    _context: MCPRequestContext,
+  ): Promise<unknown> {
+    const {
+      browserId: _browserId,
+      expression,
+      timeout,
+      awaitPromise,
+    } = params as {
+      browserId: string;
+      expression: string;
+      timeout?: number;
+      awaitPromise?: boolean;
+    };
+
+    if (!expression) {
+      throw new Error("evaluate_expression requires 'expression' parameter");
+    }
+
+    const resolvedBrowserId = this.resolveBrowserId(params, _context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, _context.teamId);
+
+    const result = await this.poolManager.evaluateExpression({
+      browserId: resolvedBrowserId,
+      expression,
+      timeout,
+      awaitPromise,
+    });
+
+    return result;
+  }
+
+  /**
+   * Get console messages for debugging
+   */
+  private async getConsoleMessages(
+    params: Record<string, unknown>,
+    _context: MCPRequestContext,
+  ): Promise<unknown> {
+    const {
+      browserId: _browserId,
+      level,
+      since,
+      limit,
+    } = params as {
+      browserId: string;
+      level?: "log" | "info" | "warn" | "error" | "debug";
+      since?: string;
+      limit?: number;
+    };
+
+    const resolvedBrowserId = this.resolveBrowserId(params, _context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, _context.teamId);
+
+    const result = await this.poolManager.getConsoleMessages({
+      browserId: resolvedBrowserId,
+      level,
+      since,
+      limit,
+    });
+
+    return result;
+  }
+
+  /**
+   * Add script tag to inject utilities
+   */
+  private async addScriptTag(
+    params: Record<string, unknown>,
+    _context: MCPRequestContext,
+  ): Promise<unknown> {
+    const {
+      browserId: _browserId,
+      content,
+      url,
+      type,
+    } = params as {
+      browserId: string;
+      content?: string;
+      url?: string;
+      type?: string;
+    };
+
+    if (!(content || url)) {
+      throw new Error("add_script_tag requires either 'content' or 'url' parameter");
+    }
+
+    const resolvedBrowserId = this.resolveBrowserId(params, _context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, _context.teamId);
+
+    const result = await this.poolManager.addScriptTag({
+      browserId: resolvedBrowserId,
+      content,
+      url,
+      type,
+    });
+
+    return result;
+  }
+
+  // ========== CSS Analysis Handlers (UX Understanding Tools) ==========
+
+  /**
+   * Extract CSS styles for an element
+   */
+  private async extractCSS(
+    params: Record<string, unknown>,
+    _context: MCPRequestContext,
+  ): Promise<unknown> {
+    const {
+      browserId: _browserId,
+      selector,
+      includeInherited,
+      includeComputed,
+      properties,
+      pseudoElements,
+      timeout,
+    } = params as {
+      browserId: string;
+      selector: string;
+      includeInherited?: boolean;
+      includeComputed?: boolean;
+      properties?: string[];
+      pseudoElements?: string[];
+      timeout?: number;
+    };
+
+    if (!selector) {
+      throw new Error("extract_css requires 'selector' parameter");
+    }
+
+    const resolvedBrowserId = this.resolveBrowserId(params, _context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, _context.teamId);
+
+    const result = await this.poolManager.extractCSS({
+      browserId: resolvedBrowserId,
+      selector,
+      includeInherited,
+      includeComputed,
+      properties,
+      pseudoElements,
+      timeout,
+    });
+
+    return result;
+  }
+
+  /**
+   * Get computed styles with inheritance information
+   */
+  private async getComputedStyles(
+    params: Record<string, unknown>,
+    _context: MCPRequestContext,
+  ): Promise<unknown> {
+    const {
+      browserId: _browserId,
+      selector,
+      properties,
+      timeout,
+    } = params as {
+      browserId: string;
+      selector: string;
+      properties?: string[];
+      timeout?: number;
+    };
+
+    if (!selector) {
+      throw new Error("get_computed_styles requires 'selector' parameter");
+    }
+
+    const resolvedBrowserId = this.resolveBrowserId(params, _context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, _context.teamId);
+
+    const result = await this.poolManager.getComputedStyles({
+      browserId: resolvedBrowserId,
+      selector,
+      properties,
+      timeout,
+    });
+
+    return result;
+  }
+
+  /**
+   * Diff CSS to track changes
+   */
+  private async diffCSS(
+    params: Record<string, unknown>,
+    _context: MCPRequestContext,
+  ): Promise<unknown> {
+    const {
+      browserId: _browserId,
+      selector,
+      baseline,
+      timeout,
+    } = params as {
+      browserId: string;
+      selector: string;
+      baseline: Record<string, string>;
+      timeout?: number;
+    };
+
+    if (!selector) {
+      throw new Error("diff_css requires 'selector' parameter");
+    }
+    if (!baseline) {
+      throw new Error("diff_css requires 'baseline' parameter with previous styles");
+    }
+
+    const resolvedBrowserId = this.resolveBrowserId(params, _context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, _context.teamId);
+
+    const result = await this.poolManager.diffCSS({
+      browserId: resolvedBrowserId,
+      selector,
+      baseline,
+      timeout,
+    });
+
+    return result;
+  }
+
+  /**
+   * Analyze CSS specificity to debug cascade issues
+   */
+  private async analyzeSpecificity(
+    params: Record<string, unknown>,
+    _context: MCPRequestContext,
+  ): Promise<unknown> {
+    const {
+      browserId: _browserId,
+      selector,
+      timeout,
+    } = params as {
+      browserId: string;
+      selector: string;
+      timeout?: number;
+    };
+
+    if (!selector) {
+      throw new Error("analyze_specificity requires 'selector' parameter");
+    }
+
+    const resolvedBrowserId = this.resolveBrowserId(params, _context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, _context.teamId);
+
+    const result = await this.poolManager.analyzeSpecificity({
+      browserId: resolvedBrowserId,
+      selector,
+      timeout,
+    });
+
+    return result;
   }
 }
