@@ -68,7 +68,7 @@ describe("Browser Router Integration", () => {
         tool: "navigate_to_url",
         params: {
           browserId: testBrowserId,
-          url: "https://example.com",
+          url: "data:text/html,<html><body><h1>Team A Test Page</h1></body></html>",
         },
         context: teamAContext,
       });
@@ -85,7 +85,7 @@ describe("Browser Router Integration", () => {
         tool: "navigate_to_url",
         params: {
           browserId: testBrowserId,
-          url: "https://example.com",
+          url: "data:text/html,<html><body><h1>Team B Test Page</h1></body></html>",
         },
         context: teamBContext,
       });
@@ -362,7 +362,7 @@ describe("Browser Router Integration", () => {
         tool: "navigate_to_url",
         params: {
           browserId,
-          url: "https://example.com",
+          url: "data:text/html,<html><body><h1>Performance Test Page</h1></body></html>",
         },
         context,
       });

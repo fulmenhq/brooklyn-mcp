@@ -165,6 +165,7 @@ browser-cache/
 browser-profiles/
 
 # MCP server artifacts
+.mcp.json
 mcp-logs/
 server-logs/
 audit-logs/

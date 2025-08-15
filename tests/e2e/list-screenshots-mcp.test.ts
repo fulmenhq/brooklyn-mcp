@@ -12,12 +12,15 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 
 import { BrooklynEngine } from "../../src/core/brooklyn-engine.js";
 import type { BrooklynContext } from "../../src/core/brooklyn-engine.js";
-import { getDatabaseManager } from "../../src/core/database/database-manager.js";
+import {
+  getDatabaseManager,
+  resetDatabaseManager,
+} from "../../src/core/database/database-manager.js";
 import { ScreenshotRepositoryOptimized as ScreenshotRepository } from "../../src/core/database/repositories/screenshot-repository-optimized.js";
 
 // Test isolation
 const TEST_INSTANCE_ID = "test-e2e-list-screenshots";
-const _TEST_DB_PATH = ":memory:";
+const TEST_DB_CONFIG = { url: ":memory:" };
 
 // Helper function to parse MCP tool responses
 function parseMCPResponse(result: any): any {
@@ -37,6 +40,9 @@ describe("list_screenshots MCP Tool - E2E Protocol Tests", () => {
   let context: BrooklynContext;
 
   beforeAll(async () => {
+    // Reset database manager for clean test state
+    await resetDatabaseManager();
+
     // Initialize logging
     const { initializeLogging } = await import("../../src/shared/pino-logger.js");
     const testConfig = {
@@ -78,9 +84,7 @@ describe("list_screenshots MCP Tool - E2E Protocol Tests", () => {
     await initializeLogging(testConfig);
 
     // Initialize in-memory database for testing
-    const _dbManager = await getDatabaseManager({
-      url: ":memory:",
-    });
+    await getDatabaseManager(TEST_DB_CONFIG);
 
     // Create Brooklyn engine with test configuration
     engine = new BrooklynEngine({
@@ -100,18 +104,26 @@ describe("list_screenshots MCP Tool - E2E Protocol Tests", () => {
   });
 
   afterAll(async () => {
-    if (engine) {
-      await engine.cleanup();
+    try {
+      if (engine) {
+        await engine.cleanup();
+      }
+      // Clean up test data using the same database manager instance
+      const dbManager = await getDatabaseManager(TEST_DB_CONFIG);
+      await dbManager.execute("DELETE FROM screenshots WHERE instance_id LIKE ?", ["test-%"]);
+      await dbManager.execute("DELETE FROM instances WHERE id LIKE ?", ["test-%"]);
+    } catch {
+      // Ignore cleanup errors in afterAll to prevent test failures
+      // Note: Intentionally silent cleanup to prevent test failures
+    } finally {
+      // Reset database manager for clean shutdown
+      await resetDatabaseManager();
     }
-    // Clean up test data
-    const dbManager = await getDatabaseManager();
-    await dbManager.execute("DELETE FROM screenshots WHERE instance_id LIKE ?", ["test-%"]);
-    await dbManager.execute("DELETE FROM instances WHERE id LIKE ?", ["test-%"]);
   });
 
   beforeEach(async () => {
-    // Clear database before each test
-    const dbManager = await getDatabaseManager();
+    // Clear database before each test using the same database manager instance
+    const dbManager = await getDatabaseManager(TEST_DB_CONFIG);
     await dbManager.execute("DELETE FROM screenshots WHERE instance_id LIKE ?", ["test-%"]);
     await dbManager.execute("DELETE FROM instances WHERE id LIKE ?", ["test-%"]);
 
