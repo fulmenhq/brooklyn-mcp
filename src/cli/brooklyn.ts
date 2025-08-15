@@ -12,7 +12,7 @@
  */
 
 // Version embedded at build time from VERSION file
-const VERSION = "1.4.33";
+const VERSION = "1.4.34";
 
 import { HELP_TEXT } from "../generated/help/index.js";
 // buildConfig import removed - not used in CLI entry point
@@ -405,6 +405,7 @@ function setupMCPDevCommands(mcpCmd: Command): void {
         const { MCPDevManager } = await import("../core/mcp-dev-manager.js");
         const devManager = new MCPDevManager();
         await devManager.stop();
+        process.exit(0);
       } catch (error) {
         try {
           const logger = getLogger("brooklyn-cli");
@@ -882,6 +883,7 @@ function setupMCPDevCommands(mcpCmd: Command): void {
         const { MCPDevManager } = await import("../core/mcp-dev-manager.js");
         const devManager = new MCPDevManager();
         await devManager.restart();
+        process.exit(0);
       } catch (error) {
         try {
           const logger = getLogger("brooklyn-cli");
@@ -904,6 +906,7 @@ function setupMCPDevCommands(mcpCmd: Command): void {
         const { MCPDevManager } = await import("../core/mcp-dev-manager.js");
         const devManager = new MCPDevManager();
         await devManager.status();
+        process.exit(0);
       } catch (error) {
         try {
           const logger = getLogger("brooklyn-cli");
@@ -930,6 +933,7 @@ function setupMCPDevCommands(mcpCmd: Command): void {
         await devManager.cleanup({ cleanupOrphanedReaders: options.all });
         // User-facing success message goes to stdout for CLI interaction
         console.info("✅ MCP development mode cleanup completed");
+        process.exit(0);
       } catch (error) {
         try {
           const logger = getLogger("brooklyn-cli");
@@ -1155,6 +1159,7 @@ function setupWebCommands(program: Command): void {
       try {
         const { stopServerProcess } = await import("../../scripts/server-management.js");
         await stopServerProcess();
+        process.exit(0);
       } catch (error) {
         const logger = getLogger("brooklyn-cli");
         logger.error("Failed to stop server", {
