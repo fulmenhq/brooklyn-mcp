@@ -847,10 +847,27 @@ export class MCPHTTPTransport implements Transport {
               params: toolInput,
               method,
             });
+
+            // PROTOCOL FIX: Transform to proper MCP format with content array
+            // Previous version used direct result format which worked with Claude Code HTTP mode
+            // but was not MCP protocol compliant. See docs/development/mcp-protocol-guide.md
+            //
+            // Original working format (can be restored if needed):
+            // response = { jsonrpc: "2.0", id, result };
+            //
+            // New MCP-compliant format:
+            const mcpResponse = {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(result),
+                },
+              ],
+            };
             response = {
               jsonrpc: "2.0",
               id,
-              result,
+              result: mcpResponse,
             };
           }
         }

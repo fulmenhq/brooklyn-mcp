@@ -4,6 +4,25 @@
 
 **Key Finding**: Claude Code **does NOT have a cache refresh command** for MCP tools. When new tools are added to Brooklyn, the **complete remove/add cycle** is the ONLY way to force tool re-discovery.
 
+## 🚨 CRITICAL: When Claude Code Must Be Fully Restarted
+
+**MANDATORY FULL RESTART** (Close ALL Claude Code instances):
+
+- **Transport Type Changes**: Switching between stdio and HTTP transport
+- **MCP Configuration Scope Changes**: User scope ↔ Project scope
+- **Schema Changes with stdio Transport**: Adding/modifying tools when using stdio
+
+**SCOPE REQUIREMENTS**:
+
+- **Project Scope**: Close all Claude Code instances within the current project directory
+- **User Scope**: Close ALL Claude Code instances on the entire machine
+
+**NO RESTART REQUIRED**:
+
+- **Functionality changes**: Bug fixes, performance improvements, code updates unrelated to MCP schema
+- **Schema changes with HTTP transport**: Adding/modifying tools when using HTTP (use `/mcp` reconnection instead)
+- **Server restarts**: Brooklyn server updates without transport/scope changes
+
 ### Available Claude MCP Commands
 
 - `claude mcp list` - List configured servers
@@ -32,12 +51,13 @@ Claude Code maintains **two separate caches**:
 - **Tool description/example updates**
 - **Tool category changes**
 
-**⚡ FUNCTIONALITY CHANGES** (HTTP + Project Scope auto-detected):
+**⚡ FUNCTIONALITY CHANGES** (No Claude Code restart required):
 
 - **Tool implementation fixes** (e.g., `analyze_specificity` token limits)
 - **Bug fixes in existing tools**
 - **Performance improvements**
 - **Server version updates**
+- **Code changes unrelated to MCP tool schema**
 
 #### Ultra-Fast Development for Functionality Changes
 
@@ -186,7 +206,7 @@ Choose your preferred scope for MCP configuration:
 
 ### stdio Transport (Standard)
 
-**Current Status**: Broken in recent versions - switching to HTTP temporarily.
+**Current Status**: ✅ **FIXED in v1.4.35** - Now fully MCP protocol compliant with proper content array format.
 
 **Add stdio configuration**:
 
@@ -207,7 +227,7 @@ claude mcp add -s project -t stdio brooklyn -- brooklyn mcp start --team-id myte
 - Claude runs `brooklyn mcp start` in foreground mode
 - Uses stdin/stdout for MCP communication
 - Default transport mode (most efficient)
-- Currently experiencing connection issues
+- Full MCP protocol compliance as of v1.4.35
 
 **Development Iteration (stdio)**:
 
@@ -469,19 +489,18 @@ claude mcp add -s user -e BROOKLYN_LOG_LEVEL=debug brooklyn http://127.0.0.1:300
 
 **Use HTTP when** (RECOMMENDED for development):
 
-- Adding new tools frequently (no session restarts needed)
+- Adding new tools frequently (schema changes via `/mcp` only)
 - Debugging MCP communication issues
-- stdio transport is experiencing problems
 - Need to monitor network traffic
 - Multiple concurrent Claude sessions
 - Rapid development iteration cycles
 
 **Use stdio when**:
 
-- Maximum performance needed
-- Transport is working reliably
+- Maximum performance needed (most efficient transport)
 - Single Claude session workflows
 - Following MCP best practices
+- Production deployments
 - Stable tool set (not adding new tools frequently)
 
 ## 🚨 CRITICAL: Tool Registration Requirements
@@ -794,10 +813,10 @@ claude mcp remove brooklyn && claude mcp add brooklyn [transport-config]
 
 ---
 
-**Last Updated**: January 13, 2025  
+**Last Updated**: August 15, 2025  
 **Critical Changes**:
 
-- v1.2.17+ implements silent MCP startup
-- **New**: Tool caching behavior and refresh procedures documented
-- **New**: HTTP transport recommended for development iteration
-- **New**: Remove/add cycle required for tool discovery refresh
+- **v1.4.35**: stdio transport FIXED with proper MCP protocol compliance
+- **New**: Claude Code restart requirements clarified (transport switching, scope changes)
+- **Updated**: Both stdio and HTTP transports now fully functional
+- **Clarified**: Schema vs functionality change handling procedures

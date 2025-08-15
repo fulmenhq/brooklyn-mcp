@@ -1,10 +1,8 @@
 {
   "mcpServers": {
     "brooklyn": {
-      "type": "stdio",
-      "command": "brooklyn",
-      "args": ["mcp", "start"],
-      "env": {}
+      "type": "http",
+      "url": "http://localhost:3000"
     }
   }
 }

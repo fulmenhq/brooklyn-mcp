@@ -314,7 +314,17 @@ export class MCPStdioTransport implements Transport {
             // ignore shaping errors
           }
 
-          response = { jsonrpc: "2.0", id: msg.id, result: payload };
+          // Transform to proper MCP protocol format with content array
+          // See docs/development/mcp-protocol-guide.md for specification details
+          const mcpResponse = {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(payload),
+              },
+            ],
+          };
+          response = { jsonrpc: "2.0", id: msg.id, result: mcpResponse };
         }
       } else {
         response = this.createJsonRpcError(msg.id, -32601, "Method not found");
