@@ -79,6 +79,14 @@ describe("BrowserPoolManager", () => {
       setDefaultNavigationTimeout: vi.fn(),
       setViewportSize: vi.fn(),
       setExtraHTTPHeaders: vi.fn(),
+      on: vi.fn(), // Add console capture support
+      locator: vi.fn(() => ({
+        focus: vi.fn(),
+        click: vi.fn(),
+        fill: vi.fn(),
+        first: vi.fn(),
+        count: vi.fn(),
+      })),
     };
 
     mockContext = {

@@ -235,8 +235,18 @@ describe("MCP Discovery Integration", () => {
         ).toBe(true);
       }
 
-      // Verify tool count matches (all tools should be accessible)
-      expect(result.totalTools).toBe(allTools.length);
+      // Calculate functional tools count (excluding onboarding tools)
+      const onboardingCategory = result.toolsByCategory.find(
+        (cat: any) => cat.category === "onboarding",
+      );
+      const onboardingToolsCount = onboardingCategory ? onboardingCategory.count : 0;
+      const functionalToolsCount = result.totalTools - onboardingToolsCount;
+
+      // Verify functional tool count matches definitions (onboarding tools are dynamically added)
+      expect(functionalToolsCount).toBe(allTools.length);
+
+      // Verify onboarding tools are properly registered
+      expect(onboardingToolsCount).toBe(7); // brooklyn_status, brooklyn_capabilities, etc.
     });
   });
 
