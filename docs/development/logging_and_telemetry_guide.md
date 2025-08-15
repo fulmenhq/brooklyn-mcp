@@ -76,14 +76,50 @@ initializeLogging({
 
 When running in MCP mode (Model Context Protocol), the logger automatically:
 
-- Redirects ALL output to stderr
+- Redirects ALL output to file-based logging in `~/.brooklyn/logs/`
 - Keeps stdout completely clean for JSON-RPC protocol
 - Prevents any accidental protocol corruption
+- Uses human-readable log filenames with transport identification
 
 ```typescript
 // This is handled automatically - you don't need to do anything special
-logger.info("This goes to stderr in MCP mode");
+logger.info("This goes to file in MCP mode, stderr in other modes");
 ```
+
+### Log File Naming Convention
+
+Brooklyn uses a human-readable naming pattern for log files:
+
+**Pattern**: `brooklyn-mcp-<transport>-<yyyymmdd>-<hhmmss>-<ms>.log`
+
+**Transport Identifiers**:
+
+- `stdio` - Standard MCP mode (`brooklyn mcp start`)
+- `http` - HTTP transport mode (`brooklyn mcp dev-http`)
+- `dev` - Development mode (`brooklyn mcp dev-start`)
+
+**Timestamp Format**: All timestamps use **UTC** for consistency across timezones
+
+- `yyyymmdd` - Year, month, day (UTC)
+- `hhmmss` - Hour, minute, second (UTC)
+- `ms` - Milliseconds (3 digits, zero-padded)
+
+**Examples**:
+
+```
+brooklyn-mcp-stdio-20250813-143022-347.log    # UTC: 2025-08-13 14:30:22.347
+brooklyn-mcp-http-20250813-143145-892.log     # UTC: 2025-08-13 14:31:45.892
+brooklyn-mcp-dev-20250813-143301-156.log      # UTC: 2025-08-13 14:33:01.156
+```
+
+This naming pattern provides:
+
+- ✅ **Human readability** vs epoch timestamps
+- ✅ **Transport identification** for debugging
+- ✅ **Chronological sorting** by filesystem
+- ✅ **Collision prevention** when running multiple transports
+- ✅ **Millisecond precision** for uniqueness
+- ✅ **Timezone consistency** using UTC across all environments
 
 ## Best Practices
 
@@ -230,15 +266,53 @@ For now, structured logging provides excellent observability.
 
 ### No Logs Appearing?
 
-1. Check the log level - debug messages won't show at info level
-2. Ensure you're looking at stderr, not stdout
-3. Verify the logger name is correct
+1. **Check log location**: In MCP mode, logs go to `~/.brooklyn/logs/` directory
+2. **Check the log level**: Debug messages won't show at info level
+3. **Check transport mode**: In non-MCP mode, ensure you're looking at stderr, not stdout
+4. **Verify the logger name**: Make sure module name is correct
+
+### Finding Log Files
+
+**MCP Mode**: Logs are written to files in `~/.brooklyn/logs/`:
+
+```bash
+# List recent log files
+ls -la ~/.brooklyn/logs/brooklyn-mcp-*.log
+
+# Tail the most recent stdio transport log
+tail -f ~/.brooklyn/logs/brooklyn-mcp-stdio-$(date +%Y%m%d)*.log
+
+# View all transports for today
+ls ~/.brooklyn/logs/brooklyn-mcp-*-$(date +%Y%m%d)*.log
+```
+
+**Non-MCP Mode**: Logs go to stderr and can be captured:
+
+```bash
+# Redirect stderr to file for viewing
+brooklyn web start 2> brooklyn-web.log
+```
+
+### Multiple Transport Logs
+
+When running multiple transports simultaneously:
+
+```bash
+# Different transports create separate log files
+brooklyn mcp start                    # → brooklyn-mcp-stdio-*.log
+brooklyn mcp dev-http --port 8080     # → brooklyn-mcp-http-*.log
+brooklyn mcp dev-start                # → brooklyn-mcp-dev-*.log
+```
 
 ### Pretty Printing Not Working?
 
 - Install `pino-pretty` as a dependency
 - Set format to "pretty" in configuration
 - Ensure NODE_ENV is not "production"
+
+### Log Cleanup
+
+Brooklyn automatically keeps the last 10 log files and removes older ones to prevent disk space issues.
 
 ## Summary
 

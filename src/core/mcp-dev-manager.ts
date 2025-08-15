@@ -97,7 +97,11 @@ export class MCPDevManager {
     const outputPipe = options?.halfPipe
       ? undefined
       : path.join(pipesPrefix, `brooklyn-mcp-dev-${instanceUuid}-${timestamp}-out`);
-    const logFile = path.join(this.logDir, `brooklyn-mcp-dev-${timestamp}.log`);
+    const date = new Date();
+    const dateStr = date.toISOString().slice(0, 10).replace(/-/g, "");
+    const timeStr = date.toISOString().slice(11, 19).replace(/:/g, "");
+    const ms = date.getUTCMilliseconds().toString().padStart(3, "0");
+    const logFile = path.join(this.logDir, `brooklyn-mcp-dev-${dateStr}-${timeStr}-${ms}.log`);
 
     try {
       // Create named pipes with secure permissions (Architecture Committee requirement)

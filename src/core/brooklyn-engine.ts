@@ -823,12 +823,14 @@ export class BrooklynEngine {
       "go_back",
       // Element interaction
       "click_element",
+      "focus_element",
       "fill_text",
       "fill_form",
       "wait_for_element",
       "get_text_content",
       "validate_element_presence",
       "find_elements",
+      "generate_selector",
       // Content capture
       "take_screenshot",
       "list_screenshots",
@@ -1007,6 +1009,30 @@ export class BrooklynEngine {
           // Fallback to direct pool access
           return await this.browserPool.clickElement(args as any);
 
+        case "focus_element":
+          // Phase 2: Use router for focus_element
+          if (this.browserRouter) {
+            const request = {
+              tool: name,
+              params: args as Record<string, unknown>,
+              context: MCPRequestContextFactory.create({
+                teamId: context.teamId,
+                userId: context.userId,
+                metadata: {
+                  permissions: context.permissions,
+                  correlationId: context.correlationId,
+                },
+              }),
+            };
+            const response = await this.browserRouter.route(request);
+            if (!response.success) {
+              throw new Error(response.error?.message || "Focus element failed");
+            }
+            return response.result;
+          }
+          // Fallback to direct pool access
+          return await this.browserPool.focusElement(args as any);
+
         case "fill_text":
           // Phase 2: Use router for fill_text
           if (this.browserRouter) {
@@ -1150,6 +1176,29 @@ export class BrooklynEngine {
           }
           // Fallback to direct pool access
           return await this.browserPool.findElements(args as any);
+
+        case "generate_selector":
+          // Route through the browser router
+          if (this.browserRouter) {
+            const request = {
+              tool: name,
+              params: args as Record<string, unknown>,
+              context: MCPRequestContextFactory.create({
+                teamId: context.teamId,
+                userId: context.userId,
+                metadata: {
+                  permissions: context.permissions,
+                  correlationId: context.correlationId,
+                },
+              }),
+            };
+            const response = await this.browserRouter.route(request);
+            if (!response.success) {
+              throw new Error(response.error?.message || "Generate selector failed");
+            }
+            return response.result;
+          }
+          throw new Error("generate_selector requires browser pool connection");
 
         // Content capture tools
         case "take_screenshot":

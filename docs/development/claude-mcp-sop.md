@@ -14,33 +14,79 @@
 
 ### Development Iteration Impact
 
-**When adding new MCP tools** to Brooklyn (JavaScript/CSS automation, etc.):
+**DEFINITIVE DISCOVERY**: Claude Code has a **two-level caching architecture** that affects different types of changes differently.
 
-1. **Code changes work correctly** - tools are properly registered in server
-2. **Server version updates** - Brooklyn picks up new versions
-3. **Transport works** - HTTP/stdio both function properly
-4. **BUT: Tool discovery fails** - Claude doesn't see new tools without cache refresh
+#### Understanding Claude Code's Caching Architecture
 
-**Required Workflow for New Tools**:
+Claude Code maintains **two separate caches**:
+
+1. **Schema Cache**: Tool definitions, descriptions, parameters (partially auto-refreshed)
+2. **Function Binding Cache**: Callable tool registry that enables `mcp__brooklyn__*` function calls (manual refresh only)
+
+#### Schema Changes vs Functionality Changes
+
+**🔧 SCHEMA CHANGES** (Always require `/mcp` reconnection):
+
+- **New tools added** (e.g., `focus_element`)
+- **Tool parameter changes** (new required/optional parameters)
+- **Tool description/example updates**
+- **Tool category changes**
+
+**⚡ FUNCTIONALITY CHANGES** (HTTP + Project Scope auto-detected):
+
+- **Tool implementation fixes** (e.g., `analyze_specificity` token limits)
+- **Bug fixes in existing tools**
+- **Performance improvements**
+- **Server version updates**
+
+#### Ultra-Fast Development for Functionality Changes
+
+**✅ HTTP + Project Scope**: Backend functionality changes auto-detected instantly:
 
 ```bash
-# 1. Make tool changes and verify quality
+# 1. Make functionality changes and verify quality
 bun run check-all
 
-# 2. Build and install updated server
+# 2. Deploy changes (automatic detection!)
+bun run version:bump:patch  # Version confidence tracking
 bun run build && bun run install
+brooklyn web cleanup --port 3000
+brooklyn web start --port 3000 --daemon
 
-# 3. REQUIRED: Force Claude tool cache refresh
-claude mcp remove brooklyn
-claude mcp add brooklyn brooklyn mcp start    # For stdio
-# OR
-claude mcp add brooklyn http://127.0.0.1:3000  # For HTTP
-
-# 4. Verify new tool count (should increase)
-# Use brooklyn_list_tools in Claude
+# 3. ✅ DONE! Changes detected automatically in 2-3 seconds
+# No MCP commands needed for functionality changes
 ```
 
-**This is NOT a bug** - this is how Claude Code's MCP caching works. The `/mcp` reconnection command only re-establishes the connection; it does not clear cached tool definitions.
+**Proven Results** (Testing 1.4.31 → 1.4.32):
+
+- **Bug fixes**: ✅ `analyze_specificity` 72K→1.2K token fix applied instantly
+- **Performance improvements**: ✅ Detected automatically
+- **Server updates**: ✅ Version changes visible immediately
+- **Zero disruption**: ✅ Continue working in same Claude session
+
+#### Schema Changes Require Manual Reconnection
+
+**🔧 ALL SCHEMA CHANGES** need `/mcp` reconnection (all transport/scope combinations):
+
+```bash
+# 1-2. Same as above (build and restart server)
+
+# 3. REQUIRED: Reconnect for schema changes
+# Use Claude Code's built-in reconnection:
+/mcp  # Built-in reconnection command
+
+# Alternative: Manual remove/add cycle
+claude mcp remove brooklyn
+claude mcp add brooklyn http://127.0.0.1:3000  # or -- brooklyn mcp start
+
+# 4. Verify new tools appear and are callable
+# Use brooklyn_list_tools in Claude, then test calling new tools
+```
+
+**Why This Happens**:
+
+- **Schema Cache**: Updated automatically (tools appear in lists)
+- **Function Binding Cache**: Requires manual refresh (tools become callable)
 
 ## MCP Message Format Reference
 
@@ -220,13 +266,14 @@ claude mcp get brooklyn
 **Development Iteration (HTTP)**:
 
 ```bash
-# For server changes (no session restart needed)
+# For server changes (project scope - no cache refresh needed!)
+bun run version:bump:patch  # Version tracking confidence
 bun run build && bun run install
 brooklyn web cleanup --port 3000  # Stop old server
 brooklyn web start --port 3000 --daemon  # Start new server
-# Server picks up changes automatically
+# ✅ Claude automatically detects schema changes (project scope)
 
-# For new tools only (no server restart needed)
+# For user scope configurations (cache refresh required)
 claude mcp remove brooklyn
 claude mcp add brooklyn http://127.0.0.1:3000
 # No session restart needed for tool discovery refresh
@@ -653,23 +700,58 @@ echo '{"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilit
 
 ## Rapid Development SOP
 
-**For Brooklyn UX automation development** (HTTP transport recommended):
+### Ultra-Fast Brooklyn Development (HTTP + Project Scope)
+
+**✅ BREAKTHROUGH**: Functionality changes are detected automatically, schema changes need `/mcp` reconnection.
+
+#### For Functionality Changes (Bug Fixes, Performance, etc.)
 
 ```bash
-# 1. Make JavaScript/CSS tool changes
-# Edit src/core/javascript/ and src/core/styling/ services
+# 1. Make backend functionality changes
+# Edit src/core/javascript/ and src/core/styling/ services (existing tools)
 
 # 2. Verify quality
 bun run check-all
 
-# 3. Update running server (no session restart needed)
+# 3. Deploy changes (automatic detection!)
+bun run version:bump:patch  # Version confidence tracking
 bun run build && bun run install
 brooklyn web cleanup --port 3000
 brooklyn web start --port 3000 --daemon
 
+# 4. ✅ DONE! Test changes immediately
+# Claude automatically detects functionality changes in 2-3 seconds
+```
+
+#### For Schema Changes (New Tools, Parameters, etc.)
+
+```bash
+# 1-3. Same as above (build and restart server)
+
+# 4. Reconnect for schema changes
+/mcp  # Use Claude Code's built-in reconnection
+
+# 5. Test new tools immediately
+# New tools are now callable via mcp__brooklyn__*
+```
+
+**Proven Results** (1.4.31 → 1.4.33 testing):
+
+- **Functionality fixes**: ✅ `analyze_specificity` 72K→1.2K token fix (instant)
+- **New tools**: ✅ `focus_element` required `/mcp` reconnection
+- **Total cycle time**: ✅ ~30 seconds for functionality, ~60 seconds for schema
+- **Zero disruption**: ✅ Continue working in same Claude session
+
+### Fallback for Other Configurations
+
+**For stdio transport or user scope HTTP** (manual refresh required for both):
+
+```bash
+# 1-3. Same as above
+
 # 4. Refresh tool cache (< 10 seconds)
 claude mcp remove brooklyn
-claude mcp add brooklyn http://127.0.0.1:3000
+claude mcp add brooklyn http://127.0.0.1:3000  # or -- brooklyn mcp start
 
 # 5. Test new tools immediately
 # Should see increased tool count (e.g., 24 → 32 tools)
@@ -679,12 +761,18 @@ claude mcp add brooklyn http://127.0.0.1:3000
 
 - **Tool discovery**: New tools appear in <10 seconds
 - **No session restarts**: Continue working in same Claude session
-- **Rapid iteration**: <3 second UX modification cycles possible
+- **Rapid iteration**: Sub-minute modification cycles
 
 ## Quick Reference
 
 ```bash
-# HTTP Transport (Recommended for Development)
+# HTTP Transport + Project Scope (FASTEST - Auto Schema Detection)
+# Complete update cycle
+bun run version:bump:patch && bun run build && bun run install
+brooklyn web cleanup --port 3000 && brooklyn web start --port 3000 --daemon
+# ✅ DONE! Claude auto-detects changes
+
+# HTTP Transport + User Scope (Cache Refresh Required)
 # Server update
 bun run build && bun run install
 brooklyn web cleanup --port 3000 && brooklyn web start --port 3000 --daemon

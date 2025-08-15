@@ -145,6 +145,8 @@ export class MCPBrowserRouter {
         return await this.takeScreenshot(params, context);
       case "find_elements":
         return await this.findElements(params, context);
+      case "generate_selector":
+        return await this.generateSelector(params, context);
       case "click_element":
         return await this.clickElement(params, context);
       case "fill_form_fields":
@@ -187,6 +189,9 @@ export class MCPBrowserRouter {
         return await this.diffCSS(params, context);
       case "analyze_specificity":
         return await this.analyzeSpecificity(params, context);
+      // Enhanced Element Interaction
+      case "focus_element":
+        return await this.focusElement(params, context);
       default:
         throw new Error(`Unknown browser tool: ${tool}`);
     }
@@ -329,6 +334,48 @@ export class MCPBrowserRouter {
   }
 
   /**
+   * Generate smart CSS selectors from natural language descriptions
+   */
+  private async generateSelector(
+    params: Record<string, unknown>,
+    _context: MCPRequestContext,
+  ): Promise<unknown> {
+    const {
+      browserId: _browserId,
+      description,
+      context,
+      preferStable,
+      maxSelectors,
+      timeout,
+    } = params as {
+      browserId?: string;
+      description: string;
+      context?: string;
+      preferStable?: boolean;
+      maxSelectors?: number;
+      timeout?: number;
+    };
+
+    if (!description) {
+      throw new Error("generate_selector requires 'description' parameter");
+    }
+
+    const resolvedBrowserId = this.resolveBrowserId(params, _context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, _context.teamId);
+
+    const result = await this.poolManager.generateSelector({
+      browserId: resolvedBrowserId,
+      description,
+      context,
+      preferStable,
+      maxSelectors,
+      timeout,
+    });
+
+    return result;
+  }
+
+  /**
    * Click an element
    */
   private async clickElement(
@@ -343,6 +390,25 @@ export class MCPBrowserRouter {
     return this.poolManager.clickElement({
       browserId: resolvedBrowserId,
       selector: selector as string,
+    });
+  }
+
+  /**
+   * Focus an element on the page
+   */
+  private async focusElement(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const { selector, timeout } = params as { selector?: string; timeout?: number };
+
+    const resolvedBrowserId = this.resolveBrowserId(params, context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, context.teamId);
+
+    return this.poolManager.focusElement({
+      browserId: resolvedBrowserId,
+      selector: selector as string,
+      timeout,
     });
   }
 
@@ -1328,7 +1394,7 @@ export class MCPBrowserRouter {
   }
 
   /**
-   * Analyze CSS specificity to debug cascade issues
+   * Analyze CSS specificity with enhanced conflict detection
    */
   private async analyzeSpecificity(
     params: Record<string, unknown>,
@@ -1337,10 +1403,22 @@ export class MCPBrowserRouter {
     const {
       browserId: _browserId,
       selector,
+      conflictsOnly,
+      properties,
+      maxRules,
+      summarize,
+      includeInherited,
+      pseudoElements,
       timeout,
     } = params as {
       browserId: string;
       selector: string;
+      conflictsOnly?: boolean;
+      properties?: string[];
+      maxRules?: number;
+      summarize?: boolean;
+      includeInherited?: boolean;
+      pseudoElements?: string[];
       timeout?: number;
     };
 
@@ -1354,6 +1432,12 @@ export class MCPBrowserRouter {
     const result = await this.poolManager.analyzeSpecificity({
       browserId: resolvedBrowserId,
       selector,
+      conflictsOnly,
+      properties,
+      maxRules,
+      summarize,
+      includeInherited,
+      pseudoElements,
       timeout,
     });
 

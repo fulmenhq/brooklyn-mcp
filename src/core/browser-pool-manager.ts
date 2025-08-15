@@ -25,6 +25,11 @@ import {
   type ScreenshotStorageResult,
 } from "./screenshot-storage-manager.js";
 import {
+  type GenerateSelectorArgs,
+  type GenerateSelectorResult,
+  SmartSelectorService,
+} from "./selector/smart-selector-service.js";
+import {
   type AnalyzeSpecificityArgs,
   type AnalyzeSpecificityResult,
   CSSAnalysisService,
@@ -145,12 +150,14 @@ export class BrowserPoolManager {
   private maxBrowsers: number;
   private jsExecutor: JavaScriptExecutionService;
   private cssAnalyzer: CSSAnalysisService;
+  private selectorGenerator: SmartSelectorService;
 
   constructor(managerConfig: BrowserPoolManagerConfig = {}) {
     this.maxBrowsers = managerConfig.maxBrowsers || config.maxBrowsers || 10;
     this.storageManager = new ScreenshotStorageManager();
     this.jsExecutor = new JavaScriptExecutionService();
     this.cssAnalyzer = new CSSAnalysisService();
+    this.selectorGenerator = new SmartSelectorService();
 
     // Initialize browser factory with MCP mode awareness
     // Prioritize explicit config over environment variable
@@ -1180,6 +1187,75 @@ export class BrowserPoolManager {
 
     session.instance.touch();
     return await this.cssAnalyzer.analyzeSpecificity(session.page, args);
+  }
+
+  /**
+   * Focus an element on the page
+   * Essential for accessibility and keyboard navigation workflows
+   */
+  async focusElement(args: {
+    browserId: string;
+    selector: string;
+    timeout?: number;
+  }): Promise<{
+    success: boolean;
+    selector: string;
+    focused: boolean;
+  }> {
+    const { browserId, selector, timeout = 5000 } = args;
+
+    logger.info("Focusing element", { browserId, selector });
+
+    let session = this.sessions.get(browserId);
+    if (!session) {
+      throw new Error(`Browser session not found: ${browserId}`);
+    }
+    if (!session.page || session.page.isClosed()) {
+      const newPage = await session.instance.getMainPage();
+      session = { ...session, page: newPage };
+      this.sessions.set(browserId, session);
+    }
+
+    session.instance.touch();
+
+    try {
+      await session.page.locator(selector).focus({ timeout });
+
+      // Verify the element is focused
+      const focused = await session.page.evaluate((sel) => {
+        const element = document.querySelector(sel);
+        return element === document.activeElement;
+      }, selector);
+
+      return {
+        success: true,
+        selector,
+        focused,
+      };
+    } catch (error) {
+      logger.error("Failed to focus element", {
+        browserId,
+        selector,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw new Error(
+        `Failed to focus element: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  /**
+   * Generate smart CSS selectors from natural language descriptions
+   * Helps AI reduce friction with "find the red button" workflows
+   */
+  async generateSelector(args: GenerateSelectorArgs): Promise<GenerateSelectorResult> {
+    const session = this.sessions.get(args.browserId);
+    if (!session) {
+      throw new Error(`Browser session not found: ${args.browserId}`);
+    }
+
+    session.instance.touch();
+    return await this.selectorGenerator.generateSelector(session.page, args);
   }
 
   /**

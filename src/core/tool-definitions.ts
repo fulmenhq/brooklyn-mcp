@@ -708,15 +708,128 @@ export const contentCaptureTools: EnhancedTool[] = [
   {
     name: "analyze_specificity",
     category: "content-capture",
-    description: "Analyze CSS specificity to debug cascade issues",
+    description: "Analyze CSS specificity with conflict detection and AI-friendly responses",
     inputSchema: {
       type: "object",
       properties: {
-        browserId: { type: "string" },
-        selector: { type: "string" },
+        browserId: {
+          type: "string",
+          description: "Browser instance ID (optional, defaults to latest)",
+        },
+        selector: {
+          type: "string",
+          description: "CSS selector to analyze",
+        },
+        conflictsOnly: {
+          type: "boolean",
+          description: "Only show conflicting rules (default: true)",
+          default: true,
+        },
+        properties: {
+          type: "array",
+          items: { type: "string" },
+          description: "Filter to specific CSS properties",
+        },
+        maxRules: {
+          type: "number",
+          description: "Limit rules returned (default: 10)",
+          default: 10,
+        },
+        summarize: {
+          type: "boolean",
+          description: "Summary vs detailed analysis (default: true)",
+          default: true,
+        },
+        includeInherited: {
+          type: "boolean",
+          description: "Include inherited rules (default: false)",
+          default: false,
+        },
+        pseudoElements: {
+          type: "array",
+          items: { type: "string" },
+          description: "Analyze pseudo-elements like :hover, :focus",
+        },
+        timeout: {
+          type: "number",
+          description: "Timeout in milliseconds",
+          default: 30000,
+        },
       },
       required: ["selector"],
     },
+    examples: [
+      {
+        description: "Find CSS conflicts for a button element",
+        input: {
+          selector: ".button",
+          conflictsOnly: true,
+          summarize: true,
+        },
+        expectedOutput: {
+          success: true,
+          selector: ".button",
+          summary: {
+            totalRules: 8,
+            conflicts: 2,
+            highestSpecificity: [0, 1, 1, 0],
+            appliedRule: ".nav .button:hover",
+          },
+          conflicts: [
+            {
+              property: "background-color",
+              winningRule: {
+                selector: ".nav .button:hover",
+                specificity: [0, 1, 1, 0],
+                value: "blue",
+              },
+              overriddenRules: [
+                {
+                  selector: ".button",
+                  specificity: [0, 0, 1, 0],
+                  value: "red",
+                },
+              ],
+              reason: "Higher specificity",
+            },
+          ],
+          recommendations: [
+            "Use .button:hover instead of .nav .button:hover to reduce specificity",
+            "Consider using CSS custom properties for theme consistency",
+          ],
+        },
+      },
+      {
+        description: "Detailed analysis of color properties",
+        input: {
+          selector: ".text",
+          properties: ["color", "background-color"],
+          conflictsOnly: false,
+          maxRules: 5,
+        },
+        expectedOutput: {
+          success: true,
+          selector: ".text",
+          summary: {
+            totalRules: 3,
+            conflicts: 0,
+            highestSpecificity: [0, 0, 1, 0],
+            appliedRule: ".text",
+          },
+          rules: [
+            {
+              selector: ".text",
+              specificity: [0, 0, 1, 0],
+              properties: {
+                color: "black",
+                "background-color": "white",
+              },
+              source: "stylesheet.css",
+            },
+          ],
+        },
+      },
+    ],
   },
 ];
 
@@ -863,6 +976,79 @@ export const interactionTools: EnhancedTool[] = [
         code: "ELEMENT_NOT_CLICKABLE",
         message: "Element is not clickable (disabled, hidden, or covered)",
         solution: "Wait for element to be enabled or use different selector",
+      },
+    ],
+  },
+  {
+    name: "focus_element",
+    category: "interaction",
+    description: "Focus an element on the page for accessibility and keyboard navigation",
+    inputSchema: {
+      type: "object",
+      properties: {
+        browserId: {
+          type: "string",
+          description:
+            "Optional. ID of the browser instance. If omitted or invalid, the server will resolve based on 'target'.",
+        },
+        target: {
+          type: "string",
+          enum: ["latest", "current", "byId"],
+          description:
+            "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+          default: "latest",
+        },
+        selector: {
+          type: "string",
+          description: "CSS selector for element to focus",
+        },
+        timeout: {
+          type: "number",
+          description: "Timeout in milliseconds",
+          default: 5000,
+          minimum: 100,
+          maximum: 300000,
+        },
+      },
+      required: ["selector"],
+    },
+    examples: [
+      {
+        description: "Focus on an input field for keyboard entry",
+        input: {
+          browserId: "browser-123",
+          selector: "#username",
+        },
+        expectedOutput: {
+          success: true,
+          selector: "#username",
+          focused: true,
+        },
+      },
+      {
+        description: "Focus on a button for keyboard navigation",
+        input: {
+          browserId: "browser-123",
+          selector: ".submit-btn",
+          timeout: 3000,
+        },
+        expectedOutput: {
+          success: true,
+          selector: ".submit-btn",
+          focused: true,
+        },
+      },
+    ],
+    errors: [
+      {
+        code: "ELEMENT_NOT_FOUND",
+        message: "Element not found with specified selector",
+        solution: "Verify the CSS selector and ensure element exists",
+      },
+      {
+        code: "ELEMENT_NOT_FOCUSABLE",
+        message: "Element is not focusable (disabled or hidden)",
+        solution: "Ensure element is visible and focusable",
       },
     ],
   },
@@ -1440,6 +1626,107 @@ export const interactionTools: EnhancedTool[] = [
         expectedOutput: {
           success: true,
           elementHandle: "script-element",
+        },
+      },
+    ],
+  },
+  {
+    name: "generate_selector",
+    category: "interaction",
+    description: "Generate robust CSS selectors from natural language descriptions",
+    inputSchema: {
+      type: "object",
+      properties: {
+        browserId: {
+          type: "string",
+          description: "Browser instance ID (optional, defaults to latest)",
+        },
+        description: {
+          type: "string",
+          description: "Natural language description of element to find",
+        },
+        context: {
+          type: "string",
+          description: "Parent element context for scoping",
+        },
+        preferStable: {
+          type: "boolean",
+          description: "Prefer data-* attributes over classes (default: true)",
+          default: true,
+        },
+        maxSelectors: {
+          type: "number",
+          description: "Maximum number of selectors to return (default: 5)",
+          default: 5,
+        },
+        timeout: {
+          type: "number",
+          description: "Timeout in milliseconds",
+          default: 30000,
+        },
+      },
+      required: ["description"],
+    },
+    examples: [
+      {
+        description: "Find a blue submit button",
+        input: {
+          description: "the blue submit button",
+          preferStable: true,
+        },
+        expectedOutput: {
+          success: true,
+          description: "the blue submit button",
+          selectors: [
+            {
+              selector: '[data-action="submit"]',
+              confidence: 0.9,
+              stability: "high",
+              matches: 1,
+              description: "Matches 1 element",
+              reasoning: "Selected based on stable data attributes with high confidence match",
+            },
+            {
+              selector: 'button[type="submit"]',
+              confidence: 0.8,
+              stability: "medium",
+              matches: 1,
+              description: "Matches 1 element",
+              reasoning: "Selected based on semantic HTML element with good confidence match",
+            },
+          ],
+          recommendations: [],
+        },
+      },
+      {
+        description: "Find navigation menu with context",
+        input: {
+          description: "main navigation menu",
+          context: "header",
+          maxSelectors: 3,
+        },
+        expectedOutput: {
+          success: true,
+          description: "main navigation menu",
+          selectors: [
+            {
+              selector: 'header nav[role="navigation"]',
+              confidence: 0.95,
+              stability: "high",
+              matches: 1,
+              description: "Matches 1 element",
+              reasoning: "Selected based on accessibility attributes with high confidence match",
+            },
+            {
+              selector: "header .navbar",
+              confidence: 0.7,
+              stability: "low",
+              matches: 1,
+              description: "Matches 1 element",
+              reasoning: "Selected based on CSS class matching description",
+            },
+          ],
+          recommendations: ["Consider adding data-testid attributes for better stability"],
         },
       },
     ],

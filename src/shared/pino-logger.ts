@@ -94,6 +94,43 @@ async function cleanupOldLogs(logDir: string): Promise<void> {
 }
 
 /**
+ * Get transport identifier for log filename
+ */
+function getTransportIdentifier(): string {
+  // Check for dev mode first
+  if (process.env["BROOKLYN_DEV_MODE"] === "true") return "dev";
+
+  // Check global config for MCP mode
+  if (globalConfig.isMCPMode) {
+    // Check if this is dev-mcp mode
+    if (globalConfig.mcpLogPath?.includes("dev")) return "dev";
+    return "stdio";
+  }
+
+  // Check for HTTP mode environment variables
+  if (process.env["BROOKLYN_HTTP_ENABLED"] === "true") return "http";
+
+  // Default to stdio for MCP
+  return "stdio";
+}
+
+/**
+ * Create human-readable log filename with transport and UTC timestamp
+ * Format: brooklyn-mcp-<transport>-<yyyymmdd>-<hhmmss>-<ms>.log
+ * Example: brooklyn-mcp-stdio-20250813-143022-347.log
+ * Note: Uses UTC to ensure consistency across timezones
+ */
+function createLogFilename(transport?: string): string {
+  const date = new Date();
+  const dateStr = date.toISOString().slice(0, 10).replace(/-/g, "");
+  const timeStr = date.toISOString().slice(11, 19).replace(/:/g, "");
+  const ms = date.getUTCMilliseconds().toString().padStart(3, "0");
+  const transportId = transport || getTransportIdentifier();
+
+  return `brooklyn-mcp-${transportId}-${dateStr}-${timeStr}-${ms}.log`;
+}
+
+/**
  * Create MCP log file path
  */
 async function createMCPLogPath(): Promise<string | null> {
@@ -101,8 +138,7 @@ async function createMCPLogPath(): Promise<string | null> {
     const logDir = await ensureBrooklynLogDir();
     await cleanupOldLogs(logDir);
 
-    const timestamp = Date.now();
-    const filename = `brooklyn-mcp-${process.pid}-${timestamp}.log`;
+    const filename = createLogFilename();
     return join(logDir, filename);
   } catch {
     return null;

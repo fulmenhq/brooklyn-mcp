@@ -4,13 +4,29 @@
 
 ## 📋 Quick Checklist
 
-Before you start, **ALWAYS run this test first** to verify current system integrity:
+### ⚠️ Before You Start
+
+**ALWAYS run this test first** to verify current system integrity:
 
 ```bash
 bun run test tests/quality-gates/tool-registration-completeness.test.ts
 ```
 
 If this test fails, **DO NOT add new tools** until existing registration gaps are fixed.
+
+### 🎯 Critical Success Factors
+
+**The #1 reason new tools fail**: Missing core tools registration (Step 6). Your tool will appear in lists but won't be callable.
+
+**Must-Do Steps for Every New Tool:**
+
+1. ✅ **Tool Definition** (`tool-definitions.ts`) - Schema and examples
+2. ✅ **Implementation** (service, pool manager, router) - Tool logic
+3. 🚨 **Core Registration** (`brooklyn-engine.ts`) - **THIS IS WHERE MOST PEOPLE FAIL**
+   - Add to `isCoreTools` array (6a)
+   - Add to `handleCoreTool` switch (6b)
+4. ✅ **Test Both**: Schema shows in lists AND tool is callable
+5. ✅ **Schema Changes**: Use `/mcp` reconnection for new tools
 
 ## 🎯 Step-by-Step Process
 
@@ -172,33 +188,49 @@ private async myNewTool(
 }
 ```
 
-### Step 6: **CRITICAL** - Add to Core Tools Registration
+## 🚨 Step 6: **CRITICAL** - Core Tools Registration
+
+> **⚠️ THIS IS THE #1 REASON NEW TOOLS FAIL**
+>
+> **Symptoms if you skip this**: Tool appears in `brooklyn_list_tools` but returns "Tool not found" error when called
+>
+> **Why**: Tool is defined (schema) but not registered (function binding)
 
 **File**: `src/core/brooklyn-engine.ts`
 
-**⚠️ FAILURE TO DO THIS = "Tool not found" ERROR**
+### 6a. **REQUIRED** - Add to `isCoreTools` Array
 
-#### 6a. Add to `isCoreTools` Array
+Find the `isCoreTools` method and add your tool to the appropriate category section:
 
 ```typescript
-// In the isCoreTools method, add your tool to the array
 private isCoreTools(toolName: string): boolean {
   const coreTools = [
-    // ... existing tools
-
-    // Your category section (add to appropriate section)
-    "my_new_tool",
+    // Browser lifecycle
+    "launch_browser",
+    "close_browser",
+    // Navigation
+    "navigate_to_url",
+    "go_back",
+    // Element interaction ← ADD YOUR TOOL HERE IF IT'S INTERACTION
+    "click_element",
+    "focus_element",  // ← Example: your new tool
+    "fill_text",
+    // ... other sections
   ];
   return coreTools.includes(toolName);
 }
 ```
 
-#### 6b. Add Switch Case to `handleCoreTool`
+### 6b. **REQUIRED** - Add Switch Case to `handleCoreTool`
+
+Find the `handleCoreTool` method and add your case in the appropriate section:
 
 ```typescript
-// In the handleCoreTool method switch statement
-case "my_new_tool":
-  // Route through the browser router
+// Find the Element interaction tools section
+case "click_element":
+  // ... existing case
+
+case "my_new_tool":  // ← ADD YOUR CASE HERE
   if (this.browserRouter) {
     const request = {
       tool: name,
@@ -219,7 +251,20 @@ case "my_new_tool":
     return response.result;
   }
   throw new Error(`${name} requires browser pool connection`);
+
+case "fill_text":
+  // ... next case
 ```
+
+### ✅ Verification Checklist
+
+After completing both 6a and 6b:
+
+- [ ] Tool name added to `isCoreTools` array in correct category section
+- [ ] Switch case added to `handleCoreTool` method in correct location
+- [ ] Case follows the exact pattern shown above
+- [ ] Test: `brooklyn_list_tools` shows your tool
+- [ ] Test: Tool is callable via `mcp__brooklyn__your_tool_name`
 
 ## 🧪 Step 7: Write Tests
 
@@ -280,16 +325,26 @@ bun run test
 
 ```bash
 # Build the updated server
+bun run version:bump:patch  # For tracking confidence
 bun run build && bun run install
 
 # Restart server (HTTP transport)
 brooklyn web cleanup --port 3000
 brooklyn web start --port 3000 --daemon
 
-# Force Claude tool cache refresh
+# ✅ SCHEMA CHANGES: New tools always need MCP reconnection
+# Use Claude Code's built-in reconnection (recommended):
+/mcp
+
+# Alternative: Manual remove/add cycle
 claude mcp remove brooklyn
-claude mcp add brooklyn http://127.0.0.1:3000
+claude mcp add brooklyn http://127.0.0.1:3000  # or -- brooklyn mcp start
 ```
+
+**Why Reconnection is Needed:**
+
+- **Schema changes** (new tools, parameters) require function binding refresh
+- **Functionality changes** (bug fixes, performance) auto-detect with HTTP + project scope
 
 ### Test in Claude
 
@@ -306,11 +361,27 @@ claude mcp add brooklyn http://127.0.0.1:3000
 
 ## 🚨 Common Mistakes to Avoid
 
-### 1. Registration Gaps (Most Common)
+### 1. 🥇 Registration Gaps (#1 Cause of Tool Failures)
 
-- ❌ Adding to tool-definitions.ts but forgetting isCoreTools array
-- ❌ Adding to isCoreTools but forgetting handleCoreTool switch case
-- ✅ **Always run the registration completeness test**
+**THE EXACT BUG WE JUST FIXED**: `focus_element` was properly implemented but missing from core tools registration.
+
+**Symptoms**:
+
+- ✅ Tool appears in `brooklyn_list_tools`
+- ❌ Tool returns "Tool not found" when called
+- ❌ `mcp__brooklyn__your_tool` function doesn't exist
+
+**Root Causes:**
+
+- ❌ Adding to `tool-definitions.ts` but forgetting `isCoreTools` array (Step 6a)
+- ❌ Adding to `isCoreTools` but forgetting `handleCoreTool` switch case (Step 6b)
+- ❌ Typos in tool names between definition and registration
+
+**Prevention:**
+
+- ✅ **Always run the registration completeness test**: `bun run test tests/quality-gates/tool-registration-completeness.test.ts`
+- ✅ **Use the verification checklist** in Step 6
+- ✅ **Test both schema AND function calls** before considering tool complete
 
 ### 2. Category Misalignment
 

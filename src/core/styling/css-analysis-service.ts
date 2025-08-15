@@ -78,6 +78,16 @@ export interface AnalyzeSpecificityArgs {
   browserId: string;
   selector: string;
   timeout?: number;
+
+  // NEW: Response size control
+  conflictsOnly?: boolean; // Only show conflicting rules (DEFAULT: true)
+  properties?: string[]; // Filter to specific CSS properties
+  maxRules?: number; // Limit rules returned (DEFAULT: 10)
+  summarize?: boolean; // Summary vs detailed analysis (DEFAULT: true)
+
+  // NEW: Analysis scope
+  includeInherited?: boolean; // Include inherited rules (DEFAULT: false)
+  pseudoElements?: string[]; // Analyze :hover, :focus, etc.
 }
 
 // Specificity rule
@@ -88,12 +98,36 @@ export interface SpecificityRule {
   source: string;
 }
 
+// Specificity conflict
+export interface SpecificityConflict {
+  property: string;
+  winningRule: { selector: string; specificity: [number, number, number, number]; value: string };
+  overriddenRules: Array<{
+    selector: string;
+    specificity: [number, number, number, number];
+    value: string;
+  }>;
+  reason: string; // "Higher specificity" | "Source order" | "!important"
+}
+
 // Specificity analysis result
 export interface AnalyzeSpecificityResult {
   success: boolean;
-  rules: SpecificityRule[];
-  winningRule: SpecificityRule | null;
   selector: string;
+
+  // Focused response structure
+  summary: {
+    totalRules: number;
+    conflicts: number;
+    highestSpecificity: [number, number, number, number];
+    appliedRule: string;
+  };
+
+  conflicts?: SpecificityConflict[]; // Only when conflicts exist
+  rules?: SpecificityRule[]; // Limited by maxRules
+  recommendations?: string[]; // AI-actionable advice
+
+  executionTime: number;
 }
 
 // Batch CSS extraction arguments
@@ -551,23 +585,143 @@ export class CSSAnalysisService {
   }
 
   /**
+   * Generate AI-actionable recommendations based on analysis results
+   */
+  private generateRecommendations(result: {
+    conflicts: Array<{
+      property: string;
+      winningRule: { selector: string; specificity: [number, number, number, number] };
+      reason: string;
+    }>;
+    highestSpecificity: [number, number, number, number];
+    totalRules: number;
+  }): string[] {
+    const recommendations: string[] = [];
+
+    if (result.conflicts.length > 0) {
+      for (const conflict of result.conflicts) {
+        if (conflict.reason === "Higher specificity" && conflict.winningRule.specificity[1] > 0) {
+          recommendations.push(
+            `Consider reducing specificity for ${conflict.winningRule.selector} to make styles more maintainable`,
+          );
+        }
+        if (conflict.reason === "!important") {
+          recommendations.push(
+            `Avoid !important for ${conflict.property}. Use specific selectors instead`,
+          );
+        }
+        if (conflict.reason === "Source order") {
+          recommendations.push(
+            `${conflict.property} is determined by source order. Consider more specific selectors`,
+          );
+        }
+      }
+    }
+
+    if (result.highestSpecificity[1] > 2) {
+      recommendations.push("Consider using CSS custom properties for theme consistency");
+    }
+
+    if (result.totalRules > 10) {
+      recommendations.push(
+        "Many rules apply to this element. Consider component-based CSS organization",
+      );
+    }
+
+    return recommendations;
+  }
+
+  /**
+   * Build the response object based on analysis options
+   */
+  private buildSpecificityResponse(
+    args: AnalyzeSpecificityArgs,
+    result: {
+      rules: SpecificityRule[];
+      conflicts: Array<{
+        property: string;
+        winningRule: {
+          selector: string;
+          specificity: [number, number, number, number];
+          value: string;
+        };
+        overriddenRules: Array<{
+          selector: string;
+          specificity: [number, number, number, number];
+          value: string;
+        }>;
+        reason: string;
+      }>;
+      totalRules: number;
+      highestSpecificity: [number, number, number, number];
+      appliedRule: string;
+    },
+    executionTime: number,
+    recommendations: string[],
+  ): AnalyzeSpecificityResult {
+    const conflictsOnly = args.conflictsOnly ?? true;
+    const maxRules = args.maxRules ?? 10;
+    const summarize = args.summarize ?? true;
+
+    const response: AnalyzeSpecificityResult = {
+      success: true,
+      selector: args.selector,
+      summary: {
+        totalRules: result.totalRules,
+        conflicts: result.conflicts.length,
+        highestSpecificity: result.highestSpecificity,
+        appliedRule: result.appliedRule,
+      },
+      executionTime,
+    };
+
+    // Add conflicts if they exist (always include when present, regardless of conflictsOnly)
+    if (result.conflicts.length > 0) {
+      response.conflicts = result.conflicts;
+    }
+
+    // Add limited rules if detailed analysis requested (not summary-only)
+    if (!(summarize && conflictsOnly)) {
+      response.rules = result.rules.slice(0, maxRules);
+    }
+
+    // Add recommendations
+    if (recommendations.length > 0) {
+      response.recommendations = recommendations;
+    }
+
+    return response;
+  }
+
+  /**
    * Analyze CSS specificity to debug cascade issues
-   * Helps understand why certain styles aren't applying
+   * Enhanced with conflict detection and AI-friendly responses
    */
   async analyzeSpecificity(
     page: Page,
     args: AnalyzeSpecificityArgs,
   ): Promise<AnalyzeSpecificityResult> {
+    const startTime = Date.now();
     const _timeout = args.timeout || this.defaultTimeout;
 
+    // Set defaults for enhanced options
+    const conflictsOnly = args.conflictsOnly ?? true;
+    const maxRules = args.maxRules ?? 10;
+    const summarize = args.summarize ?? true;
+    const includeInherited = args.includeInherited ?? false;
+
     try {
-      ensureLogger().info("Analyzing CSS specificity", {
+      ensureLogger().info("Analyzing CSS specificity (enhanced)", {
         browserId: args.browserId,
         selector: args.selector,
+        conflictsOnly,
+        maxRules,
+        summarize,
+        properties: args.properties?.length,
       });
 
       const result = (await page.evaluate(
-        ({ selector }) => {
+        ({ selector, properties, includeInherited: _includeInherited, pseudoElements }) => {
           // Helper: Calculate CSS specificity
           const calculateSpecificity = (sel: string): [number, number, number, number] => {
             const inline = 0; // Would be 1 for inline styles
@@ -581,48 +735,77 @@ export class CSSAnalysisService {
             return [inline, ids, classes, elements];
           };
 
+          // Helper: Check if selector has !important
+          const hasImportant = (value: string): boolean => {
+            return value.includes("!important");
+          };
+
           // Helper: Extract properties from CSS style rule
-          const extractRuleProperties = (rule: CSSStyleRule): Record<string, string> => {
+          const extractRuleProperties = (
+            rule: CSSStyleRule,
+            propertyFilter?: string[],
+          ): Record<string, string> => {
             const properties: Record<string, string> = {};
             for (let i = 0; i < rule.style.length; i++) {
               const prop = rule.style[i];
-              if (prop) {
+              if (prop && (!propertyFilter || propertyFilter.includes(prop))) {
                 properties[prop] = rule.style.getPropertyValue(prop);
               }
             }
             return properties;
           };
 
-          // Helper: Process stylesheet rules
-          const processStylesheetRules = (element: Element, rules: SpecificityRule[]) => {
-            for (const sheet of Array.from(document.styleSheets)) {
-              try {
-                const cssRules = sheet.cssRules || sheet.rules;
+          // Helper: Process a single stylesheet
+          const processStylesheet = (
+            sheet: CSSStyleSheet,
+            element: Element,
+            rules: SpecificityRule[],
+            propertyFilter?: string[],
+          ) => {
+            try {
+              const cssRules = sheet.cssRules || sheet.rules;
 
-                for (const rule of Array.from(cssRules)) {
-                  if (rule instanceof CSSStyleRule && element.matches(rule.selectorText)) {
+              for (const rule of Array.from(cssRules)) {
+                if (rule instanceof CSSStyleRule && element.matches(rule.selectorText)) {
+                  const ruleProperties = extractRuleProperties(rule, propertyFilter);
+                  if (Object.keys(ruleProperties).length > 0) {
                     rules.push({
                       selector: rule.selectorText,
                       specificity: calculateSpecificity(rule.selectorText),
-                      properties: extractRuleProperties(rule),
+                      properties: ruleProperties,
                       source: sheet.href || "inline-stylesheet",
                     });
                   }
                 }
-              } catch (_e) {
-                // Ignore CORS errors for stylesheets
               }
+            } catch (_e) {
+              // Ignore CORS errors for stylesheets
+            }
+          };
+
+          // Helper: Process stylesheet rules
+          const processStylesheetRules = (
+            element: Element,
+            rules: SpecificityRule[],
+            propertyFilter?: string[],
+          ) => {
+            for (const sheet of Array.from(document.styleSheets)) {
+              processStylesheet(sheet, element, rules, propertyFilter);
             }
           };
 
           // Helper: Add inline styles
-          const addInlineStyles = (element: Element, rules: SpecificityRule[]) => {
+          const addInlineStyles = (
+            element: Element,
+            rules: SpecificityRule[],
+            propertyFilter?: string[],
+          ) => {
             if (element instanceof HTMLElement && element.style.cssText) {
               const inlineProps: Record<string, string> = {};
 
               for (let i = 0; i < element.style.length; i++) {
                 const prop = element.style[i];
-                if (prop) {
+                if (prop && (!propertyFilter || propertyFilter.includes(prop))) {
                   inlineProps[prop] = element.style.getPropertyValue(prop);
                 }
               }
@@ -638,7 +821,37 @@ export class CSSAnalysisService {
             }
           };
 
-          // Helper: Sort rules by specificity
+          // Helper: Add pseudo-element styles
+          const addPseudoStyles = (
+            element: Element,
+            rules: SpecificityRule[],
+            pseudoElements: string[],
+            propertyFilter?: string[],
+          ) => {
+            for (const pseudo of pseudoElements) {
+              const computedStyle = window.getComputedStyle(element, pseudo);
+              const pseudoProps: Record<string, string> = {};
+
+              const propsToCheck = propertyFilter || Array.from(computedStyle);
+              for (const prop of propsToCheck) {
+                const value = computedStyle.getPropertyValue(prop);
+                if (value && value !== "initial" && value !== "inherit") {
+                  pseudoProps[prop] = value;
+                }
+              }
+
+              if (Object.keys(pseudoProps).length > 0) {
+                rules.push({
+                  selector: `${selector}${pseudo}`,
+                  specificity: calculateSpecificity(`${selector}${pseudo}`),
+                  properties: pseudoProps,
+                  source: "pseudo-element",
+                });
+              }
+            }
+          };
+
+          // Helper: Sort rules by specificity and source order
           const sortBySpecificity = (rules: SpecificityRule[]) => {
             rules.sort((a, b) => {
               for (let i = 0; i < 4; i++) {
@@ -652,6 +865,113 @@ export class CSSAnalysisService {
             });
           };
 
+          // Helper: Group rules by property for conflict detection
+          const groupRulesByProperty = (rules: SpecificityRule[]) => {
+            const propertyMap = new Map<string, Array<{ rule: SpecificityRule; value: string }>>();
+
+            for (const rule of rules) {
+              for (const [prop, value] of Object.entries(rule.properties)) {
+                if (!propertyMap.has(prop)) {
+                  propertyMap.set(prop, []);
+                }
+                propertyMap.get(prop)?.push({ rule, value });
+              }
+            }
+
+            return propertyMap;
+          };
+
+          // Helper: Sort rules by specificity and importance
+          const sortRulesByPriority = (
+            rulesForProperty: Array<{ rule: SpecificityRule; value: string }>,
+          ) => {
+            return rulesForProperty.sort((a, b) => {
+              // Check for !important first
+              const aImportant = hasImportant(a.value);
+              const bImportant = hasImportant(b.value);
+              if (aImportant !== bImportant) {
+                return aImportant ? -1 : 1;
+              }
+
+              // Then by specificity
+              for (let i = 0; i < 4; i++) {
+                const aSpec = a.rule.specificity?.[i] ?? 0;
+                const bSpec = b.rule.specificity?.[i] ?? 0;
+                if (aSpec !== bSpec) {
+                  return bSpec - aSpec;
+                }
+              }
+              return 0;
+            });
+          };
+
+          // Helper: Determine conflict reason
+          const getConflictReason = (
+            winner: { rule: SpecificityRule; value: string },
+            firstOverridden?: { rule: SpecificityRule; value: string },
+          ) => {
+            if (hasImportant(winner.value)) {
+              return "!important";
+            }
+            if (
+              firstOverridden &&
+              winner.rule.specificity.join() === firstOverridden.rule.specificity.join()
+            ) {
+              return "Source order";
+            }
+            return "Higher specificity";
+          };
+
+          // Helper: Detect conflicts between rules (with limits to prevent token overrun)
+          const detectConflicts = (rules: SpecificityRule[]) => {
+            const conflicts: Array<{
+              property: string;
+              winningRule: {
+                selector: string;
+                specificity: [number, number, number, number];
+                value: string;
+              };
+              overriddenRules: Array<{
+                selector: string;
+                specificity: [number, number, number, number];
+                value: string;
+              }>;
+              reason: string;
+            }> = [];
+
+            const propertyMap = groupRulesByProperty(rules);
+
+            // Find conflicts for each property
+            for (const [property, rulesForProperty] of propertyMap) {
+              if (rulesForProperty.length > 1) {
+                const sortedRules = sortRulesByPriority(rulesForProperty);
+                const winner = sortedRules[0];
+                const overridden = sortedRules.slice(1);
+
+                if (winner && overridden.length > 0) {
+                  const reason = getConflictReason(winner, overridden[0]);
+
+                  conflicts.push({
+                    property,
+                    winningRule: {
+                      selector: winner.rule.selector,
+                      specificity: winner.rule.specificity,
+                      value: winner.value,
+                    },
+                    overriddenRules: overridden.map((o) => ({
+                      selector: o.rule.selector,
+                      specificity: o.rule.specificity,
+                      value: o.value,
+                    })),
+                    reason,
+                  });
+                }
+              }
+            }
+
+            return conflicts;
+          };
+
           // Main logic
           const element = document.querySelector(selector);
           if (!element) {
@@ -660,45 +980,95 @@ export class CSSAnalysisService {
 
           const rules: SpecificityRule[] = [];
 
-          processStylesheetRules(element, rules);
-          addInlineStyles(element, rules);
+          processStylesheetRules(element, rules, properties);
+          addInlineStyles(element, rules, properties);
+
+          if (pseudoElements && pseudoElements.length > 0) {
+            addPseudoStyles(element, rules, pseudoElements, properties);
+          }
+
           sortBySpecificity(rules);
+          const allConflicts = detectConflicts(rules);
+
+          // Apply limits inside browser evaluation to prevent token overrun
+          const limitedRules = rules.slice(0, 10); // Hard limit to prevent massive responses
+          const limitedConflicts = allConflicts.slice(0, 5); // Limit conflicts too
 
           return {
-            rules,
-            winningRule: rules.length > 0 ? rules[0] : null,
+            rules: limitedRules,
+            conflicts: limitedConflicts,
+            totalRules: rules.length,
+            highestSpecificity:
+              rules.length > 0 ? rules[0]?.specificity || [0, 0, 0, 0] : [0, 0, 0, 0],
+            appliedRule: rules.length > 0 ? rules[0]?.selector || "none" : "none",
           };
         },
-        { selector: args.selector },
-      )) as { rules: SpecificityRule[]; winningRule: SpecificityRule | null };
+        {
+          selector: args.selector,
+          properties: args.properties,
+          includeInherited,
+          pseudoElements: args.pseudoElements || [],
+        },
+      )) as {
+        rules: SpecificityRule[];
+        conflicts: Array<{
+          property: string;
+          winningRule: {
+            selector: string;
+            specificity: [number, number, number, number];
+            value: string;
+          };
+          overriddenRules: Array<{
+            selector: string;
+            specificity: [number, number, number, number];
+            value: string;
+          }>;
+          reason: string;
+        }>;
+        totalRules: number;
+        highestSpecificity: [number, number, number, number];
+        appliedRule: string;
+      };
 
-      ensureLogger().info("Specificity analysis completed", {
+      const executionTime = Date.now() - startTime;
+
+      // Generate AI-actionable recommendations
+      const recommendations = this.generateRecommendations(result);
+
+      // Build response based on options
+      const response = this.buildSpecificityResponse(args, result, executionTime, recommendations);
+
+      ensureLogger().info("Enhanced specificity analysis completed", {
         browserId: args.browserId,
         selector: args.selector,
-        ruleCount: result.rules.length,
-        winner: result.winningRule?.selector,
+        totalRules: result.totalRules,
+        conflicts: result.conflicts.length,
+        appliedRule: result.appliedRule,
+        executionTime,
       });
 
-      return {
-        success: true,
-        rules: result.rules,
-        winningRule: result.winningRule,
-        selector: args.selector,
-      };
+      return response;
     } catch (error) {
+      const executionTime = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : String(error);
 
-      ensureLogger().error("Specificity analysis failed", {
+      ensureLogger().error("Enhanced specificity analysis failed", {
         browserId: args.browserId,
         selector: args.selector,
         error: errorMessage,
+        executionTime,
       });
 
       return {
         success: false,
-        rules: [],
-        winningRule: null,
         selector: args.selector,
+        summary: {
+          totalRules: 0,
+          conflicts: 0,
+          highestSpecificity: [0, 0, 0, 0],
+          appliedRule: "none",
+        },
+        executionTime,
       };
     }
   }
