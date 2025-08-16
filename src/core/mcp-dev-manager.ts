@@ -13,9 +13,13 @@ import * as path from "node:path";
 interface DevProcessInfo {
   processId: number;
   startTime: string;
-  inputPipe: string;
-  outputPipe: string;
-  pipesPrefix: string;
+  transport: "socket" | "pipe";
+  // Socket transport
+  socketPath?: string;
+  // Pipe transport (experimental)
+  inputPipe?: string;
+  outputPipe?: string;
+  pipesPrefix?: string;
   logFile: string;
 }
 
@@ -72,7 +76,12 @@ export class MCPDevManager {
   /**
    * Start development MCP server (Architecture Committee approved)
    */
-  async start(options?: { halfPipe?: boolean; foreground?: boolean }): Promise<void> {
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: TODO: Refactor large start method into smaller functions
+  async start(options?: {
+    halfPipe?: boolean;
+    foreground?: boolean;
+    transport?: "socket" | "pipe";
+  }): Promise<void> {
     // Use structured logging - it handles stderr output automatically in MCP mode
     process.stderr.write("[CORE-DEV-DEBUG] Starting Brooklyn MCP development mode\n");
     this.getLogger()?.info("🚀 Starting Brooklyn MCP development mode");
@@ -90,13 +99,25 @@ export class MCPDevManager {
     }
     process.stderr.write("[CORE-DEV-DEBUG] Not running, proceeding with start\n");
 
+    const transport = options?.transport || "socket";
     const timestamp = Date.now();
     const instanceUuid = Math.random().toString(36).substring(2, 8); // Short UUID
-    const pipesPrefix = process.env["BROOKLYN_DEV_PIPE_DIR"] || "/tmp";
-    const inputPipe = path.join(pipesPrefix, `brooklyn-mcp-dev-${instanceUuid}-${timestamp}-in`);
-    const outputPipe = options?.halfPipe
-      ? undefined
-      : path.join(pipesPrefix, `brooklyn-mcp-dev-${instanceUuid}-${timestamp}-out`);
+    const devPrefix = process.env["BROOKLYN_DEV_PIPE_DIR"] || "/tmp";
+
+    // Setup transport-specific paths
+    let socketPath: string | undefined;
+    let inputPipe: string | undefined;
+    let outputPipe: string | undefined;
+
+    if (transport === "socket") {
+      socketPath = path.join(devPrefix, `brooklyn-mcp-dev-${instanceUuid}-${timestamp}.sock`);
+    } else {
+      inputPipe = path.join(devPrefix, `brooklyn-mcp-dev-${instanceUuid}-${timestamp}-in`);
+      outputPipe = options?.halfPipe
+        ? undefined
+        : path.join(devPrefix, `brooklyn-mcp-dev-${instanceUuid}-${timestamp}-out`);
+    }
+
     const date = new Date();
     const dateStr = date.toISOString().slice(0, 10).replace(/-/g, "");
     const timeStr = date.toISOString().slice(11, 19).replace(/:/g, "");
@@ -104,40 +125,62 @@ export class MCPDevManager {
     const logFile = path.join(this.logDir, `brooklyn-mcp-dev-${dateStr}-${timeStr}-${ms}.log`);
 
     try {
-      // Create named pipes with secure permissions (Architecture Committee requirement)
-      this.getLogger()?.info("📦 Creating named pipes", {
-        inputPipe,
-        outputPipe,
-      });
+      if (transport === "socket") {
+        // Socket transport setup
+        this.getLogger()?.info("📦 Creating Unix domain socket", {
+          socketPath,
+        });
 
-      await this.createNamedPipe(inputPipe);
-      fs.chmodSync(inputPipe, 0o600);
+        // Clean up any existing socket
+        if (socketPath && fs.existsSync(socketPath)) {
+          fs.unlinkSync(socketPath);
+        }
 
-      if (outputPipe) {
-        await this.createNamedPipe(outputPipe);
-        fs.chmodSync(outputPipe, 0o600);
+        this.getLogger()?.info(`   Socket: ${socketPath}`);
+      } else {
+        // Named pipe transport setup (experimental)
+        this.getLogger()?.info("📦 Creating named pipes (experimental)", {
+          inputPipe,
+          outputPipe,
+        });
+
+        if (inputPipe) {
+          await this.createNamedPipe(inputPipe);
+          fs.chmodSync(inputPipe, 0o600);
+        }
+
+        if (outputPipe) {
+          await this.createNamedPipe(outputPipe);
+          fs.chmodSync(outputPipe, 0o600);
+        }
+
+        this.getLogger()?.info(`   Input:  ${inputPipe}`);
+        this.getLogger()?.info(`   Output: ${outputPipe}`);
       }
-
-      this.getLogger()?.info(`   Input:  ${inputPipe}`);
-      this.getLogger()?.info(`   Output: ${outputPipe}`);
 
       // In foreground mode, run directly instead of spawning
       if (options?.foreground) {
         this.getLogger()?.info("🔧 Starting Brooklyn MCP server directly...");
 
         // Set environment variables for the current process
-        process.env["BROOKLYN_DEV_INPUT_PIPE"] = inputPipe;
-        if (outputPipe) {
-          process.env["BROOKLYN_DEV_OUTPUT_PIPE"] = outputPipe;
+        if (transport === "socket") {
+          process.env["BROOKLYN_DEV_SOCKET_PATH"] = socketPath;
+        } else {
+          process.env["BROOKLYN_DEV_INPUT_PIPE"] = inputPipe;
+          if (outputPipe) {
+            process.env["BROOKLYN_DEV_OUTPUT_PIPE"] = outputPipe;
+          }
         }
 
         // Save process info for the current process
         const processInfo: DevProcessInfo = {
           processId: process.pid,
           startTime: new Date().toISOString(),
+          transport,
+          socketPath,
           inputPipe,
           outputPipe: outputPipe || "",
-          pipesPrefix: path.dirname(inputPipe),
+          pipesPrefix: inputPipe ? path.dirname(inputPipe) : undefined,
           logFile: "", // No log file in foreground mode
         };
         this.saveProcessInfo(processInfo);
@@ -145,15 +188,29 @@ export class MCPDevManager {
         // Display startup info
         this.getLogger()?.info("✅ Brooklyn MCP development mode starting in foreground mode!");
         this.getLogger()?.info(`   PID: ${process.pid}`);
-        this.getLogger()?.info(`   Input: ${inputPipe}`);
-        this.getLogger()?.info(`   Output: ${outputPipe}`);
-        this.getLogger()?.info("");
-        this.getLogger()?.info("📋 Usage:");
-        this.getLogger()?.info("   • In another terminal, send MCP messages to input pipe:");
-        this.getLogger()?.info(
-          `     echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{"roots":{}},"clientInfo":{"name":"test","version":"1.0"}}}' > ${inputPipe}`,
-        );
-        this.getLogger()?.info(`   • Read responses from output pipe: tail -f ${outputPipe}`);
+        this.getLogger()?.info(`   Transport: ${transport}`);
+
+        if (transport === "socket") {
+          this.getLogger()?.info(`   Socket: ${socketPath}`);
+          this.getLogger()?.info("");
+          this.getLogger()?.info("📋 Usage:");
+          this.getLogger()?.info("   • Test connection:");
+          this.getLogger()?.info(
+            `     echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{"roots":{}},"clientInfo":{"name":"test","version":"1.0"}}}' | nc -U ${socketPath}`,
+          );
+          this.getLogger()?.info(`   • Interactive mode: nc -U ${socketPath}`);
+        } else {
+          this.getLogger()?.info(`   Input: ${inputPipe}`);
+          this.getLogger()?.info(`   Output: ${outputPipe}`);
+          this.getLogger()?.info("");
+          this.getLogger()?.info("📋 Usage:");
+          this.getLogger()?.info("   • In another terminal, send MCP messages to input pipe:");
+          this.getLogger()?.info(
+            `     echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{"roots":{}},"clientInfo":{"name":"test","version":"1.0"}}}' > ${inputPipe}`,
+          );
+          this.getLogger()?.info(`   • Read responses from output pipe: tail -f ${outputPipe}`);
+        }
+
         this.getLogger()?.info("   • Press Ctrl+C to stop");
         this.getLogger()?.info("");
 
@@ -175,11 +232,15 @@ export class MCPDevManager {
           logging: { level: "debug", format: "json" },
         });
 
-        // Create transport with our pipes
-        const transport = await createMCPStdio({
-          inputPipe: process.env["BROOKLYN_DEV_INPUT_PIPE"],
-          outputPipe: process.env["BROOKLYN_DEV_OUTPUT_PIPE"],
-        });
+        // Create transport based on transport type
+        const mcpTransport = await createMCPStdio(
+          transport === "socket"
+            ? { socketPath: process.env["BROOKLYN_DEV_SOCKET_PATH"] }
+            : {
+                inputPipe: process.env["BROOKLYN_DEV_INPUT_PIPE"],
+                outputPipe: process.env["BROOKLYN_DEV_OUTPUT_PIPE"],
+              },
+        );
 
         // Initialize logging
         await initializeLogging(config);
@@ -195,7 +256,7 @@ export class MCPDevManager {
 
         // Add transport with a name and start it
         const transportName = "dev-mcp";
-        await engine.addTransport(transportName, transport);
+        await engine.addTransport(transportName, mcpTransport);
 
         // Start the transport
         this.getLogger()?.info("Starting MCP server...");
@@ -226,20 +287,37 @@ export class MCPDevManager {
           "mcp",
           "start",
           "--dev-mode",
-          "--pipes-prefix",
-          path.dirname(inputPipe),
           "--log-level",
           "debug",
         ];
+
+        // Add transport-specific arguments
+        if (transport === "socket") {
+          if (socketPath) spawnArgs.push("--socket-path", socketPath);
+        } else {
+          if (inputPipe) spawnArgs.push("--pipes-prefix", path.dirname(inputPipe));
+        }
+
         process.stderr.write(`[CORE-DEV-DEBUG] Spawn command: bun ${spawnArgs.join(" ")}\n`);
-        process.stderr.write(
-          `[CORE-DEV-DEBUG] Environment: BROOKLYN_DEV_INPUT_PIPE=${inputPipe}, BROOKLYN_DEV_OUTPUT_PIPE=${outputPipe}\n`,
-        );
+
+        if (transport === "socket") {
+          process.stderr.write(
+            `[CORE-DEV-DEBUG] Environment: BROOKLYN_DEV_SOCKET_PATH=${socketPath}\n`,
+          );
+        } else {
+          process.stderr.write(
+            `[CORE-DEV-DEBUG] Environment: BROOKLYN_DEV_INPUT_PIPE=${inputPipe}, BROOKLYN_DEV_OUTPUT_PIPE=${outputPipe}\n`,
+          );
+        }
 
         const env: NodeJS.ProcessEnv = {
           ...process.env,
-          BROOKLYN_DEV_INPUT_PIPE: inputPipe,
-          BROOKLYN_DEV_OUTPUT_PIPE: outputPipe || "",
+          ...(transport === "socket"
+            ? { BROOKLYN_DEV_SOCKET_PATH: socketPath }
+            : {
+                BROOKLYN_DEV_INPUT_PIPE: inputPipe,
+                BROOKLYN_DEV_OUTPUT_PIPE: outputPipe || "",
+              }),
         };
 
         const brooklynProcess = spawn(
@@ -264,9 +342,11 @@ export class MCPDevManager {
         const processInfo: DevProcessInfo = {
           processId: brooklynProcess.pid ?? 0,
           startTime: new Date().toISOString(),
+          transport,
+          socketPath,
           inputPipe,
           outputPipe: outputPipe || "",
-          pipesPrefix: path.dirname(inputPipe),
+          pipesPrefix: inputPipe ? path.dirname(inputPipe) : undefined,
           logFile,
         };
 
@@ -367,14 +447,22 @@ export class MCPDevManager {
       process.stderr.write("💡 Start with: brooklyn mcp dev-start\n");
     } else {
       const isRunning = this.isProcessRunning(info.processId);
-      const inputExists = fs.existsSync(info.inputPipe);
-      const outputExists = info.outputPipe ? fs.existsSync(info.outputPipe) : false;
 
       process.stderr.write(`Process: ${isRunning ? "🟢 Running" : "🔴 Stopped"}\n`);
       process.stderr.write(`PID: ${info.processId}\n`);
       process.stderr.write(`Started: ${info.startTime}\n`);
-      process.stderr.write(`Input Pipe: ${inputExists ? "✅" : "❌"} ${info.inputPipe}\n`);
-      process.stderr.write(`Output Pipe: ${outputExists ? "✅" : "❌"} ${info.outputPipe}\n`);
+      process.stderr.write(`Transport: ${info.transport}\n`);
+
+      if (info.transport === "socket") {
+        const socketExists = info.socketPath ? fs.existsSync(info.socketPath) : false;
+        process.stderr.write(`Socket: ${socketExists ? "✅" : "❌"} ${info.socketPath}\n`);
+      } else {
+        const inputExists = info.inputPipe ? fs.existsSync(info.inputPipe) : false;
+        const outputExists = info.outputPipe ? fs.existsSync(info.outputPipe) : false;
+        process.stderr.write(`Input Pipe: ${inputExists ? "✅" : "❌"} ${info.inputPipe}\n`);
+        process.stderr.write(`Output Pipe: ${outputExists ? "✅" : "❌"} ${info.outputPipe}\n`);
+      }
+
       process.stderr.write(`Log File: ${info.logFile}\n`);
 
       if (info.logFile && fs.existsSync(info.logFile)) {
@@ -384,7 +472,13 @@ export class MCPDevManager {
 
       if (isRunning) {
         process.stderr.write("\n");
-        if (inputExists) {
+        if (info.transport === "socket" && info.socketPath) {
+          process.stderr.write("💡 To send MCP messages:\n");
+          process.stderr.write(
+            `   echo '{"jsonrpc":"2.0","id":1,"method":"initialize",...}' | nc -U ${info.socketPath}\n`,
+          );
+          process.stderr.write(`   nc -U ${info.socketPath}  # Interactive mode\n`);
+        } else if (info.inputPipe) {
           process.stderr.write("💡 To send MCP messages:\n");
           process.stderr.write(
             `   echo '{"jsonrpc":"2.0","id":1,"method":"initialize",...}' > ${info.inputPipe}\n`,
@@ -452,7 +546,7 @@ export class MCPDevManager {
       const execAsync = promisify(exec);
 
       const { stdout } = await execAsync(
-        "ps -ef | grep '[b]rooklyn.*mcp start --dev-mode' | grep -v grep || true",
+        "ps -ef | grep '[m]cp start --dev-mode' | grep brooklyn | grep -v grep || true",
       );
 
       const orphanedPids = stdout
@@ -482,19 +576,24 @@ export class MCPDevManager {
       this.getLogger()?.error("Error finding orphaned processes", { error });
     }
 
-    // Remove named pipes with error handling
+    // Remove transport files with error handling
     if (info) {
       try {
-        if (fs.existsSync(info.inputPipe)) {
-          fs.unlinkSync(info.inputPipe);
-          this.getLogger()?.debug("Removed input pipe", { pipe: info.inputPipe });
-        }
-        if (info.outputPipe && fs.existsSync(info.outputPipe)) {
-          fs.unlinkSync(info.outputPipe);
-          this.getLogger()?.debug("Removed output pipe", { pipe: info.outputPipe });
+        if (info.transport === "socket" && info.socketPath && fs.existsSync(info.socketPath)) {
+          fs.unlinkSync(info.socketPath);
+          this.getLogger()?.debug("Removed socket file", { socket: info.socketPath });
+        } else if (info.transport === "pipe") {
+          if (info.inputPipe && fs.existsSync(info.inputPipe)) {
+            fs.unlinkSync(info.inputPipe);
+            this.getLogger()?.debug("Removed input pipe", { pipe: info.inputPipe });
+          }
+          if (info.outputPipe && fs.existsSync(info.outputPipe)) {
+            fs.unlinkSync(info.outputPipe);
+            this.getLogger()?.debug("Removed output pipe", { pipe: info.outputPipe });
+          }
         }
       } catch (error) {
-        this.getLogger()?.warn("Error removing pipes", { error });
+        this.getLogger()?.warn("Error removing transport files", { error });
       }
     }
 
@@ -670,7 +769,7 @@ export class MCPDevManager {
       const execAsync = promisify(exec);
 
       const { stdout } = await execAsync(
-        "ps -ef | grep '[b]rooklyn.*mcp start --dev-mode' | grep -v grep || true",
+        "ps -ef | grep '[m]cp start --dev-mode' | grep brooklyn | grep -v grep || true",
       );
 
       const info = this.loadProcessInfo();

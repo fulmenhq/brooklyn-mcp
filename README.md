@@ -1,298 +1,330 @@
-# Brooklyn - Fulmen MCP Browser Automation Platform ⚡
+# Brooklyn MCP ⚡
+
+## Accelerate AI UX: Empower Developers with Intelligent Browser Automation
 
 [![Developer Spark Enabled](https://img.shields.io/badge/Developer%20Spark-Enabled%20⚡-brightgreen?style=for-the-badge&logo=lightning&logoColor=white)](docs/fulmen/spark/README.md)
 [![Brooklyn Forge](https://img.shields.io/badge/Brooklyn-Forge%20🌉-blue?style=for-the-badge&logo=bridge&logoColor=white)](docs/fulmen/forges/fulmen-brooklyn-forge-principles.md)
 [![TypeScript Spark](https://img.shields.io/badge/TypeScript%20Spark-Enabled%20⚡-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](docs/fulmen/spark/README.md)
 [![Architecture Approved](https://img.shields.io/badge/Architecture-Committee%20Approved%20🏆-gold?style=for-the-badge&logo=award&logoColor=white)](docs/fulmen/spark/README.md)
 
-**Enterprise-ready MCP server for browser automation with multi-team support**
+> **⚡ Start Fast**: 5-minute setup with enterprise infrastructure | **🌉 Thrive on Scale**: Multi-team platform ready for global deployment
 
-> **⚡ 15-minute onboarding**: Read [AGENT.md 5-minute section](AGENT.md#5-minute-team-onboarding-start-here-first) for instant productivity
+**Latest**: v1.4.35 introduces **MCP protocol compliance** with both stdio and HTTP transports working flawlessly for AI development workflows.
 
-🎯 **Latest**: v1.1.4 introduces **file-based screenshots** eliminating MCP token limitations and enabling enterprise-scale browser automation workflows.
+---
 
-Brooklyn is a Model Context Protocol (MCP) server that provides AI developers and teams with powerful browser automation capabilities. Built on the Fulmen ecosystem principles, Brooklyn serves as a bridge between AI models and web browsers, enabling seamless automation, testing, and monitoring workflows.
+## 🌉 **What is Brooklyn?**
 
-## 📚 Choose Your Documentation Path
+Brooklyn is the **reference MCP implementation** in the Fulmen ecosystem, serving as both a production-ready browser automation platform and the foundational template for building enterprise-grade MCP servers across any programming language. With revolutionary development tools, comprehensive security patterns, and battle-tested infrastructure, Brooklyn empowers teams to **start fast** with proven MCP patterns while **thriving on scale** through multi-language implementations and enterprise deployment strategies.
 
-**New to Brooklyn?** Pick the guide that matches your needs:
+### 🎯 **Triple Purpose Design**
 
-### For Getting Started
+**1. 🏗️ Reference MCP Implementation**
 
-- **🚀 [docs/hello_brooklyn.md](docs/hello_brooklyn.md)** - **5-minute setup** for immediate Claude Code connection
-- **📚 [docs/welcome.md](docs/welcome.md)** - **Comprehensive user guide** with examples, use cases, and detailed features
+- **Cross-Language Template**: Proven patterns for Go, Rust, Python, Java MCP implementations
+- **Enterprise Security**: Authentication, authorization, multi-tenancy, and compliance patterns
+- **Development Excellence**: Revolutionary dev mode, comprehensive testing, quality gates
+- **Protocol Compliance**: 100% MCP JSON-RPC specification adherence with comprehensive validation
 
-### For Team Members
+**2. 🤖 Enterprise Browser Automation Platform**
 
-- **👥 [docs/ONBOARDING.md](docs/ONBOARDING.md)** - **Team onboarding** with architecture, development philosophy, and coding standards
-- **⚡ [AGENT.md 5-minute section](AGENT.md#5-minute-team-onboarding-start-here-first)** - **Instant productivity** for developers
+- **Claude Code Integration**: Seamless MCP connection for AI-powered browser automation
+- **Multi-Team Architecture**: Team isolation, resource management, and enterprise deployment
+- **Production Infrastructure**: Monitoring, observability, containerization, and cloud-native patterns
+- **Intelligent Automation**: AI-friendly tools, semantic navigation, and adaptive testing
 
-### Quick Comparison
+**3. 🔧 Development Tooling Innovation**
 
-| Guide                 | Time   | Audience     | Focus                       |
-| --------------------- | ------ | ------------ | --------------------------- |
-| **hello_brooklyn.md** | 5 min  | Anyone       | Quick setup, first test     |
-| **welcome.md**        | 15 min | End users    | Complete features, examples |
-| **ONBOARDING.md**     | 15 min | Team members | Architecture, development   |
-| **AGENT.md**          | 5 min  | Developers   | Instant productivity        |
+- **Revolutionary Dev Mode**: Socket-based development without Claude session restarts
+- **Comprehensive Testing**: Protocol compliance, performance, and security validation
+- **Documentation Excellence**: Technical notes, implementation guides, and best practices
+- **Quality Engineering**: File-level validation, automated testing, and operational excellence
 
-## 🚀 Quick Start
+---
+
+## 🚀 **Quick Start (5 Minutes)**
 
 ### Prerequisites
 
 - **Bun** (>= 1.0.0) - [Install Bun](https://bun.sh)
-- **Node.js** (>= 18.0.0) - For compatibility
 - **Claude Code** - [Install Claude Code](https://claude.ai/code)
 
-### Installation
-
-#### Option A: Automated Bootstrap (Recommended)
-
-Run our interactive bootstrap script that handles everything:
+### Lightning Setup
 
 ```bash
-# Clone the repository
-git clone https://github.com/3leaps/fulmen-mcp-forge-brooklyn.git
-cd fulmen-mcp-forge-brooklyn
-
-# Install dependencies
+# Clone and install
+git clone https://github.com/fulmenhq/brooklyn-mcp.git
+cd brooklyn-mcp
 bun install
 
-# Run the bootstrap script
-bun run bootstrap
+# Build and install CLI
+bun run build && bun run install
 
-# The script will:
-# ✅ Detect your OS and set appropriate paths
-# ✅ Install or configure Brooklyn MCP server
-# ✅ Configure Claude Code integration automatically
-# ✅ Install global `brooklyn-server` command
-# ✅ Test the server connection
+# Connect to Claude Code (stdio transport)
+claude mcp add -s user brooklyn "brooklyn mcp start"
+
+# Verify connection
+claude mcp list
 ```
 
-#### Option B: Manual Installation
+### Test Your First Automation
+
+In Claude Code, try:
+
+```
+# Launch a browser and navigate
+Launch a chromium browser for team 'demo'
+Navigate to https://example.com
+
+# Take a screenshot and analyze
+Take a full-page screenshot
+Analyze the CSS specificity for the header element
+
+# Close when done
+Close the browser
+```
+
+---
+
+## 🌉 **Enterprise Infrastructure Highlights**
+
+### **Multi-Team Platform Architecture**
+
+```typescript
+// Built for enterprise scale from day one
+const teamConfig = {
+  frontend: {
+    allowedDomains: ["localhost:3000", "staging.example.com"],
+    maxBrowsers: 5,
+    resourceQuotas: { memory: "2GB", cpu: "50%" },
+  },
+  qa: {
+    allowedDomains: ["*.example.com", "test.internal"],
+    maxBrowsers: 10,
+    customTools: ["visual_regression", "accessibility_audit"],
+  },
+};
+```
+
+### **Browser Pool Management**
+
+- **Progressive Installation**: 99.9% distribution size reduction (0.41MB vs 300MB)
+- **Circuit Breaker Protection**: Prevents cascading failures across teams
+- **Health Monitoring**: Automatic browser lifecycle management and cleanup
+- **Resource Quotas**: Per-team limits with intelligent pooling strategies
+
+### **Production-Ready Operations**
+
+- **Dual Transport Support**: stdio (MCP standard) and HTTP (debugging friendly)
+- **Comprehensive Observability**: Metrics, tracing, and structured logging
+- **Zero-Downtime Deployment**: Backward compatible updates without Claude Code restarts
+- **Security First**: Domain allowlisting, audit trails, and team isolation
+
+---
+
+## 🏗️ **Reference Implementation Value**
+
+Brooklyn serves as the **foundational template** for the entire MCP ecosystem, providing battle-tested patterns that teams can adapt for their specific needs:
+
+### **Ready-Made Infrastructure**
 
 ```bash
-# Clone the repository
-git clone https://github.com/3leaps/fulmen-mcp-forge-brooklyn.git
-cd fulmen-mcp-forge-brooklyn
-
-# Install dependencies
-bun install
-
-# Set up browsers
-bun run setup
-
-# Start the server
-bun run server:start
+# All the enterprise patterns you need:
+✅ Authentication & Authorization backends
+✅ Multi-tenant security with team isolation
+✅ TLS transport options for secure communication
+✅ Docker containerization with Kubernetes integration
+✅ Comprehensive logging, monitoring, and observability
+✅ Quality gates: testing, validation, security scanning
 ```
 
-#### Bootstrap Script Commands
+### **Cross-Language Implementation Guides**
 
-```bash
-# Install Brooklyn (interactive)
-bun run bootstrap
+- **[Technical Notes](./docs/technical-notes/)** - Deep-dive implementation patterns for Go, Rust, Python
+- **Transport Architecture** - Socket, HTTP, and stdio patterns with runtime-specific considerations
+- **Security Patterns** - Enterprise authentication, authorization, and compliance frameworks
+- **Development Workflows** - Testing strategies, quality gates, and operational excellence
 
-# Install Brooklyn (explicit)
-bun run bootstrap:install
+### **Post-Release Roadmap**
 
-# Remove Brooklyn installation
-bun run bootstrap:remove
-```
+- **🔐 Authentication Backends** - OAuth, LDAP, API keys with rotation for HTTP transport
+- **🛡️ TLS Integration** - mTLS, certificate management, secure communication channels
+- **🐳 Container Packaging** - Production Docker containers with security scanning
+- **🚀 Go Implementation** - High-performance reference for enterprise scaling (1000+ concurrent sessions)
 
-### Connect to Claude
+> **Building an MCP server?** Start with Brooklyn's proven patterns instead of building from scratch. Save months of development time and avoid common pitfalls.
 
-Add Brooklyn to your Claude Code configuration:
+---
 
-**macOS/Linux:** `~/.config/claude/claude_desktop_config.json`  
-**Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+## 🎯 **Core Capabilities**
 
-```json
-{
-  "mcpServers": {
-    "brooklyn": {
-      "command": "bun",
-      "args": ["run", "start"],
-      "cwd": "/absolute/path/to/fulmen-mcp-forge-brooklyn"
-    }
+### **AI-First Browser Automation**
+
+| Feature                  | Description                                      | Enterprise Benefit               |
+| ------------------------ | ------------------------------------------------ | -------------------------------- |
+| **Semantic Navigation**  | AI-friendly element targeting and page analysis  | Reduce britttle test maintenance |
+| **Visual Validation**    | Screenshot comparison and layout verification    | Catch visual regressions early   |
+| **CSS Analysis**         | Specificity analysis and styling troubleshooting | Debug complex UX issues faster   |
+| **JavaScript Injection** | Dynamic script execution and DOM manipulation    | Extend automation capabilities   |
+
+### **Template Extensibility**
+
+Brooklyn's architecture enables rapid customization for any use case:
+
+```typescript
+// Example: Add security scanning tools
+export class SecurityScanningPlugin {
+  @mcpTool({
+    name: "scan_vulnerabilities",
+    description: "Scan page for security vulnerabilities",
+  })
+  async scanVulnerabilities({ url, scanType }: ScanRequest) {
+    // Custom security scanning logic
+    return this.securityEngine.scan(url, scanType);
   }
 }
 ```
 
-### Test Connection
+**Common Extensions**:
 
-Restart Claude Code and test the connection:
+- **API Testing**: Add HTTP request tools for full-stack testing
+- **Data Extraction**: Web scraping and content analysis tools
+- **Performance Monitoring**: Page speed and resource optimization
+- **Accessibility Auditing**: WCAG compliance and usability testing
 
-```
-# In Claude Code, try:
-brooklyn_status
+---
 
-# Or launch your first browser:
-Launch a chromium browser for team 'demo'
-```
+## 📋 **Available Commands**
 
-## 🎯 Use Cases
-
-### AI Development
-
-- **Smart Web Automation**: Let Claude navigate websites and extract data
-- **Dynamic Testing**: Generate and run tests based on UI changes
-- **Form Automation**: Automate complex form filling and submission
-
-### E2E Testing
-
-- **Cross-Browser Testing**: Chromium, Firefox, and WebKit support
-- **Visual Regression**: Screenshot comparison and validation
-- **Test Orchestration**: AI-driven test execution and debugging
-
-### Team Workflows
-
-- **Multi-Team Isolation**: Separate browser pools and configurations
-- **Resource Management**: Intelligent browser pooling and cleanup
-- **Security Controls**: Domain allowlisting and access controls
-
-## 📋 Available Commands
-
-### Core Browser Automation
+### **Browser Automation**
 
 ```bash
-# Launch a browser
-launch_browser type=chromium headless=true teamId=my-team
-
-# Navigate to a website
-navigate browserId=browser_123 url=https://example.com
-
-# Take a screenshot (v1.1.4+ returns file paths, not base64)
-screenshot browserId=browser_123 fullPage=true returnFormat=file
-
-# Close browser
+# Browser lifecycle
+launch_browser type=chromium headless=true team=frontend
+navigate_to_url browserId=browser_123 url=https://app.example.com
+take_screenshot browserId=browser_123 fullPage=true
 close_browser browserId=browser_123
+
+# Element interaction
+click_element browserId=browser_123 selector="button[data-testid='submit']"
+fill_form_fields browserId=browser_123 fields='{"email":"test@example.com"}'
+wait_for_element browserId=browser_123 selector=".loading-complete"
+
+# Advanced analysis
+analyze_specificity browserId=browser_123 selector="header" summarize=true
+extract_css browserId=browser_123 selector=".component"
+generate_selector browserId=browser_123 target="login form"
 ```
 
-### Onboarding & Discovery
+### **Platform Management**
 
 ```bash
-# Get server status
-brooklyn_status
+# Status and discovery
+brooklyn_status                    # Server health and capabilities
+brooklyn_list_tools                # Available automation tools
+list_active_browsers               # Current browser sessions
 
-# List all capabilities
-brooklyn_capabilities
+# Team management
+brooklyn_team_setup team_id=frontend use_cases=["e2e_testing"]
+list_screenshots team=frontend date_range="last_7_days"
 
-# Get getting started guide
-brooklyn_getting_started use_case=ai_development
-
-# Get practical examples
-brooklyn_examples task=basic_navigation format=claude_commands
-
-# Set up team configuration
-brooklyn_team_setup team_id=my-team use_cases=["e2e_testing"]
-
-# Get troubleshooting help
+# Troubleshooting
 brooklyn_troubleshooting issue=connection_failed
+brooklyn_examples task=form_automation format=claude_commands
 ```
 
-## 🛠️ Server Management
+---
 
-### Brooklyn CLI (Recommended)
+## 🏗️ **Development as a Template**
 
-Brooklyn includes a built-in CLI for easy server management from anywhere:
+### **Clone and Customize**
 
 ```bash
-# Install Brooklyn CLI globally
-bun run install
+# Start with Brooklyn's proven architecture
+git clone https://github.com/fulmenhq/brooklyn-mcp.git my-custom-mcp
+cd my-custom-mcp
 
-# Global server management (works from anywhere)
-brooklyn-server start       # Start the server
-brooklyn-server stop        # Stop the server
-brooklyn-server restart     # Restart the server
-brooklyn-server status      # Check server status
-brooklyn-server logs        # View server logs (continuous)
-brooklyn-server logs --recent  # View recent logs only
-brooklyn-server cleanup     # Clean up resources
-brooklyn-server info        # Show installation information
-
-# Get comprehensive help
-brooklyn-server --help
+# Customize for your domain
+bun run refit --domain="security-scanning" --tools="vulnerability,compliance"
 ```
 
-**CLI Installation Options:**
+### **Architectural Patterns**
 
-- **Project-local**: `bun run install` (CLI manages this specific Brooklyn instance)
-- **User-wide**: Use bootstrap script for system-wide installation
-- **Deprovisioning**: `bun run bootstrap:remove` to uninstall completely
+Brooklyn implements enterprise-grade patterns you can adapt:
 
-> **⚠️ Important**: `bun run install` always overwrites existing installations without version checking or `--force` option. See [Brooklyn CLI Documentation](docs/user-guide/brooklyn-cli.md#installation-behavior) for detailed behavior and version handling.
+- **Hexagonal Architecture**: Clean separation of business logic and adapters
+- **Plugin System**: Extensible tool registration and discovery
+- **Resource Management**: Circuit breakers, quotas, and health monitoring
+- **Multi-Transport**: stdio and HTTP with seamless switching
+- **Team Isolation**: Complete separation with shared infrastructure
 
-### Development Commands
+### **Quality Infrastructure**
 
 ```bash
-# Start development server
-bun run dev
+# Built-in quality gates
+bun run check-all              # Format, typecheck, lint, test
+bun run check:file path.ts     # File-level validation
+bun run test:e2e               # End-to-end MCP protocol tests
 
-# Direct server management (from repo)
-bun run server:start
-bun run server:stop
-bun run server:status
-bun run server:cleanup
-bun run server:logs:recent
+# Production deployment
+bun run build                  # Optimized TypeScript compilation
+brooklyn mcp start --log-level=info  # Production server
 ```
 
-### Quality Assurance
+---
+
+## 🔧 **Server Management**
+
+### **Brooklyn CLI**
 
 ```bash
-# Run all quality checks
-bun run check-all
+# Install global CLI
+bun run build && bun run install
 
-# Type checking
-bun run typecheck
-
-# Linting
-bun run lint
-bun run lint:fix
-
-# Code formatting
-bun run format:code
-
-# File-level validation
-bun run check:file src/path/to/file.ts
-bun run check:file:fix src/path/to/file.ts
-
-# Version management (ALWAYS use these scripts - never edit manually)
-bun run version:get                    # Check current version
-bun run version:set 1.2.3             # Set specific version
-bun run version:bump:patch             # Bump patch version (1.1.6 → 1.1.7)
-bun run version:bump:minor             # Bump minor version (1.1.6 → 1.2.0)
-bun run version:bump:major             # Bump major version (1.1.6 → 2.0.0)
-bun run check:versions                 # Verify version consistency
+# Server operations (work from anywhere)
+brooklyn status               # Check server health
+brooklyn mcp start            # Start MCP server
+brooklyn mcp cleanup          # Clean up resources
+brooklyn --version            # Show version info
 ```
 
-### Testing
+### **Development Commands**
 
 ```bash
-# Run all tests
-bun run test
+# Development workflow
+bun run dev                   # Start development server
+bun run test:watch           # Run tests in watch mode
+bun run typecheck            # TypeScript validation
 
-# Unit tests only (fast - for pre-commit)
-bun run test:unit
-
-# Integration tests
-bun run test:integration
-
-# E2E tests
-bun run test:e2e
-
-# Coverage report
-bun run test:coverage
-
-# ⚠️ Note: test:watch is intentionally not provided
-# Watch mode can leave orphaned processes and consume excessive memory
-# Use targeted test runs instead
+# Quality assurance
+bun run lint:fix             # Auto-fix linting issues
+bun run format:code          # Format source code
+bun run check:file src/core/new-feature.ts  # Validate specific file
 ```
 
-## 🏢 Team Configuration
+### **Transport Options**
 
-### Multi-Team Setup
+```bash
+# stdio transport (MCP standard)
+brooklyn mcp start --log-level debug
 
-Brooklyn supports multiple teams with isolated configurations:
+# HTTP transport (debugging friendly)
+brooklyn web start --port 3000 --daemon
+```
+
+---
+
+## 🔐 **Security & Compliance**
+
+### **Enterprise Security Features**
+
+- **Domain Allowlisting**: Strict validation of accessible websites
+- **Team Isolation**: Complete resource and data separation
+- **Audit Logging**: Comprehensive activity tracking with team attribution
+- **Resource Quotas**: Prevent resource exhaustion and ensure fair usage
+- **Secure Contexts**: Isolated browser environments for each team
+
+### **Configuration Example**
 
 ```json
 {
@@ -301,186 +333,112 @@ Brooklyn supports multiple teams with isolated configurations:
       "allowedDomains": ["localhost:3000", "staging.example.com"],
       "maxBrowsers": 5,
       "rateLimit": { "requests": 100, "window": 60000 }
-    },
-    "qa": {
-      "allowedDomains": ["*.example.com", "test.internal"],
-      "maxBrowsers": 10,
-      "customTools": ["visual_regression"]
     }
+  },
+  "security": {
+    "enableAuditLogging": true,
+    "requireDomainValidation": true,
+    "maxSessionDuration": "2h"
   }
 }
 ```
 
-### Environment Variables
+---
 
-Brooklyn uses a dedicated port range (50xxx) to avoid conflicts:
+## 📊 **Performance & Monitoring**
 
-```bash
-# Server configuration - Brooklyn reserves 50xxx port range
-export BROOKLYN_MCP_PORT=50000        # Main MCP server
-export BROOKLYN_HEALTH_PORT=50001     # Health check endpoint
-export BROOKLYN_METRICS_PORT=50002    # Metrics endpoint
-export BROOKLYN_ADMIN_PORT=50003      # Admin interface (future)
-
-# Core settings
-export BROOKLYN_ENVIRONMENT=development
-export BROOKLYN_MAX_BROWSERS=10
-export BROOKLYN_HEADLESS=true
-export BROOKLYN_LOG_LEVEL=info
-
-# Security settings
-export BROOKLYN_RATE_LIMIT_REQUESTS=100
-export BROOKLYN_RATE_LIMIT_WINDOW=60000
-export BROOKLYN_ALLOWED_DOMAINS="localhost,*.example.com"
-
-# Copy .env.example to .env and customize for your setup
-cp .env.example .env
-```
-
-## 🔐 Security Features
-
-- **Domain Allowlisting**: Restrict which domains teams can access
-- **Resource Limits**: Per-team browser and memory limits
-- **Audit Logging**: Complete audit trail of all automation activities
-- **Secure Contexts**: Isolated browser contexts for each team
-- **File-based Storage**: Screenshots stored with path validation and team isolation (v1.1.4+)
-
-## 🎭 Browser Support
-
-| Browser      | Status          | Use Cases                            |
-| ------------ | --------------- | ------------------------------------ |
-| **Chromium** | ✅ Full Support | AI development, general automation   |
-| **Firefox**  | ✅ Full Support | Cross-browser testing, compatibility |
-| **WebKit**   | ✅ Full Support | Safari simulation, mobile testing    |
-
-## 📊 Monitoring
-
-### Health Checks
+### **Enterprise Metrics**
 
 ```bash
-# Check server health
-curl http://localhost:3000/health
+# Real-time monitoring
+curl http://localhost:3000/health     # Health status
+curl http://localhost:3000/metrics    # Performance metrics
 
-# Get detailed metrics
-curl http://localhost:3000/metrics
-
-# Version information
-curl http://localhost:3000/version
+# Browser pool analytics
+brooklyn status --detailed           # Resource utilization
+brooklyn metrics --team=frontend     # Team-specific metrics
 ```
 
-### Observability
+### **Performance Targets**
 
-- **Structured Logging**: All activities logged with team attribution
-- **Metrics Collection**: Resource usage, performance, and error rates
-- **Distributed Tracing**: OpenTelemetry integration (optional)
-- **File Storage Metrics**: Screenshot storage analytics and audit trails (v1.1.4+)
+- **Browser Acquisition**: <500ms from pool
+- **MCP Response Time**: <100ms (95th percentile)
+- **Distribution Size**: 0.41MB (99.9% reduction from standard Playwright)
+- **Memory Efficiency**: Automatic cleanup prevents memory leaks
 
-## 🔧 Development
+---
 
-### Project Structure
+## 📚 **Documentation**
 
-```
-brooklyn/
-├── src/
-│   ├── core/           # Core MCP server logic
-│   ├── adapters/       # Playwright integration
-│   ├── ports/          # Interface definitions
-│   ├── shared/         # Shared utilities
-│   └── plugins/        # Team-specific extensions
-├── tests/             # Test suite
-├── configs/           # Team configurations
-├── scripts/           # Management scripts
-└── docs/              # Documentation
-```
+### **Quick Start Guides**
 
-### Contributing
+- **[Hello Brooklyn](docs/hello_brooklyn.md)** - 5-minute setup and first automation
+- **[Welcome Guide](docs/welcome.md)** - Comprehensive features and examples
+- **[Agent Onboarding](AGENT.md)** - Team member quick start
 
-⚠️ **CRITICAL**: Read [Logger Usage SOP](docs/development/LOGGER-USAGE-SOP.md) FIRST to avoid common bundling failures!
+### **Platform Documentation**
 
-1. **Fork** the repository
-2. **Create** a feature branch
-3. **Make** your changes following our coding standards
-4. **Run** quality checks: `bun run check-all`
-5. **Submit** a pull request
-
-### Quality Standards
-
-- **Zero-tolerance TypeScript**: All code must pass strict type checking
-- **Test Coverage**: 90%+ critical paths, 80%+ business logic
-- **File-level Validation**: Every modified file must pass `bun run check:file`
-
-## 📚 Documentation
-
-### Complete Documentation
-
-**For Users**:
-
-- **[Welcome Guide](docs/welcome.md)** - Complete setup and first automation
-- **[User Guide](docs/user-guide/index.md)** - Comprehensive browser automation guide
-- **[Advanced Features](docs/user-guide/advanced-features.md)** - Complex automation scenarios
+- **[User Guide](docs/user-guide/index.md)** - Complete browser automation guide
 - **[Team Management](docs/user-guide/team-management.md)** - Multi-team configuration
+- **[Advanced Features](docs/user-guide/advanced-features.md)** - Complex automation scenarios
 
-**For Team Members**:
+### **Template Development**
 
-- **[Team Onboarding](docs/ONBOARDING.md)** - Architecture, development philosophy, and team context
-- **[Development Guide](docs/development/index.md)** - Server management and troubleshooting
-- **[5-Minute Onboarding](CLAUDE.md#5-minute-team-onboarding-start-here-first)** - Instant productivity
+- **[Development Guide](docs/development/index.md)** - Extending and customizing Brooklyn
+- **[Architecture Guide](docs/architecture/)** - Enterprise infrastructure patterns
+- **[MCP Protocol Guide](docs/development/mcp-protocol-guide.md)** - Protocol compliance details
 
-**For Maintainers**:
+---
 
-- **[Fulmen Spark Framework](docs/fulmen/spark/README.md)** - Strategic onboarding initiative
-- **[Maintainer Guide](docs/fulmen/spark/maintainer-guide.md)** - Multi-language implementation
+## 🆘 **Support & Community**
 
-## 🆘 Support
-
-### Getting Help
+### **Built-in Help**
 
 ```bash
-# Built-in troubleshooting
-brooklyn_troubleshooting issue=general
-
-# Check server logs (follows continuously)
-bun run server:logs
-
-# Check recent logs (last 20 lines)
-bun run server:logs:recent
-
-# Get examples
-brooklyn_examples task=all
+# Troubleshooting assistance
+brooklyn_troubleshooting issue=browser_crash
+brooklyn_examples task=visual_testing
+brooklyn_logs                        # Recent server logs
 ```
 
-### Communication Channels
+### **Community Resources**
 
-- **Documentation**: See [docs/](docs/) directory for comprehensive guides
-- **GitHub Issues**: [Report issues](https://github.com/3leaps/fulmen-mcp-forge-brooklyn/issues)
-
-## 📜 License
-
-MIT License - see [LICENSE](LICENSE) for details.
-
-## 🌉 About Brooklyn
-
-Brooklyn is named after the Brooklyn Bridge - a testament to engineering excellence that connects communities while handling massive scale with grace and reliability. Our Brooklyn MCP server aspires to the same standard, bridging AI developers with powerful browser automation capabilities.
+- **GitHub Issues**: [Report bugs and request features](https://github.com/fulmenhq/brooklyn-mcp/issues)
+- **Documentation**: Comprehensive guides in [docs/](docs/) directory
+- **Enterprise Support**: Contact [3 Leaps](mailto:support@3leaps.net) for enterprise deployments
 
 ---
 
-**Built with 🧡 by the 3 Leaps team**  
-Part of the [Fulmen Ecosystem](https://github.com/fulmenhq/fulmen-ecosystem)
+## 🌉 **The Brooklyn Bridge Philosophy**
+
+Brooklyn is named after the Brooklyn Bridge - a masterpiece of engineering that **spans the gap** between communities while **handling massive scale** with grace and reliability. Our Brooklyn Forge aspires to the same standard:
+
+- **🌉 Bridge Builder**: Connects AI developers to enterprise browser capabilities
+- **🏗️ Structural Integrity**: Provides reliable, enterprise-grade infrastructure teams can depend on
+- **🚦 Traffic Management**: Handles multiple teams and workloads without interference
+- **🎨 Architectural Beauty**: Elegant abstractions make complex automation feel intuitive
+
+**Start Fast. Thrive on Scale.** - It's not just our tagline, it's our architectural commitment.
 
 ---
 
-**Fulmen Ecosystem**
+## 📜 **License & Legal**
 
-This project is part of the [Fulmen ecosystem](https://fulmen.dev), supported and maintained by [3 Leaps](https://3leaps.net).
+**Open Source**: MIT License - see [LICENSE](LICENSE) for details.
 
-Released under MIT License. See [LICENSE](LICENSE) for details.
+**Trademarks**: "Fulmen", "Brooklyn Forge", and "3 Leaps" are trademarks of 3 Leaps, LLC. While code is open source, please use distinct names for derivative works to prevent confusion.
 
-For contributions, see [CONTRIBUTING.md](CONTRIBUTING.md).
+---
 
-## Trademark Notices
+**Built with 🌉 by the 3 Leaps team**  
+**Part of the [Fulmen Ecosystem](https://fulmenhq.org) - Lightning-fast enterprise development**
 
-"3 Leaps®" is a registered trademark of 3 Leaps, LLC, a Florida LLC with offices in South Carolina. "Fulmen™" is a trademark of 3 Leaps, LLC, claimed through use in commerce, with plans for USPTO registration. "Fulmens" and "FulmenHQ" are trademarks of 3 Leaps, LLC.
+---
 
-While code and documentation are open under MIT, usage of these trademarks is reserved for official implementations to prevent confusion and benefit the ecosystem. Use of these marks in derivative works does not imply endorsement by 3 Leaps, LLC. For the benefit of the community, please rename your project folder and configurations to avoid using "3leaps", "fulmen", "fulmens", or "fulmenhq" in derivative works.
+<div align="center">
 
-For questions regarding trademark usage, contact legal@3leaps.net.
+⚡ **Start Fast. Thrive on Scale.** ⚡
+
+_Transform AI UX development with enterprise-ready browser automation_
+
+</div>

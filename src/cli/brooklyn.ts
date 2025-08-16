@@ -12,7 +12,7 @@
  */
 
 // Version embedded at build time from VERSION file
-const VERSION = "1.4.35";
+const VERSION = "1.4.36";
 
 import { HELP_TEXT } from "../generated/help/index.js";
 // buildConfig import removed - not used in CLI entry point
@@ -130,8 +130,13 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
     .description("Start MCP server (stdin/stdout mode for Claude Code)")
     .option("--team-id <teamId>", "Team identifier")
     .option("--log-level <level>", "Log level (debug, info, warn, error)")
-    .option("--dev-mode", "Enable development mode with named pipes")
-    .option("--pipes-prefix <prefix>", "Named pipes prefix (dev mode only)", "/tmp/brooklyn-dev")
+    .option("--dev-mode", "Enable development mode with IPC transport")
+    .option("--socket-path <path>", "Unix socket path (dev mode only)")
+    .option(
+      "--pipes-prefix <prefix>",
+      "Named pipes prefix (experimental dev mode only)",
+      "/tmp/brooklyn-dev",
+    )
     .action(async (options) => {
       // Lightweight imports to avoid top-level side effects
       const { createHash } = await import("node:crypto");
@@ -202,11 +207,17 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
 
         // Create transport first to enter MCP mode
         const transport = options.devMode
-          ? await createMCPStdio({
-              inputPipe: process.env["BROOKLYN_DEV_INPUT_PIPE"] || `${options.pipesPrefix}-input`,
-              outputPipe:
-                process.env["BROOKLYN_DEV_OUTPUT_PIPE"] || `${options.pipesPrefix}-output`,
-            })
+          ? await createMCPStdio(
+              // Prefer socket path if provided, fall back to environment variables or pipes
+              options.socketPath || process.env["BROOKLYN_DEV_SOCKET_PATH"]
+                ? { socketPath: options.socketPath || process.env["BROOKLYN_DEV_SOCKET_PATH"] }
+                : {
+                    inputPipe:
+                      process.env["BROOKLYN_DEV_INPUT_PIPE"] || `${options.pipesPrefix}-input`,
+                    outputPipe:
+                      process.env["BROOKLYN_DEV_OUTPUT_PIPE"] || `${options.pipesPrefix}-output`,
+                  },
+            )
           : await createMCPStdio();
 
         // Write PID registry entry (managed)
@@ -368,19 +379,43 @@ function setupMCPDevCommands(mcpCmd: Command): void {
   // Hidden commands for internal development (Architecture Committee guidance)
   const devStartCmd = mcpCmd
     .command("dev-start")
-    .description("Start MCP development mode with named pipes (internal use only)")
+    .description("Start MCP development mode with IPC transport (internal use only)")
     .option("--team-id <teamId>", "Team identifier for development")
     .option("--foreground", "Keep process in foreground")
+    .option("--transport <type>", "Transport type: 'socket' (default) or 'pipe'", "socket")
+    .option("--experimental", "Enable experimental features (required for pipe transport)", false)
     .action(async (options) => {
       try {
+        // Validate transport and experimental flag combination
+        if (options.transport === "pipe" && !options.experimental) {
+          console.error("❌ Error: Named pipe transport is experimental and unreliable in Node.js");
+          console.error("   Reason: Node.js has fundamental limitations with FIFO operations");
+          console.error("   Solution: Use --experimental flag to acknowledge the risks");
+          console.error("   Recommendation: Use socket transport instead (--transport socket)");
+          console.error("");
+          console.error("   Example: brooklyn mcp dev-start --transport pipe --experimental");
+          console.error("   Better:  brooklyn mcp dev-start --transport socket");
+          process.exit(1);
+        }
+
+        if (options.transport === "pipe") {
+          console.warn("⚠️  Warning: Using experimental named pipe transport");
+          console.warn("   This transport has known reliability issues in Node.js");
+          console.warn("   For production use, prefer socket transport");
+          console.warn("");
+        }
+
         const { MCPDevManager } = await import("../core/mcp-dev-manager.js");
         const devManager = new MCPDevManager();
+
         // Set team ID if provided
         if (options.teamId) {
           process.env["BROOKLYN_DEV_TEAM_ID"] = options.teamId;
         }
+
         await devManager.start({
           foreground: options.foreground,
+          transport: options.transport,
         });
       } catch (error) {
         try {

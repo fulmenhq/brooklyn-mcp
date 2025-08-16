@@ -4,12 +4,12 @@
 
 ```bash
 # Check if dev mode is running
-bun run src/cli/brooklyn.ts mcp dev-status
+brooklyn mcp dev-status
 
 # Check for Brooklyn processes
 ps aux | grep brooklyn
 
-# Check for named pipes
+# Check for transport files (socket or pipes)
 ls -la /tmp/brooklyn-mcp-dev-*
 
 # View dev mode logs
@@ -26,20 +26,23 @@ ls -la ~/.brooklyn/dev/logs/
 
 ```bash
 # Clean up existing process
-bun run src/cli/brooklyn.ts mcp dev-cleanup
+brooklyn mcp dev-cleanup
 
 # Then start fresh
-bun run src/cli/brooklyn.ts mcp dev-start
+brooklyn mcp dev-start --transport socket
 ```
 
-### 2. Commands hang when writing to pipes
+### 2. Commands hang when writing to pipes (Pipe Transport Only)
 
 **Problem**: Named pipes need both reader and writer active
 
 **Solution**:
 
 ```bash
-# Always set up reader first (in background)
+# Switch to socket transport (recommended)
+brooklyn mcp dev-start --transport socket
+
+# OR for pipe transport: Set up reader first (in background)
 cat /tmp/brooklyn-mcp-dev-{uuid}-{timestamp}-out &
 
 # Then write to input pipe
@@ -71,39 +74,36 @@ ls -la /tmp/brooklyn-mcp-dev-*
 
 ```bash
 # Restart dev mode
-bun run src/cli/brooklyn.ts mcp dev-restart
+brooklyn mcp dev-restart
 ```
 
-### 4. Permission denied on pipes
+### 4. Permission denied on transport files
 
-**Problem**: Pipes created with wrong permissions or by different user
+**Problem**: Transport files (socket/pipes) created with wrong permissions or by different user
 
 **Solution**:
 
 ```bash
 # Clean up and restart
-bun run src/cli/brooklyn.ts mcp dev-cleanup
-bun run src/cli/brooklyn.ts mcp dev-start
+brooklyn mcp dev-cleanup
+brooklyn mcp dev-start --transport socket
 ```
 
-### 5. Scripts vs Core Commands Confusion
+### 5. Transport Selection Issues
 
-**Problem**: Using old script commands that are deprecated
+**Problem**: Using unreliable pipe transport
 
-**❌ Don't use** (deprecated):
+**✅ Use socket transport** (recommended):
 
 ```bash
-bun run dev:start
-bun run dev:status
-bun run dev:stop
+brooklyn mcp dev-start --transport socket
 ```
 
-**✅ Use instead**:
+**❌ Avoid pipe transport** unless needed:
 
 ```bash
-bun run src/cli/brooklyn.ts mcp dev-start
-bun run src/cli/brooklyn.ts mcp dev-status
-bun run src/cli/brooklyn.ts mcp dev-stop
+# Only use if socket transport doesn't work
+brooklyn mcp dev-start --transport pipe --experimental
 ```
 
 ## Debugging Steps
@@ -112,7 +112,7 @@ bun run src/cli/brooklyn.ts mcp dev-stop
 
 ```bash
 # Should show either "not running" or process details
-bun run src/cli/brooklyn.ts mcp dev-status
+brooklyn mcp dev-status
 ```
 
 ### 2. Check Process Tree
@@ -134,7 +134,17 @@ ls -lt ~/.brooklyn/dev/logs/ | head -5
 cat ~/.brooklyn/dev/logs/brooklyn-mcp-dev-{latest-timestamp}.log
 ```
 
-### 4. Test Pipe Communication
+### 4. Test Transport Communication
+
+**Socket Transport (Recommended):**
+
+```bash
+# Get socket path and test
+SOCKET_PATH=$(brooklyn mcp dev-status | grep Socket | awk '{print $NF}')
+echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{"roots":{}},"clientInfo":{"name":"test","version":"1.0"}}}' | nc -U $SOCKET_PATH
+```
+
+**Pipe Transport (If using):**
 
 ```bash
 # Get current pipe names
@@ -148,10 +158,10 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
 
 ## Error Messages
 
-### "Pipes not found"
+### "Socket/Pipes not found"
 
 - Dev mode not started or crashed
-- Run `mcp dev-start` to create pipes
+- Run `brooklyn mcp dev-start --transport socket` to create transport files
 
 ### "ESPIPE (Illegal seek)"
 
@@ -174,13 +184,13 @@ If everything is broken:
 
 ```bash
 # Nuclear option - clean everything
-bun run src/cli/brooklyn.ts mcp dev-cleanup
+brooklyn mcp dev-cleanup
 pkill -f "brooklyn.*dev-mode"
 rm -f /tmp/brooklyn-mcp-dev-*
 rm -f ~/.brooklyn/dev/pipes.json
 
-# Start fresh
-bun run src/cli/brooklyn.ts mcp dev-start
+# Start fresh with socket transport
+brooklyn mcp dev-start --transport socket
 ```
 
 ## Getting Help

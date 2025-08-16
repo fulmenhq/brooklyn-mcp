@@ -15,7 +15,7 @@ Brooklyn installs as a single binary to your system:
 
 ```bash
 # User installation (recommended)
-bun run install:user
+bun run install
 
 # This installs brooklyn to:
 # macOS/Linux: ~/.local/bin/brooklyn
@@ -74,7 +74,7 @@ claude mcp add -t stdio brooklyn brooklyn mcp start
 
 **⚠️ WARNING**: Manual JSON configuration is for Claude Desktop app only, not Claude Code CLI.
 
-If you must use manual configuration for some reason, see the [Legacy Configuration Guide](../legacy/claude-desktop-config.md).
+For manual configuration, see the Claude Code documentation for setting up MCP servers.
 
 ### Configuration Scopes
 
@@ -322,7 +322,7 @@ brooklyn_status  # Check "version" field
 - **Consider batching multiple changes** before version update
 - **Document team communication** around version update windows
 
-For detailed procedures, see: [docs/development/local_development_sop.md](../development/local_development_sop.md)
+For detailed procedures, see: [docs/development/index.md](../development/index.md)
 
 ## Next Steps
 

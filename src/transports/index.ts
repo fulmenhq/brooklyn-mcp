@@ -25,7 +25,13 @@ const createMCPStdioTransport: TransportFactory = async (
 ): Promise<Transport> => {
   const mcpConfig = config as MCPStdioConfig;
 
-  // Use FIFO transport for development mode with named pipes
+  // Use Unix socket transport for development mode (recommended)
+  if (mcpConfig.options?.socketPath) {
+    const { MCPSocketTransport } = await import("./mcp-socket-transport.js");
+    return new MCPSocketTransport(mcpConfig);
+  }
+
+  // Use FIFO transport for development mode with named pipes (experimental)
   if (mcpConfig.options?.inputPipe) {
     const { MCPFifoTransport } = await import("./mcp-fifo-transport.js");
     return new MCPFifoTransport(mcpConfig);
@@ -63,22 +69,26 @@ export async function createTransport(config: TransportConfig): Promise<Transpor
 }
 
 /**
- * Create MCP stdio transport with optional pipe configuration for development mode
+ * Create MCP stdio transport with optional socket/pipe configuration for development mode
  */
-export async function createMCPStdio(pipeOptions?: {
+export async function createMCPStdio(devOptions?: {
+  // Socket transport (recommended)
+  socketPath?: string;
+  // Named pipe transport (experimental)
   inputPipe?: string;
   outputPipe?: string;
 }): Promise<Transport> {
   // Set global transport mode for logging configuration BEFORE creating transport
-  const transportMode = pipeOptions ? "dev-mcp" : "mcp-stdio";
+  const transportMode = devOptions ? "dev-mcp" : "mcp-stdio";
   await setGlobalTransport(transportMode);
 
   const config: MCPStdioConfig = {
     type: TransportType.MCP_STDIO,
-    options: pipeOptions
+    options: devOptions
       ? {
-          inputPipe: pipeOptions.inputPipe,
-          outputPipe: pipeOptions.outputPipe,
+          socketPath: devOptions.socketPath,
+          inputPipe: devOptions.inputPipe,
+          outputPipe: devOptions.outputPipe,
           devMode: true,
         }
       : {},

@@ -1,7 +1,7 @@
 # Brooklyn HTTP Mode API Documentation
 
 **Status**: Phase 3 Complete ✅  
-**Version**: 1.3.3  
+**Version**: 1.4.35  
 **Author**: Architect Brooklyn (🏛️)
 
 Brooklyn HTTP Mode provides REST API endpoints for programmatic tool testing and CI/CD integration. This mode enables automated testing of all MCP tools via standard HTTP requests.
@@ -40,14 +40,14 @@ Notes:
 # Production HTTP server with OAuth PKCE (recommended for Claude Code)
 brooklyn web start --port 3000
 
-# Development HTTP mode for direct API access
-brooklyn mcp dev-http --port 8080 --team-id my-team --background
+# Development HTTP mode for direct API access (runs in background by default)
+brooklyn mcp dev-http --port 8080 --team-id my-team
 
 # Foreground mode (for debugging)
-brooklyn mcp dev-http --port 8080 --team-id my-team --verbose
+brooklyn mcp dev-http --port 8080 --team-id my-team --foreground --verbose
 
 # Custom configuration
-brooklyn mcp dev-http --port 3000 --host localhost --no-cors --background
+brooklyn mcp dev-http --port 3000 --host localhost --no-cors
 ```
 
 ### OAuth PKCE Authentication (NEW)
@@ -86,8 +86,8 @@ http://localhost:8080  # Default
 **The key to using Brooklyn's HTTP API is understanding how to discover and translate tools:**
 
 ```bash
-# 1. Start server in background
-brooklyn mcp dev-http --port 8080 --background
+# 1. Start server (runs in background by default)
+brooklyn mcp dev-http --port 8080
 
 # 2. Discover available tools
 curl -s http://localhost:8080/tools | jq '.data.tools[].name'

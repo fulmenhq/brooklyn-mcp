@@ -2,7 +2,7 @@
 
 ## Overview
 
-The MCP Dev Mode is an architectural pattern designed to enable isolated development and testing of Brooklyn's MCP server functionality without disrupting production Claude Code instances. This mode uses named pipes (FIFOs) for communication, allowing developers to simulate MCP interactions in a detached process. It addresses the limitation where updating an MCP server requires shutting down all Claude Code sessions on a machine, which is highly disruptive in multi-project environments.
+The MCP Dev Mode is an architectural pattern designed to enable isolated development and testing of Brooklyn's MCP server functionality without disrupting production Claude Code instances. This mode uses **Unix domain sockets** (recommended) or named pipes (experimental) for communication, allowing developers to simulate MCP interactions in a detached process. It addresses the limitation where updating an MCP server requires shutting down all Claude Code sessions on a machine, which is highly disruptive in multi-project environments.
 
 Key goals:
 
@@ -10,6 +10,7 @@ Key goals:
 - Maintain full MCP JSON-RPC protocol compatibility.
 - Enable chat-based testing and tool calls without full Claude Code infrastructure.
 - Support rapid prototyping and debugging for the Brooklyn team.
+- Offer reliable transport options across different runtime environments.
 
 This pattern is primarily for internal use by the Brooklyn development team but has potential extensions for CI/CD pipelines.
 
@@ -18,43 +19,53 @@ This pattern is primarily for internal use by the Brooklyn development team but 
 ### Core Components
 
 - **Detached Process**: The dev mode launches a background Brooklyn MCP server process using `brooklyn mcp start --dev-mode`. This process runs independently and does not interfere with production MCP servers.
-- **Named Pipes**: Communication occurs over timestamped FIFO pipes (e.g., `/tmp/brooklyn-dev-in-{timestamp}`, `/tmp/brooklyn-dev-out-{timestamp}`).
-  - Input pipe: Client writes MCP requests (JSON-RPC format).
-  - Output pipe: Server writes responses.
-- **Enhanced MCP Transport**: Custom pipe-based MCP stdio transport that properly integrates pipe streams with the MCP SDK by temporarily replacing stdin/stdout during connection.
-- **Process Management**: Commands for start, stop, restart, status, and cleanup via `scripts/dev-brooklyn.ts` with PID files and signal handling.
+- **Transport Options**: Communication occurs via two transport mechanisms:
+  - **Unix Socket Transport** (recommended): Bidirectional communication over Unix domain sockets (e.g., `/tmp/brooklyn-mcp-dev-{uuid}-{timestamp}.sock`)
+  - **Named Pipes** (experimental): FIFO pipes for legacy compatibility (e.g., `/tmp/brooklyn-dev-in-{timestamp}`, `/tmp/brooklyn-dev-out-{timestamp}`)
+- **Enhanced MCP Transport**: Custom transport implementations that properly integrate with the MCP SDK for reliable message handling.
+- **Process Management**: Commands for start, stop, restart, status, and cleanup via CLI with PID files and signal handling.
 - **Full Tool Support**: All 21 Brooklyn tools available (15 core tools including element interaction functions + 6 onboarding tools) through the development mode.
 
 ### Key Files
 
 - **CLI Integration**: Handled in `src/cli/brooklyn.ts` via the `--dev-mode` flag on `mcp start`.
-- **Enhanced Transport**: `src/transports/mcp-stdio-transport.ts` - Custom pipe-based MCP transport with proper stream integration.
-- **Dev Mode Core**: `src/core/dev-mode.ts` - Named pipe creation, process info management, and cleanup handlers.
-- **Management Script**: `scripts/dev-brooklyn.ts` - Process lifecycle management with start, stop, status, and test commands.
-- **Configuration**: Pipe locations configurable (default: `/tmp`), with automatic cleanup on exit and process monitoring.
+- **Socket Transport**: `src/transports/mcp-socket-transport.ts` - Unix domain socket MCP transport with reliable bidirectional communication.
+- **FIFO Transport**: `src/transports/mcp-fifo-transport.ts` - Named pipe MCP transport (experimental, Node.js limitations).
+- **Transport Factory**: `src/transports/index.ts` - Automatic transport selection based on configuration.
+- **Dev Mode Core**: `src/core/mcp-dev-manager.ts` - Transport creation, process info management, and cleanup handlers.
+- **Configuration**: Transport locations configurable (default: `/tmp`), with automatic cleanup on exit and process monitoring.
 
 ### Security and Limitations
 
-- Pipes have restrictive permissions (0600) to prevent unauthorized access.
+- Transport files have restrictive permissions (0600) to prevent unauthorized access.
 - Intended for local dev only— not for production or remote use.
 - No authentication in v1; rely on OS-level isolation.
-- Cleanup is manual via `brooklyn mcp dev-cleanup` (backlog: auto-cleanup).
+- **Transport-Specific Limitations**:
+  - **Socket Transport**: Reliable, recommended for all use cases
+  - **Named Pipes**: Experimental only, requires `--experimental` flag due to Node.js FIFO limitations
+- Cleanup is automatic on process termination with manual override via `brooklyn mcp dev-cleanup`.
 
 ## Usage Guide
 
 ### Starting Dev Mode
 
-Launch the dev server using the management script:
+Launch the dev server using the CLI commands:
 
 ```bash
-# Terminal 1: Start dev mode (runs in foreground!)
-bun run dev:brooklyn:start
+# Socket transport (recommended, default)
+brooklyn mcp dev-start
 
-# For AI agents: Background the process
-bun run dev:brooklyn:start &
+# Socket transport with team ID
+brooklyn mcp dev-start --team-id frontend
+
+# Foreground mode for debugging
+brooklyn mcp dev-start --foreground
+
+# Named pipe transport (experimental)
+brooklyn mcp dev-start --transport pipe --experimental
 ```
 
-⚠️ **Important**: Dev mode runs in the foreground by default. This creates named pipes and spawns a Brooklyn MCP server process that stays attached to the terminal. Use a separate terminal for other commands or background the process for automation.
+⚠️ **Important**: Dev mode runs in background by default. Use `--foreground` flag to keep the process attached to the terminal for debugging. Socket transport is recommended for reliability.
 
 ### Management Commands
 
@@ -62,14 +73,16 @@ Brooklyn provides comprehensive development mode management:
 
 ```bash
 # Process Management
-bun run dev:brooklyn:start    # Start development mode server
-bun run dev:brooklyn:stop     # Stop development mode server
-bun run dev:brooklyn:status   # Check server status and pipe health
-bun run dev:brooklyn:logs     # View server logs
-bun run dev:brooklyn:test     # Test MCP connection
+brooklyn mcp dev-start       # Start development mode server
+brooklyn mcp dev-stop        # Stop development mode server
+brooklyn mcp dev-status      # Check server status and transport health
+brooklyn mcp dev-cleanup     # Clean up orphaned processes and files
+brooklyn mcp dev-restart     # Restart development mode server
 
-# Alternative: Direct CLI access
-brooklyn mcp start --dev-mode --team-id=<team>
+# Development Options
+brooklyn mcp dev-start --transport socket --team-id frontend
+brooklyn mcp dev-start --transport pipe --experimental
+brooklyn mcp dev-start --foreground  # Debug mode
 ```
 
 ### Available Tools in Dev Mode
@@ -88,11 +101,29 @@ All 21 Brooklyn tools are available through the development server:
 
 ### Development Workflow
 
-1. Start dev mode.
-2. Use chat/helpers to test features (e.g., screenshot storage, browser automation).
-3. Iterate on code.
-4. Stop/cleanup when done.
-5. For production testing: Shut down Claude Code instances, update, and restart.
+1. Start dev mode: `brooklyn mcp dev-start`
+2. Test connection and tools using the provided instructions
+3. Use chat/helpers to test features (e.g., screenshot storage, browser automation)
+4. Iterate on code without restarting Claude Code sessions
+5. Stop/cleanup when done: `brooklyn mcp dev-stop`
+
+**Socket Transport Usage:**
+
+```bash
+# Test connection
+echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | nc -U /tmp/brooklyn-mcp-dev-*.sock
+
+# Interactive mode
+nc -U /tmp/brooklyn-mcp-dev-*.sock
+```
+
+**Named Pipe Transport Usage (Experimental):**
+
+```bash
+# Send messages (requires reader first to avoid hanging)
+tail -f /tmp/brooklyn-mcp-dev-*-out &
+echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' > /tmp/brooklyn-mcp-dev-*-in
+```
 
 ## Benefits
 
@@ -100,18 +131,45 @@ All 21 Brooklyn tools are available through the development server:
 - **Rapid Iteration**: Instant feedback via chat-based tool calls.
 - **Protocol Fidelity**: Exact MCP behavior for accurate testing.
 - **Isolation**: Multiple dev instances can run in parallel.
+- **Transport Flexibility**: Choose reliable socket transport or experimental pipes.
+- **Cross-Platform**: Socket transport works reliably across all platforms.
 
 ## Potential for CI/CD Use Cases
 
 While designed for local dev, this pattern extends naturally to CI/CD pipelines:
 
-- **Automated Testing**: In GitHub Actions/Jenkins, start a dev-mode server, run MCP tool tests via pipes, and assert responses—without full Claude Code setup.
+- **Automated Testing**: In GitHub Actions/Jenkins, start a dev-mode server with socket transport, run MCP tool tests, and assert responses—without full Claude Code setup.
 - **Integration Tests**: Simulate multi-instance scenarios by launching multiple dev servers in a pipeline, testing cross-communication or load.
 - **Artifact Generation**: Use dev mode to generate screenshots/reports during builds, storing them as artifacts.
 - **Headless CI**: Combine with headless browsers for end-to-end tests in isolated environments.
+- **Cross-Platform CI**: Socket transport ensures reliable operation across Linux, macOS, and Windows (WSL) CI environments.
 - **Extensions Needed**: Add `--ci-mode` flag for non-interactive operation (e.g., auto-cleanup, JSON output for assertions). Backlog this for Phase 2 to make Brooklyn more testable in pipelines.
+
+## Transport Implementation Notes
+
+### Socket Transport (Recommended)
+
+- **File**: `src/transports/mcp-socket-transport.ts`
+- **Reliability**: Fully reliable in all Node.js and Bun environments
+- **Features**: Bidirectional, connection-oriented, multi-client support
+- **Usage**: Default transport, no special flags required
+
+### Named Pipe Transport (Experimental)
+
+- **File**: `src/transports/mcp-fifo-transport.ts`
+- **Reliability**: Known issues in Node.js runtime environments
+- **Limitations**: Requires `--experimental` flag, can hang without proper reader/writer order
+- **Usage**: For compatibility testing only, not recommended for regular development
+
+### Cross-Language Implementation
+
+This pattern serves as a reference for implementing similar development modes in other languages:
+
+- **Go**: Can use either sockets or named pipes reliably with goroutines
+- **Rust**: Excellent async support for both transport types
+- **Python**: asyncio works well with socket transport
 
 This pattern enhances our dev velocity and could evolve into a powerful testing primitive. For questions, consult the Brooklyn team.
 
 — Brooklyn Architecture Committee  
-Last Updated: July 21, 2025
+Last Updated: August 16, 2025

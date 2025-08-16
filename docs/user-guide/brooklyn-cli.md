@@ -1,6 +1,6 @@
 # Brooklyn CLI - Command Line Interface
 
-The Brooklyn CLI (`brooklyn-server`) is a powerful command-line tool for managing your Brooklyn MCP server from anywhere on your system. It provides comprehensive server management capabilities and can be installed locally to a project or globally for system-wide use.
+The Brooklyn CLI (`brooklyn`) is a powerful command-line tool for managing your Brooklyn MCP server from anywhere on your system. It provides comprehensive server management capabilities and can be installed locally to a project or globally for system-wide use.
 
 ## Installation
 
@@ -115,43 +115,47 @@ brooklyn status
 ### Server Management
 
 ```bash
-# Start the Brooklyn server
-brooklyn-server start
+# Start the Brooklyn MCP server
+brooklyn mcp start
 
-# Stop the Brooklyn server
-brooklyn-server stop
-
-# Restart the Brooklyn server
-brooklyn-server restart
+# Start the Brooklyn web server
+brooklyn web start
 
 # Check server status
-brooklyn-server status
+brooklyn status
+
+# Clean up processes and resources
+brooklyn cleanup
 ```
 
-### Monitoring & Logs
+### Monitoring & Operations
 
 ```bash
-# View server logs (continuous)
-brooklyn-server logs
+# Check detailed status
+brooklyn status --detailed
 
-# View recent logs only
-brooklyn-server logs --recent
+# Operational commands
+brooklyn ops
 
-# Clean up server resources
-brooklyn-server cleanup
+# Browser management
+brooklyn browser
+
+# Debug utilities
+brooklyn debug
 ```
 
 ### Information & Help
 
 ```bash
-# Show Brooklyn installation information
-brooklyn-server info
+# Show Brooklyn version
+brooklyn version
 
 # Get comprehensive help
-brooklyn-server --help
+brooklyn --help
 
 # Get help for specific commands
-brooklyn-server logs --help
+brooklyn mcp --help
+brooklyn web --help
 ```
 
 ## CLI Features
@@ -161,22 +165,26 @@ brooklyn-server logs --help
 The Brooklyn CLI knows exactly where it was installed from:
 
 ```bash
-$ brooklyn-server info
+$ brooklyn version
 
-🌉 Brooklyn MCP Server CLI
+🌉 Brooklyn MCP Server v1.4.35
 
-Version: 1.0.1
-Installation: /Users/you/projects/brooklyn
-Type: Project-specific
+$ brooklyn --help
 
-Available Commands:
-  start     Start the Brooklyn server
-  stop      Stop the Brooklyn server
-  restart   Restart the Brooklyn server
-  status    Show server status
-  logs      Show server logs (use --recent for recent only)
-  cleanup   Clean up server resources
-  info      Show this information
+Usage: brooklyn [options] [command]
+
+Brooklyn MCP Server - Enterprise browser automation platform
+
+Commands:
+  cleanup [options]  Cleanup running Brooklyn processes and resources
+  ops                Operational commands for database, cleanup, and maintenance
+  mcp                MCP server commands for Claude Code integration
+  web                Web server commands for monitoring and APIs
+  browser            Browser management commands
+  debug              Debugging utilities for Brooklyn
+  status [options]   Show status of all Brooklyn services
+  setup [options]    Install browsers and configure Brooklyn
+  version            Show Brooklyn version information
 ```
 
 ### Path Independence
@@ -186,10 +194,10 @@ Once installed, the CLI works from any directory:
 ```bash
 # Works from anywhere on your system
 cd ~/Documents
-brooklyn-server status
+brooklyn status
 
 cd ~/projects/other-project
-brooklyn-server logs --recent
+brooklyn logs --recent
 
 # No need to navigate to Brooklyn directory
 ```
@@ -199,7 +207,7 @@ brooklyn-server logs --recent
 The CLI validates Brooklyn installation and provides helpful error messages:
 
 ```bash
-$ brooklyn-server status
+$ brooklyn status
 ❌ Brooklyn not found at: /path/to/missing/brooklyn
 
 Possible solutions:
@@ -241,17 +249,17 @@ Possible solutions:
 bun run bootstrap:remove
 
 # Verify removal
-brooklyn-server info  # Should fail
+brooklyn info  # Should fail
 ```
 
 ### Remove Project-Local CLI
 
 ```bash
 # Remove from ~/.local/bin/
-rm ~/.local/bin/brooklyn-server
+rm ~/.local/bin/brooklyn
 
 # Verify removal
-brooklyn-server info  # Should fail
+brooklyn info  # Should fail
 ```
 
 ## Advanced Usage
@@ -270,7 +278,7 @@ cd ~/projects/brooklyn-b
 bun run install
 
 # Last installation wins - CLI points to brooklyn-b
-brooklyn-server info  # Shows brooklyn-b path
+brooklyn info  # Shows brooklyn-b path
 ```
 
 ### Status Monitoring
@@ -279,13 +287,13 @@ Use the CLI for continuous monitoring:
 
 ```bash
 # Monitor server status
-watch -n 5 brooklyn-server status
+watch -n 5 brooklyn status
 
 # Follow logs in real-time
-brooklyn-server logs
+brooklyn logs
 
 # Check server health periodically
-while true; do brooklyn-server status; sleep 30; done
+while true; do brooklyn status; sleep 30; done
 ```
 
 ### Integration with Scripts
@@ -296,13 +304,13 @@ The CLI is designed for automation:
 #!/bin/bash
 
 # Start server if not running
-if ! brooklyn-server status > /dev/null 2>&1; then
+if ! brooklyn status > /dev/null 2>&1; then
     echo "Starting Brooklyn server..."
-    brooklyn-server start
+    brooklyn start
 fi
 
 # Wait for server to be ready
-while ! brooklyn-server status | grep -q "Running"; do
+while ! brooklyn status | grep -q "Running"; do
     echo "Waiting for server..."
     sleep 2
 done
@@ -315,7 +323,7 @@ echo "Brooklyn server is ready!"
 ### CLI Not Found
 
 ```bash
-$ brooklyn-server: command not found
+$ brooklyn: command not found
 ```
 
 **Solution**: Add `~/.local/bin` to your PATH:
@@ -325,26 +333,26 @@ $ brooklyn-server: command not found
 export PATH="$PATH:~/.local/bin"
 
 # Or use full path temporarily
-~/.local/bin/brooklyn-server status
+~/.local/bin/brooklyn status
 ```
 
 ### Permission Denied
 
 ```bash
-$ brooklyn-server status
-permission denied: brooklyn-server
+$ brooklyn status
+permission denied: brooklyn
 ```
 
 **Solution**: Make CLI executable:
 
 ```bash
-chmod +x ~/.local/bin/brooklyn-server
+chmod +x ~/.local/bin/brooklyn
 ```
 
 ### Brooklyn Not Found
 
 ```bash
-$ brooklyn-server status
+$ brooklyn status
 ❌ Brooklyn not found at: /old/path/to/brooklyn
 ```
 

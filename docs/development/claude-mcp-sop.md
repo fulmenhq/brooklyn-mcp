@@ -1,27 +1,22 @@
-# Claude MCP Update Standard Operating Procedures
+# Claude MCP Development Workflows
 
-## 🚨 CRITICAL: MCP Tool Discovery & Caching Behavior
+## MCP Tool Discovery & Caching Behavior
 
-**Key Finding**: Claude Code **does NOT have a cache refresh command** for MCP tools. When new tools are added to Brooklyn, the **complete remove/add cycle** is the ONLY way to force tool re-discovery.
+**Key Finding**: Claude Code does not have a cache refresh command for MCP tools. When new tools are added to Brooklyn, a remove/add cycle is needed to force tool re-discovery.
 
-## 🚨 CRITICAL: When Claude Code Must Be Fully Restarted
+## When Claude Code Session Restarts May Be Needed
 
-**MANDATORY FULL RESTART** (Close ALL Claude Code instances):
+**Full session restart recommended for:**
 
 - **Transport Type Changes**: Switching between stdio and HTTP transport
 - **MCP Configuration Scope Changes**: User scope ↔ Project scope
-- **Schema Changes with stdio Transport**: Adding/modifying tools when using stdio
+- **Breaking schema changes**: Major tool interface modifications
 
-**SCOPE REQUIREMENTS**:
+**Typical development workflow (no restart needed):**
 
-- **Project Scope**: Close all Claude Code instances within the current project directory
-- **User Scope**: Close ALL Claude Code instances on the entire machine
-
-**NO RESTART REQUIRED**:
-
-- **Functionality changes**: Bug fixes, performance improvements, code updates unrelated to MCP schema
-- **Schema changes with HTTP transport**: Adding/modifying tools when using HTTP (use `/mcp` reconnection instead)
-- **Server restarts**: Brooklyn server updates without transport/scope changes
+- **Functionality changes**: Bug fixes, performance improvements, code updates
+- **New tools**: Adding/modifying tools (use `/mcp` reconnection or remove/add cycle)
+- **Server updates**: Brooklyn server updates without transport changes
 
 ### Available Claude MCP Commands
 
@@ -197,16 +192,18 @@ Choose your preferred scope for MCP configuration:
 | **Development workflow** | Good for stable releases        | Better for active development     |
 | **Team sharing**         | Personal configuration          | Can be version controlled         |
 
-**When developing Brooklyn**: Project scope (`-s project`) is preferable because:
+**For Brooklyn development**: Project scope (`-s project`) can be useful for:
 
-1. You can have different configurations for different Brooklyn development environments
-2. Binary updates don't affect your global Claude configuration
-3. You can test different Brooklyn versions simultaneously in different project directories
-4. Easier to troubleshoot issues in isolation
+1. Testing different configurations in different Brooklyn development environments
+2. Isolating binary updates from global Claude configuration
+3. Testing different Brooklyn versions simultaneously
+4. Easier troubleshooting in isolation
+
+**Note**: Both user and project scopes work reliably for regular development. Choose based on your workflow preferences.
 
 ### stdio Transport (Standard)
 
-**Current Status**: ✅ **FIXED in v1.4.35** - Now fully MCP protocol compliant with proper content array format.
+**Current Status**: ✅ **Fully functional** - MCP protocol compliant with proper content array format. Reliable for production use.
 
 **Add stdio configuration**:
 
@@ -232,18 +229,17 @@ claude mcp add -s project -t stdio brooklyn -- brooklyn mcp start --team-id myte
 **Development Iteration (stdio)**:
 
 ```bash
-# For binary changes (requires full session restart)
+# For most development changes
 bun run build && bun run install
 pkill -f brooklyn
 claude mcp remove brooklyn
-# [Close ALL Claude sessions]
 claude mcp add brooklyn -- brooklyn mcp start
-# [Restart Claude sessions]
+# Usually no session restart needed
 
-# For new tools only (no binary change needed)
+# For new tools only
 claude mcp remove brooklyn
 claude mcp add brooklyn -- brooklyn mcp start
-# No session restart needed for tool discovery refresh
+# No session restart needed
 ```
 
 ### HTTP Transport (Production Ready - RECOMMENDED)
@@ -487,13 +483,12 @@ claude mcp add -s user -e BROOKLYN_LOG_LEVEL=debug brooklyn http://127.0.0.1:300
 
 ### Transport Selection Guidelines
 
-**Use HTTP when** (RECOMMENDED for development):
+**Use HTTP when**:
 
 - Adding new tools frequently (schema changes via `/mcp` only)
-- Debugging MCP communication issues
-- Need to monitor network traffic
 - Multiple concurrent Claude sessions
 - Rapid development iteration cycles
+- Debugging network-level MCP communication
 
 **Use stdio when**:
 
@@ -501,7 +496,34 @@ claude mcp add -s user -e BROOKLYN_LOG_LEVEL=debug brooklyn http://127.0.0.1:300
 - Single Claude session workflows
 - Following MCP best practices
 - Production deployments
-- Stable tool set (not adding new tools frequently)
+
+### Local Development Mode (Optional)
+
+**Brooklyn dev mode** provides socket/pipe-based MCP testing with enhanced logging:
+
+**Use dev mode for**:
+
+- ✅ **MCP protocol debugging** - Full message flow visibility
+- ✅ **AI agent development** - Testing MCP integrations outside Claude
+- ✅ **Transport testing** - Reliable socket communication vs Node.js pipe limitations
+- ✅ **Message inspection** - Detailed JSON-RPC logging for troubleshooting
+
+**Dev mode is NOT required for**:
+
+- ❌ Regular Brooklyn development (stdio/HTTP work reliably)
+- ❌ Adding new tools (standard transports handle this)
+- ❌ Production deployments (use stdio/HTTP directly)
+
+**Quick start**:
+
+```bash
+# Socket transport (recommended for dev mode)
+brooklyn mcp dev-start --transport socket
+SOCKET_PATH=$(brooklyn mcp dev-status | grep Socket | awk '{print $NF}')
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | nc -U $SOCKET_PATH
+```
+
+**Value proposition**: Enhanced logging and message inspection capabilities, not transport reliability fixes.
 
 ## 🚨 CRITICAL: Tool Registration Requirements
 
@@ -606,19 +628,12 @@ brooklyn --version  # Verify new version
 # 2. Kill ALL Brooklyn processes
 ps aux | grep brooklyn | grep -v grep | awk '{print $2}' | xargs kill -9
 
-# 3. Remove MCP configuration
+# 3. Remove and re-add MCP configuration
 claude mcp remove brooklyn
-
-# 4. Close ALL Claude sessions (REQUIRED for binary updates)
-# - All terminal sessions running `claude`
-# - All IDE integrations
-# - All background Claude processes
-
-# 5. Re-add MCP configuration
 claude mcp add -s user brooklyn -- brooklyn mcp start
 
-# 6. Restart Claude sessions
-# Only after complete restart will new binary be recognized
+# 4. Test new functionality
+# Usually works immediately; session restart only needed for major changes
 ```
 
 ### Quick Tool Addition Workflow (Both Transports)
@@ -701,21 +716,23 @@ echo '{"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilit
 - Use process kill commands above
 - Consider `pkill -f brooklyn` (careful!)
 
-## Development Workflow Impact
+## Development Workflow Summary
 
-### For HTTP Transport (Recommended)
+### For HTTP Transport
 
-- **Server changes**: Restart server only, no Claude session restart
-- **New tools**: Remove/add MCP config only, no Claude session restart
-- **Rapid iteration**: Much faster development cycle
-- **Team coordination**: Less disruptive to concurrent work
+- **Server changes**: Restart server only
+- **New tools**: Remove/add MCP config or use `/mcp`
+- **Development**: Fast iteration cycles
+- **Coordination**: Minimal disruption to concurrent work
 
 ### For stdio Transport
 
-- **Binary changes**: Full Claude session restart required
-- **New tools**: Remove/add MCP config, no session restart needed
-- **Slower iteration**: Must coordinate session restarts
-- **Team coordination**: Affects all Claude work during updates
+- **Server changes**: Remove/add MCP config
+- **New tools**: Remove/add MCP config or use `/mcp`
+- **Development**: Standard iteration cycles
+- **Coordination**: Occasional session restarts for major changes
+
+**Both transports work reliably for development.** Choose based on your specific workflow needs and debugging requirements.
 
 ## Rapid Development SOP
 
@@ -813,10 +830,10 @@ claude mcp remove brooklyn && claude mcp add brooklyn [transport-config]
 
 ---
 
-**Last Updated**: August 15, 2025  
-**Critical Changes**:
+**Last Updated**: August 16, 2025  
+**Key Points**:
 
-- **v1.4.35**: stdio transport FIXED with proper MCP protocol compliance
-- **New**: Claude Code restart requirements clarified (transport switching, scope changes)
-- **Updated**: Both stdio and HTTP transports now fully functional
-- **Clarified**: Schema vs functionality change handling procedures
+- **Transport Status**: Both stdio and HTTP transports work reliably for production use
+- **Development**: Regular Brooklyn development works well with either transport
+- **Local Dev Mode**: Optional tool for MCP protocol debugging and message inspection
+- **Session Restarts**: Rarely needed; mainly for transport/scope changes or major schema updates

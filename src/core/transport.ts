@@ -70,9 +70,11 @@ export interface TransportConfig {
 export interface MCPStdioConfig extends TransportConfig {
   type: TransportType.MCP_STDIO;
   options?: {
-    // Development mode with named pipes
+    // Development mode with named pipes (experimental - requires --experimental flag)
     inputPipe?: string;
     outputPipe?: string;
+    // Development mode with Unix socket (recommended)
+    socketPath?: string;
     devMode?: boolean;
   };
 }

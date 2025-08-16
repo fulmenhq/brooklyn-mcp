@@ -16,7 +16,7 @@ export const templateVars = {
 export const buildConfig = {
   serviceName: templateVars.SERVICE_NAME,
   displayName: templateVars.DISPLAY_NAME,
-  version: "1.4.35", // Synced from VERSION file
+  version: "1.4.36", // Synced from VERSION file
   execName: templateVars.EXEC_NAME,
   repoName: templateVars.REPO_NAME,
 };

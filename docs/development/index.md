@@ -27,7 +27,7 @@ The bootstrap script will:
 
 - ✅ Detect your OS and set appropriate paths
 - ✅ Configure Claude Code integration automatically
-- ✅ Install global `brooklyn-server` command
+- ✅ Install global `brooklyn` command
 - ✅ Set up and test the server connection
 
 ### Starting the Server
@@ -55,18 +55,16 @@ Brooklyn includes a built-in CLI that can be installed locally or globally:
 bun run install
 
 # Global server management (works from anywhere)
-brooklyn-server start       # Start the server
-brooklyn-server stop        # Stop the server
-brooklyn-server restart     # Restart the server
-brooklyn-server status      # Check server status
-brooklyn-server logs        # View server logs (continuous)
-brooklyn-server logs --recent  # View recent logs only
-brooklyn-server cleanup     # Clean up resources
-brooklyn-server info        # Show installation information
+brooklyn mcp start          # Start MCP server
+brooklyn web start          # Start web server
+brooklyn status             # Check server status
+brooklyn cleanup            # Clean up resources
+brooklyn version            # Show version information
 
 # Get comprehensive help
-brooklyn-server --help
-brooklyn-server logs --help
+brooklyn --help
+brooklyn mcp --help
+brooklyn web --help
 ```
 
 **CLI Installation Types:**
