@@ -8,7 +8,7 @@ Hey there! You're about to set up Brooklyn - our enterprise-ready MCP server for
 
 ```bash
 # Navigate to your Brooklyn repository root
-cd /path/to/fulmen-mcp-forge-brooklyn
+cd /path/to/brooklyn-mcp
 
 # Verify you're in the right place
 ls -la
@@ -59,7 +59,7 @@ This guide has everything you need - from installation to your first automation 
 
 ```bash
 # Navigate to Brooklyn repo
-cd /path/to/fulmen-mcp-forge-brooklyn
+cd /path/to/brooklyn-mcp
 
 # Install dependencies (first time only)
 bun install
@@ -117,13 +117,13 @@ Manual fallback (when not using global CLI):
     "brooklyn": {
       "command": "bun",
       "args": ["src/cli/brooklyn.ts", "mcp", "start"],
-      "cwd": "/absolute/path/to/fulmen-mcp-forge-brooklyn"
+      "cwd": "/absolute/path/to/brooklyn-mcp"
     }
   }
 }
 ```
 
-**Important**: Replace `/absolute/path/to/fulmen-mcp-forge-brooklyn` with the actual path to your Brooklyn repository root!
+**Important**: Replace `/absolute/path/to/brooklyn-mcp` with the actual path to your Brooklyn repository root!
 
 ### **Step 4: Test with Claude**
 

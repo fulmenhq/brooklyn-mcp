@@ -121,8 +121,8 @@ function verifyBrooklynTemplate(): void {
   }
 
   const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
-  if (packageJson.name !== "fulmen-mcp-forge-brooklyn") {
-    throw new Error("This script can only be used with the fulmen-mcp-forge-brooklyn template.");
+  if (packageJson.name !== "brooklyn-mcp") {
+    throw new Error("This script can only be used with the brooklyn-mcp template.");
   }
 
   log.success("Brooklyn template verified ✓");
@@ -213,7 +213,7 @@ async function cloneBrooklyn(brooklynPath: string): Promise<void> {
   mkdirSync(dirname(brooklynPath), { recursive: true });
 
   // Clone repository
-  const repoUrl = "https://github.com/3leaps/fulmen-mcp-forge-brooklyn.git";
+  const repoUrl = "https://github.com/fulmenhq/brooklyn-mcp.git";
   execSync(`git clone "${repoUrl}" "${brooklynPath}"`);
 
   log.success(`Brooklyn cloned to: ${brooklynPath}`);

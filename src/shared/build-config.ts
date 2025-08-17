@@ -6,7 +6,7 @@
 // Template variables for fulmen ecosystem
 export const templateVars = {
   EXEC_NAME: "fulmen-brooklyn",
-  REPO_NAME: "fulmen-mcp-forge-brooklyn",
+  REPO_NAME: "brooklyn-mcp",
   SERVICE_NAME: "fulmen-brooklyn",
   DISPLAY_NAME: "Fulmen MCP Brooklyn",
   PACKAGE_SCOPE: "{{PACKAGE_SCOPE}}", // For organization refit
@@ -16,7 +16,7 @@ export const templateVars = {
 export const buildConfig = {
   serviceName: templateVars.SERVICE_NAME,
   displayName: templateVars.DISPLAY_NAME,
-  version: "1.4.36", // Synced from VERSION file
+  version: "1.4.37", // Synced from VERSION file
   execName: templateVars.EXEC_NAME,
   repoName: templateVars.REPO_NAME,
 };

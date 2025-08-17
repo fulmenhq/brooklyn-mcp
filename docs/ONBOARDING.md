@@ -465,7 +465,7 @@ bun run check:file src/path/to/file.ts       # Verify all checks pass
 
 - ⚡ **Spark Pioneer Stickers**: First fulmen implementation
 - 🏆 **Architecture Approved Mug**: Committee endorsement
-- 🌉 **Brooklyn Forge T-Shirt**: Reference implementation status
+- 🌉 **Brooklyn MCP T-Shirt**: Reference implementation status
 - 🔥 **Premium Lightning Keychain**: Gold standard achievement
 
 **Ready to Bridge AI and Browser Automation Excellence?** 🌉

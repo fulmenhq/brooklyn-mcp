@@ -1,5 +1,5 @@
 /**
- * Main entry point for Fulmen MCP Forge Brooklyn
+ * Main entry point for Fulmen Brooklyn MCP
  * Enterprise-ready MCP server for browser automation
  */
 

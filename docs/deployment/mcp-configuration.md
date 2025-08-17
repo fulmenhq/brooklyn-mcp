@@ -273,7 +273,7 @@ When configuring Brooklyn:
 
 ```bash
 # 1. Update Brooklyn binary
-cd /path/to/fulmen-mcp-forge-brooklyn
+cd /path/to/brooklyn-mcp
 bun run version:bump:patch    # Updates VERSION file
 bun run build                 # Build with new version
 bun run install              # Install updated binary globally

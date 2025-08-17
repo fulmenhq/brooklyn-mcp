@@ -3,19 +3,25 @@
 ## Accelerate AI UX: Empower Developers with Intelligent Browser Automation
 
 [![Developer Spark Enabled](https://img.shields.io/badge/Developer%20Spark-Enabled%20⚡-brightgreen?style=for-the-badge&logo=lightning&logoColor=white)](docs/fulmen/spark/README.md)
-[![Brooklyn Forge](https://img.shields.io/badge/Brooklyn-Forge%20🌉-blue?style=for-the-badge&logo=bridge&logoColor=white)](docs/fulmen/forges/fulmen-brooklyn-forge-principles.md)
+[![Brooklyn MCP](https://img.shields.io/badge/Brooklyn-MCP%20🌉-blue?style=for-the-badge&logo=bridge&logoColor=white)](docs/fulmen/forges/fulmen-brooklyn-forge-principles.md)
 [![TypeScript Spark](https://img.shields.io/badge/TypeScript%20Spark-Enabled%20⚡-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](docs/fulmen/spark/README.md)
 [![Architecture Approved](https://img.shields.io/badge/Architecture-Committee%20Approved%20🏆-gold?style=for-the-badge&logo=award&logoColor=white)](docs/fulmen/spark/README.md)
 
+<div align="center">
+  <img src="assets/icons/fulmen-forge-icon.png" alt="Fulmen Forge Icon" width="120" height="120">
+  <br>
+  <em>Brooklyn MCP - The <strong>MCP Forge</strong> for the Fulmen Ecosystem</em>
+</div>
+
 > **⚡ Start Fast**: 5-minute setup with enterprise infrastructure | **🌉 Thrive on Scale**: Multi-team platform ready for global deployment
 
-**Latest**: v1.4.35 introduces **MCP protocol compliance** with both stdio and HTTP transports working flawlessly for AI development workflows.
+**Latest**: v1.4.38 introduces **MCP protocol compliance** with both stdio and HTTP transports working flawlessly for AI development workflows.
 
 ---
 
 ## 🌉 **What is Brooklyn?**
 
-Brooklyn is the **reference MCP implementation** in the Fulmen ecosystem, serving as both a production-ready browser automation platform and the foundational template for building enterprise-grade MCP servers across any programming language. With revolutionary development tools, comprehensive security patterns, and battle-tested infrastructure, Brooklyn empowers teams to **start fast** with proven MCP patterns while **thriving on scale** through multi-language implementations and enterprise deployment strategies.
+Brooklyn MCP is the **"MCP Forge"** for the Fulmen ecosystem - the reference implementation and foundational template for building enterprise-grade MCP servers across any programming language. Serving as both a production-ready browser automation platform and the architectural blueprint for the entire MCP ecosystem, Brooklyn empowers teams to **start fast** with proven MCP patterns while **thriving on scale** through multi-language implementations and enterprise deployment strategies.
 
 ### 🎯 **Triple Purpose Design**
 
@@ -46,7 +52,7 @@ Brooklyn is the **reference MCP implementation** in the Fulmen ecosystem, servin
 
 ### Prerequisites
 
-- **Bun** (>= 1.0.0) - [Install Bun](https://bun.sh)
+- **Bun** (>= 1.2.0+) - [Install Bun](https://bun.sh)
 - **Claude Code** - [Install Claude Code](https://claude.ai/code)
 
 ### Lightning Setup
@@ -411,12 +417,26 @@ brooklyn_logs                        # Recent server logs
 
 ## 🌉 **The Brooklyn Bridge Philosophy**
 
-Brooklyn is named after the Brooklyn Bridge - a masterpiece of engineering that **spans the gap** between communities while **handling massive scale** with grace and reliability. Our Brooklyn Forge aspires to the same standard:
+Brooklyn is named after the Brooklyn Bridge - a masterpiece of engineering that **spans the gap** between communities while **handling massive scale** with grace and reliability. Our Brooklyn MCP aspires to the same standard:
 
 - **🌉 Bridge Builder**: Connects AI developers to enterprise browser capabilities
 - **🏗️ Structural Integrity**: Provides reliable, enterprise-grade infrastructure teams can depend on
 - **🚦 Traffic Management**: Handles multiple teams and workloads without interference
 - **🎨 Architectural Beauty**: Elegant abstractions make complex automation feel intuitive
+
+```
+    🏗️  BROOKLYN MCP  🏗️
+    ╭─────────────────────╮
+   ╱│  ⚡ MCP PROTOCOL ⚡  │╲
+  ╱ │                     │ ╲
+ ╱  │   AI ←──────→ WEB   │  ╲
+╱   │                     │   ╲
+│   ╰─────────────────────╯    │
+│  ENTERPRISE AUTOMATION BRIDGE │
+╰─────────────────────────────────╯
+
+🌉 Connecting AI Capabilities to Browser Automation Excellence 🌉
+```
 
 **Start Fast. Thrive on Scale.** - It's not just our tagline, it's our architectural commitment.
 
@@ -426,12 +446,12 @@ Brooklyn is named after the Brooklyn Bridge - a masterpiece of engineering that 
 
 **Open Source**: MIT License - see [LICENSE](LICENSE) for details.
 
-**Trademarks**: "Fulmen", "Brooklyn Forge", and "3 Leaps" are trademarks of 3 Leaps, LLC. While code is open source, please use distinct names for derivative works to prevent confusion.
+**Trademarks**: "Fulmen", "Brooklyn MCP", and "3 Leaps" are trademarks of 3 Leaps, LLC. While code is open source, please use distinct names for derivative works to prevent confusion.
 
 ---
 
 **Built with 🌉 by the 3 Leaps team**  
-**Part of the [Fulmen Ecosystem](https://fulmenhq.org) - Lightning-fast enterprise development**
+**Part of the [Fulmen Ecosystem](https://fulmenhq.dev) - Lightning-fast enterprise development**
 
 ---
 

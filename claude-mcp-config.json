@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "brooklyn": {
-      "command": "/Users/davethompson/dev/3leaps/fulmen-mcp-forge-brooklyn/dist/brooklyn",
+      "command": "/Users/davethompson/dev/3leaps/brooklyn-mcp/dist/brooklyn",
       "args": ["mcp", "start", "--team-id", "default", "--log-level", "info"],
       "env": {
         "BROOKLYN_LOG_LEVEL": "info",

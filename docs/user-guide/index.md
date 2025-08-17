@@ -28,8 +28,8 @@ Before using Brooklyn, ensure you have:
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/fulmen-mcp-forge-brooklyn.git
-cd fulmen-mcp-forge-brooklyn
+git clone https://github.com/your-org/brooklyn-mcp.git
+cd brooklyn-mcp
 
 # Install dependencies
 bun install

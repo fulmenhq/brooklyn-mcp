@@ -271,7 +271,11 @@ export class MCPHTTPTransport implements Transport {
           </head>
           <body>
             <div class="container">
-              <h1>Client Registration</h1>
+              <div style="text-align: center; margin-bottom: 2rem;">
+                <img src="/assets/icons/fulmen-forge-icon.png" alt="Fulmen Forge" width="80" height="80" style="margin-bottom: 1rem;">
+                <h1>Brooklyn MCP - Client Registration</h1>
+                <p><em>The MCP Forge for the Fulmen Ecosystem</em></p>
+              </div>
               <p>Register a client for OAuth PKCE testing.</p>
               <form class="form">
                 <label>Client Name</label>

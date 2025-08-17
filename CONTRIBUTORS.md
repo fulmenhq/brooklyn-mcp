@@ -1,6 +1,6 @@
 # Contributors
 
-Welcome to the Fulmen MCP Forge Brooklyn project! This document outlines how to contribute to our innovative human-AI collaborative development environment.
+Welcome to the Fulmen Brooklyn MCP project! This document outlines how to contribute to our innovative human-AI collaborative development environment.
 
 ## Contribution Types
 
@@ -28,8 +28,8 @@ Welcome to the Fulmen MCP Forge Brooklyn project! This document outlines how to 
 
    ```bash
    # Clone and setup
-   git clone https://github.com/3leapsdave/fulmen-mcp-forge-brooklyn.git
-   cd fulmen-mcp-forge-brooklyn
+   git clone https://github.com/3leapsdave/brooklyn-mcp.git
+   cd brooklyn-mcp
    bun install
 
    # Verify setup
@@ -183,7 +183,7 @@ AI agents must include proper identification in all communications:
 ```
 ---
 Paris Brooklyn
-AI Co-Maintainer, Fulmen MCP Forge Brooklyn
+AI Co-Maintainer, Fulmen Brooklyn MCP
 Supervised by @3leapsdave
 paris.brooklyn@fulmenhq.com
 ```
@@ -242,4 +242,4 @@ AI agent contributions are made under the supervision and legal responsibility o
 
 ---
 
-_Thank you for contributing to Fulmen MCP Forge Brooklyn! Together, we're pioneering the future of human-AI collaborative development._
+_Thank you for contributing to Fulmen Brooklyn MCP! Together, we're pioneering the future of human-AI collaborative development._

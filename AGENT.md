@@ -1,4 +1,4 @@
-# AGENT.md: Guidelines for Agentic Coding in fulmen-mcp-forge-brooklyn
+# AGENT.md: Guidelines for Agentic Coding in brooklyn-mcp
 
 ## Project Overview
 
@@ -68,7 +68,7 @@ Co-Authored-By: Paris Brooklyn <noreply@fulmen.ai>
 ```
 ---
 [AI Agent Name]
-AI Co-Maintainer, Fulmen MCP Forge Brooklyn
+AI Co-Maintainer, Fulmen Brooklyn MCP
 Supervised by @[human-maintainer]
 [agent-name]@fulmenhq.com
 ```
@@ -221,7 +221,7 @@ brooklyn/
 // Single source of truth for template values
 const templateVars = {
   EXEC_NAME: "fulmen-brooklyn",
-  REPO_NAME: "fulmen-mcp-forge-brooklyn",
+  REPO_NAME: "brooklyn-mcp",
   SERVICE_NAME: "fulmen-brooklyn",
   DISPLAY_NAME: "Fulmen MCP Brooklyn",
   PACKAGE_SCOPE: "{{PACKAGE_SCOPE}}", // For organization refit

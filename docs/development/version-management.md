@@ -186,7 +186,7 @@ const VERSION = "1.1.8"; // Requires build-time embedding
 ```typescript
 export const templateVars = {
   EXEC_NAME: "fulmen-brooklyn",
-  REPO_NAME: "fulmen-mcp-forge-brooklyn",
+  REPO_NAME: "brooklyn-mcp",
   SERVICE_NAME: "fulmen-brooklyn",
   DISPLAY_NAME: "Fulmen MCP Brooklyn",
   PACKAGE_SCOPE: "{{PACKAGE_SCOPE}}", // For organization refit

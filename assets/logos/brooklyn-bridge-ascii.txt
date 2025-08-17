@@ -1,0 +1,14 @@
+🌉 Brooklyn MCP Bridge
+====================
+
+    🏗️  BROOKLYN MCP  🏗️
+    ╭─────────────────────╮
+   ╱│  ⚡ MCP PROTOCOL ⚡  │╲ 
+  ╱ │                     │ ╲
+ ╱  │   AI ←──────→ WEB   │  ╲
+╱   │                     │   ╲
+│   ╰─────────────────────╯    │
+│  ENTERPRISE AUTOMATION BRIDGE │
+╰─────────────────────────────────╯
+
+🌉 Connecting AI Capabilities to Browser Automation Excellence 🌉

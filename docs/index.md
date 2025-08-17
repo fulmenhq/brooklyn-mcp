@@ -74,7 +74,7 @@
 **For Ecosystem Understanding:**
 
 - **[Fulmen Ecosystem Guide](./fulmen/fulmen-ecosystem-guide.md)** - Broader ecosystem context
-- **[Brooklyn Forge Principles](./fulmen/forges/fulmen-brooklyn-forge-principles.md)** - Project philosophy
+- **[Brooklyn MCP Principles](./fulmen/forges/fulmen-brooklyn-forge-principles.md)** - Project philosophy
 - **[Spark Initiative](./fulmen/spark/)** - AI-human collaboration patterns
 - **[Technical Manifesto](./fulmen/fulmen-technical-manifesto.md)** - Technical philosophy
 

@@ -7,11 +7,11 @@
 ## 🏆 Achievement Status
 
 [![Fulmen Spark Enabled](https://img.shields.io/badge/Fulmen%20Spark-Enabled%20⚡-brightgreen?style=for-the-badge&logo=lightning&logoColor=white)](docs/fulmen/spark/README.md)
-[![Brooklyn Forge](https://img.shields.io/badge/Brooklyn-Forge%20🌉-blue?style=for-the-badge&logo=bridge&logoColor=white)](docs/fulmen/forges/fulmen-brooklyn-forge-principles.md)
+[![Brooklyn MCP](https://img.shields.io/badge/Brooklyn-MCP%20🌉-blue?style=for-the-badge&logo=bridge&logoColor=white)](docs/fulmen/forges/fulmen-brooklyn-forge-principles.md)
 [![TypeScript Spark](https://img.shields.io/badge/TypeScript%20Spark-Enabled%20⚡-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](docs/fulmen/spark/README.md)
 [![Architecture Approved](https://img.shields.io/badge/Architecture-Committee%20Approved%20🏆-gold?style=for-the-badge&logo=award&logoColor=white)](docs/fulmen/spark/README.md)
 
-### 🌉 Brooklyn Forge Identity
+### 🌉 Brooklyn MCP Identity
 
 **Icon**: 🌉 Bridge - _Connecting AI capabilities to browser automation_  
 **Theme**: Engineering excellence spanning the gap between AI models and web browsers  
@@ -133,7 +133,7 @@ That's it! The [5-minute onboarding section](CLAUDE.md#5-minute-team-onboarding-
 
 - ⚡ **Spark Pioneer Stickers**: First fulmen implementation
 - 🏆 **Architecture Approved Mug**: Committee endorsement
-- 🌉 **Brooklyn Forge T-Shirt**: Reference implementation status
+- 🌉 **Brooklyn MCP T-Shirt**: Reference implementation status
 - 🔥 **Premium Lightning Keychain**: Gold standard achievement
 
 **Get Your Team's SWAG**: Implement Fulmen Spark and join the productivity revolution!

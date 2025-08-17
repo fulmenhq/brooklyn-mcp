@@ -7,7 +7,7 @@ Brooklyn is a Model Context Protocol (MCP) server that bridges the gap between A
 > **👥 Team Members**: Looking for comprehensive onboarding? See **[Team Onboarding Guide](ONBOARDING.md)** for architecture decisions, development philosophy, and team context.
 
 [![Fulmen Spark Enabled](https://img.shields.io/badge/Fulmen%20Spark-Enabled%20⚡-brightgreen?style=for-the-badge&logo=lightning&logoColor=white)](fulmen/spark/README.md)
-[![Brooklyn Forge](https://img.shields.io/badge/Brooklyn-Forge%20🌉-blue?style=for-the-badge&logo=bridge&logoColor=white)](fulmen/forges/fulmen-brooklyn-forge-principles.md)
+[![Brooklyn MCP](https://img.shields.io/badge/Brooklyn-MCP%20🌉-blue?style=for-the-badge&logo=bridge&logoColor=white)](fulmen/forges/fulmen-brooklyn-forge-principles.md)
 
 ## 🚀 Quick Start
 
@@ -24,8 +24,8 @@ Before getting started, ensure you have:
 
 ```bash
 # Clone the repository
-git clone https://github.com/3leaps/fulmen-mcp-forge-brooklyn.git
-cd fulmen-mcp-forge-brooklyn
+git clone https://github.com/3leaps/brooklyn-mcp.git
+cd brooklyn-mcp
 
 # Install dependencies
 bun install
@@ -54,13 +54,13 @@ This is the critical step to connect Brooklyn to your Claude Code environment:
     "brooklyn": {
       "command": "bun",
       "args": ["src/cli/brooklyn.ts", "mcp", "start"],
-      "cwd": "/absolute/path/to/fulmen-mcp-forge-brooklyn"
+      "cwd": "/absolute/path/to/brooklyn-mcp"
     }
   }
 }
 ```
 
-**Important:** Replace `/absolute/path/to/fulmen-mcp-forge-brooklyn` with the actual path to your Brooklyn installation.
+**Important:** Replace `/absolute/path/to/brooklyn-mcp` with the actual path to your Brooklyn installation.
 
 **Step 3:** Restart Claude Code to load the new configuration.
 
@@ -383,4 +383,4 @@ _Part of the [Fulmen Ecosystem](https://github.com/3leaps/fulmen-ecosystem)_
 - [Advanced Features](user-guide/advanced-features.md)
 - [Team Management](user-guide/team-management.md)
 - [Development Guide](development/index.md)
-- [GitHub Repository](https://github.com/3leaps/fulmen-mcp-forge-brooklyn)
+- [GitHub Repository](https://github.com/3leaps/brooklyn-mcp)
