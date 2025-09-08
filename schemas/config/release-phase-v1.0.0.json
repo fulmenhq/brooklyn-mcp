@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.fulmenhq.dev/brooklyn/config/release-phase-v1.0.0.json",
+  "title": "Release Phase",
+  "description": "Release cadence phase for distribution pipelines and policy gating.",
+  "type": "string",
+  "enum": ["dev", "rc", "ga"],
+  "examples": ["rc", "ga"],
+  "$comment": "Used to drive CI thresholds and publish behavior."
+}

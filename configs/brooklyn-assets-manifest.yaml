@@ -1,0 +1,46 @@
+# Brooklyn MCP Asset Manifest v1.0.0
+# Single source of truth for Brooklyn MCP browser assets
+# Schema: ../schemas/brooklyn-assets-v1.yaml
+
+version: "1.0.0"
+
+assets:
+  # PDF.js Library - Core PDF rendering support
+  pdfjs:
+    version: "4.8.69"
+    description: "PDF.js library for browser-based PDF rendering with TextLayer API"
+    enabled: true
+    files:
+      - filename: "pdf.min.mjs"
+        sources:
+          - "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.min.mjs"
+          - "https://unpkg.com/pdfjs-dist@4.8.69/build/pdf.min.mjs"
+        expectedSize: 329000
+        contentType: "application/javascript"
+
+      - filename: "pdf.worker.min.mjs"
+        sources:
+          - "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs"
+          - "https://unpkg.com/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs"
+        expectedSize: 1310000
+        contentType: "application/javascript"
+
+  # Mermaid.js Diagram Library - Future diagram rendering support
+  mermaid:
+    version: "11.4.0"
+    description: "Mermaid.js diagram library for future diagram rendering capabilities"
+    enabled: false # Disabled for now - not needed for current PDF.js focus
+    files:
+      - filename: "mermaid.min.js"
+        sources:
+          - "https://cdn.jsdelivr.net/npm/mermaid@11.4.0/dist/mermaid.min.js"
+          - "https://unpkg.com/mermaid@11.4.0/dist/mermaid.min.js"
+        expectedSize: 500000
+        contentType: "application/javascript"
+
+      - filename: "mermaid.esm.min.mjs"
+        sources:
+          - "https://cdn.jsdelivr.net/npm/mermaid@11.4.0/dist/mermaid.esm.min.mjs"
+          - "https://unpkg.com/mermaid@11.4.0/dist/mermaid.esm.min.mjs"
+        expectedSize: 485000
+        contentType: "application/javascript"

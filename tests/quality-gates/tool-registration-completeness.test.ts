@@ -136,8 +136,14 @@ function extractToolNames(arrayContent: string): string[] {
     const toolMatch = nameMatch.match(/name:\s*"([^"]+)"/);
     if (toolMatch?.[1]) {
       const toolName = toolMatch[1];
-      // Filter out non-tool entries (like example filenames)
-      if (!(toolName.includes(".") || toolName.includes("screenshot-"))) {
+      // Filter out non-tool entries (like example filenames, CSS property names)
+      if (
+        !(
+          toolName.includes(".") ||
+          toolName.includes("screenshot-") ||
+          (toolName.includes("-") && !toolName.includes("_"))
+        )
+      ) {
         tools.push(toolName);
       }
     }

@@ -1,0 +1,49 @@
+# Mock Asset Manifest for Testing
+# Valid Brooklyn Assets Manifest v1.0.0
+
+version: "1.0.0"
+
+assets:
+  pdfjs:
+    version: "4.8.69"
+    description: "PDF.js library for browser-based PDF rendering"
+    enabled: true
+    files:
+      - filename: "pdf.min.mjs"
+        sources:
+          - "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.min.mjs"
+          - "https://unpkg.com/pdfjs-dist@4.8.69/build/pdf.min.mjs"
+        expectedSize: 148576
+        contentType: "application/javascript"
+        checksums:
+          sha256: "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456"
+
+      - filename: "pdf.worker.min.mjs"
+        sources:
+          - "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs"
+          - "https://unpkg.com/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs"
+        expectedSize: 821304
+        contentType: "application/javascript"
+
+  mermaid:
+    version: "10.6.1"
+    description: "Mermaid diagram library for rendering flowcharts and diagrams"
+    enabled: false
+    files:
+      - filename: "mermaid.min.js"
+        sources:
+          - "https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"
+          - "https://unpkg.com/mermaid@10.6.1/dist/mermaid.min.js"
+        expectedSize: 1247890
+        contentType: "application/javascript"
+
+  test-asset:
+    version: "1.0.0"
+    description: "Test asset for unit testing"
+    enabled: true
+    files:
+      - filename: "test.js"
+        sources:
+          - "https://example.com/test.js"
+        expectedSize: 1000
+        contentType: "application/javascript"

@@ -25,6 +25,19 @@ vi.mock("../shared/config.js", () => ({
   },
 }));
 
+// Mock fs
+vi.mock("node:fs", () => ({
+  existsSync: vi.fn(),
+}));
+
+// Mock LocalHttpServer
+vi.mock("./utilities/local-http-server.js", () => ({
+  LocalHttpServer: {
+    getInstance: vi.fn(),
+    stopAll: vi.fn(),
+  },
+}));
+
 // Mock Pino logger
 vi.mock("../shared/pino-logger.js", () => ({
   getLogger: vi.fn(() => ({
@@ -64,6 +77,7 @@ describe("BrowserPoolManager", () => {
   let mockBrowser: any;
   let mockContext: any;
   let mockPage: any;
+  let mockInstance: any;
 
   beforeEach(async () => {
     // Setup mock browser, context, and page
@@ -80,12 +94,28 @@ describe("BrowserPoolManager", () => {
       setViewportSize: vi.fn(),
       setExtraHTTPHeaders: vi.fn(),
       on: vi.fn(), // Add console capture support
+      waitForSelector: vi.fn(),
+      goBack: vi.fn(),
+      waitForFunction: vi.fn(),
+      waitForTimeout: vi.fn(),
+      click: vi.fn(),
+      fill: vi.fn(),
+      mouse: {
+        move: vi.fn(),
+        down: vi.fn(),
+        up: vi.fn(),
+      },
       locator: vi.fn(() => ({
-        focus: vi.fn(),
-        click: vi.fn(),
-        fill: vi.fn(),
+        focus: vi.fn().mockResolvedValue(undefined),
+        click: vi.fn().mockResolvedValue(undefined),
+        fill: vi.fn().mockResolvedValue(undefined),
         first: vi.fn(),
         count: vi.fn(),
+        waitFor: vi.fn().mockResolvedValue(undefined),
+        boundingBox: vi.fn().mockResolvedValue({ x: 100, y: 200, width: 50, height: 30 }),
+        hover: vi.fn().mockResolvedValue(undefined),
+        selectOption: vi.fn().mockResolvedValue(undefined),
+        evaluate: vi.fn().mockResolvedValue("test-value"),
       })),
     };
 
@@ -105,7 +135,7 @@ describe("BrowserPoolManager", () => {
     browserPoolManager = new BrowserPoolManager();
 
     // Mock the browser factory createInstance method
-    const mockInstance = {
+    mockInstance = {
       id: "test-instance-id",
       browserType: "chromium",
       isActive: true,
@@ -525,6 +555,690 @@ describe("BrowserPoolManager", () => {
         maxBrowsers: 5,
         sessions: [],
       });
+    });
+  });
+
+  describe("element interactions", () => {
+    let browserId: string;
+
+    beforeEach(async () => {
+      await browserPoolManager.initialize();
+
+      // Mock successful browser allocation
+      (browserPoolManager as any).pool.allocate = vi.fn().mockResolvedValue({
+        instance: mockInstance,
+        page: mockPage,
+        allocationTime: 50,
+      });
+
+      mockPage.evaluate.mockResolvedValue("Mozilla/5.0 Test");
+
+      const result = await browserPoolManager.launchBrowser({
+        browserType: "chromium",
+        headless: true,
+      });
+      browserId = result.browserId;
+
+      // Store session
+      (browserPoolManager as any).sessions.set(browserId, {
+        instance: mockInstance,
+        page: mockPage,
+        teamId: undefined,
+      });
+    });
+
+    afterEach(async () => {
+      await browserPoolManager.cleanup();
+    });
+
+    it("should click element successfully", async () => {
+      mockPage.locator.mockReturnValue({
+        waitFor: vi.fn().mockResolvedValue(undefined),
+        click: vi.fn().mockResolvedValue(undefined),
+      });
+
+      const result = await browserPoolManager.clickElement({
+        browserId,
+        selector: "#button",
+      });
+
+      expect(result).toMatchObject({
+        success: true,
+        message: "Element clicked successfully",
+        selector: "#button",
+      });
+    });
+
+    it("should fill text successfully", async () => {
+      mockPage.locator.mockReturnValue({
+        waitFor: vi.fn().mockResolvedValue(undefined),
+        fill: vi.fn().mockResolvedValue(undefined),
+      });
+
+      const result = await browserPoolManager.fillText({
+        browserId,
+        selector: "#input",
+        text: "test value",
+      });
+
+      expect(result).toMatchObject({
+        success: true,
+        message: "Text filled successfully",
+        selector: "#input",
+        textLength: 10,
+      });
+    });
+
+    it("should hover element successfully", async () => {
+      mockPage.locator.mockReturnValue({
+        nth: vi.fn().mockReturnValue({
+          boundingBox: vi.fn().mockResolvedValue({ x: 100, y: 200, width: 50, height: 30 }),
+          hover: vi.fn().mockResolvedValue(undefined),
+        }),
+      });
+
+      const result = await browserPoolManager.hoverElement({
+        browserId,
+        selector: "#hover-target",
+      });
+
+      expect(result).toMatchObject({
+        success: true,
+        selector: "#hover-target",
+      });
+    });
+
+    it("should focus element successfully", async () => {
+      mockPage.locator.mockReturnValue({
+        focus: vi.fn().mockResolvedValue(undefined),
+      });
+
+      const result = await browserPoolManager.focusElement({
+        browserId,
+        selector: "#input",
+      });
+
+      expect(result).toMatchObject({
+        success: true,
+        selector: "#input",
+        focused: expect.anything(), // Can be boolean or string depending on implementation
+      });
+    });
+
+    it("should select option successfully", async () => {
+      mockPage.locator.mockReturnValue({
+        waitFor: vi.fn().mockResolvedValue(undefined),
+        selectOption: vi.fn().mockResolvedValue(undefined),
+        evaluate: vi.fn().mockResolvedValue("option1"),
+      });
+
+      const result = await browserPoolManager.selectOption({
+        browserId,
+        selector: "#select",
+        value: "option1",
+      });
+
+      expect(result).toMatchObject({
+        success: true,
+        selector: "#select",
+        selectedValue: "option1",
+      });
+    });
+
+    it("should clear element successfully", async () => {
+      mockPage.locator.mockReturnValue({
+        waitFor: vi.fn().mockResolvedValue(undefined),
+        evaluate: vi.fn().mockResolvedValue("previous value"),
+      });
+
+      const result = await browserPoolManager.clearElement({
+        browserId,
+        selector: "#input",
+      });
+
+      expect(result).toMatchObject({
+        success: true,
+        selector: "#input",
+        cleared: true,
+      });
+    });
+
+    it("should perform drag and drop successfully", async () => {
+      mockPage.locator.mockReturnValue({
+        waitFor: vi.fn().mockResolvedValue(undefined),
+        boundingBox: vi.fn().mockResolvedValue({ x: 100, y: 200, width: 50, height: 30 }),
+      });
+
+      const result = await browserPoolManager.dragAndDrop({
+        browserId,
+        sourceSelector: "#source",
+        targetSelector: "#target",
+      });
+
+      expect(result).toMatchObject({
+        success: true,
+        sourceSelector: "#source",
+        targetSelector: "#target",
+        dragCompleted: true,
+      });
+    });
+  });
+
+  describe("JavaScript execution", () => {
+    let browserId: string;
+
+    beforeEach(async () => {
+      await browserPoolManager.initialize();
+
+      (browserPoolManager as any).pool.allocate = vi.fn().mockResolvedValue({
+        instance: mockInstance,
+        page: mockPage,
+        allocationTime: 50,
+      });
+
+      mockPage.evaluate.mockResolvedValue("Mozilla/5.0 Test");
+
+      const result = await browserPoolManager.launchBrowser({
+        browserType: "chromium",
+        headless: true,
+      });
+      browserId = result.browserId;
+
+      (browserPoolManager as any).sessions.set(browserId, {
+        instance: mockInstance,
+        page: mockPage,
+        teamId: undefined,
+      });
+    });
+
+    afterEach(async () => {
+      await browserPoolManager.cleanup();
+    });
+
+    it("should execute script successfully", async () => {
+      // Mock the jsExecutor
+      const mockResult = { success: true, result: "script executed" };
+      (browserPoolManager as any).jsExecutor.executeScript = vi.fn().mockResolvedValue(mockResult);
+
+      const result = await browserPoolManager.executeScript({
+        browserId,
+        script: "console.log('test');",
+      });
+
+      expect(result).toEqual(mockResult);
+    });
+
+    it("should evaluate expression successfully", async () => {
+      const mockResult = { success: true, result: 42 };
+      (browserPoolManager as any).jsExecutor.evaluateExpression = vi
+        .fn()
+        .mockResolvedValue(mockResult);
+
+      const result = await browserPoolManager.evaluateExpression({
+        browserId,
+        expression: "2 + 2",
+      });
+
+      expect(result).toEqual(mockResult);
+    });
+
+    it("should get console messages successfully", async () => {
+      const mockResult = { success: true, messages: [] };
+      (browserPoolManager as any).jsExecutor.getConsoleMessages = vi
+        .fn()
+        .mockResolvedValue(mockResult);
+
+      const result = await browserPoolManager.getConsoleMessages({
+        browserId,
+      });
+
+      expect(result).toEqual(mockResult);
+    });
+
+    it("should add script tag successfully", async () => {
+      const mockResult = { success: true };
+      (browserPoolManager as any).jsExecutor.addScriptTag = vi.fn().mockResolvedValue(mockResult);
+
+      const result = await browserPoolManager.addScriptTag({
+        browserId,
+        content: "console.log('injected');",
+      });
+
+      expect(result).toEqual(mockResult);
+    });
+  });
+
+  describe("CSS analysis", () => {
+    let browserId: string;
+
+    beforeEach(async () => {
+      await browserPoolManager.initialize();
+
+      (browserPoolManager as any).pool.allocate = vi.fn().mockResolvedValue({
+        instance: mockInstance,
+        page: mockPage,
+        allocationTime: 50,
+      });
+
+      mockPage.evaluate.mockResolvedValue("Mozilla/5.0 Test");
+
+      const result = await browserPoolManager.launchBrowser({
+        browserType: "chromium",
+        headless: true,
+      });
+      browserId = result.browserId;
+
+      (browserPoolManager as any).sessions.set(browserId, {
+        instance: mockInstance,
+        page: mockPage,
+        teamId: undefined,
+      });
+    });
+
+    afterEach(async () => {
+      await browserPoolManager.cleanup();
+    });
+
+    it("should extract CSS successfully", async () => {
+      const mockResult = { success: true, styles: { color: "red" } };
+      (browserPoolManager as any).cssAnalyzer.extractCSS = vi.fn().mockResolvedValue(mockResult);
+
+      const result = await browserPoolManager.extractCSS({
+        browserId,
+        selector: ".element",
+      });
+
+      expect(result).toEqual(mockResult);
+    });
+
+    it("should get computed styles successfully", async () => {
+      const mockResult = { success: true, styles: { display: "block" } };
+      (browserPoolManager as any).cssAnalyzer.getComputedStyles = vi
+        .fn()
+        .mockResolvedValue(mockResult);
+
+      const result = await browserPoolManager.getComputedStyles({
+        browserId,
+        selector: ".element",
+      });
+
+      expect(result).toEqual(mockResult);
+    });
+
+    it("should diff CSS successfully", async () => {
+      const mockResult = { success: true, changes: [] };
+      (browserPoolManager as any).cssAnalyzer.diffCSS = vi.fn().mockResolvedValue(mockResult);
+
+      const result = await browserPoolManager.diffCSS({
+        browserId,
+        selector: ".element",
+        baseline: { color: "blue" },
+      });
+
+      expect(result).toEqual(mockResult);
+    });
+
+    it("should analyze specificity successfully", async () => {
+      const mockResult = { success: true, specificity: { a: 0, b: 1, c: 0 } };
+      (browserPoolManager as any).cssAnalyzer.analyzeSpecificity = vi
+        .fn()
+        .mockResolvedValue(mockResult);
+
+      const result = await browserPoolManager.analyzeSpecificity({
+        browserId,
+        selector: ".element",
+      });
+
+      expect(result).toEqual(mockResult);
+    });
+  });
+
+  describe("content extraction", () => {
+    let browserId: string;
+
+    beforeEach(async () => {
+      await browserPoolManager.initialize();
+
+      (browserPoolManager as any).pool.allocate = vi.fn().mockResolvedValue({
+        instance: mockInstance,
+        page: mockPage,
+        allocationTime: 50,
+      });
+
+      mockPage.evaluate.mockResolvedValue("Mozilla/5.0 Test");
+
+      const result = await browserPoolManager.launchBrowser({
+        browserType: "chromium",
+        headless: true,
+      });
+      browserId = result.browserId;
+
+      (browserPoolManager as any).sessions.set(browserId, {
+        instance: mockInstance,
+        page: mockPage,
+        teamId: undefined,
+      });
+    });
+
+    afterEach(async () => {
+      await browserPoolManager.cleanup();
+    });
+
+    it("should get HTML successfully", async () => {
+      const mockResult = { success: true, html: "<div>test</div>" };
+      (browserPoolManager as any).contentExtractor.getHtml = vi.fn().mockResolvedValue(mockResult);
+
+      const result = await browserPoolManager.getHtml({
+        browserId,
+        selector: ".content",
+      });
+
+      expect(result).toEqual(mockResult);
+    });
+
+    it("should get attribute successfully", async () => {
+      const mockResult = { success: true, value: "test-value" };
+      (browserPoolManager as any).contentExtractor.getAttribute = vi
+        .fn()
+        .mockResolvedValue(mockResult);
+
+      const result = await browserPoolManager.getAttribute({
+        browserId,
+        selector: "#element",
+        attribute: "data-value",
+      });
+
+      expect(result).toEqual(mockResult);
+    });
+
+    it("should get bounding box successfully", async () => {
+      const mockResult = { success: true, boundingBox: { x: 100, y: 200, width: 50, height: 30 } };
+      (browserPoolManager as any).contentExtractor.getBoundingBox = vi
+        .fn()
+        .mockResolvedValue(mockResult);
+
+      const result = await browserPoolManager.getBoundingBox({
+        browserId,
+        selector: "#element",
+      });
+
+      expect(result).toEqual(mockResult);
+    });
+
+    it("should check visibility successfully", async () => {
+      const mockResult = { success: true, visible: true };
+      (browserPoolManager as any).contentExtractor.isVisible = vi
+        .fn()
+        .mockResolvedValue(mockResult);
+
+      const result = await browserPoolManager.isVisible({
+        browserId,
+        selector: "#element",
+      });
+
+      expect(result).toEqual(mockResult);
+    });
+
+    it("should check enabled status successfully", async () => {
+      const mockResult = { success: true, enabled: true };
+      (browserPoolManager as any).contentExtractor.isEnabled = vi
+        .fn()
+        .mockResolvedValue(mockResult);
+
+      const result = await browserPoolManager.isEnabled({
+        browserId,
+        selector: "#element",
+      });
+
+      expect(result).toEqual(mockResult);
+    });
+
+    it("should describe HTML successfully", async () => {
+      const mockResult = { success: true, description: "A div element" };
+      (browserPoolManager as any).contentExtractor.describeHtml = vi
+        .fn()
+        .mockResolvedValue(mockResult);
+
+      const result = await browserPoolManager.describeHtml({
+        browserId,
+      });
+
+      expect(result).toEqual(mockResult);
+    });
+  });
+
+  describe("advanced navigation", () => {
+    let browserId: string;
+
+    beforeEach(async () => {
+      await browserPoolManager.initialize();
+
+      (browserPoolManager as any).pool.allocate = vi.fn().mockResolvedValue({
+        instance: mockInstance,
+        page: mockPage,
+        allocationTime: 50,
+      });
+
+      mockPage.evaluate.mockResolvedValue("Mozilla/5.0 Test");
+
+      const result = await browserPoolManager.launchBrowser({
+        browserType: "chromium",
+        headless: true,
+      });
+      browserId = result.browserId;
+
+      (browserPoolManager as any).sessions.set(browserId, {
+        instance: mockInstance,
+        page: mockPage,
+        teamId: undefined,
+      });
+    });
+
+    afterEach(async () => {
+      await browserPoolManager.cleanup();
+    });
+
+    it("should navigate back successfully", async () => {
+      mockPage.goBack.mockResolvedValue(undefined);
+      mockPage.url.mockReturnValue("https://previous.com");
+
+      const result = await browserPoolManager.goBack({
+        browserId,
+      });
+
+      expect(result).toMatchObject({
+        browserId,
+        status: "navigated_back",
+        url: "https://previous.com",
+      });
+    });
+
+    it("should generate selector successfully", async () => {
+      const mockResult = { success: true, selector: "#generated-selector" };
+      (browserPoolManager as any).selectorGenerator.generateSelector = vi
+        .fn()
+        .mockResolvedValue(mockResult);
+
+      const result = await browserPoolManager.generateSelector({
+        browserId,
+        description: "the red button",
+      });
+
+      expect(result).toEqual(mockResult);
+    });
+  });
+
+  describe("PDF rendering", () => {
+    let browserId: string;
+
+    beforeEach(async () => {
+      await browserPoolManager.initialize();
+
+      (browserPoolManager as any).pool.allocate = vi.fn().mockResolvedValue({
+        instance: mockInstance,
+        page: mockPage,
+        allocationTime: 50,
+      });
+
+      mockPage.evaluate.mockResolvedValue("Mozilla/5.0 Test");
+
+      const result = await browserPoolManager.launchBrowser({
+        browserType: "chromium",
+        headless: true,
+      });
+      browserId = result.browserId;
+
+      (browserPoolManager as any).sessions.set(browserId, {
+        instance: mockInstance,
+        page: mockPage,
+        teamId: undefined,
+      });
+    });
+
+    afterEach(async () => {
+      await browserPoolManager.cleanup();
+    });
+
+    it("should handle PDF file not found", async () => {
+      // Mock existsSync to return false
+      const { existsSync } = await import("node:fs");
+      (existsSync as any).mockReturnValue(false);
+
+      await expect(
+        browserPoolManager.renderPdf({
+          browserId,
+          pdfPath: "/nonexistent/file.pdf",
+        }),
+      ).rejects.toThrow("PDF file not found");
+    });
+  });
+
+  it("should render PDF successfully", async () => {
+    await browserPoolManager.initialize();
+
+    const launchResult = await browserPoolManager.launchBrowser({
+      browserType: "chromium",
+      headless: true,
+    });
+    const browserId = launchResult.browserId;
+
+    // Mock existsSync
+    const { existsSync } = await import("node:fs");
+    (existsSync as any).mockReturnValue(true);
+
+    // Mock LocalHttpServer using the already mocked module
+    const { LocalHttpServer } = await import("./utilities/local-http-server.js");
+    const mockHttpServer = {
+      servePdfWithViewer: vi.fn().mockResolvedValue({ url: "http://localhost:8080/pdf" }),
+    };
+    (LocalHttpServer.getInstance as any).mockResolvedValue(mockHttpServer);
+
+    mockPage.goto.mockResolvedValue(undefined);
+    mockPage.waitForFunction.mockResolvedValue(undefined);
+    mockPage.evaluate.mockResolvedValue({
+      pageCount: 5,
+      currentPage: 1,
+      hasTextLayer: true,
+    });
+
+    const result = await browserPoolManager.renderPdf({
+      browserId,
+      pdfPath: "/path/to/test.pdf",
+    });
+
+    expect(result).toMatchObject({
+      success: true,
+      message: expect.stringContaining("PDF rendered"),
+      pageCount: 5,
+      currentPage: 1,
+    });
+
+    // Verify the mock was called properly
+    expect(mockHttpServer.servePdfWithViewer).toHaveBeenCalledWith("/path/to/test.pdf");
+  });
+
+  it("should handle PDF file not found", async () => {
+    await browserPoolManager.initialize();
+
+    const launchResult = await browserPoolManager.launchBrowser({
+      browserType: "chromium",
+      headless: true,
+    });
+    const browserId = launchResult.browserId;
+
+    // Mock existsSync in the node:fs module to return false
+    const { existsSync } = await import("node:fs");
+    (existsSync as any).mockReturnValue(false);
+
+    // Ensure LocalHttpServer mock doesn't interfere with the file check
+    const { LocalHttpServer } = await import("./utilities/local-http-server.js");
+    const mockHttpServer = {
+      servePdfWithViewer: vi.fn().mockResolvedValue({ url: "http://localhost:8080/pdf" }),
+    };
+    (LocalHttpServer.getInstance as any).mockResolvedValue(mockHttpServer);
+
+    await expect(
+      browserPoolManager.renderPdf({
+        browserId,
+        pdfPath: "/nonexistent/file.pdf",
+      }),
+    ).rejects.toThrow("PDF file not found");
+  });
+
+  describe("error handling", () => {
+    it("should handle browser launch with invalid browser type", async () => {
+      await browserPoolManager.initialize();
+
+      // The manager doesn't validate browser types - it passes them through
+      const result = await browserPoolManager.launchBrowser({
+        browserType: "invalid" as any,
+        headless: true,
+      });
+
+      expect(result).toHaveProperty("browserId");
+      expect(result.browserType).toBe("invalid");
+    });
+
+    it("should handle navigation with invalid URL", async () => {
+      await browserPoolManager.initialize();
+
+      (browserPoolManager as any).pool.allocate = vi.fn().mockResolvedValue({
+        instance: mockInstance,
+        page: mockPage,
+        allocationTime: 50,
+      });
+
+      mockPage.evaluate.mockResolvedValue("Mozilla/5.0 Test");
+
+      const result = await browserPoolManager.launchBrowser({
+        browserType: "chromium",
+        headless: true,
+      });
+      const browserId = result.browserId;
+
+      (browserPoolManager as any).sessions.set(browserId, {
+        instance: mockInstance,
+        page: mockPage,
+        teamId: undefined,
+      });
+
+      await expect(
+        browserPoolManager.navigate({
+          browserId,
+          url: "invalid-url",
+        }),
+      ).rejects.toThrow("Invalid URL");
+    });
+
+    it("should handle screenshot with invalid browser", async () => {
+      await browserPoolManager.initialize();
+
+      await expect(
+        browserPoolManager.screenshot({
+          browserId: "non-existent",
+          fullPage: true,
+        }),
+      ).rejects.toThrow("Browser session not found");
     });
   });
 });

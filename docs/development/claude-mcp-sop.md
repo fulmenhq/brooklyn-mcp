@@ -87,7 +87,7 @@ brooklyn web start --port 3000 --daemon
 # 1-2. Same as above (build and restart server)
 
 # 3. REQUIRED: Reconnect for schema changes
-# Use Claude Code's built-in reconnection:
+# Use Claude Code's built-in reconnection (RECOMMENDED):
 /mcp  # Built-in reconnection command
 
 # Alternative: Manual remove/add cycle
@@ -97,6 +97,72 @@ claude mcp add brooklyn http://127.0.0.1:3000  # or -- brooklyn mcp start
 # 4. Verify new tools appear and are callable
 # Use brooklyn_list_tools in Claude, then test calling new tools
 ```
+
+### 🚀 **NEW**: Claude Code `/mcp` Reconnection Command
+
+**BREAKTHROUGH**: Claude Code now provides a built-in `/mcp` slash command that dramatically improves development workflow.
+
+#### What `/mcp` Does
+
+- **Reconnects to all configured MCP servers** without removing/adding configurations
+- **Refreshes both schema and function binding caches** (solves the two-level caching issue)
+- **Works with all transport types** (stdio, HTTP) and configuration scopes (user, project)
+- **No conversation restart required** - continue working in the same Claude session
+- **Faster than manual remove/add cycles** - single command vs multiple steps
+
+#### When to Use `/mcp`
+
+**✅ Perfect for**:
+
+- **New tools added** (e.g., image processing tools, new MCP tool implementations)
+- **Tool parameter changes** (schema modifications)
+- **Development iteration cycles** when adding/modifying Brooklyn MCP tools
+- **After server restarts** with schema changes
+
+**❌ Not needed for**:
+
+- **Functionality-only changes** (bug fixes, performance improvements in existing tools)
+- **Server version updates** without schema changes (HTTP transport auto-detects these)
+
+#### Usage Examples
+
+```bash
+# After adding new tools to Brooklyn
+bun run build && bun run install
+brooklyn web cleanup --port 3000 && brooklyn web start --port 3000 --daemon
+
+# In Claude Code conversation:
+/mcp
+# ✅ "Reconnected to brooklyn." - New tools are now available!
+```
+
+#### Comparison: `/mcp` vs Manual Cycle
+
+**Traditional Method**:
+
+```bash
+claude mcp remove brooklyn
+claude mcp add brooklyn http://127.0.0.1:3000
+# Multiple commands, potential for typos, slower
+```
+
+**New Method**:
+
+```bash
+# In Claude Code:
+/mcp
+# Single command, always uses existing configuration, faster
+```
+
+#### Benefits for AI Development
+
+- **⚡ Faster iteration**: Single command vs multi-step process
+- **🔄 Reliable reconnection**: Uses existing configuration, eliminates typos
+- **📈 Better UX**: No conversation interruption, immediate tool availability
+- **🛡️ Error reduction**: No need to remember transport URLs or configuration details
+- **🚀 Team adoption**: Simple `/mcp` is easier for team members to remember
+
+**Bottom Line**: Use `/mcp` as the primary reconnection method. Fall back to manual remove/add only when changing server configurations or troubleshooting.
 
 **Why This Happens**:
 
@@ -525,6 +591,50 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | nc -U $SOCKE
 
 **Value proposition**: Enhanced logging and message inspection capabilities, not transport reliability fixes.
 
+### Development-Only Mode for AI Agent Testing
+
+**For AI agents and developers who need source code development without bundling constraints:**
+
+**Direct source execution** (bypasses binary bundling issues):
+
+```bash
+# Run Brooklyn directly from source code
+bun src/cli/brooklyn.ts mcp start --development-only
+
+# Add to Claude Code (stdio transport)
+claude mcp add -s project brooklyn-dev -- bun src/cli/brooklyn.ts mcp start --development-only
+```
+
+**When to use `--development-only`**:
+
+- ✅ **Native dependency issues** - When native modules cause bundling problems
+- ✅ **Active development** - Testing new features before fixing bundling
+- ✅ **AI agent iteration** - Rapid prototyping without build constraints
+- ✅ **Debugging bundling issues** - Isolating runtime vs bundling problems
+
+**Benefits**:
+
+- **🚀 No build step** - Changes reflected immediately
+- **🔧 Full dependency access** - All npm packages work without bundling constraints
+- **⚡ Faster iteration** - Edit code, restart MCP connection with `/mcp`
+- **🛠️ Development flexibility** - Perfect for testing new tool implementations
+
+**Setup example**:
+
+```bash
+# 1. Use source-based MCP server
+claude mcp remove brooklyn
+claude mcp add -s project brooklyn-dev -- bun src/cli/brooklyn.ts mcp start --development-only
+
+# 2. Make changes to Brooklyn source code
+# Edit src/core/image-processing-service.ts
+
+# 3. Reconnect to test changes immediately
+/mcp  # In Claude Code - picks up source changes instantly
+```
+
+**See also**: Complete development mode documentation in `docs/development/local-dev-mode/` for advanced socket/pipe debugging workflows.
+
 ## 🚨 CRITICAL: Tool Registration Requirements
 
 **NEW REQUIREMENT**: When adding new MCP tools to Brooklyn, **THREE LOCATIONS** must be updated to prevent "Tool not found" errors:
@@ -765,7 +875,11 @@ brooklyn web start --port 3000 --daemon
 # 1-3. Same as above (build and restart server)
 
 # 4. Reconnect for schema changes
-/mcp  # Use Claude Code's built-in reconnection
+/mcp  # Use Claude Code's built-in reconnection (RECOMMENDED)
+
+# Alternative: Manual remove/add cycle
+claude mcp remove brooklyn
+claude mcp add brooklyn http://127.0.0.1:3000  # or -- brooklyn mcp start
 
 # 5. Test new tools immediately
 # New tools are now callable via mcp__brooklyn__*
@@ -806,34 +920,56 @@ claude mcp add brooklyn http://127.0.0.1:3000  # or -- brooklyn mcp start
 # Complete update cycle
 bun run version:bump:patch && bun run build && bun run install
 brooklyn web cleanup --port 3000 && brooklyn web start --port 3000 --daemon
-# ✅ DONE! Claude auto-detects changes
+# ✅ DONE! Claude auto-detects functionality changes
+
+# For schema changes (new tools): Use /mcp in Claude Code
+/mcp  # Reconnects to all configured MCP servers
 
 # HTTP Transport + User Scope (Cache Refresh Required)
 # Server update
 bun run build && bun run install
 brooklyn web cleanup --port 3000 && brooklyn web start --port 3000 --daemon
 
-# Tool cache refresh
+# Tool cache refresh (RECOMMENDED)
+/mcp  # In Claude Code conversation
+
+# Alternative: Manual refresh
 claude mcp remove brooklyn && claude mcp add brooklyn http://127.0.0.1:3000
 
 # stdio Transport (Stable Release)
 # Full update cycle
 bun run version:bump:patch && bun run build && bun run install
-pkill -f brooklyn && claude mcp remove brooklyn
-# [Close all Claude sessions]
-claude mcp add -s user brooklyn -- brooklyn mcp start
-# [Restart Claude]
+pkill -f brooklyn
 
-# Tool-only refresh (both transports)
-claude mcp remove brooklyn && claude mcp add brooklyn [transport-config]
+# Tool cache refresh (RECOMMENDED)
+/mcp  # In Claude Code conversation
+
+# Alternative: Manual refresh
+claude mcp remove brooklyn && claude mcp add -s user brooklyn -- brooklyn mcp start
+
+# Development-Only Mode (Source Code, No Bundling)
+# Setup
+claude mcp add -s project brooklyn-dev -- bun src/cli/brooklyn.ts mcp start --development-only
+
+# After code changes
+/mcp  # Instant source code changes
 ```
 
 ---
 
-**Last Updated**: August 16, 2025  
+**Last Updated**: August 18, 2025  
+**Key Updates**:
+
+- **🚀 NEW**: Claude Code `/mcp` slash command for instant MCP reconnection
+- **🛠️ NEW**: Development-only mode (`--development-only`) for native dependency issues
+- **📚 NEW**: Comprehensive bundling issue documentation and workarounds
+- **✅ VERIFIED**: Tool registration requirements and quality gates for new tools
+
 **Key Points**:
 
+- **Primary Reconnection**: Use `/mcp` command instead of manual remove/add cycles
 - **Transport Status**: Both stdio and HTTP transports work reliably for production use
 - **Development**: Regular Brooklyn development works well with either transport
+- **Bundling Issues**: Use development-only mode for complex native dependencies
 - **Local Dev Mode**: Optional tool for MCP protocol debugging and message inspection
-- **Session Restarts**: Rarely needed; mainly for transport/scope changes or major schema updates
+- **Session Restarts**: Rarely needed; `/mcp` handles most reconnection scenarios

@@ -128,6 +128,25 @@ brooklyn status
 brooklyn cleanup
 ```
 
+### Authentication Management
+
+```bash
+# Add a new user for local authentication
+brooklyn auth add-user --username admin --team admin-team --permissions admin
+
+# Set or reset a user's password
+brooklyn auth set-password --username admin
+
+# List all users
+brooklyn auth list-users
+
+# Remove a user
+brooklyn auth remove-user --username admin --force
+
+# Revoke user sessions (when implemented)
+brooklyn auth revoke-sessions --username admin
+```
+
 ### Monitoring & Operations
 
 ```bash
@@ -142,6 +161,10 @@ brooklyn browser
 
 # Debug utilities
 brooklyn debug
+
+# Configuration management
+brooklyn config validate
+brooklyn config show
 ```
 
 ### Information & Help
@@ -181,11 +204,47 @@ Commands:
   mcp                MCP server commands for Claude Code integration
   web                Web server commands for monitoring and APIs
   browser            Browser management commands
+  auth               Authentication management for local users
+  config             Configuration validation and management
   debug              Debugging utilities for Brooklyn
   status [options]   Show status of all Brooklyn services
   setup [options]    Install browsers and configure Brooklyn
   version            Show Brooklyn version information
 ```
+
+### Assisted Configuration
+
+Use the unified configuration helper to set up MCP clients (IDEs/agents) for stdio or http transports:
+
+```bash
+# Cursor (project scope, stdio)
+brooklyn config agent --client cursor --scope project --transport stdio --apply
+
+# Claude Code (user scope, stdio)
+brooklyn config agent --client claude --scope user --transport stdio --apply
+
+# Codex CLI (user scope, stdio)
+brooklyn config agent --client codex --scope user --transport stdio --apply
+
+# Kilocode (project scope)
+# Writes .kilocode/mcp.json with a brooklyn entry
+brooklyn config agent --client kilocode --scope project --transport stdio --apply
+
+# Cline (user scope)
+# Writes cline_mcp_settings.json under VS Code/VSCodium global storage
+# Note: Cline requires stdio; remote HTTP requires SSE and is not supported by
+# the current Brooklyn dev-http endpoint. Use stdio for Cline.
+brooklyn config agent --client cline --scope user --transport stdio --apply
+
+# HTTP transport (e.g., 127.0.0.1:3000)
+brooklyn config agent --client project --transport http --host 127.0.0.1 --port 3000 --apply
+```
+
+Notes:
+
+- Add `--team-id <id>` to embed a team route or pass `--team-id` to stdio startup.
+- Omit `--apply` to preview file content/commands without writing.
+- `brooklyn mcp` and `brooklyn web` help now point to this command.
 
 ### Path Independence
 

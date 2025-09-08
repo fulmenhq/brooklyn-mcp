@@ -157,6 +157,114 @@ List screenshots from today tagged 'example'
 Close the browser
 ```
 
+## ⚡ Quick Start: Layout + Cascade
+
+Use this lightning sequence when a UI looks “off” and you’re not sure why:
+
+1. Visualize target and spacing
+
+- `highlight_element_bounds(<selector>)`
+- `measure_whitespace(<containerSelector>)`
+
+2. Preview a CSS fix safely (no code edits)
+
+- `simulate_css_change(<selector>, { position: "relative", top: "-16px" })`
+- If unchanged, run `why_style_not_applied(<selector>, "top", "-16px")`
+
+3. Inspect what actually applies
+
+- `get_applicable_rules(<selector>)` to see which rules matter
+- `get_effective_computed(<selector>, <property>)` to find the winning rule
+
+4. Apply then revert once verified
+
+- `apply_css_override(<selector>, { ... })` → validate → `revert_css_changes(overrideId)`
+
+## 🧰 Tool Inventory (v1.6.4)
+
+Brooklyn groups tools by category. Use `brooklyn_list_tools` to see everything and `brooklyn_tool_help <name>` for details and examples.
+
+- browser-lifecycle: launch_browser, close_browser, list_active_browsers
+- navigation: navigate_to_url, go_back, wait_for_url, wait_for_navigation, wait_for_network_idle
+- interaction: click_element, fill_text, wait_for_element, get_text_content, validate_element_presence, find_elements, focus_element, hover_element, select_option, clear_element, drag_and_drop, generate_selector, scroll_into_view, scroll_to, scroll_by, highlight_element_bounds, show_layout_grid, remove_overlay
+- styling: apply_css_override, revert_css_changes, simulate_css_change, why_style_not_applied, get_applicable_rules, get_effective_computed
+- content-capture: take_screenshot, list_screenshots, get_screenshot, get_html, describe_html, get_attribute, get_bounding_box, is_visible, is_enabled, get_layout_tree, measure_whitespace, find_layout_containers, extract_css, get_computed_styles, diff_css, analyze_specificity
+- javascript: execute_script, evaluate_expression, get_console_messages, add_script_tag
+- rendering: render_pdf
+- image-processing: compress_svg, analyze_svg, convert_svg_to_png, convert_svg_to_multi_png, list_processed_assets, get_processed_asset, purge_processed_assets
+- documentation: brooklyn_docs
+- discovery: brooklyn_list_tools, brooklyn_tool_help
+
+Tips:
+
+- Start with `brooklyn_list_tools` to discover available tools per category
+- Use `brooklyn_tool_help <tool>` for parameters, examples, and common errors
+- For layout debugging, use the "Quick Start: Layout + Cascade" workflow above for fastest results
+- New CSS troubleshooting tools prevent trial-and-error: `simulate_css_change` shows what will happen before you apply changes
+
+## 📦 Response Format (Unified Envelope)
+
+All tools return a unified response envelope to make automation predictable and easier to parse:
+
+```json
+{
+  "success": true,
+  "data": { "...tool specific fields..." },
+  "diagnostics": { "durationMs": 123 },
+  "traceId": "brooklyn-1736123456-abc123xyz"
+}
+```
+
+- Use `data` for the payload. The deprecated `result` field may still appear for backward compatibility during the v1.6.4 transition.
+- `diagnostics.durationMs` helps with performance baselining and flaky checks.
+- `traceId` lets you correlate logs and multi-step runs across tools.
+
+Example: applying and reverting a CSS override
+
+```json
+{
+  "success": true,
+  "data": { "overrideId": "brooklyn-override-7g8k3z" },
+  "diagnostics": { "durationMs": 42 },
+  "traceId": "brooklyn-1736123456-abc123xyz"
+}
+```
+
+If a tool fails, you’ll get:
+
+```json
+{
+  "success": false,
+  "data": null,
+  "error": { "code": "ELEMENT_NOT_FOUND", "message": "...", "details": {} },
+  "diagnostics": { "durationMs": 150 },
+  "traceId": "brooklyn-..."
+}
+```
+
+Tip: In Claude/Cursor/Codex, ask the assistant to parse `data` and ignore deprecated fields.
+
+## 🧭 CSS Cascade Troubleshooter
+
+New to CSS layout or battling precedence? Start here.
+
+- Diagnose no-ops quickly:
+  - Use `simulate_css_change(selector, cssRules)` to preview before/after values and avoid random changes
+  - Use `why_style_not_applied(selector, property, desiredValue?)` to get reasons and actionable fixes
+
+- Common pitfalls the tools reveal:
+  - Offsets (`top/left/right/bottom`) need `position != static` (e.g., `position: relative`)
+  - `z-index` matters only in positioned/flex/grid contexts; “static” won’t stack
+  - `width/height` and vertical margins don’t affect inline non-replaced elements
+  - Cascading specificity and source order might win over your rule — consider reducing specificity, not adding `!important`
+
+- Example workflow:
+  1. `highlight_element_bounds(".main-frame")` to visualize target
+  2. `simulate_css_change(".main-frame", { position: "relative", top: "-16px" })`
+  3. If unchanged, check `why_style_not_applied(".main-frame", "top", "-16px")`
+  4. Apply a temporary fix with `apply_css_override` once verified
+  5. Use `revert_css_changes` after capturing your notes
+
 ## 📊 **Screenshot Inventory**
 
 Brooklyn now includes a powerful screenshot inventory system with database storage:

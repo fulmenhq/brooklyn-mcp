@@ -37,6 +37,11 @@ const VALID_CATEGORIES = [
   "content-capture",
   "interaction",
   "discovery",
+  "rendering",
+  "image-processing",
+  "documentation",
+  "styling",
+  "pdf-analysis",
 ] as const;
 
 interface ValidationResult {

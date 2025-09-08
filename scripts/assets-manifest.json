@@ -1,0 +1,49 @@
+{
+  "assets": {
+    "pdfjs": {
+      "name": "PDF.js",
+      "version": "4.8.69",
+      "description": "PDF rendering library for browser automation",
+      "files": [
+        {
+          "filename": "pdf.min.mjs",
+          "required": true,
+          "sources": [
+            "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.min.mjs",
+            "https://unpkg.com/pdfjs-dist@4.8.69/build/pdf.min.mjs"
+          ],
+          "expectedSize": 329000,
+          "contentType": "application/javascript"
+        },
+        {
+          "filename": "pdf.worker.min.mjs",
+          "required": true,
+          "sources": [
+            "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs",
+            "https://unpkg.com/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs"
+          ],
+          "expectedSize": 1310000,
+          "contentType": "application/javascript"
+        }
+      ]
+    },
+    "mermaid": {
+      "name": "Mermaid.js",
+      "version": "11.4.0",
+      "description": "Diagram and flowchart library (future use)",
+      "enabled": false,
+      "files": [
+        {
+          "filename": "mermaid.min.js",
+          "required": true,
+          "sources": [
+            "https://cdn.jsdelivr.net/npm/mermaid@11.4.0/dist/mermaid.min.js",
+            "https://unpkg.com/mermaid@11.4.0/dist/mermaid.min.js"
+          ],
+          "expectedSize": 500000,
+          "contentType": "application/javascript"
+        }
+      ]
+    }
+  }
+}

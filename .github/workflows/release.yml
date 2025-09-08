@@ -1,0 +1,62 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+      - "v*.*.*-*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build and Release (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build CLI (legacy bundle)
+        run: bun run build:legacy
+
+      - name: Package artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+          ARCH=$(uname -m)
+          case "$ARCH" in
+            x86_64) ARCH=amd64;;
+            aarch64) ARCH=arm64;;
+            arm64) ARCH=arm64;;
+          esac
+          NAME="brooklyn-${OS}-${ARCH}"
+          mkdir -p dist/release
+          cp dist/brooklyn dist/${NAME}
+          (cd dist && zip -q release/${NAME}.zip ${NAME})
+          (cd dist && tar -czf release/${NAME}.tar.gz ${NAME})
+          (cd dist/release && shasum -a 256 ${NAME}.zip ${NAME}.tar.gz > SHA256SUMS_${OS}_${ARCH}.txt)
+
+      - name: Upload artifacts to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/release/*.zip
+            dist/release/*.tar.gz
+            dist/release/SHA256SUMS_*.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,116 +1,176 @@
-# Brooklyn Development Modes Overview
+# Brooklyn Development Modes for AI Developers
 
-Brooklyn provides multiple development and testing modes: **Socket MCP Mode**, **REPL Mode**, and **HTTP Mode**. These are optional tools for debugging and testing, as Brooklyn's standard stdio and HTTP transports work reliably for regular development.
+Brooklyn provides two primary development approaches for AI developers working on MCP servers: **Source Execution Mode** (`--development-only`) for rapid prototyping and **Development Server Mode** (`dev-start`) for advanced debugging.
+
+## 🚀 Quick Start for AI Developers
+
+**For most AI development work, use Source Execution Mode:**
+
+```bash
+# Run Brooklyn directly from source (bypasses bundling issues)
+bun src/cli/brooklyn.ts mcp start --development-only
+
+# Add to Claude Code for immediate iteration
+claude mcp add -s project brooklyn-dev -- bun src/cli/brooklyn.ts mcp start --development-only
+
+# Make changes to source → Use /mcp command → Changes reflected immediately!
+```
 
 ## Development Mode Options
 
-### 🔌 Socket MCP Mode - Native MCP Testing
+### ⚡ Source Execution Mode (`--development-only`)
 
-**Best for**: MCP protocol testing, AI agent development, reliable automation testing
+**Best for**: Active MCP server development, rapid prototyping, AI agent iteration
+
+**Key Benefits**:
+
+- 🚀 **No build step** - Changes reflected immediately
+- 🔧 **Full dependency access** - All npm packages work without bundling constraints
+- ⚡ **Faster iteration** - Edit code, use `/mcp` command, test immediately
+- 🛠️ **Development flexibility** - Perfect for testing new tool implementations
 
 ```bash
-# Start socket transport (recommended - no hanging issues)
+# Direct source execution
+bun src/cli/brooklyn.ts mcp start --development-only
+
+# Claude Code integration (recommended)
+claude mcp add -s project brooklyn-dev -- bun src/cli/brooklyn.ts mcp start --development-only
+```
+
+### 🔧 Development Server Mode (`dev-start`)
+
+**Best for**: Advanced MCP protocol debugging, transport testing, persistent server needs
+
+**Key Features**:
+
+- **Socket Transport** - Reliable Unix domain socket communication (recommended)
+- **Pipe Transport** - Named pipes (experimental, Node.js limitations)
+- **Persistent Server** - Background daemon with process management
+- **Direct JSON-RPC** - Send raw MCP messages for protocol testing
+
+```bash
+# Start development server with socket transport (recommended)
 brooklyn mcp dev-start --transport socket
 
-# Test with netcat
-echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | nc -U /tmp/brooklyn-socket.sock
-echo '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"launch_browser","arguments":{}}}' | nc -U /tmp/brooklyn-socket.sock
+# Test with direct JSON-RPC messages
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | nc -U /tmp/brooklyn-*.sock
 ```
-
-### 🔄 REPL Mode - Interactive Development
-
-**Best for**: Manual testing, learning Brooklyn, debugging automation flows
-
-```bash
-brooklyn mcp dev-repl --team-id my-project
-brooklyn> launch_browser chromium
-brooklyn> navigate_to_url browser-123 https://example.com
-brooklyn> take_screenshot browser-123
-brooklyn> exit
-```
-
-### 🌐 HTTP Mode - Programmatic Access
-
-**Best for**: CI/CD integration, automated testing, API development
-
-```bash
-brooklyn mcp dev-http --port 8080 --team-id my-project
-curl -X POST http://localhost:8080/tools/launch_browser \
-  -H "Content-Type: application/json" \
-  -d '{"browserType": "chromium", "headless": true}'
-```
-
-## Key Features
-
-### Socket MCP Mode Features
-
-- **Native MCP protocol** testing with full JSON-RPC compliance
-- **Unix domain sockets** - no named pipe hanging issues
-- **Reliable transport** - works with `nc`, `socat`, any socket client
-- **AI agent development** - perfect for testing MCP integrations
-- **Background daemon** with proper process management
-
-### REPL Mode Features
-
-- **Interactive shell** with command completion
-- **Real-time testing** of browser automation workflows
-- **Direct tool execution** (same as MCP mode)
-- **Session state management** maintains browser contexts
-- **Learning-friendly** with built-in help system
-
-### HTTP Mode Features
-
-- **Background daemon mode** returns terminal control immediately
-- **REST API** for programmatic tool access
-- **Built-in tool discovery** via `/tools` endpoint
-- **Process management** with PID files and status monitoring
-- **CI/CD integration** with proper lifecycle management
 
 ## When to Use Each Mode
 
-### Use Socket MCP Mode for:
+### 🎯 Decision Matrix for AI Developers
 
-✅ **MCP protocol debugging** - detailed message flow inspection  
-✅ **AI agent development** - testing MCP integrations outside Claude  
-✅ **Transport testing** - reliable socket communication  
-✅ **Message flow analysis** - debugging JSON-RPC communication
+| **Scenario**                | **Recommended Mode** | **Why**                                   |
+| --------------------------- | -------------------- | ----------------------------------------- |
+| **Adding new MCP tools**    | `--development-only` | Immediate source changes, no build step   |
+| **Fixing bundling issues**  | `--development-only` | Bypasses native dependency problems       |
+| **Rapid prototyping**       | `--development-only` | Fastest iteration cycle                   |
+| **Claude Code integration** | `--development-only` | Works with `/mcp` command                 |
+| **MCP protocol debugging**  | `dev-start`          | Direct JSON-RPC message testing           |
+| **Transport layer testing** | `dev-start`          | Socket/pipe communication testing         |
+| **Persistent server needs** | `dev-start`          | Background daemon with process management |
 
-**Note**: Not required for regular Brooklyn development or Claude Code integration.
+### ✅ Source Execution Mode Features
 
-### Use REPL Mode for:
+- **🚀 Zero build time** - TypeScript executed directly via Bun
+- **📦 Full npm ecosystem** - No bundling constraints on dependencies
+- **🔄 Hot reload workflow** - Edit → `/mcp` → Test (no restart needed)
+- **🎯 Claude Code native** - Perfect for AI agent development
+- **🛠️ Development auth** - Uses "none" authentication mode safely
 
-✅ **Interactive development** and manual testing  
-✅ **Learning Brooklyn** capabilities and tool syntax  
-✅ **Debugging** specific automation workflows  
-✅ **Rapid prototyping** of browser automation scripts
+### 🔧 Development Server Mode Features
 
-### Use HTTP Mode for:
+- **🔌 Socket transport** - Reliable Unix domain socket communication
+- **📡 Pipe transport** - Named pipes (experimental, Go roadmap)
+- **⚙️ Process management** - Background daemon with lifecycle controls
+- **🧪 Protocol testing** - Direct JSON-RPC message validation
+- **📊 Advanced debugging** - Transport layer inspection
 
-✅ **CI/CD pipelines** and automated testing  
-✅ **Integration** with existing web applications  
-✅ **Programmatic access** from scripts and applications  
-✅ **Performance testing** and monitoring
+## Recommended AI Development Workflow
 
-### Use Standard Transports for:
+### 🎯 Primary Workflow: Source Execution Mode
 
-✅ **Regular Brooklyn development** - stdio and HTTP both work reliably  
-✅ **Claude Code integration** via `brooklyn mcp start`  
-✅ **Production deployments** - stable and efficient  
-✅ **Day-to-day browser automation** with Claude
+```bash
+# 1. Set up source-based MCP server
+claude mcp remove brooklyn  # Remove any existing Brooklyn
+claude mcp add -s project brooklyn-dev -- bun src/cli/brooklyn.ts mcp start --development-only
 
-## Quick Reference
+# 2. Make changes to Brooklyn source code
+# Edit src/core/tool-definitions.ts
+# Edit src/core/brooklyn-engine.ts
+# Add new tools, fix bugs, etc.
 
-| Feature          | Socket MCP     | REPL Mode       | HTTP Mode     | Standard (stdio/HTTP) |
-| ---------------- | -------------- | --------------- | ------------- | --------------------- |
-| **Interface**    | Unix Socket    | Interactive CLI | REST API      | stdin/stdout or HTTP  |
-| **Use Case**     | MCP Debugging  | Manual Testing  | Automation    | Regular Development   |
-| **Background**   | Yes (daemon)   | No              | Yes (daemon)  | Claude-managed        |
-| **Programmatic** | Yes (JSON-RPC) | No              | Yes (REST)    | Yes (MCP)             |
-| **Learning**     | Good           | Excellent       | Good          | Good                  |
-| **CI/CD**        | Good           | Limited         | Excellent     | Recommended           |
-| **Reliability**  | Excellent      | Good            | Excellent     | Excellent             |
-| **Required**     | No (optional)  | No (optional)   | No (optional) | Yes (standard)        |
+# 3. Test changes immediately
+/mcp  # In Claude Code - picks up source changes instantly!
 
-For detailed usage examples, see [usage.md](usage.md).  
-For troubleshooting common issues, see [troubleshooting.md](troubleshooting.md).  
-For technical architecture details, see [architecture.md](architecture.md).
+# 4. Iterate rapidly
+# No build step, no restart - just edit and test
+```
+
+### 🔧 Advanced Workflow: Development Server Mode
+
+```bash
+# 1. Start development server for protocol testing
+brooklyn mcp dev-start --transport socket
+
+# 2. Test with direct JSON-RPC messages
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | nc -U /tmp/brooklyn-*.sock
+
+# 3. Validate MCP compliance before Claude Code integration
+# Perfect for testing new tools before adding to main workflow
+
+# 4. When ready, switch back to source execution mode for Claude Code
+brooklyn mcp dev-stop
+```
+
+### 🚨 Important Notes for AI Developers
+
+**Source Execution Mode (`--development-only`):**
+
+- ✅ **Primary choice** for MCP server development
+- ✅ **Claude Code compatible** - works with `/mcp` command
+- ✅ **Bundling workaround** - bypasses native dependency issues
+- ✅ **Authentication disabled** - uses "none" mode (development only)
+
+**Development Server Mode (`dev-start`):**
+
+- 🔧 **Advanced debugging only** - not for regular development
+- 🔧 **Protocol validation** - test JSON-RPC messages directly
+- 🔧 **Transport testing** - socket works, pipes experimental (Go roadmap)
+- 🔧 **Not Claude Code compatible** - different transport mechanism
+
+## Quick Reference for AI Developers
+
+| **Feature**        | **Source Execution<br>(`--development-only`)** | **Development Server<br>(`dev-start`)** | **Production<br>(`mcp start`)** |
+| ------------------ | ---------------------------------------------- | --------------------------------------- | ------------------------------- |
+| **Primary Use**    | Active MCP development                         | Protocol debugging                      | Production deployment           |
+| **Transport**      | stdio (Claude Code)                            | Socket/Pipe (manual)                    | stdio/HTTP                      |
+| **Build Required** | ❌ No                                          | ✅ Yes                                  | ✅ Yes                          |
+| **Hot Reload**     | ✅ Instant                                     | ⚠️ Restart needed                       | ❌ Rebuild needed               |
+| **Claude Code**    | ✅ Native (`/mcp`)                             | ❌ Not compatible                       | ✅ Full integration             |
+| **Dependencies**   | ✅ All npm packages                            | ⚠️ Bundling constraints                 | ⚠️ Bundling constraints         |
+| **Authentication** | None (dev only)                                | Configurable                            | Required                        |
+| **Best For**       | AI developers                                  | MCP protocol testing                    | End users                       |
+
+## Transport Details
+
+### Source Execution Mode
+
+- **Command**: `bun src/cli/brooklyn.ts mcp start --development-only`
+- **Transport**: Standard stdio (works with Claude Code)
+- **Authentication**: "none" mode (development only)
+- **Dependencies**: Full access to npm ecosystem
+
+### Development Server Mode
+
+- **Socket**: `brooklyn mcp dev-start --transport socket` (✅ **Recommended**)
+- **Pipes**: `brooklyn mcp dev-start --transport pipe --experimental` (⚠️ **Node.js limitations**)
+- **Go Roadmap**: Pipe transport will be fully supported in Go implementation
+
+---
+
+**📚 Next Steps:**
+
+- **Usage Examples**: [usage.md](usage.md) - Detailed workflows and commands
+- **Architecture**: [architecture.md](architecture.md) - Technical implementation details
+- **Troubleshooting**: [troubleshooting.md](troubleshooting.md) - Common issues and solutions

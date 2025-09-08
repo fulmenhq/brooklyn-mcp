@@ -155,16 +155,21 @@ export class MCPStdioTransport implements Transport {
 
       if (msg.method === "initialize") {
         this.logger().debug("Handling initialize request", { params: msg.params });
+        // Align with MCP SDK v0.5.0 reference version used across other transports
         const serverProtocolVersion = "2025-06-18";
-        const requestedVersion = (msg.params?.protocolVersion as string | undefined) ?? undefined;
+        const clientVersion = (msg.params?.protocolVersion as string | undefined) ?? undefined;
 
-        if (requestedVersion && requestedVersion !== serverProtocolVersion) {
-          response = this.createJsonRpcError(
-            msg.id,
-            -32600,
-            `Unsupported protocolVersion "${requestedVersion}". Server supports "${serverProtocolVersion}".`,
-            { supported: serverProtocolVersion },
-          );
+        if (clientVersion && clientVersion !== serverProtocolVersion) {
+          // Version mismatch: return JSON-RPC error with informative message
+          response = {
+            jsonrpc: "2.0",
+            id: msg.id,
+            error: {
+              code: -32600,
+              message: `Unsupported protocolVersion "${clientVersion}". Server supports "${serverProtocolVersion}".`,
+              data: { supported: serverProtocolVersion },
+            },
+          };
         } else {
           response = {
             jsonrpc: "2.0",

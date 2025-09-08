@@ -5,6 +5,12 @@
 
 echo "🌉 Brooklyn Pre-push Validation..."
 
+# First cleanup all Brooklyn services
+echo "🧹 Cleaning up Brooklyn services..."
+brooklyn cleanup --all || {
+  echo "⚠️  Warning: Cleanup failed, continuing anyway..."
+}
+
 # Run full test suite
 echo "🧪 Running full test suite..."
 echo "⚠️  Note: Browser integration tests may fail if Playwright browsers are not installed."

@@ -45,8 +45,12 @@ describe("Focus Element Functionality", () => {
         // Ignore cleanup errors
       }
     }
-    await poolManager.cleanup();
-  });
+
+    // Ensure pool manager cleanup with proper timeout
+    if (poolManager) {
+      await poolManager.cleanup();
+    }
+  }, 30000); // 30 second timeout for cleanup
 
   describe("Basic Focus Operations", () => {
     it("should focus a button element successfully", async () => {

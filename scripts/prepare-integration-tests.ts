@@ -12,6 +12,7 @@
 
 import { execSync } from "node:child_process";
 import { existsSync } from "node:fs";
+import { join } from "node:path";
 import chalk from "chalk";
 import { chromium, firefox, webkit } from "playwright";
 import { InstanceManager } from "../src/core/instance-manager.js";
@@ -144,7 +145,9 @@ async function installBrowsers(force = false): Promise<boolean> {
   console.log(chalk.gray("This may take a few minutes...\n"));
 
   try {
-    execSync("bunx playwright install", { stdio: "inherit" });
+    // Use local node_modules playwright to match MCP server version
+    const playwrightBin = join(process.cwd(), "node_modules", ".bin", "playwright");
+    execSync(`"${playwrightBin}" install`, { stdio: "inherit" });
     console.log(chalk.green("\n✅ Browsers installed successfully!"));
     return true;
   } catch (error) {

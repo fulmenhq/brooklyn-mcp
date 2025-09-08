@@ -24,7 +24,7 @@ Before getting started, ensure you have:
 
 ```bash
 # Clone the repository
-git clone https://github.com/3leaps/brooklyn-mcp.git
+git clone https://github.com/fulmenhq/brooklyn-mcp.git
 cd brooklyn-mcp
 
 # Install dependencies
@@ -54,7 +54,7 @@ This is the critical step to connect Brooklyn to your Claude Code environment:
     "brooklyn": {
       "command": "bun",
       "args": ["src/cli/brooklyn.ts", "mcp", "start"],
-      "cwd": "/absolute/path/to/brooklyn-mcp"
+      "cwd": "/absolute/path/to/brooklyn"
     }
   }
 }
@@ -138,6 +138,28 @@ brooklyn_getting_started use_case=ai_development team_id=your-team-name
 - **`brooklyn_examples`** - Code examples and workflows
 - **`brooklyn_team_setup`** - Team configuration assistant
 - **`brooklyn_troubleshooting`** - Diagnostic and problem-solving
+
+## 🔌 Choosing MCP Transport: stdio vs http
+
+Pick the transport that best fits your workstation and workflow:
+
+- stdio (recommended for most local dev)
+  - Per-editor lifecycle: your IDE starts/stops Brooklyn automatically
+  - No ports to manage; fewer security considerations
+  - Easiest onboarding for single-machine, smaller workflows
+
+- http (recommended for many-project or shared workflows)
+  - One central server for multiple editors/tools on the same machine
+  - Stable endpoint (e.g., http://127.0.0.1:3000), great for background/daemon usage
+  - Better for remote or team-aligned setups
+
+Rule of thumb:
+
+- Many projects/resources on a dev machine → prefer http (user-wide), run `brooklyn web start --daemon` and configure clients with `brooklyn config agent --transport http`.
+- Smaller/single-project workflows → prefer stdio (user-wide or project-wide) via `brooklyn config agent --transport stdio`.
+- Remote servers are inherently http.
+
+See the Assisted Configuration section in the User Guide for step-by-step commands.
 
 ## 🎨 Common Use Cases
 
@@ -328,6 +350,222 @@ bun run server:stop         # Stop development server
 - **Proper Cleanup** - Always close browsers when finished
 - **Team Isolation** - Use team IDs for proper resource separation
 
+## 🚨 Disaster Recovery Guide
+
+**After Disk Failure, Machine Migration, or Fresh Checkout**
+
+If you've recovered Brooklyn onto a new machine or after a disk failure, follow this comprehensive recovery process to ensure everything works correctly.
+
+### Phase 1: Environment Setup
+
+```bash
+# 1. Verify your environment
+node --version    # Should be >= 18.0.0
+bun --version     # Should be >= 1.0.0
+
+# 2. Navigate to your Brooklyn directory
+cd /path/to/brooklyn
+
+# 3. Clean any potential artifacts from previous installations
+bun run clean:all
+
+# 4. Fresh dependency installation
+bun install
+```
+
+### Phase 2: Browser & Asset Recovery
+
+```bash
+# 1. Re-download Playwright browsers (essential for automation)
+bun run setup:browsers
+
+# 2. Download required assets (PDF.js, etc.)
+bun run setup:assets
+
+# 3. Verify browser installation
+bunx playwright install --dry-run
+```
+
+### Phase 3: Build & Quality Validation
+
+```bash
+# 1. Run comprehensive quality checks
+bun run check-all
+
+# 2. Build the project
+bun run build
+
+# 3. Install Brooklyn CLI locally
+bun run install
+```
+
+### Phase 4: Configuration Recovery
+
+```bash
+# 1. Verify Claude Code configuration exists
+# macOS/Linux: ~/.config/claude/claude_desktop_config.json
+# Windows: %APPDATA%\Claude\claude_desktop_config.json
+
+# 2. Ensure Brooklyn is configured in Claude Code:
+cat ~/.config/claude/claude_desktop_config.json
+```
+
+**Expected Claude Configuration:**
+
+```json
+{
+  "mcpServers": {
+    "brooklyn": {
+      "command": "bun",
+      "args": ["src/cli/brooklyn.ts", "mcp", "start"],
+      "cwd": "/absolute/path/to/brooklyn"
+    }
+  }
+}
+```
+
+### Phase 5: Functional Testing
+
+```bash
+# 1. Test HTTP server startup (recommended validation)
+brooklyn http start --port 3000 --daemon
+
+# 2. Verify server is running
+curl http://localhost:3000/health || brooklyn http status
+
+# 3. Test MCP server connection
+brooklyn mcp start &
+sleep 3
+brooklyn_status
+
+# 4. Test browser automation
+# In Claude Code: "Launch a chromium browser for team 'test-team'"
+# In Claude Code: "Navigate to https://example.com"
+# In Claude Code: "Take a screenshot"
+# In Claude Code: "Close the browser"
+
+# 5. Stop test servers
+brooklyn http stop
+pkill -f "brooklyn.*mcp.*start"
+```
+
+### Phase 6: Fixture & Asset Verification
+
+```bash
+# 1. Check test fixtures exist
+ls -la fixtures/
+ls -la fixtures/test-*.svg
+ls -la fixtures/assets/
+
+# 2. Verify asset manifests
+ls -la configs/brooklyn-assets-manifest.yaml
+ls -la schemas/brooklyn-assets-v1.yaml
+
+# 3. Check example files
+ls -la examples/
+```
+
+### Phase 7: Database & Storage Setup
+
+```bash
+# 1. Initialize database (if using SQLite)
+# Database will auto-initialize on first MCP server start
+
+# 2. Verify screenshot storage directory exists
+ls -la screenshots/ 2>/dev/null || echo "Screenshots directory will be created on first use"
+```
+
+### Recovery Checklist ✅
+
+- [ ] **Environment**: Node.js ≥18, Bun ≥1.0 installed
+- [ ] **Dependencies**: `bun install` completed successfully
+- [ ] **Browsers**: `bun run setup:browsers` completed
+- [ ] **Assets**: `bun run setup:assets` completed
+- [ ] **Quality Gates**: `bun run check-all` passes
+- [ ] **Build**: `bun run build` succeeds
+- [ ] **CLI**: `bun run install` completed
+- [ ] **Claude Config**: MCP server configured in Claude Code
+- [ ] **HTTP Test**: `brooklyn http start --port 3000 --daemon` works
+- [ ] **MCP Test**: `brooklyn_status` responds in Claude Code
+- [ ] **Browser Test**: Can launch browser and navigate
+- [ ] **Fixtures**: Test fixtures and assets present
+- [ ] **Database**: Screenshot database initializes correctly
+
+### Common Recovery Issues
+
+**Problem:** `bun run setup:browsers` fails
+
+```
+# Solution: Check internet connection and disk space
+# Alternative: bunx playwright install chromium firefox webkit
+```
+
+**Problem:** Quality checks fail after recovery
+
+```
+# Solution: Run individual checks to identify issues
+bun run typecheck
+bun run lint
+bun run test
+```
+
+**Problem:** Claude Code can't connect to MCP server
+
+```
+# Solution: Verify absolute path in claude_desktop_config.json
+# Restart Claude Code application completely
+```
+
+**Problem:** Browser automation fails
+
+```
+# Solution: Re-run browser setup
+bun run setup:browsers
+# Check system resources (need 2GB+ RAM)
+```
+
+**Problem:** Missing fixtures or assets
+
+```
+# Solution: Re-run asset setup
+bun run setup:assets
+# Check fixtures directory structure
+```
+
+### Emergency Recovery (If All Else Fails)
+
+```bash
+# Nuclear option - complete rebuild
+cd /path/to/brooklyn
+rm -rf node_modules bun.lockb dist coverage .cache
+git clean -fdx  # ⚠️ WARNING: Removes untracked files
+bun install
+bun run setup:browsers
+bun run setup:assets
+bun run build
+bun run install
+```
+
+### Post-Recovery Validation
+
+After completing recovery, run this comprehensive test:
+
+```bash
+# Full system validation
+brooklyn http start --port 3000 --daemon
+sleep 2
+
+# Test all major components
+curl -s http://localhost:3000/health | jq .status
+brooklyn_status
+brooklyn_capabilities
+
+# Stop servers
+brooklyn http stop
+```
+
+**🎉 Recovery Complete!** Your Brooklyn MCP server is now fully operational on the new machine.
+
 ## 🎉 Welcome to the Brooklyn Community!
 
 Brooklyn is designed to make browser automation accessible, reliable, and powerful. Whether you're testing user interfaces, monitoring websites, or building AI-powered web interactions, Brooklyn provides the foundation you need.
@@ -383,4 +621,4 @@ _Part of the [Fulmen Ecosystem](https://github.com/3leaps/fulmen-ecosystem)_
 - [Advanced Features](user-guide/advanced-features.md)
 - [Team Management](user-guide/team-management.md)
 - [Development Guide](development/index.md)
-- [GitHub Repository](https://github.com/3leaps/brooklyn-mcp)
+- [GitHub Repository](https://github.com/fulmenhq/brooklyn-mcp)

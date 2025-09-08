@@ -1,8 +1,8 @@
-# Brooklyn Test Categorization Guide
+# Brooklyn Testing Strategy & Implementation Guide
 
 ## Overview
 
-Brooklyn uses a three-tier test strategy to ensure fast developer feedback while maintaining comprehensive test coverage. This guide explains our test categories and when to use each type.
+Brooklyn uses a three-tier test strategy with a hybrid test runner approach to ensure fast developer feedback while maintaining comprehensive test coverage at scale. This guide explains our test categories, test runner selection, and when to use each approach for optimal scalability and coverage.
 
 ## Test Categories
 
@@ -89,6 +89,102 @@ bun run test:e2e                     # End-to-end tests
 # CI Pipeline
 bun run test:ci                      # Full suite with coverage
 ```
+
+## Test Runner Strategy
+
+Brooklyn uses a **hybrid test runner approach** to optimize for both scalability and comprehensive testing coverage:
+
+### Vitest (Primary Test Runner)
+
+**Used for**: 90% of tests including unit tests, integration tests, and browser automation
+
+**Why Vitest**:
+
+- **Parallel execution** with worker thread isolation (`pool: 'forks'`)
+- **Excellent scalability** for large test suites (hundreds of tests)
+- **Test isolation** prevents side effects between test suites
+- **Mature ecosystem** with comprehensive tooling and coverage reporting
+- **Fast watch mode** with hot module replacement (HMR)
+
+**Configuration**:
+
+```json
+// vitest.config.ts
+export default defineConfig({
+  test: {
+    pool: 'forks',      // Critical for scalability
+    isolate: true,      // Prevent test interference
+    coverage: {
+      thresholds: {
+        lines: 70,
+        functions: 70,
+        branches: 70,
+        statements: 70
+      }
+    }
+  }
+})
+```
+
+### Bun Test Runner (Strategic Integration Testing)
+
+**Used for**: 10% of tests requiring Bun-specific runtime APIs
+
+**Why Bun Test**:
+
+- **Native Bun API access** - can test `Bun.serve()`, `Bun.hash()`, HTTP server functionality
+- **8x faster execution** than Vitest for runtime-specific operations
+- **Production runtime alignment** - tests run in same environment as production
+
+**When to Use Bun Test**:
+
+- LocalHttpServer integration testing (requires `Bun.serve()`)
+- File ID generation testing (requires `Bun.hash()`)
+- Performance benchmarking of Bun-specific code
+- HTTP transport protocol validation
+
+**Limitations**:
+
+- **No parallel execution** - single process, sequential test execution
+- **No test isolation** - global state shared between test suites
+- **Limited scalability** - unsuitable for large test suites
+- **Feature gaps** - missing fake timers, limited ecosystem
+
+### Test Runner Selection Matrix
+
+| Test Type            | Dependencies             | Runner     | Rationale                     |
+| -------------------- | ------------------------ | ---------- | ----------------------------- |
+| Unit Tests           | Pure functions, mocks    | **Vitest** | Parallel execution, isolation |
+| Integration (Mocked) | External services mocked | **Vitest** | Scalability, isolation        |
+| Browser Automation   | Playwright browsers      | **Vitest** | Process isolation critical    |
+| HTTP Server Testing  | `Bun.serve()` required   | **Bun**    | Runtime dependency            |
+| MCP Protocol         | Real HTTP transport      | **Bun**    | End-to-end validation         |
+| Performance Testing  | Bun-specific benchmarks  | **Bun**    | Production alignment          |
+
+### Script Configuration
+
+```bash
+# Primary test commands (Vitest)
+bun run test                      # All tests (hybrid execution)
+bun run test:unit                 # Vitest unit tests
+bun run test:integration          # Vitest integration tests
+bun run test:watch                # Vitest watch mode
+
+# Bun-specific tests
+bun run test:integration:bun      # Bun test runner for HTTP server (✅ IMPLEMENTED)
+bun run test:performance          # Bun performance benchmarks (included in :integration:bun)
+```
+
+### Future Migration Considerations
+
+**We will consider migrating fully to Bun test runner only when**:
+
+- Parallel execution with worker isolation is implemented
+- Test suite isolation prevents side effects between suites
+- Fake timers and ecosystem maturity reaches Vitest levels
+- Performance gains justify the scalability trade-offs
+
+**Current Decision (2025)**: Hybrid approach optimizes for Brooklyn's needs - maintaining scalability while enabling comprehensive testing of Bun-specific functionality.
 
 ### Git Hooks
 

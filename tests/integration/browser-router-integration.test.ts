@@ -36,8 +36,12 @@ describe("Browser Router Integration", () => {
         // Ignore cleanup errors
       }
     }
-    await poolManager.cleanup();
-  });
+
+    // Ensure pool manager cleanup with proper timeout
+    if (poolManager) {
+      await poolManager.cleanup();
+    }
+  }, 30000); // 30 second timeout for cleanup
 
   describe("Complete Browser Lifecycle", () => {
     it("should handle full browser lifecycle with team isolation", async () => {
@@ -133,7 +137,7 @@ describe("Browser Router Integration", () => {
           context,
         });
       }
-    });
+    }, 30000); // 30 second timeout for cleanup
 
     it.skip("should handle element interaction sequence", async () => {
       // Skip during infrastructure transition - test may need updates for enterprise router

@@ -286,4 +286,4 @@ When using GUI tools, refer to the command line examples in this document to und
 - [Git Documentation - Rewriting History](https://git-scm.com/book/en/v2/Git-Tools-Rewriting-History)
 - [Conventional Commits](https://www.conventionalcommits.org/)
 - Project-specific commit message guidelines in [CONTRIBUTORS.md](../../CONTRIBUTORS.md)
-- [AGENT.md](../../AGENT.md) for AI agent contribution standards
+- [AGENTS.md](../../AGENTS.md) for AI agent contribution standards

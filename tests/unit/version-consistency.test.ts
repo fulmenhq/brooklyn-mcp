@@ -13,7 +13,7 @@ describe("Version Consistency", () => {
     const result = await checkVersionConsistency();
 
     expect(result.consistent).toBe(true);
-    expect(result.sourceVersion).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(result.sourceVersion).toMatch(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/);
     expect(result.issues).toHaveLength(0);
   });
 
@@ -21,7 +21,7 @@ describe("Version Consistency", () => {
     const result = await checkVersionConsistency();
 
     // Test that the version follows semantic versioning
-    const versionRegex = /^(\d+)\.(\d+)\.(\d+)$/;
+    const versionRegex = /^(\d+)\.(\d+)\.(\d+)(?:-[0-9A-Za-z.-]+)?$/;
     const match = result.sourceVersion.match(versionRegex);
 
     expect(match).toBeTruthy();

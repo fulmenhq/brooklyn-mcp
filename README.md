@@ -8,14 +8,19 @@
 [![Architecture Approved](https://img.shields.io/badge/Architecture-Committee%20Approved%20🏆-gold?style=for-the-badge&logo=award&logoColor=white)](docs/fulmen/spark/README.md)
 
 <div align="center">
-  <img src="assets/icons/fulmen-forge-icon.png" alt="Fulmen Forge Icon" width="120" height="120">
+  <img src="assets/logos/brooklyn-mcp-logo.svg" alt="Brooklyn MCP - Enterprise Browser Automation" width="150" height="150">
   <br>
   <em>Brooklyn MCP - The <strong>MCP Forge</strong> for the Fulmen Ecosystem</em>
 </div>
 
 > **⚡ Start Fast**: 5-minute setup with enterprise infrastructure | **🌉 Thrive on Scale**: Multi-team platform ready for global deployment
 
-**Latest**: v1.4.38 introduces **MCP protocol compliance** with both stdio and HTTP transports working flawlessly for AI development workflows.
+### Project Status
+
+- Lifecycle Phase: alpha (see docs/standards/lifecycle-maturity.md)
+- Release Phase: rc (preparing 0.2.x public track)
+
+**Latest**: v0.2.0-rc.2 (public RC) includes **enterprise authentication** foundations, improved MCP client configuration, and a stabilized test/release pipeline.
 
 ---
 
@@ -380,7 +385,10 @@ brooklyn metrics --team=frontend     # Team-specific metrics
 
 - **[Hello Brooklyn](docs/hello_brooklyn.md)** - 5-minute setup and first automation
 - **[Welcome Guide](docs/welcome.md)** - Comprehensive features and examples
-- **[Agent Onboarding](AGENT.md)** - Team member quick start
+  - See "Choosing MCP Transport" for when to use stdio vs http
+- **Assisted Configuration**: IDE/agent setup helper
+  - See docs/user-guide/brooklyn-cli.md#assisted-configuration
+- **[Agent Onboarding](AGENTS.md)** - Team member quick start
 
 ### **Platform Documentation**
 
@@ -448,10 +456,15 @@ Brooklyn is named after the Brooklyn Bridge - a masterpiece of engineering that 
 
 **Trademarks**: "Fulmen", "Brooklyn MCP", and "3 Leaps" are trademarks of 3 Leaps, LLC. While code is open source, please use distinct names for derivative works to prevent confusion.
 
----
+### OSS Policies (Organization-wide)
 
-**Built with 🌉 by the 3 Leaps team**  
-**Part of the [Fulmen Ecosystem](https://fulmenhq.dev) - Lightning-fast enterprise development**
+- Authoritative policies repository: https://github.com/3leaps/oss-policies/
+- Code of Conduct: https://github.com/3leaps/oss-policies/blob/main/CODE_OF_CONDUCT.md
+- Security Policy: https://github.com/3leaps/oss-policies/blob/main/SECURITY.md
+- Contributing Guide: https://github.com/3leaps/oss-policies/blob/main/CONTRIBUTING.md
+- Third-party notices are generated per release (see `dist/licenses/THIRD_PARTY_NOTICES.md`).
+
+---
 
 ---
 
@@ -460,5 +473,12 @@ Brooklyn is named after the Brooklyn Bridge - a masterpiece of engineering that 
 ⚡ **Start Fast. Thrive on Scale.** ⚡
 
 _Transform AI UX development with enterprise-ready browser automation_
+
+<br><br>
+
+<img src="assets/icons/fulmen-forge-icon.png" alt="Fulmen Forge" width="60" height="60">
+
+**Built with 🌉 by the 3 Leaps team**  
+**Part of the [Fulmen Ecosystem](https://fulmenhq.dev) - Lightning-fast enterprise development**
 
 </div>

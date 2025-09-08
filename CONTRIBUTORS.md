@@ -21,14 +21,14 @@ Welcome to the Fulmen Brooklyn MCP project! This document outlines how to contri
 
 1. **Read the Documentation**
    - Review `README.md` for project overview
-   - Check `AGENT.md` for coding standards and commands
+   - Check `AGENTS.md` for coding standards and commands
    - Read `docs/` for detailed technical documentation
 
 2. **Development Setup**
 
    ```bash
    # Clone and setup
-   git clone https://github.com/3leapsdave/brooklyn-mcp.git
+   git clone https://github.com/fulmenhq/brooklyn-mcp.git
    cd brooklyn-mcp
    bun install
 
@@ -221,7 +221,7 @@ paris.brooklyn@fulmenhq.com
 ### Documentation
 
 - **Technical**: See `docs/` directory
-- **Development**: Check `AGENT.md` for commands and standards
+- **Development**: Check `AGENTS.md` for commands and standards
 - **Architecture**: Review `docs/architecture/` for system design
 
 ### Support Channels

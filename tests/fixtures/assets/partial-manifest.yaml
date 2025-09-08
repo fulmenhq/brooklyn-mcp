@@ -1,0 +1,10 @@
+# Partial Asset Manifest for Testing Missing Fields
+# Missing required top-level properties
+
+version: "1.0.0"
+# Missing required 'assets' field
+
+description: "Incomplete manifest for testing error handling"
+metadata:
+  created: "2024-01-01"
+  purpose: "unit testing"

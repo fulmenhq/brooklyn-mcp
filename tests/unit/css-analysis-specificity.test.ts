@@ -94,8 +94,12 @@ describe("CSS Specificity Analysis", () => {
         // Ignore cleanup errors
       }
     }
-    await poolManager.cleanup();
-  });
+
+    // Ensure pool manager cleanup with proper timeout
+    if (poolManager) {
+      await poolManager.cleanup();
+    }
+  }, 30000); // 30 second timeout for cleanup
 
   describe("Enhanced Specificity Analysis Features", () => {
     it("should provide summary-focused response by default", async () => {

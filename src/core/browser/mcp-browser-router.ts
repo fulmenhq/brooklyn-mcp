@@ -19,6 +19,11 @@ export interface BrowserToolRequest {
 
 export interface BrowserToolResponse {
   success: boolean;
+  // New standardized envelope fields
+  data?: unknown; // Preferred field for successful results
+  diagnostics?: { durationMs: number; warnings?: string[]; retries?: number };
+  traceId?: string;
+  // Back-compat for existing tests and callers during transition
   result?: unknown;
   error?: {
     code: string;
@@ -77,9 +82,15 @@ export class MCPBrowserRouter {
         executionTime: metadata.executionTime,
       });
 
+      const traceId: string | undefined =
+        (context as unknown as { requestId?: string })?.requestId ||
+        (context as unknown as { metadata?: { correlationId?: string } })?.metadata?.correlationId;
       return {
         success: true,
-        result,
+        result, // transitional
+        data: result,
+        diagnostics: { durationMs: metadata.executionTime },
+        traceId,
         metadata,
       };
     } catch (error) {
@@ -98,8 +109,12 @@ export class MCPBrowserRouter {
           ? (error as { browserId?: string }).browserId
           : undefined);
 
+      const traceId: string | undefined =
+        (context as unknown as { requestId?: string })?.requestId ||
+        (context as unknown as { metadata?: { correlationId?: string } })?.metadata?.correlationId;
       return {
         success: false,
+        data: undefined,
         error: this.formatError(
           (error instanceof Error ? error : new Error(String(error))).message.includes(
             "session not found",
@@ -113,6 +128,8 @@ export class MCPBrowserRouter {
               : new Error(String(error)),
           tool,
         ),
+        diagnostics: { durationMs: executionTime },
+        traceId,
         metadata: {
           executionTime,
           teamId: context.teamId,
@@ -167,6 +184,12 @@ export class MCPBrowserRouter {
         return await this.validateElementPresence(params, context);
       case "go_back":
         return await this.goBack(params, context);
+      case "wait_for_url":
+        return await this.waitForUrl(params, context);
+      case "wait_for_navigation":
+        return await this.waitForNavigation(params, context);
+      case "wait_for_network_idle":
+        return await this.waitForNetworkIdle(params, context);
       case "list_screenshots":
         return await this.listScreenshots(params, context);
       case "get_screenshot":
@@ -189,12 +212,338 @@ export class MCPBrowserRouter {
         return await this.diffCSS(params, context);
       case "analyze_specificity":
         return await this.analyzeSpecificity(params, context);
+      case "simulate_css_change":
+        return await this.simulateCssChange(params, context);
+      case "why_style_not_applied":
+        return await this.whyStyleNotApplied(params, context);
+      case "get_applicable_rules":
+        return await this.getApplicableRules(params, context);
+      case "get_effective_computed":
+        return await this.getEffectiveComputed(params, context);
       // Enhanced Element Interaction
       case "focus_element":
         return await this.focusElement(params, context);
+      case "hover_element":
+        return await this.hoverElement(params, context);
+      case "select_option":
+        return await this.selectOption(params, context);
+      case "clear_element":
+        return await this.clearElement(params, context);
+      case "drag_and_drop":
+        return await this.dragAndDrop(params, context);
+      case "scroll_into_view":
+        return await this.scrollIntoView(params, context);
+      case "scroll_to":
+        return await this.scrollTo(params, context);
+      case "scroll_by":
+        return await this.scrollBy(params, context);
+      case "highlight_element_bounds":
+        return await this.highlightElementBounds(params, context);
+      case "show_layout_grid":
+        return await this.showLayoutGrid(params, context);
+      case "remove_overlay":
+        return await this.removeOverlay(params, context);
+      case "apply_css_override":
+        return await this.applyCssOverride(params, context);
+      case "revert_css_changes":
+        return await this.revertCssChanges(params, context);
+      case "get_layout_tree":
+        return await this.getLayoutTree(params, context);
+      case "measure_whitespace":
+        return await this.measureWhitespace(params, context);
+      case "find_layout_containers":
+        return await this.findLayoutContainers(params, context);
+      // Rendering tools
+      case "render_pdf":
+        return await this.renderPdf(params, context);
+      // Phase 1C: Content Extraction Extensions
+      case "get_html":
+        return await this.getHtml(params, context);
+      case "describe_html":
+        return await this.describeHtml(params, context);
+      case "get_attribute":
+        return await this.getAttribute(params, context);
+      case "get_bounding_box":
+        return await this.getBoundingBox(params, context);
+      case "is_visible":
+        return await this.isVisible(params, context);
+      case "is_enabled":
+        return await this.isEnabled(params, context);
       default:
         throw new Error(`Unknown browser tool: ${tool}`);
     }
+  }
+
+  private async waitForUrl(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const {
+      exact,
+      pattern,
+      timeout = 30000,
+    } = params as {
+      exact?: string;
+      pattern?: string;
+      timeout?: number;
+    };
+    if (!!exact === !!pattern) {
+      throw new Error("wait_for_url requires exactly one of 'exact' or 'pattern'");
+    }
+    const browserId = this.resolveBrowserId(params, context.teamId);
+    const result = await this.poolManager.waitForUrl({ browserId, exact, pattern, timeout });
+    return result;
+  }
+
+  private async waitForNavigation(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const { waitUntil = "load", timeout = 30000 } = params as {
+      waitUntil?: "load" | "domcontentloaded" | "networkidle";
+      timeout?: number;
+    };
+    const browserId = this.resolveBrowserId(params, context.teamId);
+    const result = await this.poolManager.waitForNavigation({ browserId, waitUntil, timeout });
+    return result;
+  }
+
+  private async waitForNetworkIdle(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const { timeout = 30000 } = params as { timeout?: number };
+    const browserId = this.resolveBrowserId(params, context.teamId);
+    const result = await this.poolManager.waitForNetworkIdle({ browserId, timeout });
+    return result;
+  }
+
+  private async scrollIntoView(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const { selector, timeout = 5000 } = params as { selector: string; timeout?: number };
+    if (!selector) throw new Error("scroll_into_view requires 'selector'");
+    const browserId = this.resolveBrowserId(params, context.teamId);
+    return await this.poolManager.scrollIntoView({ browserId, selector, timeout });
+  }
+
+  private async scrollTo(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const {
+      x,
+      y,
+      behavior = "auto",
+    } = params as {
+      x: number;
+      y: number;
+      behavior?: "auto" | "smooth";
+    };
+    if (typeof x !== "number" || typeof y !== "number") {
+      throw new Error("scroll_to requires numeric 'x' and 'y'");
+    }
+    const browserId = this.resolveBrowserId(params, context.teamId);
+    return await this.poolManager.scrollTo({ browserId, x, y, behavior });
+  }
+
+  private async scrollBy(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const {
+      dx,
+      dy,
+      behavior = "auto",
+    } = params as {
+      dx: number;
+      dy: number;
+      behavior?: "auto" | "smooth";
+    };
+    if (typeof dx !== "number" || typeof dy !== "number") {
+      throw new Error("scroll_by requires numeric 'dx' and 'dy'");
+    }
+    const browserId = this.resolveBrowserId(params, context.teamId);
+    return await this.poolManager.scrollBy({ browserId, dx, dy, behavior });
+  }
+
+  private async highlightElementBounds(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const {
+      selector,
+      options = {},
+      timeout = 5000,
+    } = params as {
+      selector: string;
+      options?: Record<string, unknown>;
+      timeout?: number;
+    };
+    if (!selector) throw new Error("highlight_element_bounds requires 'selector'");
+    const browserId = this.resolveBrowserId(params, context.teamId);
+    return await this.poolManager.highlightElementBounds({ browserId, selector, options, timeout });
+  }
+
+  private async showLayoutGrid(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const { gridSize = 20, color = "rgba(255,0,0,0.3)" } = params as {
+      gridSize?: number;
+      color?: string;
+    };
+    const browserId = this.resolveBrowserId(params, context.teamId);
+    return await this.poolManager.showLayoutGrid({ browserId, gridSize, color });
+  }
+
+  private async simulateCssChange(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const {
+      selector,
+      cssRules,
+      important = false,
+    } = params as {
+      selector: string;
+      cssRules: Record<string, string>;
+      important?: boolean;
+    };
+    if (!(selector && cssRules)) {
+      throw new Error("simulate_css_change requires 'selector' and 'cssRules'");
+    }
+    const browserId = this.resolveBrowserId(params, context.teamId);
+    return await this.poolManager.simulateCssChange({ browserId, selector, cssRules, important });
+  }
+
+  private async whyStyleNotApplied(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const { selector, property, desiredValue } = params as {
+      selector: string;
+      property: string;
+      desiredValue?: string;
+    };
+    if (!(selector && property)) {
+      throw new Error("why_style_not_applied requires 'selector' and 'property'");
+    }
+    const browserId = this.resolveBrowserId(params, context.teamId);
+    return await this.poolManager.whyStyleNotApplied({
+      browserId,
+      selector,
+      property,
+      desiredValue,
+    });
+  }
+
+  private async getApplicableRules(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const {
+      selector,
+      properties,
+      limit = 50,
+    } = params as {
+      selector: string;
+      properties?: string[];
+      limit?: number;
+    };
+    if (!selector) throw new Error("get_applicable_rules requires 'selector'");
+    const browserId = this.resolveBrowserId(params, context.teamId);
+    return await this.poolManager.getApplicableRules({ browserId, selector, properties, limit });
+  }
+
+  private async getEffectiveComputed(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const { selector, property } = params as { selector: string; property: string };
+    if (!(selector && property))
+      throw new Error("get_effective_computed requires 'selector' and 'property'");
+    const browserId = this.resolveBrowserId(params, context.teamId);
+    return await this.poolManager.getEffectiveComputed({ browserId, selector, property });
+  }
+
+  private async removeOverlay(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const { overlayId } = params as { overlayId: string };
+    if (!overlayId) throw new Error("remove_overlay requires 'overlayId'");
+    const browserId = this.resolveBrowserId(params, context.teamId);
+    return await this.poolManager.removeOverlay({ browserId, overlayId });
+  }
+
+  private async applyCssOverride(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const {
+      selector,
+      cssRules,
+      important = false,
+    } = params as {
+      selector: string;
+      cssRules: Record<string, string>;
+      important?: boolean;
+    };
+    if (!(selector && cssRules)) {
+      throw new Error("apply_css_override requires 'selector' and 'cssRules'");
+    }
+    const browserId = this.resolveBrowserId(params, context.teamId);
+    return await this.poolManager.applyCssOverride({ browserId, selector, cssRules, important });
+  }
+
+  private async revertCssChanges(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const { overrideId } = params as { overrideId: string };
+    if (!overrideId) throw new Error("revert_css_changes requires 'overrideId'");
+    const browserId = this.resolveBrowserId(params, context.teamId);
+    return await this.poolManager.revertCssChanges({ browserId, overrideId });
+  }
+
+  private async getLayoutTree(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const {
+      rootSelector,
+      maxDepth = 3,
+      maxChildren = 20,
+    } = params as {
+      rootSelector?: string;
+      maxDepth?: number;
+      maxChildren?: number;
+    };
+    const browserId = this.resolveBrowserId(params, context.teamId);
+    return await this.poolManager.getLayoutTree({ browserId, rootSelector, maxDepth, maxChildren });
+  }
+
+  private async measureWhitespace(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const { containerSelector, minGap = 1 } = params as {
+      containerSelector: string;
+      minGap?: number;
+    };
+    if (!containerSelector) throw new Error("measure_whitespace requires 'containerSelector'");
+    const browserId = this.resolveBrowserId(params, context.teamId);
+    return await this.poolManager.measureWhitespace({ browserId, containerSelector, minGap });
+  }
+
+  private async findLayoutContainers(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const browserId = this.resolveBrowserId(params, context.teamId);
+    return await this.poolManager.findLayoutContainers({ browserId });
   }
 
   /**
@@ -409,6 +758,166 @@ export class MCPBrowserRouter {
       browserId: resolvedBrowserId,
       selector: selector as string,
       timeout,
+    });
+  }
+
+  /**
+   * Hover over an element to trigger hover states
+   */
+  private async hoverElement(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const { selector, timeout, force, position, index } = params as {
+      selector?: string;
+      timeout?: number;
+      force?: boolean;
+      position?: { x: number; y: number };
+      index?: number;
+    };
+
+    if (!selector) {
+      throw new Error("hover_element requires 'selector' parameter");
+    }
+
+    const resolvedBrowserId = this.resolveBrowserId(params, context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, context.teamId);
+
+    return this.poolManager.hoverElement({
+      browserId: resolvedBrowserId,
+      selector,
+      timeout,
+      force,
+      position,
+      index,
+    });
+  }
+
+  /**
+   * Select an option from a dropdown or select element
+   */
+  private async selectOption(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const { selector, value, label, index, timeout } = params as {
+      selector?: string;
+      value?: string;
+      label?: string;
+      index?: number;
+      timeout?: number;
+    };
+
+    if (!selector) {
+      throw new Error("select_option requires 'selector' parameter");
+    }
+
+    const resolvedBrowserId = this.resolveBrowserId(params, context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, context.teamId);
+
+    return this.poolManager.selectOption({
+      browserId: resolvedBrowserId,
+      selector,
+      value,
+      label,
+      index,
+      timeout,
+    });
+  }
+
+  /**
+   * Clear the content of an input field, textarea, or editable element
+   */
+  private async clearElement(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const { selector, timeout, force } = params as {
+      selector?: string;
+      timeout?: number;
+      force?: boolean;
+    };
+
+    if (!selector) {
+      throw new Error("clear_element requires 'selector' parameter");
+    }
+
+    const resolvedBrowserId = this.resolveBrowserId(params, context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, context.teamId);
+
+    return this.poolManager.clearElement({
+      browserId: resolvedBrowserId,
+      selector,
+      timeout,
+      force,
+    });
+  }
+
+  /**
+   * Drag an element from a source location to a target location
+   */
+  private async dragAndDrop(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const { sourceSelector, targetSelector, sourcePosition, targetPosition, timeout, force } =
+      params as {
+        sourceSelector?: string;
+        targetSelector?: string;
+        sourcePosition?: { x: number; y: number };
+        targetPosition?: { x: number; y: number };
+        timeout?: number;
+        force?: boolean;
+      };
+
+    if (!sourceSelector) {
+      throw new Error("drag_and_drop requires 'sourceSelector' parameter");
+    }
+    if (!targetSelector) {
+      throw new Error("drag_and_drop requires 'targetSelector' parameter");
+    }
+
+    const resolvedBrowserId = this.resolveBrowserId(params, context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, context.teamId);
+
+    return this.poolManager.dragAndDrop({
+      browserId: resolvedBrowserId,
+      sourceSelector,
+      targetSelector,
+      sourcePosition,
+      targetPosition,
+      timeout,
+      force,
+    });
+  }
+
+  /**
+   * Render a PDF file in the browser for visual analysis
+   */
+  private async renderPdf(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const { pdfPath, page, zoom, waitForRender } = params as {
+      pdfPath: string;
+      page?: number;
+      zoom?: number;
+      waitForRender?: number;
+    };
+
+    if (!pdfPath) {
+      throw new Error("render_pdf requires 'pdfPath' parameter");
+    }
+
+    const resolvedBrowserId = this.resolveBrowserId(params, context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, context.teamId);
+
+    return this.poolManager.renderPdf({
+      browserId: resolvedBrowserId,
+      pdfPath,
+      page,
+      zoom,
+      waitForRender,
     });
   }
 
@@ -981,76 +1490,78 @@ export class MCPBrowserRouter {
    * Format errors for AI-friendly consumption
    */
   private formatError(error: unknown, tool: string): BrowserToolResponse["error"] {
-    if (error instanceof Error) {
-      // Common browser errors with AI-friendly messages
-      if (error.message.includes("Timeout")) {
-        return {
-          code: "BROWSER_TIMEOUT",
-          message: "The browser operation timed out. The page may be slow to load or unresponsive.",
-          details: {
-            tool,
-            originalError: error.message,
-            suggestion: "Try increasing the timeout or checking if the page is accessible.",
-          },
-        };
-      }
+    if (!(error instanceof Error)) {
+      return { code: "UNKNOWN_ERROR", message: String(error), details: { tool } };
+    }
 
-      if (
-        error.message.includes("Browser session not found") ||
-        error.message.includes("No active browser session found") ||
-        error.message.toLowerCase().includes("session not found")
-      ) {
-        // Normalize message to include the canonical phrase expected by tests
-        const normalized =
-          error.message.includes("Browser session not found") ||
-          error.message.includes("No active browser session found")
-            ? error.message
-            : "Browser session not found";
-        return {
-          code: "BROOKLYN_SESSION_MISSING",
-          message: normalized,
-          details: { tool },
-        };
-      }
+    const msg = error.message;
 
-      if (error.message.includes("not found")) {
-        return {
-          code: "ELEMENT_NOT_FOUND",
-          message:
-            "Could not find the requested element on the page. The selector may be incorrect or the element may not have loaded yet.",
-          details: {
-            tool,
-            originalError: error.message,
-            suggestion: "Verify the selector is correct or wait for the page to fully load.",
-          },
-        };
-      }
+    // Param errors
+    if (/requires exactly one of 'exact' or 'pattern'/.test(msg)) {
+      return { code: "INVALID_MATCH_CRITERIA", message: msg, details: { tool } };
+    }
+    if (
+      /requires 'selector' and 'cssRules'/.test(msg) ||
+      /requires 'selector' and 'property'/.test(msg)
+    ) {
+      return { code: "INVALID_PARAMS", message: msg, details: { tool } };
+    }
 
-      if (error.message.includes("Access denied")) {
-        return {
-          code: "ACCESS_DENIED",
-          message: error.message,
-          details: { tool },
-        };
-      }
-
-      // Default error formatting
+    // Timeouts
+    if (msg.includes("Timeout")) {
       return {
-        code: "BROWSER_ERROR",
-        message: error.message,
+        code: "BROWSER_TIMEOUT",
+        message: "The browser operation timed out. The page may be slow to load or unresponsive.",
         details: {
           tool,
-          type: error.constructor.name,
+          originalError: msg,
+          suggestion: "Try increasing the timeout or checking if the page is accessible.",
         },
       };
     }
 
-    // Unknown error type
-    return {
-      code: "UNKNOWN_ERROR",
-      message: String(error),
-      details: { tool },
-    };
+    // Session missing
+    if (
+      msg.includes("Browser session not found") ||
+      msg.includes("No active browser session found") ||
+      msg.toLowerCase().includes("session not found")
+    ) {
+      const normalized =
+        msg.includes("Browser session not found") || msg.includes("No active browser session found")
+          ? msg
+          : "Browser session not found";
+      return { code: "BROOKLYN_SESSION_MISSING", message: normalized, details: { tool } };
+    }
+
+    // Element not found
+    if (msg.includes("not found")) {
+      return {
+        code: "ELEMENT_NOT_FOUND",
+        message:
+          "Could not find the requested element on the page. The selector may be incorrect or the element may not have loaded yet.",
+        details: {
+          tool,
+          originalError: msg,
+          suggestion: "Verify the selector is correct or wait for the page to fully load.",
+        },
+      };
+    }
+
+    // CSS/overlay failures
+    if (msg.startsWith("simulate_css_change failed")) {
+      return { code: "CSS_SIMULATION_FAILED", message: msg, details: { tool } };
+    }
+    if (msg.startsWith("highlight_element_bounds failed")) {
+      return { code: "OVERLAY_FAILED", message: msg, details: { tool } };
+    }
+
+    // Access control
+    if (msg.includes("Access denied")) {
+      return { code: "ACCESS_DENIED", message: msg, details: { tool } };
+    }
+
+    // Default
+    return { code: "BROWSER_ERROR", message: msg, details: { tool, type: error.constructor.name } };
   }
 
   /**
@@ -1288,6 +1799,7 @@ export class MCPBrowserRouter {
       properties,
       pseudoElements,
       timeout,
+      maxTokens,
     } = params as {
       browserId: string;
       selector: string;
@@ -1296,6 +1808,7 @@ export class MCPBrowserRouter {
       properties?: string[];
       pseudoElements?: string[];
       timeout?: number;
+      maxTokens?: number;
     };
 
     if (!selector) {
@@ -1313,6 +1826,7 @@ export class MCPBrowserRouter {
       properties,
       pseudoElements,
       timeout,
+      maxTokens,
     });
 
     return result;
@@ -1438,6 +1952,238 @@ export class MCPBrowserRouter {
       summarize,
       includeInherited,
       pseudoElements,
+      timeout,
+    });
+
+    return result;
+  }
+
+  // ========================================================================
+  // Phase 1C: Content Extraction Extensions
+  // ========================================================================
+
+  /**
+   * Extract HTML content from page or specific element
+   */
+  private async getHtml(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const {
+      browserId: _browserId,
+      selector,
+      includeStyles,
+      prettify,
+      timeout,
+      maxTokens,
+      clientModel,
+    } = params as {
+      browserId: string;
+      selector?: string;
+      includeStyles?: boolean;
+      prettify?: boolean;
+      timeout?: number;
+      maxTokens?: number;
+      clientModel?: "claude" | "gpt-4" | "gpt-3.5" | "default";
+    };
+
+    const resolvedBrowserId = this.resolveBrowserId(params, context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, context.teamId);
+
+    try {
+      const result = await this.poolManager.getHtml({
+        browserId: resolvedBrowserId,
+        selector,
+        includeStyles,
+        prettify,
+        timeout,
+        maxTokens,
+        clientModel,
+      });
+      return result;
+    } catch (error: unknown) {
+      // Handle size limit errors with helpful guidance
+      const err = error as {
+        code?: string;
+        message?: string;
+        details?: unknown;
+        guidance?: string;
+        alternatives?: string[];
+      };
+      if (err.code === "SIZE_LIMIT_EXCEEDED" || err.code === "TOKEN_LIMIT_EXCEEDED") {
+        return {
+          success: false,
+          error: err.message || "Unknown error",
+          details: err.details,
+          guidance: err.guidance,
+          alternatives: err.alternatives,
+        };
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Describe HTML structure without extracting content
+   */
+  private async describeHtml(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const {
+      browserId: _browserId,
+      maxDepth,
+      timeout,
+    } = params as {
+      browserId: string;
+      maxDepth?: number;
+      timeout?: number;
+    };
+
+    const resolvedBrowserId = this.resolveBrowserId(params, context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, context.teamId);
+
+    const result = await this.poolManager.describeHtml({
+      browserId: resolvedBrowserId,
+      maxDepth,
+      timeout,
+    });
+
+    return result;
+  }
+
+  /**
+   * Get attribute value(s) from an element
+   */
+  private async getAttribute(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const {
+      browserId: _browserId,
+      selector,
+      attribute,
+      timeout,
+    } = params as {
+      browserId: string;
+      selector: string;
+      attribute?: string;
+      timeout?: number;
+    };
+
+    if (!selector) {
+      throw new Error("get_attribute requires 'selector' parameter");
+    }
+
+    const resolvedBrowserId = this.resolveBrowserId(params, context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, context.teamId);
+
+    const result = await this.poolManager.getAttribute({
+      browserId: resolvedBrowserId,
+      selector,
+      attribute,
+      timeout,
+    });
+
+    return result;
+  }
+
+  /**
+   * Get element geometry and positioning information
+   */
+  private async getBoundingBox(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const {
+      browserId: _browserId,
+      selector,
+      includeViewport,
+      timeout,
+    } = params as {
+      browserId: string;
+      selector: string;
+      includeViewport?: boolean;
+      timeout?: number;
+    };
+
+    if (!selector) {
+      throw new Error("get_bounding_box requires 'selector' parameter");
+    }
+
+    const resolvedBrowserId = this.resolveBrowserId(params, context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, context.teamId);
+
+    const result = await this.poolManager.getBoundingBox({
+      browserId: resolvedBrowserId,
+      selector,
+      includeViewport,
+      timeout,
+    });
+
+    return result;
+  }
+
+  /**
+   * Check if an element is visible in the viewport
+   */
+  private async isVisible(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const {
+      browserId: _browserId,
+      selector,
+      timeout,
+    } = params as {
+      browserId: string;
+      selector: string;
+      timeout?: number;
+    };
+
+    if (!selector) {
+      throw new Error("is_visible requires 'selector' parameter");
+    }
+
+    const resolvedBrowserId = this.resolveBrowserId(params, context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, context.teamId);
+
+    const result = await this.poolManager.isVisible({
+      browserId: resolvedBrowserId,
+      selector,
+      timeout,
+    });
+
+    return result;
+  }
+
+  /**
+   * Check if an element is enabled and interactive
+   */
+  private async isEnabled(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const {
+      browserId: _browserId,
+      selector,
+      timeout,
+    } = params as {
+      browserId: string;
+      selector: string;
+      timeout?: number;
+    };
+
+    if (!selector) {
+      throw new Error("is_enabled requires 'selector' parameter");
+    }
+
+    const resolvedBrowserId = this.resolveBrowserId(params, context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, context.teamId);
+
+    const result = await this.poolManager.isEnabled({
+      browserId: resolvedBrowserId,
+      selector,
       timeout,
     });
 

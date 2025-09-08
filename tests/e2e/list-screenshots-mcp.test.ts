@@ -65,6 +65,11 @@ describe("list_screenshots MCP Tool - E2E Protocol Tests", () => {
         allowedDomains: ["example.com"],
         rateLimit: { requests: 100, windowMs: 60000 },
       },
+      authentication: {
+        mode: "none" as const,
+        developmentOnly: true,
+        providers: {},
+      },
       plugins: {
         directory: "",
         autoLoad: false,
@@ -75,6 +80,7 @@ describe("list_screenshots MCP Tool - E2E Protocol Tests", () => {
         logs: "/tmp/brooklyn-test/logs",
         plugins: "/tmp/brooklyn-test/plugins",
         browsers: "/tmp/brooklyn-test/browsers",
+        assets: "/tmp/brooklyn-test/assets",
         pids: "/tmp/brooklyn-test/pids",
         screenshots: "/tmp/brooklyn-test/screenshots",
       },

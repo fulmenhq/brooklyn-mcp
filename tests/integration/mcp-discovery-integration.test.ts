@@ -37,6 +37,11 @@ describe("MCP Discovery Integration", () => {
         allowedDomains: ["*"],
         rateLimit: { requests: 100, windowMs: 60000 },
       },
+      authentication: {
+        mode: "none" as const,
+        developmentOnly: true,
+        providers: {},
+      },
       plugins: {
         directory: "",
         autoLoad: false,
@@ -47,6 +52,7 @@ describe("MCP Discovery Integration", () => {
         logs: "",
         plugins: "",
         browsers: "",
+        assets: "",
         pids: "",
       },
     };
@@ -147,12 +153,14 @@ describe("MCP Discovery Integration", () => {
       expect(response.content[0].type).toBe("text");
 
       const result = JSON.parse(response.content[0].text);
-      expect(result.categories).toBeDefined();
-      expect(Array.isArray(result.categories)).toBe(true);
-      expect(result.totalTools).toBeGreaterThan(0);
+      // Handle unified envelope format (v1.6.4+)
+      const data = result.data || result;
+      expect(data.categories).toBeDefined();
+      expect(Array.isArray(data.categories)).toBe(true);
+      expect(data.totalTools).toBeGreaterThan(0);
 
       // Should have standard categories
-      const categoryIds = result.categories.map((c: any) => c.id);
+      const categoryIds = data.categories.map((c: any) => c.id);
       expect(categoryIds).toContain("browser-lifecycle");
       expect(categoryIds).toContain("navigation");
       expect(categoryIds).toContain("content-capture");
@@ -179,12 +187,14 @@ describe("MCP Discovery Integration", () => {
       expect(response.content[0].type).toBe("text");
 
       const result = JSON.parse(response.content[0].text);
-      expect(result.name).toBe("launch_browser");
-      expect(result.description).toBeDefined();
-      expect(result.category).toBeDefined();
-      expect(result.inputSchema).toBeDefined();
-      expect(result.examples).toBeDefined();
-      expect(result.errors).toBeDefined();
+      // Handle unified envelope format (v1.6.4+)
+      const data = result.data || result;
+      expect(data.name).toBe("launch_browser");
+      expect(data.description).toBeDefined();
+      expect(data.category).toBeDefined();
+      expect(data.inputSchema).toBeDefined();
+      expect(data.examples).toBeDefined();
+      expect(data.errors).toBeDefined();
     });
 
     it("should handle tool search and suggestions", async () => {
@@ -224,7 +234,9 @@ describe("MCP Discovery Integration", () => {
 
       const response = await toolCallHandler(listRequest);
       const result = JSON.parse(response.content[0].text);
-      const registeredCategories = new Set(result.categories.map((c: any) => c.id));
+      // Handle unified envelope format (v1.6.4+)
+      const data = result.data || result;
+      const registeredCategories = new Set(data.categories.map((c: any) => c.id));
 
       // CRITICAL: Every category used in tool definitions MUST be registered
       // This prevents the issue where tools are counted but not accessible
@@ -236,11 +248,11 @@ describe("MCP Discovery Integration", () => {
       }
 
       // Calculate functional tools count (excluding onboarding tools)
-      const onboardingCategory = result.toolsByCategory.find(
+      const onboardingCategory = data.toolsByCategory.find(
         (cat: any) => cat.category === "onboarding",
       );
       const onboardingToolsCount = onboardingCategory ? onboardingCategory.count : 0;
-      const functionalToolsCount = result.totalTools - onboardingToolsCount;
+      const functionalToolsCount = data.totalTools - onboardingToolsCount;
 
       // Verify functional tool count matches definitions (onboarding tools are dynamically added)
       expect(functionalToolsCount).toBe(allTools.length);

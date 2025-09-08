@@ -7,6 +7,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { getLogger } from "../shared/pino-logger.js";
+import { validateBrooklynConfig, validateBrooklynConfigFile } from "./config-validator.js";
 
 // ARCHITECTURE FIX: Lazy logger initialization to avoid circular dependency
 // CRITICAL: Do not use logger during initial config loading to prevent circular dependency
@@ -66,6 +67,31 @@ export interface BrooklynConfig {
     };
   };
 
+  // Authentication
+  authentication: {
+    mode: "github" | "local" | "none";
+    developmentOnly?: boolean; // Required for "none" mode
+    behindProxy?: boolean; // TLS termination configuration
+
+    providers: {
+      github?: {
+        clientId: string;
+        clientSecret: string;
+        allowedOrgs?: string[];
+        allowedTeams?: { [org: string]: string[] };
+        callbackUrl: string;
+        scopes?: string[];
+      };
+      local?: {
+        userStore: string; // Path to user store file
+        sessionTimeout: number; // Session timeout in milliseconds
+        requirePasswordChange?: boolean;
+        maxFailedAttempts?: number;
+        lockoutDuration?: number; // In milliseconds
+      };
+    };
+  };
+
   // Logging
   logging: {
     level: "debug" | "info" | "warn" | "error";
@@ -88,6 +114,7 @@ export interface BrooklynConfig {
     logs: string;
     plugins: string;
     browsers: string;
+    assets: string;
     pids: string;
   };
 }
@@ -145,6 +172,9 @@ export class ConfigManager {
 
     // Validate configuration
     this.validateConfiguration(this.config);
+
+    // Schema validation (with graceful fallback)
+    await this.validateConfigurationSchema(this.config);
 
     // Ensure directories exist
     await this.ensureDirectories(this.config);
@@ -204,7 +234,7 @@ export class ConfigManager {
 
     return {
       serviceName: "brooklyn-mcp-server",
-      version: "1.5.0", // Embedded at build time
+      version: "0.2.0-rc.3", // Embedded at build time
       environment: "production",
       teamId: "default",
 
@@ -236,6 +266,22 @@ export class ConfigManager {
         },
       },
 
+      authentication: {
+        mode: "none",
+        developmentOnly: true, // Default to requiring explicit flag
+        behindProxy: false,
+        providers: {
+          // GitHub provider will be configured via environment variables
+          local: {
+            userStore: join(brooklynDir, "users.json"),
+            sessionTimeout: 86400000, // 24 hours
+            requirePasswordChange: false,
+            maxFailedAttempts: 5,
+            lockoutDuration: 300000, // 5 minutes
+          },
+        },
+      },
+
       logging: {
         level: "info",
         format: "pretty",
@@ -254,6 +300,7 @@ export class ConfigManager {
         logs: join(brooklynDir, "logs"),
         plugins: join(brooklynDir, "plugins"),
         browsers: join(brooklynDir, "browsers"),
+        assets: join(brooklynDir, "assets"),
         pids: join(brooklynDir, "pids"),
       },
     };
@@ -338,12 +385,73 @@ export class ConfigManager {
       config.logging.file = env["BROOKLYN_LOG_FILE"];
     }
 
+    // Authentication configuration
+    if (env["BROOKLYN_AUTH_MODE"]) {
+      config.authentication = { mode: env["BROOKLYN_AUTH_MODE"] as any };
+    }
+    if (env["BROOKLYN_AUTH_DEVELOPMENT_ONLY"] !== undefined) {
+      config.authentication = config.authentication || {};
+      config.authentication.developmentOnly = env["BROOKLYN_AUTH_DEVELOPMENT_ONLY"] === "true";
+    }
+    if (env["BROOKLYN_AUTH_BEHIND_PROXY"] !== undefined) {
+      config.authentication = config.authentication || {};
+      config.authentication.behindProxy = env["BROOKLYN_AUTH_BEHIND_PROXY"] === "true";
+    }
+
+    // GitHub OAuth provider configuration
+    if (env["BROOKLYN_GITHUB_CLIENT_ID"] || env["BROOKLYN_GITHUB_CLIENT_SECRET"]) {
+      config.authentication = config.authentication || {};
+      config.authentication.providers = config.authentication.providers || {};
+      config.authentication.providers.github = {
+        clientId: env["BROOKLYN_GITHUB_CLIENT_ID"] || "",
+        clientSecret: env["BROOKLYN_GITHUB_CLIENT_SECRET"] || "",
+        callbackUrl: env["BROOKLYN_GITHUB_CALLBACK_URL"] || "http://localhost:3000/oauth/callback",
+        scopes: env["BROOKLYN_GITHUB_SCOPES"]?.split(",") || ["user:email", "read:org"],
+      };
+
+      if (env["BROOKLYN_GITHUB_ALLOWED_ORGS"]) {
+        config.authentication.providers.github.allowedOrgs = env["BROOKLYN_GITHUB_ALLOWED_ORGS"]
+          .split(",")
+          .map((o) => o.trim());
+      }
+
+      if (env["BROOKLYN_GITHUB_ALLOWED_TEAMS"]) {
+        // Format: "org1:team1,team2;org2:team3,team4"
+        const teamsConfig: { [org: string]: string[] } = {};
+        for (const orgTeams of env["BROOKLYN_GITHUB_ALLOWED_TEAMS"].split(";")) {
+          const [org, teamsStr] = orgTeams.split(":");
+          if (org && teamsStr) {
+            teamsConfig[org.trim()] = teamsStr.split(",").map((t) => t.trim());
+          }
+        }
+        config.authentication.providers.github.allowedTeams = teamsConfig;
+      }
+    }
+
+    // Local authentication provider configuration
+    if (env["BROOKLYN_LOCAL_USER_STORE"]) {
+      config.authentication = config.authentication || {};
+      config.authentication.providers = config.authentication.providers || {};
+      config.authentication.providers.local = config.authentication.providers.local || {};
+      config.authentication.providers.local.userStore = env["BROOKLYN_LOCAL_USER_STORE"];
+    }
+    if (env["BROOKLYN_LOCAL_SESSION_TIMEOUT"]) {
+      config.authentication = config.authentication || {};
+      config.authentication.providers = config.authentication.providers || {};
+      config.authentication.providers.local = config.authentication.providers.local || {};
+      config.authentication.providers.local.sessionTimeout = Number.parseInt(
+        env["BROOKLYN_LOCAL_SESSION_TIMEOUT"],
+        10,
+      );
+    }
+
     // Path configuration
     const pathConfig: any = {};
     if (env["BROOKLYN_CONFIG_DIR"]) pathConfig.config = env["BROOKLYN_CONFIG_DIR"];
     if (env["BROOKLYN_LOG_DIR"]) pathConfig.logs = env["BROOKLYN_LOG_DIR"];
     if (env["BROOKLYN_PLUGIN_DIR"]) pathConfig.plugins = env["BROOKLYN_PLUGIN_DIR"];
     if (env["BROOKLYN_BROWSER_DIR"]) pathConfig.browsers = env["BROOKLYN_BROWSER_DIR"];
+    if (env["BROOKLYN_ASSETS_DIR"]) pathConfig.assets = env["BROOKLYN_ASSETS_DIR"];
     if (env["BROOKLYN_PID_DIR"]) pathConfig.pids = env["BROOKLYN_PID_DIR"];
     if (Object.keys(pathConfig).length > 0) {
       config.paths = pathConfig;
@@ -390,12 +498,23 @@ export class ConfigManager {
 
           const content = readFileSync(configPath, "utf8");
 
+          // Validate configuration file against schema
+          const validationResult = await validateBrooklynConfigFile(configPath, content);
+          if (!validationResult.valid) {
+            logger?.warn("Configuration file validation failed", {
+              path: configPath,
+              errors: validationResult.errors,
+            });
+            // Continue loading despite validation errors for graceful degradation
+          }
+
           if (configPath.endsWith(".json")) {
             return JSON.parse(content);
           }
           if (configPath.endsWith(".yaml") || configPath.endsWith(".yml")) {
-            // TODO: Add YAML support if needed
-            logger?.warn("YAML config files not yet supported", { path: configPath });
+            // Import YAML parser dynamically
+            const { parse: parseYaml } = await import("yaml");
+            return parseYaml(content);
           }
         } catch (error) {
           logger?.warn("Failed to load config file", {
@@ -442,6 +561,28 @@ export class ConfigManager {
   }
 
   /**
+   * Validate configuration against JSON Schema
+   */
+  private async validateConfigurationSchema(config: BrooklynConfig): Promise<void> {
+    try {
+      const validationResult = await validateBrooklynConfig(config);
+      if (!validationResult.valid) {
+        logger?.warn("Configuration schema validation failed", {
+          errors: validationResult.errors,
+        });
+        // Continue execution with warnings for graceful degradation
+      } else {
+        logger?.debug("Configuration schema validation passed");
+      }
+    } catch (error) {
+      logger?.warn("Schema validation error", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      // Continue execution if schema validation fails
+    }
+  }
+
+  /**
    * Validate configuration
    */
   private validateConfiguration(config: BrooklynConfig): void {
@@ -474,6 +615,43 @@ export class ConfigManager {
       errors.push(`Invalid log level: ${config.logging.level}`);
     }
 
+    // Validate authentication configuration
+    if (config.authentication) {
+      const validAuthModes = ["github", "local", "none"];
+      if (!validAuthModes.includes(config.authentication.mode)) {
+        errors.push(`Invalid authentication mode: ${config.authentication.mode}`);
+      }
+
+      // Validate "none" mode requires development flag
+      if (config.authentication.mode === "none" && !config.authentication.developmentOnly) {
+        errors.push("Authentication mode 'none' requires developmentOnly: true");
+      }
+
+      // Validate provider configurations
+      if (config.authentication.mode === "github") {
+        const github = config.authentication.providers.github;
+        if (!github) {
+          errors.push("GitHub authentication mode requires github provider configuration");
+        } else {
+          if (!github.clientId) errors.push("GitHub provider requires clientId");
+          if (!github.clientSecret) errors.push("GitHub provider requires clientSecret");
+          if (!github.callbackUrl) errors.push("GitHub provider requires callbackUrl");
+        }
+      }
+
+      if (config.authentication.mode === "local") {
+        const local = config.authentication.providers.local;
+        if (!local) {
+          errors.push("Local authentication mode requires local provider configuration");
+        } else {
+          if (!local.userStore) errors.push("Local provider requires userStore path");
+          if (!local.sessionTimeout || local.sessionTimeout < 60000) {
+            errors.push("Local provider sessionTimeout must be at least 60000ms (1 minute)");
+          }
+        }
+      }
+    }
+
     if (errors.length > 0) {
       throw new Error(`Configuration validation failed: ${errors.join(", ")}`);
     }
@@ -490,6 +668,7 @@ export class ConfigManager {
       config.paths.logs,
       config.paths.plugins,
       config.paths.browsers,
+      config.paths.assets,
       config.paths.pids,
     ];
 

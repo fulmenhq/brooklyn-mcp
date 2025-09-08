@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.fulmenhq.dev/brooklyn/config/lifecycle-phase-v1.0.0.json",
+  "title": "Lifecycle Phase",
+  "description": "Product lifecycle maturity phase for gating policies and behaviors.",
+  "type": "string",
+  "enum": ["experimental", "alpha", "beta", "rc", "ga", "lts"],
+  "examples": ["rc", "ga"],
+  "$comment": "Aligned with Fulmen ecosystem lifecycle standard."
+}

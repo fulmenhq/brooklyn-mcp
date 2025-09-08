@@ -82,10 +82,10 @@ Brooklyn supports different configuration scopes:
 
 ```bash
 # User-wide configuration (default)
-brooklyn mcp configure --user
+brooklyn config agent --client claude --scope user --transport stdio --apply
 
 # Project-specific configuration
-brooklyn mcp configure --project
+brooklyn config agent --client cursor --scope project --transport stdio --apply
 
 # Check current configuration
 brooklyn mcp status

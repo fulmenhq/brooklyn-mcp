@@ -8,6 +8,10 @@ node_modules/
 /build
 *.tsbuildinfo
 
+# Build artifacts that shouldn't be in source directories
+src/**/brooklyn
+src/**/*.map
+
 # Generated help content
 src/generated/
 
@@ -43,6 +47,7 @@ pids
 # Coverage directory used by tools like istanbul
 coverage/
 *.lcov
+coverage-report.json
 
 # nyc test coverage
 .nyc_output
@@ -64,6 +69,7 @@ lighthouse-reports/
 # Temporary folders
 tmp/
 temp/
+.scratchpad/
 
 # Debug and temporary files
 debug-*.js
@@ -95,6 +101,12 @@ CLAUDE.local.md
 claude.json
 .claude/
 
+# OpenCode
+.opencode/
+
+# Kilo Code
+.kilocode/
+
 # AI Agent Configuration Files
 AGENTS.local.md
 
@@ -105,6 +117,7 @@ windsurf.config.json
 
 # Cursor
 .cursor/
+!.cursor/rules/PROJECT.md
 .cursorignore
 cursor.json
 
@@ -181,3 +194,8 @@ load-test-results/
 # Plugin development
 plugins/dev/
 plugins/sandbox/
+assets/processed/
+# Local Claude MCP dev configs
+claude-mcp-config.json
+# Local Claude settings (per-project override)
+.claude/

@@ -1,0 +1,554 @@
+# Brooklyn MCP Configuration Schema v1.6.0
+# JSON Schema 2020 specification for Brooklyn MCP configuration files
+# Validates .brooklyn.json, .brooklyn.yaml, and config files
+
+$schema: "http://json-schema.org/draft-07/schema#"
+$id: "https://brooklyn.fulmenhq.com/schemas/brooklyn-config-v1"
+title: "Brooklyn MCP Configuration"
+description: "Configuration schema for Brooklyn MCP server v1.6.0 with enterprise authentication"
+type: object
+
+# Core required properties
+required:
+  - serviceName
+  - version
+  - teamId
+  - transports
+  - browsers
+  - security
+  - authentication
+  - logging
+  - plugins
+  - paths
+
+properties:
+  # Service Identity
+  serviceName:
+    type: string
+    description: "Service name identifier"
+    pattern: "^[a-z0-9-]+$"
+    minLength: 3
+    maxLength: 50
+    examples: ["brooklyn-mcp-server", "fulmen-brooklyn"]
+
+  version:
+    type: string
+    description: "Service version (semantic versioning)"
+    pattern: "^\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9-]+)?$"
+    examples: ["1.6.0", "1.6.0-beta.1"]
+
+  environment:
+    type: string
+    description: "Deployment environment"
+    enum: ["development", "production", "test"]
+    default: "production"
+
+  teamId:
+    type: string
+    description: "Team identifier for resource isolation"
+    pattern: "^[a-z0-9-]+$"
+    minLength: 1
+    maxLength: 50
+    examples: ["default", "platform-team", "dev-team"]
+
+  devMode:
+    type: boolean
+    description: "Enable development mode features"
+    default: false
+
+  # Transport Configuration
+  transports:
+    type: object
+    description: "Communication transport configuration"
+    required: ["mcp", "http"]
+    properties:
+      mcp:
+        type: object
+        description: "MCP (Model Context Protocol) transport for Claude Code integration"
+        required: ["enabled"]
+        properties:
+          enabled:
+            type: boolean
+            description: "Enable MCP stdio transport"
+            default: true
+
+      http:
+        type: object
+        description: "HTTP transport for web access and OAuth"
+        required: ["enabled", "port", "host", "cors", "rateLimiting"]
+        properties:
+          enabled:
+            type: boolean
+            description: "Enable HTTP transport"
+            default: true
+
+          port:
+            type: integer
+            description: "HTTP server port"
+            minimum: 1
+            maximum: 65535
+            default: 3000
+            examples: [3000, 8080, 50000]
+
+          host:
+            type: string
+            description: "HTTP server bind address"
+            anyOf:
+              - format: ipv4
+              - format: ipv6
+              - format: hostname
+            examples: ["127.0.0.1", "0.0.0.0", "localhost"]
+            default: "127.0.0.1"
+
+          cors:
+            type: boolean
+            description: "Enable CORS headers"
+            default: true
+
+          rateLimiting:
+            type: boolean
+            description: "Enable HTTP rate limiting"
+            default: false
+
+    additionalProperties: false
+
+  # Browser Configuration
+  browsers:
+    type: object
+    description: "Browser automation configuration"
+    required: ["maxInstances", "defaultType", "headless", "timeout"]
+    properties:
+      maxInstances:
+        type: integer
+        description: "Maximum concurrent browser instances"
+        minimum: 1
+        maximum: 100
+        default: 10
+        examples: [5, 10, 25]
+
+      defaultType:
+        type: string
+        description: "Default browser engine"
+        enum: ["chromium", "firefox", "webkit"]
+        default: "chromium"
+
+      headless:
+        type: boolean
+        description: "Run browsers in headless mode"
+        default: true
+
+      timeout:
+        type: integer
+        description: "Browser operation timeout in milliseconds"
+        minimum: 1000
+        maximum: 300000
+        default: 30000
+        examples: [30000, 60000, 120000]
+
+      installPath:
+        type: string
+        description: "Custom browser installation path"
+        examples: ["/opt/browsers", "/usr/local/bin/chrome"]
+
+    additionalProperties: false
+
+  # Security Configuration
+  security:
+    type: object
+    description: "Security and access control configuration"
+    required: ["allowedDomains", "rateLimit"]
+    properties:
+      allowedDomains:
+        type: array
+        description: "Allowed domains for browser navigation"
+        items:
+          type: string
+          anyOf:
+            - format: hostname
+            - pattern: "^\\*$"
+            - pattern: "^\\*\\.[a-zA-Z0-9-]+(\\.[a-zA-Z]{2,})+$"
+        minItems: 1
+        examples:
+          - ["*"]
+          - ["localhost", "127.0.0.1", "*.company.com"]
+        default: ["*"]
+
+      rateLimit:
+        type: object
+        description: "Rate limiting configuration"
+        required: ["requests", "windowMs"]
+        properties:
+          requests:
+            type: integer
+            description: "Maximum requests per window"
+            minimum: 1
+            maximum: 10000
+            default: 100
+
+          windowMs:
+            type: integer
+            description: "Rate limit window in milliseconds"
+            minimum: 1000
+            maximum: 3600000
+            default: 60000
+
+        additionalProperties: false
+
+    additionalProperties: false
+
+  # Authentication Configuration (NEW in v1.6.0)
+  authentication:
+    type: object
+    description: "Enterprise authentication configuration"
+    required: ["mode", "providers"]
+    properties:
+      mode:
+        type: string
+        description: "Authentication provider mode"
+        enum: ["github", "local", "none"]
+
+      developmentOnly:
+        type: boolean
+        description: "Allow development-only mode (required for 'none' mode)"
+        examples: [true, false]
+
+      behindProxy:
+        type: boolean
+        description: "Running behind TLS-terminating reverse proxy"
+        default: false
+
+      providers:
+        type: object
+        description: "Authentication provider configurations"
+        properties:
+          github:
+            type: object
+            description: "GitHub OAuth provider configuration"
+            required: ["clientId", "clientSecret", "callbackUrl"]
+            properties:
+              clientId:
+                type: string
+                description: "GitHub OAuth App Client ID"
+                pattern: "^[a-f0-9]+$|^ghp_[a-zA-Z0-9]+$"
+                minLength: 10
+                examples: ["1234567890abcdef", "ghp_xxxxxxxxxxxxxxxxxxxx"]
+
+              clientSecret:
+                type: string
+                description: "GitHub OAuth App Client Secret"
+                minLength: 10
+                examples: ["your_github_client_secret"]
+
+              allowedOrgs:
+                type: array
+                description: "Allowed GitHub organizations"
+                items:
+                  type: string
+                  pattern: "^[a-zA-Z0-9-]+$"
+                minItems: 1
+                examples:
+                  - ["fulmenhq", "company-org"]
+
+              allowedTeams:
+                type: object
+                description: "Allowed teams per organization"
+                patternProperties:
+                  "^[a-zA-Z0-9-]+$":
+                    type: array
+                    items:
+                      type: string
+                      pattern: "^[a-zA-Z0-9-_]+$"
+                examples:
+                  - fulmenhq: ["brooklyn-team", "admins"]
+                    company-org: ["developers"]
+
+              callbackUrl:
+                type: string
+                description: "OAuth callback URL"
+                format: uri
+                pattern: "^https?://.+/oauth/callback$"
+                examples: ["https://brooklyn.company.com/oauth/callback"]
+
+              scopes:
+                type: array
+                description: "GitHub OAuth scopes"
+                items:
+                  type: string
+                default: ["user:email", "read:org"]
+                examples:
+                  - ["user:email", "read:org", "read:user"]
+
+            additionalProperties: false
+
+          local:
+            type: object
+            description: "Local file-based authentication configuration"
+            required: ["userStore", "sessionTimeout"]
+            properties:
+              userStore:
+                type: string
+                description: "Path to user store file"
+                examples: ["/opt/brooklyn/users.json", "~/.brooklyn/users.json"]
+
+              sessionTimeout:
+                type: integer
+                description: "Session timeout in milliseconds"
+                minimum: 60000
+                maximum: 2592000000
+                default: 86400000
+                examples: [86400000, 3600000]
+
+              requirePasswordChange:
+                type: boolean
+                description: "Require password change on first login"
+                default: false
+
+              maxFailedAttempts:
+                type: integer
+                description: "Maximum failed login attempts before lockout"
+                minimum: 1
+                maximum: 20
+                default: 5
+
+              lockoutDuration:
+                type: integer
+                description: "Account lockout duration in milliseconds"
+                minimum: 60000
+                maximum: 86400000
+                default: 300000
+
+            additionalProperties: false
+
+        additionalProperties: false
+
+    # Conditional validation for authentication modes
+    allOf:
+      - if:
+          properties:
+            mode:
+              const: "none"
+        then:
+          required: ["developmentOnly"]
+          properties:
+            developmentOnly:
+              const: true
+
+      - if:
+          properties:
+            mode:
+              const: "github"
+        then:
+          required: ["providers"]
+          properties:
+            providers:
+              required: ["github"]
+
+      - if:
+          properties:
+            mode:
+              const: "local"
+        then:
+          required: ["providers"]
+          properties:
+            providers:
+              required: ["local"]
+
+    additionalProperties: false
+
+  # Logging Configuration
+  logging:
+    type: object
+    description: "Logging configuration"
+    required: ["level", "format"]
+    properties:
+      level:
+        type: string
+        description: "Log level"
+        enum: ["debug", "info", "warn", "error"]
+        default: "info"
+
+      format:
+        type: string
+        description: "Log output format"
+        enum: ["pretty", "json"]
+        default: "pretty"
+
+      file:
+        type: string
+        description: "Log file path (optional)"
+        examples: ["./logs/brooklyn.log", "/var/log/brooklyn.log"]
+
+      maxFiles:
+        type: integer
+        description: "Maximum log files to retain"
+        minimum: 1
+        maximum: 100
+        default: 5
+
+      maxSize:
+        type: string
+        description: "Maximum log file size"
+        pattern: "^\\d+[KMGT]?B$"
+        default: "10MB"
+        examples: ["10MB", "100MB", "1GB"]
+
+    additionalProperties: false
+
+  # Plugin System Configuration
+  plugins:
+    type: object
+    description: "Plugin system configuration"
+    required: ["directory", "autoLoad", "allowUserPlugins"]
+    properties:
+      directory:
+        type: string
+        description: "Plugin directory path"
+        examples: ["./plugins", "/opt/brooklyn/plugins"]
+
+      autoLoad:
+        type: boolean
+        description: "Automatically load plugins on startup"
+        default: true
+
+      allowUserPlugins:
+        type: boolean
+        description: "Allow user-provided plugins"
+        default: true
+
+    additionalProperties: false
+
+  # Path Configuration
+  paths:
+    type: object
+    description: "System path configuration"
+    required: ["config", "logs", "plugins", "browsers", "pids", "assets"]
+    properties:
+      config:
+        type: string
+        description: "Configuration directory path"
+        examples: ["~/.brooklyn", "/etc/brooklyn"]
+
+      logs:
+        type: string
+        description: "Logs directory path"
+        examples: ["~/.brooklyn/logs", "/var/log/brooklyn"]
+
+      plugins:
+        type: string
+        description: "Plugins directory path"
+        examples: ["~/.brooklyn/plugins", "/opt/brooklyn/plugins"]
+
+      browsers:
+        type: string
+        description: "Browser data directory path"
+        examples: ["~/.brooklyn/browsers", "/opt/brooklyn/browsers"]
+
+      assets:
+        type: string
+        description: "Downloaded assets directory path for browser libraries (PDF.js, Mermaid.js, etc.)"
+        examples: ["~/.brooklyn/assets", "/opt/brooklyn/assets"]
+
+      pids:
+        type: string
+        description: "PID files directory path"
+        examples: ["~/.brooklyn/pids", "/var/run/brooklyn"]
+
+    additionalProperties: false
+
+# No additional properties allowed at root level
+additionalProperties: false
+
+# Examples for validation testing
+examples:
+  - # Minimal development configuration
+    serviceName: "brooklyn-mcp-server"
+    version: "1.6.0"
+    teamId: "default"
+    transports:
+      mcp:
+        enabled: true
+      http:
+        enabled: true
+        port: 3000
+        host: "127.0.0.1"
+        cors: true
+        rateLimiting: false
+    browsers:
+      maxInstances: 5
+      defaultType: "chromium"
+      headless: false
+      timeout: 30000
+    security:
+      allowedDomains: ["*"]
+      rateLimit:
+        requests: 100
+        windowMs: 60000
+    authentication:
+      mode: "none"
+      developmentOnly: true
+      providers: {}
+    logging:
+      level: "debug"
+      format: "pretty"
+    plugins:
+      directory: "./plugins"
+      autoLoad: true
+      allowUserPlugins: true
+    paths:
+      config: "~/.brooklyn"
+      logs: "~/.brooklyn/logs"
+      plugins: "~/.brooklyn/plugins"
+      browsers: "~/.brooklyn/browsers"
+      assets: "~/.brooklyn/assets"
+      pids: "~/.brooklyn/pids"
+
+  - # Production GitHub OAuth configuration
+    serviceName: "brooklyn-mcp-server"
+    version: "1.6.0"
+    environment: "production"
+    teamId: "production"
+    transports:
+      mcp:
+        enabled: true
+      http:
+        enabled: true
+        port: 3000
+        host: "127.0.0.1"
+        cors: true
+        rateLimiting: true
+    browsers:
+      maxInstances: 25
+      defaultType: "chromium"
+      headless: true
+      timeout: 30000
+    security:
+      allowedDomains: ["*.company.com", "trusted-partner.com"]
+      rateLimit:
+        requests: 100
+        windowMs: 60000
+    authentication:
+      mode: "github"
+      behindProxy: true
+      providers:
+        github:
+          clientId: "ghp_xxxxxxxxxxxxxxxxxxxx"
+          clientSecret: "your_github_client_secret"
+          callbackUrl: "https://brooklyn.company.com/oauth/callback"
+          allowedTeams:
+            fulmenhq: ["brooklyn-team", "admins"]
+            company-org: ["developers"]
+          scopes: ["user:email", "read:org"]
+    logging:
+      level: "info"
+      format: "json"
+    plugins:
+      directory: "/opt/brooklyn/plugins"
+      autoLoad: true
+      allowUserPlugins: false
+    paths:
+      config: "/etc/brooklyn"
+      logs: "/var/log/brooklyn"
+      plugins: "/opt/brooklyn/plugins"
+      browsers: "/opt/brooklyn/browsers"
+      assets: "/opt/brooklyn/assets"
+      pids: "/var/run/brooklyn"

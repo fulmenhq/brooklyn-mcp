@@ -31,30 +31,55 @@ export function registerCleanupCommand(program: Command) {
         const doHttp = Boolean(opts.all || opts.http || opts.port);
         const doMcp = Boolean(opts.all || opts.mcp);
         const doBrowsers = Boolean(opts.all || opts.browsers);
+        const doAll = Boolean(opts.all);
 
-        if (doHttp) {
-          // If a specific port is provided, kill listeners on that port (IPv4/IPv6)
-          if (opts.port) {
-            const portNum = Number.parseInt(opts.port, 10);
-            if (Number.isFinite(portNum)) {
-              await cleanupHttpPort(portNum, Boolean(opts.force));
-            } else {
-              // eslint-disable-next-line no-console
-              console.log(`Invalid port: ${opts.port}`);
-            }
+        // Phase 1: Comprehensive port cleanup (all known Brooklyn ports)
+        if (doAll || doHttp) {
+          await cleanupAllBrooklynPorts(Boolean(opts.force));
+        }
+
+        // Phase 2: Specific port cleanup if requested
+        if (opts.port) {
+          const portNum = Number.parseInt(opts.port, 10);
+          if (Number.isFinite(portNum)) {
+            await cleanupHttpPort(portNum, Boolean(opts.force));
+          } else {
+            // eslint-disable-next-line no-console
+            console.log(`Invalid port: ${opts.port}`);
           }
-          // Also run process-manager based HTTP cleanup (covers dev-http, managed servers)
+        }
+
+        // Phase 3: Process-manager based cleanup
+        if (doHttp) {
           await cleanupHttp(pm);
         }
         if (doMcp) {
           await cleanupMcpAll(pm, { allProjects: Boolean(opts.all || opts.mcpAll) });
         }
-        if (doBrowsers) {
+
+        // Phase 4: Development mode cleanup
+        if (doAll) {
+          await cleanupDevMode();
+          await cleanupReplSessions();
+          await cleanupWatchModeProcesses();
+        }
+
+        // Phase 5: Browser cleanup
+        if (doBrowsers || doAll) {
           await cleanupBrowsersSafe();
         }
+
+        // Phase 6: PID file cleanup
+        if (doAll) {
+          await cleanupAllPidFiles();
+        }
+
+        // Phase 7: Force cleanup if requested
         if (opts.force) {
           await forceKillAll(pm);
         }
+
+        // Phase 8: Script-based cleanup
         await bestEffortScriptCleanup();
 
         console.log("Cleanup completed");
@@ -363,10 +388,18 @@ function detectDevBrowserPids(psOutput: string): Array<{ pid: number; cmd: strin
   const lines = psOutput.split("\n");
   const candidates: Array<{ pid: number; cmd: string }> = [];
 
+  // Puppeteer patterns
   const snapshotPattern = /saoudrizwan\.claude-dev\/puppeteer\/\.chromium-browser-snapshots/;
   const anySnapshotPattern = /puppeteer\/\.chromium-browser-snapshots/;
-  const headlessFlag = /--headless/;
   const puppeteerProfile = /puppeteer_dev_chrome_profile-/;
+
+  // Playwright patterns (Brooklyn uses Playwright!)
+  const playwrightPattern = /ms-playwright/;
+  const playwrightProfile = /playwright_chromiumdev_profile-/;
+  const headlessShellPattern = /headless_shell/; // Playwright's headless chromium
+
+  // Common patterns
+  const headlessFlag = /--headless/;
   const chromiumRenderer = /Chromium Helper \(Renderer\)/;
   const chromiumBin = /Chromium\.app\/Contents\/MacOS\/Chromium/;
 
@@ -383,17 +416,22 @@ function detectDevBrowserPids(psOutput: string): Array<{ pid: number; cmd: strin
     const cmd = typeof cmdJoined === "string" ? cmdJoined : "";
     if (cmd.length === 0) continue;
 
-    const inSnapshotPath =
+    // Check for Puppeteer dev-time browsers
+    const inPuppeteerPath =
       snapshotPattern.test(cmd) || anySnapshotPattern.test(cmd) || puppeteerProfile.test(cmd);
 
-    // (A) Headless Chromium main process with dev-time profile/snapshot path
-    const isHeadlessDev = headlessFlag.test(cmd) && inSnapshotPath;
+    // Check for Playwright dev-time browsers
+    const inPlaywrightPath =
+      playwrightPattern.test(cmd) || playwrightProfile.test(cmd) || headlessShellPattern.test(cmd);
 
-    // (B) Renderer/utility children spawned under puppeteer snapshot path (may not include --headless)
-    const isRendererChild = chromiumRenderer.test(cmd) && inSnapshotPath;
+    // (A) Headless Chromium main process with dev-time profile/snapshot path
+    const isHeadlessDev = headlessFlag.test(cmd) && (inPuppeteerPath || inPlaywrightPath);
+
+    // (B) Renderer/utility children spawned under puppeteer/playwright snapshot path (may not include --headless)
+    const isRendererChild = chromiumRenderer.test(cmd) && (inPuppeteerPath || inPlaywrightPath);
 
     // (C) Chromium bin under snapshot path even without explicit --headless (fallback)
-    const isChromiumUnderSnapshot = chromiumBin.test(cmd) && inSnapshotPath;
+    const isChromiumUnderSnapshot = chromiumBin.test(cmd) && (inPuppeteerPath || inPlaywrightPath);
 
     if (isHeadlessDev || isRendererChild || isChromiumUnderSnapshot) {
       candidates.push({ pid, cmd });
@@ -432,5 +470,250 @@ async function killPids(candidates: Array<{ pid: number; cmd: string }>): Promis
         console.log(`Failed to kill headless dev browser pid=${c.pid}`);
       }
     }
+  }
+}
+
+/**
+ * Comprehensive cleanup of all known Brooklyn ports
+ * Handles common development and testing ports
+ */
+async function cleanupAllBrooklynPorts(force: boolean): Promise<void> {
+  const commonPorts = [
+    3000, // Default dev server
+    8080, // HTTP mode default
+    8081, // Alternative HTTP port
+    3001, // Alternative dev port
+    3002, // Test server port
+    5173, // Vite dev server
+    4173, // Vite preview
+  ];
+
+  // eslint-disable-next-line no-console
+  console.log(`Cleaning up Brooklyn services on common ports: ${commonPorts.join(", ")}`);
+
+  for (const port of commonPorts) {
+    await cleanupHttpPort(port, force);
+  }
+
+  // Also scan for any other Brooklyn HTTP processes
+  await cleanupBrooklynProcessesByPattern("brooklyn.*dev-http", force);
+  await cleanupBrooklynProcessesByPattern("bun.*run.*dev", force);
+}
+
+/**
+ * Cleanup Brooklyn processes matching a specific pattern
+ */
+async function cleanupBrooklynProcessesByPattern(pattern: string, force: boolean): Promise<void> {
+  try {
+    const { exec } = await import("node:child_process");
+    const { promisify } = await import("node:util");
+    const execAsync = promisify(exec);
+
+    const { stdout } = await execAsync(`ps aux | grep "${pattern}" | grep -v grep`);
+    const lines = stdout
+      .trim()
+      .split("\n")
+      .filter((line) => line.trim());
+
+    for (const line of lines) {
+      const parts = line.trim().split(/\s+/);
+      if (parts.length < 2) continue;
+
+      const pidStr = parts[1];
+      if (!pidStr) continue;
+
+      const pid = Number.parseInt(pidStr, 10);
+      if (!Number.isFinite(pid)) continue;
+
+      await terminateProcessGracefully(pid, force);
+    }
+  } catch {
+    // No processes found or error occurred - continue silently
+  }
+}
+
+/**
+ * Cleanup development mode processes
+ */
+async function cleanupDevMode(): Promise<void> {
+  // eslint-disable-next-line no-console
+  console.log("Cleaning up development mode processes...");
+
+  await cleanupBrooklynProcessesByPattern("brooklyn.*dev-start", false);
+  await cleanupBrooklynProcessesByPattern("brooklyn.*dev-mode", false);
+  await cleanupBrooklynProcessesByPattern("bun.*scripts/dev-brooklyn", false);
+}
+
+/**
+ * Cleanup REPL sessions
+ */
+async function cleanupReplSessions(): Promise<void> {
+  // eslint-disable-next-line no-console
+  console.log("Cleaning up REPL sessions...");
+
+  await cleanupBrooklynProcessesByPattern("brooklyn.*repl", false);
+  await cleanupBrooklynProcessesByPattern("brooklyn.*dev-repl", false);
+}
+
+/**
+ * Cleanup watch mode processes (bun run dev, etc.)
+ */
+async function cleanupWatchModeProcesses(): Promise<void> {
+  // eslint-disable-next-line no-console
+  console.log("Cleaning up watch mode processes...");
+
+  await cleanupBrooklynProcessesByPattern("bun.*--watch", false);
+  await cleanupBrooklynProcessesByPattern("bun.*run.*dev", false);
+}
+
+/**
+ * Comprehensive PID file cleanup
+ */
+async function cleanupAllPidFiles(): Promise<void> {
+  // eslint-disable-next-line no-console
+  console.log("Cleaning up all Brooklyn PID files...");
+
+  // Project-level PID files
+  await cleanupProjectPidFiles();
+
+  // User-level PID files
+  await cleanupUserPidFiles();
+
+  // Server management PID files
+  await cleanupServerManagementPidFiles();
+}
+
+/**
+ * Cleanup project-level PID files
+ */
+async function cleanupProjectPidFiles(): Promise<void> {
+  try {
+    const { readdirSync, unlinkSync } = await import("node:fs");
+    const { join } = await import("node:path");
+
+    const cwd = process.cwd();
+    const files = readdirSync(cwd);
+
+    const pidFiles = files.filter((file) => file.startsWith(".brooklyn-") && file.endsWith(".pid"));
+
+    for (const pidFile of pidFiles) {
+      try {
+        const pidPath = join(cwd, pidFile);
+        unlinkSync(pidPath);
+        // eslint-disable-next-line no-console
+        console.log(`Removed PID file: ${pidFile}`);
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+  } catch {
+    // Directory read error - continue
+  }
+}
+
+/**
+ * Cleanup user-level PID files
+ */
+async function cleanupUserPidFiles(): Promise<void> {
+  try {
+    const { homedir } = await import("node:os");
+    const { join } = await import("node:path");
+    const { existsSync } = await import("node:fs");
+
+    const brooklynDir = join(homedir(), ".brooklyn");
+    if (!existsSync(brooklynDir)) return;
+
+    // Recursively find and remove .pid files
+    await cleanupPidFilesRecursive(brooklynDir);
+  } catch {
+    // Error accessing user directory - continue
+  }
+}
+
+/**
+ * Recursively cleanup PID files in a directory
+ */
+async function cleanupPidFilesRecursive(dir: string): Promise<void> {
+  try {
+    const { readdirSync, statSync, unlinkSync } = await import("node:fs");
+    const { join } = await import("node:path");
+
+    const items = readdirSync(dir);
+
+    for (const item of items) {
+      const itemPath = join(dir, item);
+      const stat = statSync(itemPath);
+
+      if (stat.isDirectory()) {
+        await cleanupPidFilesRecursive(itemPath);
+      } else if (item.endsWith(".pid")) {
+        try {
+          unlinkSync(itemPath);
+          // eslint-disable-next-line no-console
+          console.log(`Removed PID file: ${itemPath}`);
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+    }
+  } catch {
+    // Error reading directory - continue
+  }
+}
+
+/**
+ * Cleanup server management PID files
+ */
+async function cleanupServerManagementPidFiles(): Promise<void> {
+  try {
+    const { homedir } = await import("node:os");
+    const { join } = await import("node:path");
+    const { existsSync, unlinkSync } = await import("node:fs");
+
+    const serverPidFile = join(homedir(), ".local", "share", "fulmen-brooklyn", "server.pid");
+
+    if (existsSync(serverPidFile)) {
+      unlinkSync(serverPidFile);
+      // eslint-disable-next-line no-console
+      console.log("Removed server management PID file");
+    }
+  } catch {
+    // Error cleaning up server PID file - continue
+  }
+}
+
+/**
+ * Terminate a process gracefully with optional force
+ */
+async function terminateProcessGracefully(pid: number, force: boolean): Promise<void> {
+  try {
+    // Send SIGTERM first
+    process.kill(pid, "SIGTERM");
+    // eslint-disable-next-line no-console
+    console.log(`Terminated process pid=${pid}`);
+
+    // Wait for graceful shutdown
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    // Check if process is still running
+    let stillRunning = true;
+    try {
+      process.kill(pid, 0);
+    } catch {
+      stillRunning = false;
+    }
+
+    // Force kill if requested and still running
+    if (stillRunning && force) {
+      try {
+        process.kill(pid, "SIGKILL");
+        // eslint-disable-next-line no-console
+        console.log(`Force killed process pid=${pid}`);
+      } catch {
+        // Ignore kill errors
+      }
+    }
+  } catch {
+    // Process might already be dead - that's OK
   }
 }

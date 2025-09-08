@@ -2,6 +2,30 @@
 
 **Complete Guide**: From tool definition to integration - preventing registration gaps and ensuring quality.
 
+## 🚀 Quick Summary for AI Developers
+
+**When adding a new tool, you MUST update ALL of these files:**
+
+```bash
+# Required Files Checklist
+□ src/core/tool-definitions.ts          # Tool schema and examples
+□ src/core/brooklyn-engine.ts           # BOTH isCoreTools array AND handleCoreTool switch
+□ src/core/browser/mcp-browser-router.ts # Router dispatch case
+□ src/core/browser-pool-manager.ts      # Implementation method (if needed)
+
+# For New Categories Only
+□ scripts/check-mcp-schema-compliance.ts # Add to VALID_CATEGORIES array
+□ src/core/brooklyn-engine.ts           # registerStandardCategories() metadata
+```
+
+**Most Common Failure**: Forgetting to add tool to BOTH `isCoreTools` array AND `handleCoreTool` switch in `brooklyn-engine.ts`. Tool will appear in listings but fail when called.
+
+**Validation Command**: Always run this after adding a tool:
+
+```bash
+bun run test tests/quality-gates/tool-registration-completeness.test.ts
+```
+
 ## 📋 Quick Checklist
 
 ### ⚠️ Before You Start
@@ -88,7 +112,30 @@ export const javascriptTools: EnhancedTool[] = [
 
 1. Add the category export array (e.g., `export const myNewCategoryTools: EnhancedTool[] = [...]`)
 2. Add it to `getAllTools()` function: `...myNewCategoryTools,`
-3. Add category metadata to tool listing endpoints
+3. **CRITICAL**: Update the MCP schema validator in `scripts/check-mcp-schema-compliance.ts`:
+   ```typescript
+   // Add your new category to VALID_CATEGORIES
+   const VALID_CATEGORIES = [
+     "browser-lifecycle",
+     "navigation",
+     "content-capture",
+     "interaction",
+     "discovery",
+     "image-processing", // Example: newly added
+     "documentation", // Example: newly added
+     "my-new-category", // Your new category here
+   ] as const;
+   ```
+4. Add category metadata to `registerStandardCategories()` in `brooklyn-engine.ts`:
+   ```typescript
+   {
+     id: "my-new-category",
+     name: "My New Category",
+     description: "Description of what this category contains",
+     icon: "🔧", // Choose appropriate emoji
+   },
+   ```
+5. Add category to the capabilities list if it represents a major capability
 
 ### Step 3: Implement Service Logic (If Needed)
 

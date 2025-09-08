@@ -25,9 +25,16 @@ interface BrowserInfo {
 export async function browserInfoCommand(): Promise<void> {
   console.log(chalk.bold("\n🎭 Brooklyn Browser Information\n"));
 
-  const manager = new BrowserInstallationManager();
+  const _manager = new BrowserInstallationManager();
   const detector = new SystemBrowserDetector();
   const browsers: BrowserInfo[] = [];
+
+  // Get the correct Playwright cache directory for this platform
+  const cacheBase =
+    process.platform === "darwin"
+      ? join(homedir(), "Library", "Caches")
+      : join(homedir(), ".cache");
+  const playwrightCacheDir = join(cacheBase, "ms-playwright");
 
   // Check each browser type
   for (const browserType of ["chromium", "firefox", "webkit"] as const) {
@@ -36,36 +43,71 @@ export async function browserInfoCommand(): Promise<void> {
       installed: false,
     };
 
-    // Check Playwright managed browsers using proper detection
-    const isInstalled = await manager.isBrowserInstalled(browserType);
+    // Check if browser is installed by looking for directories (avoid launching browsers)
+    let isInstalled = false;
+    if (existsSync(playwrightCacheDir)) {
+      try {
+        const { readdir } = await import("node:fs/promises");
+        const entries = await readdir(playwrightCacheDir);
+        const browserDirs = entries.filter((entry) => entry.startsWith(`${browserType}-`));
+        isInstalled = browserDirs.length > 0;
+      } catch {
+        isInstalled = false;
+      }
+    }
+
     if (isInstalled) {
       info.installed = true;
       info.location = "Playwright managed";
 
-      // Get version info
+      // Get browser version from directory name (avoids launching browsers)
       try {
-        const versionCmd = "npx playwright --version";
-        const output = execSync(versionCmd, { encoding: "utf8" });
-        const match = output.match(/Version (\d+\.\d+\.\d+)/);
-        if (match) {
-          info.version = match[1];
+        if (existsSync(playwrightCacheDir)) {
+          const { readdir } = await import("node:fs/promises");
+          const entries = await readdir(playwrightCacheDir);
+          const browserDirs = entries.filter((entry) => entry.startsWith(`${browserType}-`));
+
+          if (browserDirs.length > 0) {
+            // Use the most recent version (highest number)
+            const latestDir = browserDirs.sort().pop();
+            if (latestDir) {
+              // Extract version number from directory name (e.g., "chromium-1181" -> "1181")
+              const versionMatch = latestDir.match(/-(\d+)$/);
+              info.version = versionMatch ? versionMatch[1] : "Unknown";
+            }
+          }
+        }
+
+        if (!info.version) {
+          info.version = "Unknown";
         }
       } catch {
         info.version = "Unknown";
       }
 
-      // Get size info
+      // Get size info from the correct platform-specific cache directory
       try {
-        const browserDir = join(homedir(), ".cache", "ms-playwright", browserType);
-        if (existsSync(browserDir)) {
-          const stats = await stat(browserDir);
-          info.lastUpdated = stats.mtime;
+        if (existsSync(playwrightCacheDir)) {
+          // Find browser-specific directories with version suffixes
+          const { readdir } = await import("node:fs/promises");
+          const entries = await readdir(playwrightCacheDir);
+          const browserDirs = entries.filter((entry) => entry.startsWith(`${browserType}-`));
 
-          // Calculate directory size
-          const sizeOutput = execSync(`du -sh "${browserDir}" 2>/dev/null || echo "0"`, {
-            encoding: "utf8",
-          });
-          info.size = sizeOutput.split("\t")[0]?.trim() || "Unknown";
+          if (browserDirs.length > 0) {
+            // Use the most recent version (highest number)
+            const latestDir = browserDirs.sort().pop();
+            if (latestDir) {
+              const browserDir = join(playwrightCacheDir, latestDir);
+              const stats = await stat(browserDir);
+              info.lastUpdated = stats.mtime;
+
+              // Calculate directory size
+              const sizeOutput = execSync(`du -sh "${browserDir}" 2>/dev/null || echo "0"`, {
+                encoding: "utf8",
+              });
+              info.size = sizeOutput.split("\t")[0]?.trim() || "Unknown";
+            }
+          }
         }
       } catch {
         info.size = "Unknown";
@@ -105,10 +147,9 @@ export async function browserInfoCommand(): Promise<void> {
     console.log();
   }
 
-  // Show cache location
-  const cacheDir = join(homedir(), ".cache", "ms-playwright");
+  // Show cache location (use the correct platform-specific path)
   console.log(chalk.blue("📁 Browser Cache Location:"));
-  console.log(chalk.gray(`  ${cacheDir}\n`));
+  console.log(chalk.gray(`  ${playwrightCacheDir}\n`));
 
   // Show update instructions
   console.log(chalk.blue("🔄 Update Instructions:"));
@@ -119,17 +160,19 @@ export async function browserInfoCommand(): Promise<void> {
 
   // Show disk usage summary
   try {
-    const totalSize = execSync(`du -sh "${cacheDir}" 2>/dev/null || echo "0"`, {
+    const totalSize = execSync(`du -sh "${playwrightCacheDir}" 2>/dev/null || echo "0"`, {
       encoding: "utf8",
     });
     const size = totalSize.split("\t")[0]?.trim();
     if (size && size !== "0") {
       console.log(chalk.blue("💾 Total Disk Usage:"));
-      console.log(chalk.gray(`  ${size} in ${cacheDir}\n`));
+      console.log(chalk.gray(`  ${size} in ${playwrightCacheDir}\n`));
     }
   } catch {
     // Ignore errors
   }
+
+  process.exit(0);
 }
 
 /**
@@ -198,11 +241,16 @@ export async function browserUpdateCommand(browserType?: string): Promise<void> 
 export async function browserCleanCommand(force = false): Promise<void> {
   console.log(chalk.bold("\n🧹 Brooklyn Browser Cleanup\n"));
 
-  const cacheDir = join(homedir(), ".cache", "ms-playwright");
+  // Use correct platform-specific cache directory
+  const cacheBase =
+    process.platform === "darwin"
+      ? join(homedir(), "Library", "Caches")
+      : join(homedir(), ".cache");
+  const cacheDir = join(cacheBase, "ms-playwright");
 
   if (!existsSync(cacheDir)) {
     console.log(chalk.yellow("No browser cache found.\n"));
-    return;
+    process.exit(0);
   }
 
   // Calculate current size
@@ -222,7 +270,7 @@ export async function browserCleanCommand(force = false): Promise<void> {
     console.log(chalk.yellow("⚠️  This will remove all downloaded browsers!"));
     console.log(chalk.gray("  Browsers will be re-downloaded on next use.\n"));
     console.log(chalk.white("  Use --force to confirm cleanup.\n"));
-    return;
+    process.exit(0);
   }
 
   console.log(chalk.yellow("Cleaning browser cache..."));
@@ -251,4 +299,6 @@ export async function browserCleanCommand(force = false): Promise<void> {
     );
     process.exit(1);
   }
+
+  process.exit(0);
 }

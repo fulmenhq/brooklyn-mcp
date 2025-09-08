@@ -8,6 +8,12 @@ export default defineConfig({
     globals: true,
     environment: "node",
     setupFiles: ["./tests/setup.ts"],
+    pool: "forks",
+    poolOptions: {
+      forks: {
+        singleFork: true,
+      },
+    },
     // Fast timeout for precommit hooks
     testTimeout: 5000,
     hookTimeout: 5000,

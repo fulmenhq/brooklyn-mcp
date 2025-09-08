@@ -1,0 +1,272 @@
+# Brooklyn MCP Asset Configuration Schema v1.0.0
+# JSON Schema 2020 specification for Brooklyn MCP asset manifest files
+# Validates brooklyn-assets-manifest.yaml and related asset configuration
+
+$schema: "http://json-schema.org/draft-07/schema#"
+$id: "https://brooklyn.fulmenhq.com/schemas/brooklyn-assets-v1"
+title: "Brooklyn MCP Asset Configuration"
+description: "Configuration schema for Brooklyn MCP asset management with CDN fallback support"
+type: object
+
+# Core required properties
+required:
+  - version
+  - assets
+
+properties:
+  # Manifest Version
+  version:
+    type: string
+    description: "Asset manifest version (semantic versioning)"
+    pattern: "^\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9-]+)?$"
+    examples: ["1.0.0", "1.0.0-beta.1"]
+
+  # Asset Definitions
+  assets:
+    type: object
+    description: "Named asset definitions with versioning and CDN sources"
+    properties:
+      # PDF.js Asset Definition
+      pdfjs:
+        type: object
+        description: "PDF.js library for browser-based PDF rendering"
+        required: ["version", "enabled", "files"]
+        properties:
+          version:
+            type: string
+            description: "PDF.js version"
+            pattern: "^\\d+\\.\\d+\\.\\d+$"
+            examples: ["4.8.69", "4.9.0"]
+
+          description:
+            type: string
+            description: "Human-readable asset description"
+            examples: ["PDF.js library for browser-based PDF rendering"]
+
+          enabled:
+            type: boolean
+            description: "Whether this asset is enabled for download"
+            default: true
+
+          files:
+            type: array
+            description: "List of files for this asset"
+            minItems: 1
+            items:
+              type: object
+              required: ["filename", "sources", "expectedSize"]
+              properties:
+                filename:
+                  type: string
+                  description: "Target filename for the asset"
+                  pattern: "^[a-zA-Z0-9._-]+$"
+                  examples: ["pdf.min.mjs", "pdf.worker.min.mjs"]
+
+                sources:
+                  type: array
+                  description: "CDN source URLs (first = primary, others = fallbacks)"
+                  minItems: 1
+                  items:
+                    type: string
+                    format: uri
+                    pattern: "^https://"
+                  examples:
+                    - ["https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.min.mjs"]
+                    - [
+                        "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.min.mjs",
+                        "https://unpkg.com/pdfjs-dist@4.8.69/build/pdf.min.mjs",
+                      ]
+
+                expectedSize:
+                  type: integer
+                  description: "Expected file size in bytes for validation"
+                  minimum: 100
+                  maximum: 10000000
+                  examples: [329000, 1310000]
+
+                contentType:
+                  type: string
+                  description: "Expected MIME content type"
+                  examples: ["application/javascript", "text/css", "application/json"]
+
+                checksums:
+                  type: object
+                  description: "Optional file checksums for integrity validation"
+                  properties:
+                    sha256:
+                      type: string
+                      pattern: "^[a-f0-9]{64}$"
+                      description: "SHA-256 checksum (optional for now)"
+                  additionalProperties: false
+
+              additionalProperties: false
+
+        additionalProperties: false
+
+      # Mermaid.js Asset Definition (Future Use)
+      mermaid:
+        type: object
+        description: "Mermaid.js diagram library for future diagram rendering"
+        required: ["version", "enabled", "files"]
+        properties:
+          version:
+            type: string
+            description: "Mermaid.js version"
+            pattern: "^\\d+\\.\\d+\\.\\d+$"
+            examples: ["11.4.0", "12.0.0"]
+
+          description:
+            type: string
+            description: "Human-readable asset description"
+            examples: ["Mermaid.js diagram library (future use)"]
+
+          enabled:
+            type: boolean
+            description: "Whether this asset is enabled for download"
+            default: false
+
+          files:
+            type: array
+            description: "List of files for this asset"
+            minItems: 1
+            items:
+              type: object
+              required: ["filename", "sources", "expectedSize"]
+              properties:
+                filename:
+                  type: string
+                  description: "Target filename for the asset"
+                  pattern: "^[a-zA-Z0-9._-]+$"
+                  examples: ["mermaid.min.js", "mermaid.esm.min.mjs"]
+
+                sources:
+                  type: array
+                  description: "CDN source URLs (first = primary, others = fallbacks)"
+                  minItems: 1
+                  items:
+                    type: string
+                    format: uri
+                    pattern: "^https://"
+
+                expectedSize:
+                  type: integer
+                  description: "Expected file size in bytes for validation"
+                  minimum: 100
+                  maximum: 10000000
+
+                contentType:
+                  type: string
+                  description: "Expected MIME content type"
+                  examples: ["application/javascript", "text/css", "application/json"]
+
+                checksums:
+                  type: object
+                  description: "Optional file checksums for integrity validation"
+                  properties:
+                    sha256:
+                      type: string
+                      pattern: "^[a-f0-9]{64}$"
+                      description: "SHA-256 checksum (optional for now)"
+                  additionalProperties: false
+
+              additionalProperties: false
+
+        additionalProperties: false
+
+    # Allow additional asset types to be added in the future
+    additionalProperties:
+      type: object
+      description: "Additional asset definition (follows same pattern)"
+      required: ["version", "enabled", "files"]
+      properties:
+        version:
+          type: string
+          pattern: "^\\d+\\.\\d+\\.\\d+$"
+        description:
+          type: string
+        enabled:
+          type: boolean
+        files:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: ["filename", "sources", "expectedSize"]
+            properties:
+              filename:
+                type: string
+                pattern: "^[a-zA-Z0-9._-]+$"
+              sources:
+                type: array
+                minItems: 1
+                items:
+                  type: string
+                  format: uri
+                  pattern: "^https://"
+              expectedSize:
+                type: integer
+                minimum: 100
+                maximum: 10000000
+              contentType:
+                type: string
+              checksums:
+                type: object
+                properties:
+                  sha256:
+                    type: string
+                    pattern: "^[a-f0-9]{64}$"
+                additionalProperties: false
+            additionalProperties: false
+      additionalProperties: false
+
+# No additional properties allowed at root level
+additionalProperties: false
+
+# Examples for validation testing
+examples:
+  - # Complete asset manifest with PDF.js and Mermaid.js
+    version: "1.0.0"
+    assets:
+      pdfjs:
+        version: "4.8.69"
+        description: "PDF.js library for browser-based PDF rendering"
+        enabled: true
+        files:
+          - filename: "pdf.min.mjs"
+            sources:
+              - "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.min.mjs"
+              - "https://unpkg.com/pdfjs-dist@4.8.69/build/pdf.min.mjs"
+            expectedSize: 329000
+            contentType: "application/javascript"
+          - filename: "pdf.worker.min.mjs"
+            sources:
+              - "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs"
+              - "https://unpkg.com/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs"
+            expectedSize: 1310000
+            contentType: "application/javascript"
+
+      mermaid:
+        version: "11.4.0"
+        description: "Mermaid.js diagram library (future use)"
+        enabled: false
+        files:
+          - filename: "mermaid.min.js"
+            sources:
+              - "https://cdn.jsdelivr.net/npm/mermaid@11.4.0/dist/mermaid.min.js"
+              - "https://unpkg.com/mermaid@11.4.0/dist/mermaid.min.js"
+            expectedSize: 500000
+            contentType: "application/javascript"
+
+  - # Minimal PDF.js-only configuration
+    version: "1.0.0"
+    assets:
+      pdfjs:
+        version: "4.8.69"
+        description: "PDF.js library for browser-based PDF rendering"
+        enabled: true
+        files:
+          - filename: "pdf.min.mjs"
+            sources:
+              - "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.min.mjs"
+            expectedSize: 329000
+            contentType: "application/javascript"

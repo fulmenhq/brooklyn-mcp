@@ -1,0 +1,105 @@
+$schema: "http://json-schema.org/draft-07/schema#"
+$id: "https://brooklyn.fulmenhq.com/schemas/brooklyn-doctor-v1"
+title: "Brooklyn Doctor Output"
+description: "Schema for brooklyn doctor command output"
+type: object
+required: [success, data]
+properties:
+  success:
+    type: boolean
+  data:
+    type: object
+    required: [when, projectRoot, configs, http]
+    properties:
+      when:
+        type: string
+        description: ISO timestamp
+        format: date-time
+      projectRoot:
+        type: string
+      configs:
+        type: object
+        required: [project, kilocode, codex, claude, cursor]
+        properties:
+          project:
+            $ref: "#/definitions/configReport"
+          kilocode:
+            $ref: "#/definitions/configReport"
+          codex:
+            $ref: "#/definitions/configReport"
+          claude:
+            $ref: "#/definitions/configReport"
+          cursor:
+            type: object
+            required: [best, all]
+            properties:
+              best:
+                $ref: "#/definitions/configReport"
+              all:
+                type: array
+                items:
+                  $ref: "#/definitions/configReport"
+      http:
+        type: object
+        properties:
+          processes:
+            type: object
+            required: [total, byType, httpServers]
+            properties:
+              total:
+                type: integer
+              byType:
+                type: object
+                additionalProperties:
+                  type: integer
+              httpServers:
+                type: array
+                items:
+                  type: object
+                  required: [port, pid]
+                  properties:
+                    port:
+                      type: integer
+                    pid:
+                      type: integer
+                    teamId:
+                      type: string
+      suggestions:
+        type: array
+        items:
+          type: string
+
+definitions:
+  configReport:
+    type: object
+    required: [label, path, exists, servers, hasBrooklyn]
+    properties:
+      label:
+        type: string
+      path:
+        type: string
+      exists:
+        type: boolean
+      servers:
+        type: array
+        items:
+          type: string
+      hasBrooklyn:
+        type: boolean
+      brooklyn:
+        type: object
+        properties:
+          type:
+            type: string
+          command:
+            type: string
+          args:
+            type: array
+            items:
+              type: string
+          cwd:
+            type: string
+          env:
+            type: object
+            additionalProperties:
+              type: string

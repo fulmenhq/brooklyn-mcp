@@ -263,8 +263,14 @@ export class BrooklynProcessManager {
     const teamIdMatch = command.match(/--team-id\s+([^\s]+)/);
     const teamId: string | undefined = teamIdMatch?.[1];
 
-    // HTTP dev server detection
-    if (command.includes("mcp dev-http") || command.includes("dev-http-daemon")) {
+    // HTTP server detection - both dev-http and web modes
+    if (
+      command.includes("mcp dev-http") ||
+      command.includes("dev-http-daemon") ||
+      command.includes("brooklyn web start") ||
+      (command.includes("/brooklyn") && command.includes("web start")) ||
+      command.includes("web start")
+    ) {
       type = "http-server";
       const portMatch = command.match(/--port\s+(\d+)/);
       port = portMatch?.[1] ? Number.parseInt(portMatch[1], 10) : undefined;

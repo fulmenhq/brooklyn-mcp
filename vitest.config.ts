@@ -24,6 +24,11 @@ export default defineConfig({
     ],
     isolate: true,
     pool: "forks",
+    poolOptions: {
+      forks: {
+        singleFork: true,
+      },
+    },
     hookTimeout: 30000,
     testTimeout: 30000,
   },

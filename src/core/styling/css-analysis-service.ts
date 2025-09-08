@@ -6,6 +6,7 @@
 
 import type { Page } from "playwright";
 import { getLogger } from "../../shared/pino-logger.js";
+import { TokenizerService } from "../tokenizer-service.js";
 
 // Lazy logger initialization pattern
 let logger: ReturnType<typeof getLogger> | null = null;
@@ -25,6 +26,7 @@ export interface ExtractCSSArgs {
   properties?: string[];
   pseudoElements?: string[];
   timeout?: number;
+  maxTokens?: number; // Maximum tokens to return (default: 10000)
 }
 
 // CSS extraction result
@@ -153,6 +155,7 @@ export class CSSAnalysisService {
   private readonly defaultTimeout = 30000;
   private styleCache = new Map<string, { styles: Record<string, string>; timestamp: number }>();
   private readonly cacheTimeout = 5000; // 5 seconds cache
+  private readonly tokenizerService = new TokenizerService();
 
   /**
    * Extract CSS styles for an element
@@ -296,19 +299,89 @@ export class CSSAnalysisService {
       // Cache the result for performance
       this.styleCache.set(cacheKey, { styles: result.styles, timestamp: Date.now() });
 
+      // Apply token limits if specified
+      const maxTokens = args.maxTokens || 10000;
+      let cssText = this.stylesToCSSText(result.styles);
+
+      // Count tokens
+      const tokenResult = this.tokenizerService.countTokens(cssText);
+      const tokenCount = tokenResult.tokens;
+
+      // If over limit, try to reduce by filtering properties
+      if (tokenCount > maxTokens) {
+        ensureLogger().warn("CSS extraction exceeds token limit", {
+          browserId: args.browserId,
+          selector: args.selector,
+          tokenCount,
+          maxTokens,
+        });
+
+        // Try to reduce by keeping only essential properties
+        const essentialProps = [
+          "display",
+          "position",
+          "width",
+          "height",
+          "margin",
+          "padding",
+          "color",
+          "background",
+          "background-color",
+          "font-size",
+          "font-family",
+          "border",
+          "opacity",
+          "visibility",
+          "z-index",
+          "overflow",
+          "flex",
+          "grid",
+          "transform",
+          "transition",
+        ];
+
+        const filteredStyles: Record<string, string> = {};
+        for (const prop of essentialProps) {
+          if (result.styles[prop]) {
+            filteredStyles[prop] = result.styles[prop];
+          }
+        }
+
+        cssText = this.stylesToCSSText(filteredStyles);
+        const filteredTokenResult = this.tokenizerService.countTokens(cssText);
+        const filteredTokenCount = filteredTokenResult.tokens;
+
+        if (filteredTokenCount > maxTokens) {
+          // Still too large, return error
+          throw new Error(
+            `CSS extraction exceeds token limit: ${filteredTokenCount} > ${maxTokens}. Use properties parameter to filter specific properties.`,
+          );
+        }
+
+        result.styles = filteredStyles;
+        ensureLogger().info("CSS filtered to essential properties", {
+          browserId: args.browserId,
+          selector: args.selector,
+          originalCount: Object.keys(result.styles).length,
+          filteredCount: Object.keys(filteredStyles).length,
+          tokenCount: filteredTokenCount,
+        });
+      }
+
       const executionTime = Date.now() - startTime;
 
       ensureLogger().info("CSS extracted successfully", {
         browserId: args.browserId,
         selector: args.selector,
         propertyCount: Object.keys(result.styles).length,
+        tokenCount: this.tokenizerService.countTokens(cssText).tokens,
         executionTime,
       });
 
       return {
         success: true,
         styles: result.styles,
-        cssText: this.stylesToCSSText(result.styles),
+        cssText,
         specificity: result.specificity,
         source: result.source,
         selector: args.selector,

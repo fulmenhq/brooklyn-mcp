@@ -184,6 +184,118 @@ async function compareScreenshots(url, beforeBrowser, afterBrowser) {
 }
 ```
 
+## Layout Debugging Tools
+
+The following tools accelerate CSS/layout investigation and rapid iteration on live sites (dev/staging only).
+
+- highlight_element_bounds: Overlay bounds for a selector; returns `highlightId` and bounds
+- show_layout_grid: Toggle a configurable grid overlay
+- remove_overlay: Remove any overlay by ID
+- apply_css_override / revert_css_changes: Temporary CSS changes for quick testing
+- wait_for_url / wait_for_navigation / wait_for_network_idle: Stabilize flows before/after layout changes
+- scroll_into_view / scroll_to / scroll_by: Bring elements into view and align
+- get_layout_tree: Bounded tree with tag/id/class, position/display, and bounds
+- measure_whitespace: Detect vertical gaps between stacked children
+- find_layout_containers: Identify flex/grid/positioned containers with relevant properties
+
+### Quick Playbook: Fixing Unexpected Whitespace
+
+```javascript
+// 1) Highlight the problem area for visual confirmation
+await callTool("highlight_element_bounds", { selector: ".main-frame" });
+
+// 2) Measure whitespace between stacked children
+const gaps = await callTool("measure_whitespace", {
+  containerSelector: ".content-wrapper",
+  minGap: 16,
+});
+
+// 3) Test a CSS override to resolve the gap
+const override = await callTool("apply_css_override", {
+  selector: ".main-frame",
+  cssRules: { transform: "translateY(-64px)", position: "relative" },
+  important: true,
+});
+
+// 4) Verify page state is stable
+await callTool("wait_for_network_idle", {});
+
+// 5) Revert when done
+await callTool("revert_css_changes", { overrideId: override.overrideId });
+```
+
+### Grid Overlay
+
+```javascript
+const grid = await callTool("show_layout_grid", { gridSize: 20 });
+// ...investigate alignments...
+await callTool("remove_overlay", { overlayId: grid.overlayId });
+```
+
+### Layout Structure Snapshot
+
+```javascript
+const structure = await callTool("get_layout_tree", { rootSelector: "main", maxDepth: 3 });
+console.log(structure.tree);
+```
+
+### Container Discovery
+
+```javascript
+const containers = await callTool("find_layout_containers", {});
+console.log(containers.containers.slice(0, 5));
+```
+
+## CSS Cascade Assistants
+
+These helpers reduce guesswork and help newer UX developers avoid unproductive CSS “hacking”.
+
+- simulate_css_change(selector, cssRules): Reports which properties would change (before/after), with optional !important probing.
+- why_style_not_applied(selector, property, desiredValue?): Explains likely causes; tests desiredValue and offers recommendations.
+
+### Example: Diagnose why "top" isn’t moving an element
+
+```javascript
+const explain = await callTool("why_style_not_applied", {
+  selector: ".card",
+  property: "top",
+  desiredValue: "-20px",
+});
+
+// Sample response
+// {
+//   success: true,
+//   property: "top",
+//   computed: { before: "auto", after: "-20px" },
+//   reasons: ["Position is static; offsets only take effect when position != static"],
+//   recommendations: ["Set position: relative on the element or appropriate ancestor"]
+// }
+```
+
+### Example: Preview a safe CSS change
+
+```javascript
+const sim = await callTool("simulate_css_change", {
+  selector: ".hero",
+  cssRules: { position: "relative", top: "-16px" },
+});
+
+// Review `sim.data.overallChanged` and the per-property changes to avoid no-op edits
+```
+
+## Cascade Quick Reference
+
+- Position offsets: `top/left/right/bottom` only affect positioned elements (`position: relative|absolute|fixed|sticky`).
+- z-index: meaningful only on positioned/flex/grid contexts and within stacking contexts; “static” won’t stack.
+- Inline limits: `width/height` and vertical margins don’t affect inline non-replaced elements — use `display: inline-block|block|flex`.
+- Specificity vs source order: higher specificity beats later rules; if specificity ties, the later rule wins.
+- !important: wins precedence but avoid for maintainability; prefer reducing specificity or adjusting rule structure.
+- Debug flow:
+  - Preview with `simulate_css_change` (no edits)
+  - If no change, run `why_style_not_applied` with a `desiredValue`
+  - Inspect with `get_applicable_rules` and `get_effective_computed`
+  - Apply `apply_css_override` and then `revert_css_changes` after verification
+
 ## Browser Automation Patterns
 
 ### Page Load Verification

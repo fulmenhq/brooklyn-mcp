@@ -11,6 +11,7 @@ import { execSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir, platform } from "node:os";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 
 import { getLogger } from "../shared/pino-logger.js";
@@ -19,7 +20,10 @@ import { getLogger } from "../shared/pino-logger.js";
 const logger = getLogger("brooklyn-server");
 
 // Build-time configuration - will be replaced during build
-const BROOKLYN_PATH = "{{BROOKLYN_PATH}}";
+const EMBEDDED_BROOKLYN_PATH = "{{BROOKLYN_PATH}}";
+const BROOKLYN_PATH = EMBEDDED_BROOKLYN_PATH.includes("{{")
+  ? fileURLToPath(new URL("../../", import.meta.url))
+  : EMBEDDED_BROOKLYN_PATH;
 const BROOKLYN_VERSION = "{{BROOKLYN_VERSION}}";
 
 // ANSI color codes
@@ -67,6 +71,14 @@ function getClaudeConfigPath(): string {
 
   switch (osType) {
     case "darwin":
+      // Claude Desktop on macOS uses Library/Application Support
+      return join(
+        homeDir,
+        "Library",
+        "Application Support",
+        "Claude",
+        "claude_desktop_config.json",
+      );
     case "linux":
       return join(homeDir, ".config", "claude", "claude_desktop_config.json");
     case "win32": {
@@ -91,9 +103,28 @@ function checkClaudeConfig(): { configured: boolean; configPath: string; config?
   try {
     const configText = readFileSync(configPath, "utf8");
     const config = JSON.parse(configText);
-    const hasBrooklyn = config.mcpServers?.brooklyn?.cwd === BROOKLYN_PATH;
-
-    return { configured: hasBrooklyn, configPath, config };
+    const servers = Object.keys(config.mcpServers || {});
+    const targetNames = [
+      "Brooklyn",
+      "brooklyn",
+      ...servers.filter((s) => /^(Brooklyn|brooklyn)-/.test(s)),
+    ];
+    const found = targetNames.find((name) => {
+      const entry = config.mcpServers?.[name];
+      if (!entry) return false;
+      // Pattern A: bun-run from repo cwd
+      if (entry.cwd && entry.cwd.replace(/\/?$/, "/") === BROOKLYN_PATH.replace(/\/?$/, "/")) {
+        return true;
+      }
+      // Pattern B: installed CLI calling brooklyn mcp start
+      if (typeof entry.command === "string" && /(^|\/)brooklyn$/.test(entry.command)) {
+        const args = Array.isArray(entry.args) ? entry.args.map(String) : [];
+        const argsStr = args.join(" ");
+        if (argsStr.includes("mcp") && argsStr.includes("start")) return true;
+      }
+      return false;
+    });
+    return { configured: Boolean(found), configPath, config };
   } catch (_error) {
     return { configured: false, configPath };
   }
@@ -115,58 +146,79 @@ function getMcpServerName(projectScope: boolean): string {
 /**
  * Setup Brooklyn MCP server in Claude Code configuration
  */
-function setupClaudeCode(options: { project?: boolean } = {}): void {
+function setupClaudeCode(
+  options: {
+    project?: boolean;
+    force?: boolean;
+    desktop?: boolean;
+    transport?: "stdio" | "http";
+    host?: string;
+    port?: number;
+  } = {},
+): void {
   const projectScope = options.project ?? false;
+  const force = options.force ?? false;
+  const alsoDesktop = options.desktop ?? false;
+  const transport = options.transport ?? "stdio";
+  const host = options.host ?? "127.0.0.1";
+  const port = options.port ?? 3000;
   const scopeDesc = projectScope ? "project-specific" : "user-wide";
   const serverName = getMcpServerName(projectScope);
 
-  log.title(`Setting up ${scopeDesc} Claude Code MCP Configuration`);
+  log.title(`Setting up Claude Code MCP (CLI) - ${scopeDesc}`);
 
   validateBrooklynPath();
 
-  const { configPath, config } = checkClaudeConfig();
-  const existingConfig = config?.mcpServers?.[serverName];
-  const isConfigured = existingConfig?.cwd === BROOKLYN_PATH;
-
-  if (isConfigured) {
-    log.success(`✅ Brooklyn is already configured as '${serverName}' in Claude Code!`);
-    log.info(`Config file: ${configPath}`);
-    log.info(`Scope: ${scopeDesc}`);
-    process.exit(0);
+  // Configure via Claude Code CLI (authoritative for Claude Code)
+  const scopeFlag = projectScope ? "-s project" : "-s user";
+  try {
+    if (force) {
+      try {
+        execSync(`claude mcp remove ${serverName}`, { stdio: "ignore" });
+      } catch {}
+    }
+    const exists = (() => {
+      try {
+        execSync(`claude mcp get ${serverName}`, { stdio: "ignore" });
+        return true;
+      } catch {
+        return false;
+      }
+    })();
+    if (!exists || force) {
+      if (transport === "stdio") {
+        execSync(`claude mcp add ${scopeFlag} -t stdio ${serverName} -- brooklyn mcp start`, {
+          stdio: "ignore",
+        });
+      } else {
+        execSync(`claude mcp add ${scopeFlag} -t http ${serverName} http://${host}:${port}`, {
+          stdio: "ignore",
+        });
+      }
+    }
+  } catch {
+    log.warn("'claude' CLI not found or failed. Install Claude Code CLI and retry.");
   }
 
-  // Check for conflicts with other Brooklyn instances
-  if (config?.mcpServers?.[serverName] && !isConfigured) {
-    log.warn(
-      `MCP server '${serverName}' already exists but points to different Brooklyn installation`,
-    );
-    process.exit(1);
+  // Optionally also configure Desktop JSON (legacy/optional)
+  if (alsoDesktop) {
+    const { configPath, config } = checkClaudeConfig();
+    const configDir = dirname(configPath);
+    if (!existsSync(configDir)) {
+      mkdirSync(configDir, { recursive: true });
+      log.info(`Created Claude Desktop config directory: ${configDir}`);
+    }
+    const claudeConfig = config || {};
+    if (!claudeConfig.mcpServers) claudeConfig.mcpServers = {};
+    claudeConfig.mcpServers[serverName] = { command: "brooklyn", args: ["mcp", "start"] };
+    writeFileSync(configPath, JSON.stringify(claudeConfig, null, 2));
   }
 
-  // Ensure config directory exists
-  const configDir = dirname(configPath);
-  if (!existsSync(configDir)) {
-    mkdirSync(configDir, { recursive: true });
-    log.info(`Created Claude config directory: ${configDir}`);
+  log.success(`Configured '${serverName}' for Claude Code (CLI) [${scopeDesc}]`);
+  if (alsoDesktop) {
+    const { configPath } = checkClaudeConfig();
+    log.info(`Also wrote Claude Desktop JSON: ${configPath}`);
   }
-
-  // Create or update configuration
-  const claudeConfig = config || {};
-  if (!claudeConfig.mcpServers) {
-    claudeConfig.mcpServers = {};
-  }
-
-  claudeConfig.mcpServers[serverName] = {
-    command: "bun",
-    args: ["run", "start"],
-    cwd: BROOKLYN_PATH,
-  };
-
-  writeFileSync(configPath, JSON.stringify(claudeConfig, null, 2));
-
-  log.success(`Brooklyn MCP server configured as '${serverName}' in Claude Code!`);
-  log.info(`Config file: ${configPath}`);
-  log.info(`Scope: ${scopeDesc}`);
   process.exit(0);
 }
 
@@ -206,37 +258,20 @@ function removeFromClaude(options: { project?: boolean } = {}): void {
  * Check Claude Code configuration status
  */
 function checkClaude(): void {
+  try {
+    const list = execSync("claude mcp list", { encoding: "utf8" });
+    const has = /\bbrooklyn\b/i.test(list);
+    if (!has) {
+      log.info("No MCP servers configured for Claude Code (CLI)");
+    } else {
+      log.success("Claude Code (CLI) has an MCP entry for 'brooklyn'");
+    }
+  } catch {
+    log.warn("'claude' CLI not found. Install Claude Code CLI to manage MCP servers.");
+  }
   const { configPath, config } = checkClaudeConfig();
-
-  if (!config?.mcpServers) {
-    log.info("No MCP servers configured in Claude Code");
-    process.exit(0);
-  }
-
-  // Find all Brooklyn-related servers
-  const brooklynServers = Object.entries(config.mcpServers)
-    .filter(([name, _serverConfig]: [string, any]) => name.startsWith("brooklyn"))
-    .map(([name, serverConfig]: [string, any]) => ({
-      name,
-      config: serverConfig,
-      isThisInstance: serverConfig.cwd === BROOKLYN_PATH,
-    }));
-
-  if (brooklynServers.length === 0) {
-    log.info("No Brooklyn servers configured in Claude Code");
-    process.exit(0);
-  }
-  brooklynServers.forEach(({ name, config: serverConfig, isThisInstance }) => {
-    const _status = isThisInstance ? "✅ This instance" : "❌ Different instance";
-  });
-
-  const thisInstanceConfigured = brooklynServers.some((s) => s.isThisInstance);
-
-  if (!thisInstanceConfigured) {
-    log.info("This Brooklyn instance is not configured in Claude Code");
-  } else {
-    log.info("This Brooklyn instance is configured in Claude Code");
-  }
+  const hasDesktop = Boolean(config?.mcpServers?.["brooklyn"] || config?.mcpServers?.["Brooklyn"]);
+  log.info(`Claude Desktop JSON: ${hasDesktop ? "present" : "absent"} (${configPath})`);
   process.exit(0);
 }
 
@@ -396,11 +431,18 @@ function main(): void {
 
   program
     .command("setup-claude")
-    .description("Configure Claude Code MCP connection")
+    .description(
+      "Configure Claude Code MCP (CLI registry). Use --desktop to also write Desktop JSON.",
+    )
     .option(
       "--project",
       "Configure as project-specific MCP server (allows multiple Brooklyn instances)",
     )
+    .option("--force", "Rewrite existing entry if it exists")
+    .option("--desktop", "Also configure Claude Desktop JSON (legacy/optional)")
+    .option("--transport <type>", "stdio|http (default: stdio)", "stdio")
+    .option("--host <host>", "HTTP host when --transport http", "127.0.0.1")
+    .option("--port <port>", "HTTP port when --transport http", (v) => Number(v), 3000)
     .action((options) => {
       setupClaudeCode(options);
     });

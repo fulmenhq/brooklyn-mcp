@@ -12,9 +12,13 @@
  */
 
 // Version embedded at build time from VERSION file
-const VERSION = "1.5.0";
+const VERSION = "0.2.0-rc.3";
 
+import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { HELP_TEXT } from "../generated/help/index.js";
+import { type AgentClientKey, agentDrivers, resolvePathFor } from "../shared/agent-drivers.js";
 // buildConfig import removed - not used in CLI entry point
 import { getLogger, initializeLogging } from "../shared/pino-logger.js";
 
@@ -71,13 +75,13 @@ const _minimalConfig = {
 // 5. Any output before initialization breaks the MCP protocol
 
 import { Command } from "commander";
-import { BrooklynEngine } from "../core/brooklyn-engine.js";
 import { type BrooklynConfig, enableConfigLogger, loadConfig } from "../core/config.js";
 import { InstanceManager } from "../core/instance-manager.js";
 import { createHTTP, createMCPStdio } from "../transports/index.js";
 import { registerCleanupCommand } from "./commands/cleanup.js";
 import { registerOpsCommand } from "./commands/ops.js";
 import { handleDebugCommand } from "./debug.js";
+// (imports above)
 
 // Config logger no longer needed with Pino
 
@@ -112,8 +116,12 @@ function setupMCPCommands(program: Command): void {
 
   // Override helpInformation method to append custom help (Architecture Team recommendation)
   const originalHelp = mcpCmd.helpInformation;
-  mcpCmd.helpInformation = function () {
-    return `${originalHelp.call(this)}
+  mcpCmd.helpInformation = () => `${originalHelp.call(mcpCmd)}
+
+Assisted Configuration:
+  Use 'brooklyn config agent' to generate and/or apply MCP client
+  configurations for IDEs and agents (stdio or http transport).
+  Optional: '--product Code|VSCodium|Cursor|Windsurf' to target user scope.
 
 Quick Setup:
 ${HELP_TEXT["mcp-setup"]}
@@ -123,7 +131,6 @@ ${HELP_TEXT["mcp-troubleshooting"]}
 
 For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
 `;
-  };
 
   mcpCmd
     .command("start")
@@ -131,6 +138,7 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
     .option("--team-id <teamId>", "Team identifier")
     .option("--log-level <level>", "Log level (debug, info, warn, error)")
     .option("--dev-mode", "Enable development mode with IPC transport")
+    .option("--development-only", "Allow 'none' authentication mode (development only)")
     .option("--socket-path <path>", "Unix socket path (dev mode only)")
     .option(
       "--pipes-prefix <prefix>",
@@ -202,6 +210,13 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
         const cliOverrides: Partial<BrooklynConfig> = {};
         if (options.teamId) cliOverrides.teamId = options.teamId;
         if (options.logLevel) cliOverrides.logging = { level: options.logLevel, format: "json" };
+        if (options.developmentOnly) {
+          cliOverrides.authentication = {
+            mode: "none",
+            developmentOnly: true,
+            providers: {},
+          };
+        }
 
         const config = await loadConfig(cliOverrides);
 
@@ -241,6 +256,7 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
         // Initialize logging now that transport mode is set
         await initializeLogging(config);
 
+        const { BrooklynEngine } = await import("../core/brooklyn-engine.js");
         const engine = new BrooklynEngine({
           config: { ...config, devMode: options.devMode },
           correlationId: `mcp-${Date.now()}`,
@@ -340,11 +356,7 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
       }
     });
 
-  mcpCmd
-    .command("configure")
-    .description("Configure Claude Code MCP integration")
-    .option("--project", "Configure for project-specific scope")
-    .action(async (_options) => {});
+  // Note: no direct configure subcommand; unified under `config agent`
 
   mcpCmd
     .command("cleanup")
@@ -457,12 +469,30 @@ function setupMCPDevCommands(mcpCmd: Command): void {
 
   const _devReplCmd = mcpCmd
     .command("dev-repl")
-    .description("Start Brooklyn REPL for interactive MCP tool testing")
+    .description("Start Brooklyn REPL for interactive MCP tool testing (experimental)")
     .option("--json", "Output raw JSON responses instead of pretty-formatted text")
     .option("--verbose", "Enable verbose logging")
     .option("--team-id <teamId>", "Team identifier for REPL session")
+    .option("--experimental", "Enable experimental features (required for REPL)", false)
     .action(async (options) => {
       try {
+        if (!options.experimental) {
+          console.error("❌ Error: Brooklyn REPL is experimental and under active development");
+          console.error(
+            "   Current status: Basic functionality working, advanced features in progress",
+          );
+          console.error(
+            "   Solution: Use --experimental flag to acknowledge this is a preview feature",
+          );
+          console.error("");
+          console.error("   Example: brooklyn dev-repl --experimental");
+          process.exit(1);
+        }
+
+        console.warn("⚠️  Warning: Using experimental Brooklyn REPL");
+        console.warn("   This feature is under active development and may have limitations");
+        console.warn("");
+
         const { BrooklynREPL } = await import("../core/brooklyn-repl.js");
         const repl = new BrooklynREPL({
           jsonOutput: options.json,
@@ -1002,6 +1032,15 @@ function setupMCPDevCommands(mcpCmd: Command): void {
 function setupWebCommands(program: Command): void {
   const webCmd = program.command("web").description("Web server commands for monitoring and APIs");
 
+  // Append guidance to use unified agent configuration helper
+  const originalWebHelp = webCmd.helpInformation;
+  webCmd.helpInformation = (() => `${originalWebHelp.call(webCmd)}
+
+Assisted Configuration:
+  Use 'brooklyn config agent' to generate and/or apply MCP client
+  configurations for IDEs and agents (stdio or http transport).
+  Optional: '--product Code|VSCodium|Cursor|Windsurf' to target user scope.`) as any;
+
   webCmd
     .command("start")
     .description("Start HTTP web server")
@@ -1114,6 +1153,7 @@ function setupWebCommands(program: Command): void {
         }
 
         // Create Brooklyn engine
+        const { BrooklynEngine } = await import("../core/brooklyn-engine.js");
         const engine = new BrooklynEngine({
           config,
           correlationId: `web-start-${Date.now()}`,
@@ -1548,6 +1588,522 @@ async function checkBrowserInstallation(browserType?: string): Promise<void> {
 }
 
 /**
+ * Register top-level doctor command
+ */
+function setupDoctorCommand(program: Command): void {
+  program
+    .command("doctor")
+    .description(
+      "Check MCP and HTTP configurations across common clients (Claude, Codex, Cursor, Kilocode)",
+    )
+    .option("--json", "Output JSON envelope for agentic parsing", false)
+    .option("--recipes", "Include client-specific setup recipes", false)
+    .option("--team-id <id>", "Optional team id to include in recipes and commands")
+    .action(async (options) => {
+      const outputJson = Boolean(options.json);
+      const startedAt = Date.now();
+
+      const wrap = (data: unknown) => {
+        const durationMs = Date.now() - startedAt;
+        if (outputJson) {
+          console.log(
+            JSON.stringify({ success: true, data, diagnostics: { durationMs } }, null, 2),
+          );
+        } else {
+          // Pretty-print objects to avoid [Object ...] rendering
+          console.log(JSON.stringify(data, null, 2));
+        }
+      };
+
+      const readJSON = (path: string): any | undefined => {
+        try {
+          if (!existsSync(path)) return undefined;
+          const txt = readFileSync(path, "utf8");
+          return JSON.parse(txt);
+        } catch {
+          return undefined;
+        }
+      };
+
+      const projectRoot = process.cwd();
+      const home = homedir();
+
+      const claudePath =
+        process.platform === "win32"
+          ? join(
+              process.env["APPDATA"] || join(home, "AppData", "Roaming"),
+              "Claude",
+              "claude_desktop_config.json",
+            )
+          : process.platform === "darwin"
+            ? join(home, "Library", "Application Support", "Claude", "claude_desktop_config.json")
+            : join(home, ".config", "claude", "claude_desktop_config.json");
+      const claudeProjectPath = join(projectRoot, ".claude_mcp.json");
+      // Codex CLI uses ~/.codex/config.toml
+      const codexPath = join(home, ".codex", "config.toml");
+      // Cursor MCP config discovery (project + user locations)
+      const cursorPaths: string[] = [];
+      // Project scope (version control friendly)
+      cursorPaths.push(join(projectRoot, ".cursor", "mcp.json"));
+      // User scope (common locations)
+      cursorPaths.push(join(home, ".config", "cursor", "mcp.json"));
+      cursorPaths.push(join(home, ".config", "Cursor", "mcp.json"));
+      cursorPaths.push(join(home, ".cursor", "mcp.json"));
+      if (process.platform === "darwin") {
+        cursorPaths.push(join(home, "Library", "Application Support", "Cursor", "mcp.json"));
+      }
+      const projectMcpPath = join(projectRoot, ".mcp.json");
+      const claudeCliPath = join(home, ".claude.json");
+      const opencodeUserPath = join(home, ".config", "opencode", "opencode.json");
+      const opencodeProjectPath = join(projectRoot, "opencode.json");
+      const kilocodePath = join(projectRoot, ".kilocode", "mcp.json");
+
+      // VS Code/VSCodium/Cursor/Windsurf user global storage bases (all candidates)
+      const editorProducts = ["Code", "VSCodium", "Cursor", "Windsurf"] as const;
+      const editorBaseFor = (product: string) =>
+        process.platform === "darwin"
+          ? join(home, "Library", "Application Support", product, "User", "globalStorage")
+          : process.platform === "win32"
+            ? join(
+                process.env["APPDATA"] || join(home, "AppData", "Roaming"),
+                product,
+                "User",
+                "globalStorage",
+              )
+            : join(home, ".config", product, "User", "globalStorage");
+      const editorBases = editorProducts.map((p) => ({ product: p, base: editorBaseFor(p) }));
+      const clineEntries = editorBases.map(({ product, base }) => ({
+        product,
+        path: join(base, "saoudrizwan.claude-dev", "settings", "cline_mcp_settings.json"),
+      }));
+      const kilocodeUserEntries = editorBases.map(({ product, base }) => ({
+        product,
+        path: join(base, "kilocode.kilo-code", "settings", "mcp_settings.json"),
+      }));
+
+      const rep = (label: string, path: string, cfg?: any) => {
+        const servers = Object.keys(cfg?.mcpServers || {});
+        const hasBrooklyn =
+          servers.includes("Brooklyn") ||
+          servers.some((s) => s.startsWith("Brooklyn-")) ||
+          servers.includes("brooklyn") ||
+          servers.some((s) => s.startsWith("brooklyn-"));
+        const preferred =
+          servers.find((s) => s === "Brooklyn") ||
+          servers.find((s) => s.startsWith("Brooklyn-")) ||
+          servers.find((s) => s === "brooklyn") ||
+          servers.find((s) => s.startsWith("brooklyn-"));
+        const entry = hasBrooklyn && preferred ? cfg.mcpServers[preferred] : undefined;
+        return { label, path, exists: Boolean(cfg), servers, hasBrooklyn, brooklyn: entry };
+      };
+
+      const repOpenCode = (label: string, path: string, cfg?: any) => {
+        const servers = Object.keys(cfg?.mcp || {});
+        const hasBrooklyn = Boolean(cfg?.mcp?.["brooklyn"]);
+        const entry = hasBrooklyn ? cfg.mcp["brooklyn"] : undefined;
+        // Normalize a summary for doctor view
+        let summary: any = undefined;
+        if (entry) {
+          summary =
+            entry.type === "local"
+              ? { type: "local", command: entry.command }
+              : { type: entry.type, url: entry.url };
+        }
+        return { label, path, exists: Boolean(cfg), servers, hasBrooklyn, brooklyn: summary };
+      };
+
+      const projectCfg = readJSON(projectMcpPath);
+      const kilocodeCfg = readJSON(kilocodePath);
+      const claudeCfg = readJSON(claudePath);
+      const claudeProjectCfg = readJSON(claudeProjectPath);
+      // Minimal TOML detection: check for [mcp_servers] and brooklyn section
+      const readCodexToml = (path: string): any | undefined => {
+        try {
+          if (!existsSync(path)) return undefined;
+          const txt = readFileSync(path, "utf8");
+          const hasSection =
+            /\[\s*mcp_servers\s*\]/.test(txt) || /\[\s*mcp_servers\.[^\]]+\]/.test(txt);
+          const hasBrooklyn = /\[\s*mcp_servers\.brooklyn\s*\]/.test(txt);
+          const servers: string[] = [];
+          if (hasBrooklyn) servers.push("brooklyn");
+          return { mcpServers: hasSection ? {} : undefined, servers, hasBrooklyn };
+        } catch {
+          return undefined;
+        }
+      };
+      const codexCfg = readCodexToml(codexPath);
+      const opencodeUserCfg = readJSON(opencodeUserPath);
+      const opencodeProjectCfg = readJSON(opencodeProjectPath);
+      const clineConfigs = clineEntries.map((e) => ({
+        product: e.product,
+        path: e.path,
+        cfg: readJSON(e.path),
+      }));
+      const kilocodeUserConfigs = kilocodeUserEntries.map((e) => ({
+        product: e.product,
+        path: e.path,
+        cfg: readJSON(e.path),
+      }));
+      const cursorReports = cursorPaths
+        .map((p) => ({ path: p, cfg: readJSON(p) }))
+        .map((x) => rep("cursor", x.path, x.cfg));
+      const cursorBest = cursorReports.find((r) => r.exists) || cursorReports[0];
+
+      const { BrooklynProcessManager } = await import("../shared/process-manager.js");
+      const procSummary = await BrooklynProcessManager.getProcessSummary();
+
+      // Editor discovery summary for transport recommendation and reporting
+      const editorsSummary = editorBases.map((e) => ({
+        product: e.product,
+        base: e.base,
+        cline: Boolean(clineConfigs.find((c) => c.product === e.product && c.cfg)),
+        kilocode: Boolean(kilocodeUserConfigs.find((c) => c.product === e.product && c.cfg)),
+      }));
+
+      // Driver-based recipe generation
+      const recipes: Record<string, unknown> = {};
+      if (options.recipes) {
+        const teamId = options.teamId ? String(options.teamId) : undefined;
+        for (const key of Object.keys(agentDrivers) as AgentClientKey[]) {
+          const driver = agentDrivers[key];
+          const entries: any[] = [];
+          for (const loc of driver.locations) {
+            const path = resolvePathFor(loc, projectRoot);
+            const stdioTemplate = driver.templates.stdio?.({ teamId });
+            const httpTemplate = driver.templates.http?.({
+              host: "127.0.0.1",
+              port: 3000,
+              teamId,
+            });
+            entries.push({
+              scope: loc.scope,
+              path,
+              writable: loc.writable,
+              stdioTemplate,
+              httpTemplate,
+              commands: {
+                stdio: driver.commands?.stdio?.({ teamId }) || [],
+                http: driver.commands?.http?.({ host: "127.0.0.1", port: 3000, teamId }) || [],
+              },
+            });
+          }
+          recipes[key] = { displayName: driver.displayName, entries };
+        }
+
+        // Editor-targeted recipes for Cline and Kilocode with --product flag
+        const editorProductsList = ["Code", "VSCodium", "Cursor", "Windsurf"] as const;
+        const editorRecipes = editorProductsList.map((prod) => ({
+          product: prod,
+          cline: {
+            path: join(
+              editorBaseFor(prod),
+              "saoudrizwan.claude-dev",
+              "settings",
+              "cline_mcp_settings.json",
+            ),
+            commands: [
+              `brooklyn config agent --client cline --scope user --product ${prod} --transport stdio${
+                teamId ? ` --team-id ${teamId}` : ""
+              }`,
+              `brooklyn config agent --client cline --scope user --product ${prod} --transport http --host 127.0.0.1 --port 3000${
+                teamId ? ` --team-id ${teamId}` : ""
+              }`,
+            ],
+          },
+          kilocode: {
+            path: join(editorBaseFor(prod), "kilocode.kilo-code", "settings", "mcp_settings.json"),
+            commands: [
+              `brooklyn config agent --client kilocode --scope user --product ${prod} --transport stdio${
+                teamId ? ` --team-id ${teamId}` : ""
+              }`,
+              `brooklyn config agent --client kilocode --scope user --product ${prod} --transport http --host 127.0.0.1 --port 3000${
+                teamId ? ` --team-id ${teamId}` : ""
+              }`,
+            ],
+          },
+        }));
+        (recipes as any).editors = editorRecipes;
+
+        // Simple recommendation heuristic: if more than one editor has cline/kilocode configured, prefer http
+        const multiEditorsConfigured =
+          editorsSummary.filter((e) => e.cline || e.kilocode).length > 1;
+        const recommendedTransport = multiEditorsConfigured ? "http" : "stdio";
+        (recipes as any).recommendation = {
+          recommendedTransport,
+          rationale: multiEditorsConfigured
+            ? "Multiple editors detected with MCP settings; a single HTTP server is more efficient across tools."
+            : "Single-editor usage; stdio is simpler and auto-managed by the IDE.",
+          examples: multiEditorsConfigured
+            ? [
+                "brooklyn web start --daemon",
+                `brooklyn config agent --client cline --scope user --transport http --host 127.0.0.1 --port 3000${
+                  teamId ? ` --team-id ${teamId}` : ""
+                }`,
+                `brooklyn config agent --client kilocode --scope user --transport http --host 127.0.0.1 --port 3000${
+                  teamId ? ` --team-id ${teamId}` : ""
+                }`,
+              ]
+            : [
+                `brooklyn config agent --client cline --scope user --transport stdio${
+                  teamId ? ` --team-id ${teamId}` : ""
+                }`,
+                `brooklyn config agent --client kilocode --scope user --transport stdio${
+                  teamId ? ` --team-id ${teamId}` : ""
+                }`,
+              ],
+        };
+      }
+
+      // Minimal MCP stdio handshake test
+      const testMcpHandshake = async (): Promise<{
+        ok: boolean;
+        protocol?: string;
+        error?: string;
+        sample?: string;
+        durationMs: number;
+      }> => {
+        const t0 = Date.now();
+        try {
+          const { spawn } = await import("node:child_process");
+          const proc = spawn("brooklyn", ["mcp", "start"], {
+            stdio: ["pipe", "pipe", "ignore"],
+            env: { ...process.env, BROOKLYN_MCP_STDERR: "false" },
+          });
+
+          const init =
+            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{"roots":{}},"clientInfo":{"name":"doctor","version":"1.0"}}}\n';
+          proc.stdin.write(init);
+
+          let buffer = "";
+          const timeoutMs = 2500;
+          let settled = false;
+          return await new Promise((resolve) => {
+            const done = (res: any) => {
+              if (settled) return;
+              settled = true;
+              try {
+                proc.kill("SIGTERM");
+              } catch {}
+              resolve(res);
+            };
+
+            const to = setTimeout(() => {
+              done({
+                ok: false,
+                error: "timeout",
+                sample: buffer.slice(0, 200),
+                durationMs: Date.now() - t0,
+              });
+            }, timeoutMs);
+
+            proc.stdout.on("data", (chunk: Buffer | string) => {
+              buffer += chunk.toString();
+              const lines = buffer.split(/\r?\n/);
+              if (lines.length > 1) {
+                clearTimeout(to);
+                const line = lines[0] || "";
+                try {
+                  const msg = JSON.parse(line);
+                  const protocol = msg?.result?.protocolVersion as string | undefined;
+                  if (protocol) {
+                    done({
+                      ok: true,
+                      protocol,
+                      sample: line.slice(0, 200),
+                      durationMs: Date.now() - t0,
+                    });
+                  } else {
+                    done({
+                      ok: false,
+                      error: "no result.protocolVersion",
+                      sample: line.slice(0, 200),
+                      durationMs: Date.now() - t0,
+                    });
+                  }
+                } catch (e: any) {
+                  done({
+                    ok: false,
+                    error: e?.message || "invalid-json",
+                    sample: line.slice(0, 200),
+                    durationMs: Date.now() - t0,
+                  });
+                }
+              }
+            });
+
+            proc.on("error", (err) => {
+              clearTimeout(to);
+              done({
+                ok: false,
+                error: err?.message || "spawn-error",
+                sample: buffer.slice(0, 200),
+                durationMs: Date.now() - t0,
+              });
+            });
+          });
+        } catch (err: any) {
+          return { ok: false, error: err?.message || String(err), durationMs: Date.now() - t0 };
+        }
+      };
+
+      // Try to detect Claude CLI registry and HTTP URL
+      const readClaudeCli = (): { type?: string; url?: string } | undefined => {
+        try {
+          const txt = readFileSync(claudeCliPath, "utf8");
+          const cfg = JSON.parse(txt);
+          const entry = cfg?.mcpServers?.["brooklyn"];
+          if (entry && typeof entry === "object") {
+            return { type: entry.type as string | undefined, url: entry.url as string | undefined };
+          }
+        } catch {}
+        return undefined;
+      };
+
+      async function checkHttpHealth(
+        url: string,
+      ): Promise<{ ok: boolean; status?: number; error?: string }> {
+        try {
+          const controller = new AbortController();
+          const to = setTimeout(() => controller.abort(), 2000);
+          const res = await fetch(`${url.replace(/\/$/, "")}/health`, {
+            signal: controller.signal,
+          });
+          clearTimeout(to);
+          return { ok: res.ok, status: res.status };
+        } catch (e: any) {
+          return { ok: false, error: e?.message || String(e) };
+        }
+      }
+
+      const claudeCli = readClaudeCli();
+      const httpHealth =
+        claudeCli?.type === "http" && claudeCli.url
+          ? await checkHttpHealth(String(claudeCli.url))
+          : undefined;
+
+      const result = {
+        when: new Date().toISOString(),
+        projectRoot,
+        configs: {
+          project: rep("project .mcp.json", projectMcpPath, projectCfg),
+          opencodeUser: repOpenCode("opencode user-wide", opencodeUserPath, opencodeUserCfg),
+          opencodeProject: repOpenCode("opencode project", opencodeProjectPath, opencodeProjectCfg),
+          kilocode: rep("kilocode .kilocode/mcp.json", kilocodePath, kilocodeCfg),
+          kilocodeUserAll: kilocodeUserConfigs.map((x) =>
+            rep(`kilocode user (${x.product})`, x.path, x.cfg),
+          ),
+          claude: rep("claude-code user-wide", claudePath, claudeCfg),
+          claudeProject: rep(
+            "claude-code project .claude_mcp.json",
+            claudeProjectPath,
+            claudeProjectCfg,
+          ),
+          codex: rep("codex-cli user-wide", codexPath, codexCfg),
+          clineAll: clineConfigs.map((x) => rep(`cline user (${x.product})`, x.path, x.cfg)),
+          cursor: { best: cursorBest, all: cursorReports },
+        },
+        http: {
+          processes: procSummary,
+        },
+        mcp: {
+          handshake: await testMcpHandshake(),
+        },
+        suggestions: [] as string[],
+        recipes: options.recipes ? recipes : undefined,
+      };
+
+      if (!result.configs.project.exists) {
+        result.suggestions.push(
+          "Add project .mcp.json for Codex/Cursor (repo includes a template).",
+        );
+      }
+
+      // Suggest switching Cline to stdio if HTTP (url) detected in cline configs
+      const clineList: any[] = (result.configs as any).clineAll || [];
+      for (const entry of clineList) {
+        if (entry?.hasBrooklyn && entry?.brooklyn && typeof entry.brooklyn === "object") {
+          if (Object.prototype.hasOwnProperty.call(entry.brooklyn, "url")) {
+            // Try to extract product name from label "cline user (Product)"
+            const m = /\(([^)]+)\)/.exec(entry.label || "");
+            const productName = m ? m[1] : "Code";
+            result.suggestions.push(
+              `Cline ${productName}: HTTP (url) requires SSE; switch to stdio: brooklyn client configure --client cline --scope user --product ${productName} --transport stdio --apply`,
+            );
+          }
+        }
+      }
+
+      // Editor discovery summary and suggestions
+      (result as any).editors = editorsSummary;
+
+      for (const ed of editorsSummary) {
+        if (!ed.cline) {
+          result.suggestions.push(
+            `Cline settings missing for ${ed.product} (expected under globalStorage/saoudrizwan.claude-dev/settings). Use 'brooklyn config agent --client cline --scope user'.`,
+          );
+        }
+        if (!ed.kilocode) {
+          result.suggestions.push(
+            `Kilocode settings missing for ${ed.product} (expected under globalStorage/kilocode.kilo-code/settings). Use 'brooklyn config agent --client kilocode --scope user'.`,
+          );
+        }
+      }
+      if (!result.configs.claude.exists) {
+        result.suggestions.push(
+          "Configure Claude Code MCP (user): claude mcp add -s user -t stdio brooklyn -- brooklyn mcp start",
+        );
+        result.suggestions.push(
+          "Or HTTP (user): claude mcp add -s user -t http brooklyn http://127.0.0.1:3000",
+        );
+      }
+      if (!result.configs.claudeProject.exists) {
+        result.suggestions.push(
+          "Configure Claude Code MCP (project): claude mcp add -s project -t stdio brooklyn -- brooklyn mcp start",
+        );
+      }
+      if (!result.configs.codex.exists) {
+        result.suggestions.push(
+          "Create codex-cli user MCP config (~/.config/codex-cli/mcp.json) or rely on project .mcp.json",
+        );
+      }
+      if (!result.configs.cursor.best?.exists) {
+        result.suggestions.push(
+          `Create Cursor MCP config at project scope (${join(
+            projectRoot,
+            ".cursor",
+            "mcp.json",
+          )}) or user scope (~/.config/cursor/mcp.json).`,
+        );
+      }
+      const be = result.configs.project.brooklyn as any | undefined;
+      if (result.configs.project.exists && be && be.command !== "brooklyn") {
+        result.suggestions.push(
+          "Project .mcp.json brooklyn command should be 'brooklyn' with args ['mcp','start'].",
+        );
+      }
+
+      // If Claude CLI is configured for HTTP but /health is not responding, guide to start server
+      if (claudeCli?.type === "http" && claudeCli.url && httpHealth && !httpHealth.ok) {
+        try {
+          const u = new URL(String(claudeCli.url));
+          const host = u.hostname || "127.0.0.1";
+          const port = u.port || "3000";
+          result.suggestions.push(
+            `Claude is configured for HTTP at ${claudeCli.url}, but /health is not responding. ` +
+              `Start the server: brooklyn web start --host ${host} --port ${port} --daemon`,
+          );
+        } catch {
+          result.suggestions.push(
+            `Claude is configured for HTTP at ${claudeCli.url}, but /health is not responding. Start the server: brooklyn web start --daemon`,
+          );
+        }
+      }
+
+      wrap(result);
+      process.exit(0);
+    });
+}
+/**
  * Setup browsers for Brooklyn
  */
 async function setupBrowsers(browserType?: string): Promise<void> {
@@ -1558,12 +2114,15 @@ async function setupBrowsers(browserType?: string): Promise<void> {
   try {
     const { execSync } = await import("node:child_process");
 
+    // Use local node_modules playwright to match MCP server version
+    const playwrightBin = join(process.cwd(), "node_modules", ".bin", "playwright");
+
     if (browserType) {
       logger.info(`Installing ${browserType}...`);
-      execSync(`bunx playwright install ${browserType}`, { stdio: "inherit" });
+      execSync(`"${playwrightBin}" install ${browserType}`, { stdio: "inherit" });
     } else {
       logger.info("Installing all browsers (chromium, firefox, webkit)...");
-      execSync("bunx playwright install", { stdio: "inherit" });
+      execSync(`"${playwrightBin}" install`, { stdio: "inherit" });
     }
 
     logger.info("\n✅ Browser installation completed!");
@@ -1586,11 +2145,123 @@ async function setupBrowsers(browserType?: string): Promise<void> {
 function setupVersionCommand(program: Command): void {
   program
     .command("version")
-    .description("Show Brooklyn version information")
-    .action(() => {
-      console.log(VERSION);
+    .description("Show Brooklyn version information (use --extended for build details)")
+    .option("--extended", "Show detailed build information")
+    .option("--json", "Output in JSON format")
+    .action(async (options) => {
+      if (options.extended || options.json) {
+        // Import buildConfig to get build signature
+        const { buildConfig } = await import("../shared/build-config.js");
+
+        // Try to load build manifest for complete signature including binary hash
+        let buildManifest = null;
+        try {
+          const fs = await import("node:fs/promises");
+          const path = await import("node:path");
+
+          // Look for manifest file next to the binary or in dist/
+          const possiblePaths = [
+            process.argv[1] ? path.resolve(process.argv[1], "../brooklyn.manifest.json") : "",
+            path.resolve(process.cwd(), "dist/brooklyn.manifest.json"),
+          ].filter((p) => p); // Remove empty strings
+
+          for (const manifestPath of possiblePaths) {
+            try {
+              const manifestContent = await fs.readFile(manifestPath, "utf-8");
+              buildManifest = JSON.parse(manifestContent);
+              break;
+            } catch {
+              // Continue to next path
+            }
+          }
+        } catch {
+          // Fall back to buildConfig only
+        }
+
+        const extendedInfo = {
+          version: VERSION,
+          buildSignature: buildConfig.buildSignature,
+          binaryHash: buildManifest?.binaryHash || null,
+        };
+
+        if (options.json) {
+          console.log(JSON.stringify(extendedInfo, null, 2));
+        } else {
+          console.log(`Brooklyn MCP Server v${VERSION}`);
+          if (buildConfig.buildSignature) {
+            // Format git commit with dirty flag if needed
+            let gitInfo = `Git commit: ${buildConfig.buildSignature.gitCommit.slice(0, 8)}`;
+            if (!buildConfig.buildSignature.gitStatus.clean) {
+              const dirtyFlags = [];
+              if (buildConfig.buildSignature.gitStatus.staged > 0)
+                dirtyFlags.push(`+${buildConfig.buildSignature.gitStatus.staged}`);
+              if (buildConfig.buildSignature.gitStatus.unstaged > 0)
+                dirtyFlags.push(`~${buildConfig.buildSignature.gitStatus.unstaged}`);
+              if (buildConfig.buildSignature.gitStatus.untracked > 0)
+                dirtyFlags.push(`?${buildConfig.buildSignature.gitStatus.untracked}`);
+              if (dirtyFlags.length > 0) gitInfo += `-dirty(${dirtyFlags.join(",")})`;
+            }
+            console.log(gitInfo);
+
+            // Show branch with ahead/behind info
+            let branchInfo = `Git branch: ${buildConfig.buildSignature.gitBranch}`;
+            if (
+              buildConfig.buildSignature.gitStatus.ahead > 0 ||
+              buildConfig.buildSignature.gitStatus.behind > 0
+            ) {
+              const aheadBehind = [];
+              if (buildConfig.buildSignature.gitStatus.ahead > 0)
+                aheadBehind.push(`ahead ${buildConfig.buildSignature.gitStatus.ahead}`);
+              if (buildConfig.buildSignature.gitStatus.behind > 0)
+                aheadBehind.push(`behind ${buildConfig.buildSignature.gitStatus.behind}`);
+              branchInfo += ` (${aheadBehind.join(", ")})`;
+            }
+            console.log(branchInfo);
+
+            console.log(`Build time: ${buildConfig.buildSignature.buildTime}`);
+            console.log(
+              `Platform: ${buildConfig.buildSignature.platform}/${buildConfig.buildSignature.arch}`,
+            );
+            console.log(
+              `Runtime: Node ${buildConfig.buildSignature.nodeVersion}, Bun ${buildConfig.buildSignature.bunVersion}`,
+            );
+            console.log(`Environment: ${buildConfig.buildSignature.buildEnv}`);
+
+            // Show binary hash from manifest if available, otherwise from buildSignature
+            const binaryInfo = extendedInfo.binaryHash || buildConfig.buildSignature.binaryHash;
+            if (binaryInfo) {
+              console.log(
+                `Binary: ${(binaryInfo.size / 1024 / 1024).toFixed(2)}MB, SHA256: ${binaryInfo.sha256.slice(0, 16)}...`,
+              );
+            }
+          }
+        }
+      } else {
+        console.log(VERSION);
+      }
       process.exit(0);
     });
+}
+
+/**
+ * Authentication command group
+ */
+function setupAuthCommands(program: Command): void {
+  (async () => {
+    try {
+      const { createAuthCommand } = await import("./commands/auth.js");
+      const authCmd = createAuthCommand();
+      program.addCommand(authCmd);
+    } catch (error) {
+      // If auth commands fail to load, continue without them
+      console.warn(
+        "⚠️  Auth commands not available:",
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+  })().catch(() => {
+    // Silent catch for async function in sync context
+  });
 }
 
 /**
@@ -1663,6 +2334,343 @@ function setupBrowserCommands(program: Command): void {
 }
 
 /**
+ * Configuration command group - Validate and manage config files
+ */
+function setupConfigCommands(program: Command): void {
+  const configCmd = program
+    .command("config")
+    .description("Configuration management and validation");
+
+  // Unified client configuration helper (stdio or http) – alias to client configure
+  const _agentAlias = configCmd
+    .command("agent")
+    .description("(alias) Generate and/or apply MCP client configs for IDEs and agents")
+    .option("--client <name>", "Target client: cursor|claude|codex|project", "project")
+    .option("--transport <type>", "Transport: stdio|http", "stdio")
+    .option("--scope <scope>", "Scope: project|user", "project")
+    .option("--product <name>", "Editor product for user scope: Code|VSCodium|Cursor|Windsurf")
+    .option("--host <host>", "HTTP host (for http transport)", "127.0.0.1")
+    .option("--port <port>", "HTTP port (for http transport)", "3000")
+    .option("--team-id <id>", "Optional team id (adds --team-id or /team/<id>)")
+    .option("--apply", "Write changes to disk (otherwise dry-run)", false)
+    .option("--print", "Print resulting file content or commands", false)
+    .action(async (options) => {
+      // Delegate to client configure for consistency
+      try {
+        const { runConfigAgent } = await import("./commands/config-agent.js");
+        await runConfigAgent(options);
+        process.exit(0);
+      } catch (error) {
+        console.error("Failed to generate/apply agent configuration:", error);
+        process.exit(1);
+      }
+    });
+
+  configCmd
+    .command("validate")
+    .description("Validate configuration files against JSON Schema")
+    .option("-f, --file <path>", "Configuration file path to validate")
+    .option("--current", "Validate current loaded configuration")
+    .option("--schema-info", "Show schema information")
+    .option("--verbose", "Show detailed validation information")
+    .action(async (_options) => {
+      const { createConfigValidateCommand } = await import("./commands/config-validate.js");
+      const validateCmd = createConfigValidateCommand();
+      await validateCmd.parseAsync(
+        ["validate", ...process.argv.slice(process.argv.indexOf("validate") + 1)],
+        {
+          from: "user",
+        },
+      );
+    });
+
+  configCmd
+    .command("show")
+    .description("Show current configuration")
+    .option("--json", "Output as JSON")
+    .option("--sources", "Show configuration sources")
+    .action(async (options) => {
+      try {
+        const { configManager } = await import("../core/config.js");
+        const config = await configManager.load();
+
+        if (options.json) {
+          console.log(JSON.stringify(config, null, 2));
+        } else {
+          console.log("📋 Brooklyn Configuration");
+          console.log(`Service: ${config.serviceName} v${config.version}`);
+          console.log(`Environment: ${config.environment}`);
+          console.log(`Team: ${config.teamId}`);
+          console.log(`Authentication: ${config.authentication.mode}`);
+          console.log(
+            `Transports: MCP=${config.transports.mcp.enabled}, HTTP=${config.transports.http.enabled}`,
+          );
+          console.log(`Max browsers: ${config.browsers.maxInstances}`);
+
+          if (options.sources) {
+            console.log("\n📁 Configuration Sources:");
+            const sources = configManager.getSources();
+            if (sources.configFile) console.log("- Config file loaded");
+            if (sources.env && Object.keys(sources.env).length > 0)
+              console.log("- Environment variables detected");
+            if (sources.cliOverrides) console.log("- CLI overrides applied");
+          }
+        }
+        process.exit(0);
+      } catch (error) {
+        console.error("❌ Failed to load configuration");
+        console.error(error instanceof Error ? error.message : String(error));
+        process.exit(1);
+      }
+    });
+}
+
+/**
+ * Client command group - IDE/agent MCP configuration
+ */
+function setupClientCommands(program: Command): void {
+  const clientCmd = program
+    .command("client")
+    .description(
+      "Manage MCP client configurations (IDEs and agent CLIs). See 'brooklyn client guide' for setup tips.",
+    );
+  clientCmd.addHelpText(
+    "afterAll",
+    `
+
+Recommended Setup Patterns:
+  • Multi‑instance (multiple Claude windows/editors): prefer HTTP user‑wide.
+    Examples:
+      brooklyn client configure --client claude --scope user --transport http --apply
+      brooklyn client configure --client kilocode --scope user --transport http --apply
+
+  • Where HTTP isn’t available (e.g., pending SSE): use project‑scoped STDIO.
+    Examples:
+      brooklyn client configure --client cline --scope user --transport stdio --apply
+      brooklyn client configure --client opencode --scope user --transport stdio --apply
+
+  • Reset and re‑apply:
+      claude mcp remove brooklyn
+      brooklyn client configure --client claude --scope user --transport http --apply
+
+Smart Defaults:
+  • If you omit --transport, the helper prefers HTTP at user scope when supported,
+    and falls back to project‑STDIO when not, to avoid multi‑instance STDIO contention.
+  • For non‑writable targets (e.g., Claude Code user), the helper runs the official
+    client CLI (like "claude mcp add …") under --apply.
+
+Troubleshooting:
+  • brooklyn doctor --json   # includes an MCP stdio handshake check
+  • brooklyn mcp cleanup     # clears stale stdio processes for a project
+  • brooklyn web start --host 127.0.0.1 --port 3000  # start HTTP backend
+`,
+  );
+
+  clientCmd
+    .command("configure")
+    .description("Add/update Brooklyn MCP entry for a client (safe patch)")
+    .option(
+      "--client <name>",
+      "Client: cursor|claude|cline|kilocode|codex|opencode|project",
+      "project",
+    )
+    .option("--transport <type>", "Transport: stdio|http", "stdio")
+    .option("--scope <scope>", "Scope: project|user", "project")
+    .option("--product <name>", "Editor: Code|VSCodium|Cursor|Windsurf (user scope)")
+    .option("--host <host>", "HTTP host", "127.0.0.1")
+    .option("--port <port>", "HTTP port", "3000")
+    .option("--team-id <id>", "Team id for stdio/http")
+    .option("--apply", "Write changes (default: preview only)", false)
+    .option("--print", "Print resulting content/commands", false)
+    .action(async (options) => {
+      try {
+        const { runConfigAgent } = await import("./commands/config-agent.js");
+        await runConfigAgent(options);
+        process.exit(0);
+      } catch (error) {
+        console.error("Failed to configure client:", error);
+        process.exit(1);
+      }
+    });
+
+  // Append guidance to 'configure' subcommand help
+  const configureCmd = clientCmd.commands.find((c) => c.name() === "configure");
+  if (configureCmd) {
+    configureCmd.addHelpText(
+      "afterAll",
+      `
+
+Examples:
+  # Global HTTP for Claude Code, with explicit transport
+  brooklyn client configure --client claude --scope user --transport http --apply
+
+  # Project‑scoped STDIO where HTTP isn’t available
+  brooklyn client configure --client cline --scope user --transport stdio --apply
+
+Notes:
+  • If you omit --transport, the helper prefers HTTP at user scope when supported,
+    and falls back to project‑STDIO when not, to avoid multi‑instance STDIO contention.
+  • Non‑writable targets (e.g., Claude Code user) are configured via the official
+    client CLI (e.g., 'claude mcp add …') under --apply.
+  • Use 'brooklyn doctor --json' to run a quick stdio handshake test.
+      `,
+    );
+  }
+
+  clientCmd
+    .command("remove")
+    .description("Remove the Brooklyn MCP entry for a client (safe patch)")
+    .option("--client <name>", "Client: cursor|cline|kilocode|codex|opencode|project", "project")
+    .option("--scope <scope>", "Scope: project|user", "project")
+    .option("--product <name>", "Editor: Code|VSCodium|Cursor|Windsurf (user scope)")
+    .action(async (options) => {
+      try {
+        // Resolve path similarly to configure, then patch null
+        const { homedir } = await import("node:os");
+        const { join } = await import("node:path");
+        const { agentDrivers, resolvePathFor, getEditorGlobalStorageBase } = await import(
+          "../shared/agent-drivers.js"
+        );
+        const { patchJsonBrooklyn, patchTomlBrooklyn, ensureDirFor } = await import(
+          "../shared/config-patcher.js"
+        );
+
+        const client = String(options.client);
+        const driver = (agentDrivers as any)[client];
+        if (!driver) {
+          console.error(`Unknown client '${client}'.`);
+          process.exit(1);
+        }
+        const loc =
+          driver.locations.find((l: any) => l.scope === options.scope) || driver.locations[0];
+        let targetPath = resolvePathFor(loc, process.cwd());
+        if (options.scope === "user" && options.product) {
+          const base = getEditorGlobalStorageBase(String(options.product), homedir());
+          if (client === "cline") {
+            targetPath = join(
+              base,
+              "saoudrizwan.claude-dev",
+              "settings",
+              "cline_mcp_settings.json",
+            );
+          } else if (client === "kilocode") {
+            targetPath = join(base, "kilocode.kilo-code", "settings", "mcp_settings.json");
+          } else if (client === "codex") {
+            targetPath = join(homedir(), ".codex", "config.toml");
+          }
+        }
+        ensureDirFor(targetPath);
+        if (client === "codex") {
+          const r = patchTomlBrooklyn(targetPath, null, { backup: true, dryRun: false });
+          console.log("Removed brooklyn from:", targetPath);
+          if (r.backup) console.log("Backup:", r.backup);
+        } else {
+          const r = patchJsonBrooklyn(targetPath, null, { backup: true, dryRun: false });
+          console.log("Removed brooklyn from:", targetPath);
+          if (r.backup) console.log("Backup:", r.backup);
+        }
+        process.exit(0);
+      } catch (error) {
+        console.error("Failed to remove client entry:", error);
+        process.exit(1);
+      }
+    });
+
+  clientCmd
+    .command("list")
+    .description("List detected client configurations and MCP servers")
+    .action(async () => {
+      const { getLogger } = await import("../shared/pino-logger.js");
+      const logger = getLogger("brooklyn-cli");
+      const { exec } = await import("node:child_process");
+      const { promisify } = await import("node:util");
+      const execAsync = promisify(exec);
+      try {
+        const { stdout } = await execAsync("brooklyn doctor --json");
+        const report = JSON.parse(stdout);
+        logger.info("Client configurations", report.data.configs);
+        process.exit(0);
+      } catch (error) {
+        console.error("Failed to list client configs:", error);
+        process.exit(1);
+      }
+    });
+
+  clientCmd
+    .command("validate")
+    .description("Validate client configuration file against known schemas")
+    .option("--client <name>", "Client: opencode", "opencode")
+    .option("--scope <scope>", "Scope: project|user", "user")
+    .option("--schema-from-network", "Fetch schema from network instead of local cache", false)
+    .action(async (options) => {
+      try {
+        const client = String(options.client);
+        if (client !== "opencode") {
+          console.error("Only 'opencode' is supported by validate right now");
+          process.exit(1);
+        }
+        const { homedir } = await import("node:os");
+        const { join } = await import("node:path");
+        const { readFileSync } = await import("node:fs");
+        const Ajv = (await import("ajv")).default;
+        const addFormats = (await import("ajv-formats")).default;
+        const configPath =
+          options.scope === "project"
+            ? join(process.cwd(), "opencode.json")
+            : join(homedir(), ".config", "opencode", "opencode.json");
+
+        let schema: any;
+        if (options.schemaFromNetwork) {
+          const resp = await fetch("https://opencode.ai/config.json");
+          schema = await resp.json();
+        } else {
+          schema = JSON.parse(
+            readFileSync(join(process.cwd(), "schemas", "opencode-config.json"), "utf8"),
+          );
+        }
+
+        let config: any = {};
+        try {
+          config = JSON.parse(readFileSync(configPath, "utf8"));
+        } catch {
+          console.error(`Config not found or invalid JSON: ${configPath}`);
+          process.exit(1);
+        }
+
+        const ajv = new Ajv({ allErrors: true, strict: false });
+        addFormats(ajv);
+        const validate = ajv.compile(schema);
+        const valid = validate(config);
+        if (valid) {
+          console.log(JSON.stringify({ success: true, path: configPath }, null, 2));
+          process.exit(0);
+        }
+        console.log(
+          JSON.stringify(
+            { success: false, path: configPath, errors: validate.errors ?? [] },
+            null,
+            2,
+          ),
+        );
+        process.exit(1);
+      } catch (error) {
+        console.error("Validation failed:", error instanceof Error ? error.message : String(error));
+        process.exit(1);
+      }
+    });
+
+  // Guide: recommended patterns and troubleshooting
+  clientCmd
+    .command("guide")
+    .description("Show recommended setup patterns and troubleshooting tips")
+    .action(() => {
+      const text = `\nRecommended Setup Patterns\n\n\n- Multi-instance (multiple Claude windows/editors): prefer HTTP user-wide.\n  Examples:\n    brooklyn client configure --client claude --scope user --transport http --apply\n    brooklyn client configure --client kilocode --scope user --transport http --apply\n\n- Where HTTP isn’t available (e.g., pending SSE): use project-scoped STDIO.\n  Examples:\n    brooklyn client configure --client cline --scope user --transport stdio --apply\n    brooklyn client configure --client opencode --scope user --transport stdio --apply\n\n- Reset and re-apply:\n    claude mcp remove brooklyn\n    brooklyn client configure --client claude --scope user --transport http --apply\n\nSmart Defaults\n\n\n- If you omit --transport, the helper prefers HTTP at user scope when supported,\n  and falls back to project-STDIO when not, to avoid multi-instance STDIO contention.\n- For non-writable targets (e.g., Claude Code user), the helper runs the official\n  client CLI (like 'claude mcp add …') under --apply.\n\nTroubleshooting\n\n\n- brooklyn doctor --json   # includes an MCP stdio handshake check\n- brooklyn mcp cleanup     # clears stale stdio processes for a project\n- brooklyn web start --host 127.0.0.1 --port 3000  # start HTTP backend\n`;
+      console.log(text);
+      process.exit(0);
+    });
+}
+
+/**
  * Main CLI setup
  */
 async function main(): Promise<void> {
@@ -1672,8 +2680,12 @@ async function main(): Promise<void> {
     setupWebCommands(program);
     setupBrowserCommands(program);
     setupDebugCommands(program);
+    setupConfigCommands(program);
+    setupClientCommands(program);
+    setupAuthCommands(program);
     setupStatusCommand(program);
     setupSetupCommand(program);
+    setupDoctorCommand(program);
     setupVersionCommand(program);
 
     // Default action - show help

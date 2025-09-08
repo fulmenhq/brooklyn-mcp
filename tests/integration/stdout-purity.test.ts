@@ -51,13 +51,39 @@ describe("Architecture Committee: MCP Stdout Purity Tests", () => {
     process.env["BROOKLYN_LOG_LEVEL"] = "debug";
     process.env["BROOKLYN_TEST_MODE"] = "true";
 
-    // Check for existing Brooklyn processes before running tests
+    // CRITICAL: Force cleanup of any lingering processes from other tests
+    const instanceManager = new InstanceManager();
+
+    // Cleanup all Brooklyn processes first with timeout
+    await Promise.race([
+      instanceManager.cleanupAllProcesses(),
+      new Promise((resolve) => setTimeout(resolve, 5000)), // 5s timeout
+    ]);
+
+    // Wait for processes to fully terminate (bounded)
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    // Force cleanup of common test ports that might be in use
+    const { execSync } = await import("node:child_process");
+    try {
+      // Kill any processes using common MCP ports
+      execSync("lsof -ti:3000,3001,3002,8080,8081 | xargs kill -9 2>/dev/null || true", {
+        stdio: "ignore",
+      });
+    } catch {
+      // Ignore port cleanup errors
+    }
+
+    // Wait for port cleanup
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    // Check for existing Brooklyn processes after cleanup
     try {
       const processes = await InstanceManager.findBrooklynProcesses();
 
       if (processes.length > 0) {
         throw new Error(
-          `\n\nExisting Brooklyn server processes detected. Please clean up before running tests:\n${processes.join("\n")}\n\nRun one of:\n  - bun run server:cleanup  (for production server)\n  - bun run dev:brooklyn:cleanup  (for dev mode)\n  - pkill -f 'brooklyn mcp'  (manual cleanup)\n\n`,
+          `\n\nExisting Brooklyn server processes detected after cleanup. Please clean up manually:\n${processes.join("\n")}\n\nRun one of:\n  - bun run server:cleanup  (for production server)\n  - bun run dev:brooklyn:cleanup  (for dev mode)\n  - pkill -f 'brooklyn mcp'  (manual cleanup)\n\n`,
         );
       }
     } catch (error) {
@@ -68,9 +94,20 @@ describe("Architecture Committee: MCP Stdout Purity Tests", () => {
     }
   });
 
-  afterAll(() => {
+  afterAll(async () => {
     // Cleanup test environment
     process.env["BROOKLYN_TEST_MODE"] = undefined;
+    process.env["BROOKLYN_MCP_STDERR"] = undefined;
+
+    // Ensure all test-spawned processes are cleaned up with timeout
+    const instanceManager = new InstanceManager();
+    await Promise.race([
+      instanceManager.cleanupAllProcesses(),
+      new Promise((resolve) => setTimeout(resolve, 3000)), // 3s timeout
+    ]);
+
+    // Small delay to ensure cleanup completes (bounded)
+    await new Promise((resolve) => setTimeout(resolve, 500));
   });
 
   /**
@@ -340,6 +377,7 @@ async function runMCPTest(input: string): Promise<TestResult> {
     child.on("close", (code) => {
       const duration = Date.now() - startTime;
       // Child closed
+      clearTimeout(timeout);
       resolve({
         stdout,
         stderr,
@@ -351,6 +389,7 @@ async function runMCPTest(input: string): Promise<TestResult> {
     child.on("spawn", () => {});
     child.on("error", (err) => {
       // Child error
+      clearTimeout(timeout);
       reject(new Error(`Child process error: ${err.message}`));
     });
     child.on("exit", () => {});

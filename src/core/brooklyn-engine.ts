@@ -13,6 +13,9 @@ import { MCPBrowserRouter } from "./browser/mcp-browser-router.js";
 import { MCPRequestContextFactory } from "./browser/mcp-request-context.js";
 import type { BrooklynConfig } from "./config.js";
 import { ToolDiscoveryService } from "./discovery/tool-discovery-service.js";
+
+import { BrooklynDocsService } from "./documentation/brooklyn-docs-service.js";
+import type { DocumentationQueryArgs } from "./documentation/types.js";
 import { OnboardingTools } from "./onboarding-tools.js";
 import { PluginManager } from "./plugin-manager.js";
 import { SecurityMiddleware } from "./security-middleware.js";
@@ -59,6 +62,8 @@ export class BrooklynEngine {
   private browserRouter: MCPBrowserRouter | null = null;
   private security: SecurityMiddleware;
   private discovery: ToolDiscoveryService;
+  private imageProcessing: any | null = null;
+  private docsService: BrooklynDocsService;
 
   private transports = new Map<string, Transport>();
   private isInitialized = false;
@@ -91,12 +96,30 @@ export class BrooklynEngine {
         "web-navigation",
         "content-extraction",
         "form-automation",
+        "image-processing",
+        "documentation",
       ],
       categories: [],
     });
 
+    // Initialize documentation service
+    this.docsService = new BrooklynDocsService();
+
+    // Initialize image processing service lazily when needed
+
     // Register standard categories
     this.registerStandardCategories();
+  }
+
+  /**
+   * Lazy-load ImageProcessingService to avoid eager SVGO dependency loading
+   */
+  private async ensureImageProcessing(): Promise<any> {
+    if (!this.imageProcessing) {
+      const { ImageProcessingService } = await import("./image/image-processing-service.js");
+      this.imageProcessing = new ImageProcessingService();
+    }
+    return this.imageProcessing;
   }
 
   /**
@@ -141,6 +164,24 @@ export class BrooklynEngine {
         icon: "🎨",
       },
       {
+        id: "image-processing",
+        name: "Image Processing",
+        description: "Tools for SVG optimization, format conversion, and image analysis",
+        icon: "🖼️",
+      },
+      {
+        id: "rendering",
+        name: "Rendering",
+        description: "Tools for rendering various document formats in the browser",
+        icon: "📄",
+      },
+      {
+        id: "documentation",
+        name: "Documentation",
+        description: "Tools for accessing and searching documentation with platform-aware guidance",
+        icon: "📚",
+      },
+      {
         id: "discovery",
         name: "Discovery",
         description: "Tools for discovering and understanding available capabilities",
@@ -151,6 +192,12 @@ export class BrooklynEngine {
         name: "Onboarding",
         description: "Tools for getting started with Brooklyn",
         icon: "🚀",
+      },
+      {
+        id: "pdf-analysis",
+        name: "PDF Analysis",
+        description: "Tools for analyzing and processing PDF documents",
+        icon: "📄",
       },
     ];
 
@@ -655,15 +702,15 @@ export class BrooklynEngine {
           userId: context.userId,
         });
 
-        let result: unknown;
+        let rawResult: unknown;
 
         // Route to appropriate handler
         if (this.isCoreTools(name)) {
-          result = await this.handleCoreTool(name, args, context);
+          rawResult = await this.handleCoreTool(name, args, context);
         } else if (this.isOnboardingTools(name)) {
-          result = await OnboardingTools.handleTool(name, args);
+          rawResult = await OnboardingTools.handleTool(name, args);
         } else {
-          result = await this.pluginManager.handleToolCall(name, args);
+          rawResult = await this.pluginManager.handleToolCall(name, args);
         }
 
         const executionTime = Date.now() - startTime;
@@ -677,13 +724,52 @@ export class BrooklynEngine {
           });
         } catch {}
 
+        // Standardize response envelope for all tools
+        const duration = executionTime;
+        const traceId = correlationId;
+
+        // If rawResult already looks like our envelope, augment as needed
+        let envelope: Record<string, unknown>;
+        if (
+          rawResult &&
+          typeof rawResult === "object" &&
+          Object.prototype.hasOwnProperty.call(rawResult, "success")
+        ) {
+          const r = rawResult as {
+            success?: boolean;
+            data?: unknown;
+            result?: unknown;
+            diagnostics?: { durationMs?: number };
+          };
+          // Ensure data exists
+          if (r.data === undefined && Object.prototype.hasOwnProperty.call(r, "result")) {
+            (r as Record<string, unknown>)["data"] = (rawResult as Record<string, unknown>)[
+              "result"
+            ];
+          }
+          // Ensure diagnostics.durationMs exists
+          const diagnostics = {
+            ...(r.diagnostics || {}),
+            durationMs: r.diagnostics?.durationMs || duration,
+          };
+          envelope = { ...r, diagnostics, traceId };
+        } else {
+          // Wrap arbitrary result
+          envelope = {
+            success: true,
+            data: rawResult,
+            diagnostics: { durationMs: duration },
+            traceId,
+          };
+        }
+
         // IMPORTANT: Return MCP-style content array for tests
-        // The result needs to be wrapped in a content array
+        // The response is returned as a JSON text blob
         return {
           content: [
             {
               type: "text",
-              text: typeof result === "string" ? result : JSON.stringify(result),
+              text: typeof envelope === "string" ? envelope : JSON.stringify(envelope),
             },
           ],
         } as any;
@@ -821,9 +907,16 @@ export class BrooklynEngine {
       // Navigation
       "navigate_to_url",
       "go_back",
+      "wait_for_url",
+      "wait_for_navigation",
+      "wait_for_network_idle",
       // Element interaction
       "click_element",
       "focus_element",
+      "hover_element",
+      "select_option",
+      "clear_element",
+      "drag_and_drop",
       "fill_text",
       "fill_form",
       "wait_for_element",
@@ -835,16 +928,63 @@ export class BrooklynEngine {
       "take_screenshot",
       "list_screenshots",
       "get_screenshot",
+      // Phase 1C: Content extraction extensions
+      "get_html",
+      "describe_html",
+      "get_attribute",
+      "get_bounding_box",
+      "is_visible",
+      "is_enabled",
       // JavaScript execution (UX automation)
       "execute_script",
       "evaluate_expression",
       "get_console_messages",
       "add_script_tag",
+      // Scrolling and layout overlays
+      "scroll_into_view",
+      "scroll_to",
+      "scroll_by",
+      "highlight_element_bounds",
+      "show_layout_grid",
+      "remove_overlay",
+      // CSS overrides
+      "apply_css_override",
+      "revert_css_changes",
+      // Layout structure
+      "get_layout_tree",
+      "measure_whitespace",
+      "find_layout_containers",
       // CSS analysis (UX understanding)
       "extract_css",
       "get_computed_styles",
       "diff_css",
       "analyze_specificity",
+      // CSS simulation and diagnostics
+      "simulate_css_change",
+      "why_style_not_applied",
+      "get_applicable_rules",
+      "get_effective_computed",
+      // Rendering tools (visual format conversion)
+      "render_pdf",
+      // PDF Content Analysis (Brooklyn MCP v1.6.3)
+      "analyze_pdf_content",
+      "extract_pdf_text",
+      "search_pdf_content",
+      "extract_pdf_tables",
+      "analyze_pdf_layout",
+      "compare_pdf_versions",
+      "summarize_pdf_content",
+      "extract_pdf_forms",
+      // Image processing (Brooklyn MCP v1.6.0)
+      "compress_svg",
+      "analyze_svg",
+      "convert_svg_to_png",
+      "convert_svg_to_multi_png",
+      "list_processed_assets",
+      "get_processed_asset",
+      "purge_processed_assets",
+      // Documentation
+      "brooklyn_docs",
       // Discovery
       "brooklyn_list_tools",
       "brooklyn_tool_help",
@@ -984,6 +1124,30 @@ export class BrooklynEngine {
           // Fallback to direct pool access
           return await this.browserPool.goBack(args as any);
 
+        case "wait_for_url":
+        case "wait_for_navigation":
+        case "wait_for_network_idle":
+          if (this.browserRouter) {
+            const request = {
+              tool: name,
+              params: args as Record<string, unknown>,
+              context: MCPRequestContextFactory.create({
+                teamId: context.teamId,
+                userId: context.userId,
+                metadata: {
+                  permissions: context.permissions,
+                  correlationId: context.correlationId,
+                },
+              }),
+            };
+            const response = await this.browserRouter.route(request);
+            if (!response.success) {
+              throw new Error(response.error?.message || `${name} failed`);
+            }
+            return response.result;
+          }
+          throw new Error(`${name} requires browser pool connection`);
+
         // Element interaction tools
         case "click_element":
           // Phase 2: Use router for click_element
@@ -1032,6 +1196,102 @@ export class BrooklynEngine {
           }
           // Fallback to direct pool access
           return await this.browserPool.focusElement(args as any);
+
+        case "hover_element":
+          // Phase 2: Use router for hover_element
+          if (this.browserRouter) {
+            const request = {
+              tool: name,
+              params: args as Record<string, unknown>,
+              context: MCPRequestContextFactory.create({
+                teamId: context.teamId,
+                userId: context.userId,
+                metadata: {
+                  permissions: context.permissions,
+                  correlationId: context.correlationId,
+                },
+              }),
+            };
+            const response = await this.browserRouter.route(request);
+            if (!response.success) {
+              throw new Error(response.error?.message || "Hover element failed");
+            }
+            return response.result;
+          }
+          // Fallback to direct pool access
+          return await this.browserPool.hoverElement(args as any);
+
+        case "select_option":
+          // Phase 2: Use router for select_option
+          if (this.browserRouter) {
+            const request = {
+              tool: name,
+              params: args as Record<string, unknown>,
+              context: MCPRequestContextFactory.create({
+                teamId: context.teamId,
+                userId: context.userId,
+                metadata: {
+                  permissions: context.permissions,
+                  correlationId: context.correlationId,
+                },
+              }),
+            };
+            const response = await this.browserRouter.route(request);
+            if (!response.success) {
+              throw new Error(response.error?.message || "Select option failed");
+            }
+            return response.result;
+          }
+          // Fallback to direct pool access
+          return await this.browserPool.selectOption(args as any);
+
+        case "clear_element":
+          // Phase 2: Use router for clear_element
+          if (this.browserRouter) {
+            const request = {
+              tool: name,
+              params: args as Record<string, unknown>,
+              context: MCPRequestContextFactory.create({
+                teamId: context.teamId,
+                userId: context.userId,
+                metadata: {
+                  permissions: context.permissions,
+                  correlationId: context.correlationId,
+                },
+              }),
+            };
+            const response = await this.browserRouter.route(request);
+            if (!response.success) {
+              throw new Error(response.error?.message || "Clear element failed");
+            }
+            return response.result;
+          }
+          // Fallback to direct pool access
+          return await this.browserPool.clearElement(args as any);
+
+        case "drag_and_drop":
+          // Phase 2: Use router for drag_and_drop
+          if (this.browserRouter) {
+            const request = {
+              tool: name,
+              params: args as Record<string, unknown>,
+              context: MCPRequestContextFactory.create({
+                teamId: context.teamId,
+                userId: context.userId,
+                metadata: {
+                  permissions: context.permissions,
+                  correlationId: context.correlationId,
+                },
+              }),
+            };
+            const response = await this.browserRouter.route(request);
+            if (!response.success) {
+              throw new Error(response.error?.message || "Drag and drop failed");
+            }
+            return response.result;
+          }
+          // Fallback to direct pool access
+          return await this.browserPool.dragAndDrop(args as any);
 
         case "fill_text":
           // Phase 2: Use router for fill_text
@@ -1104,6 +1364,42 @@ export class BrooklynEngine {
           }
           // Fallback to direct pool access
           return await this.browserPool.waitForElement(args as any);
+
+        case "scroll_into_view":
+        case "scroll_to":
+        case "scroll_by":
+        case "highlight_element_bounds":
+        case "show_layout_grid":
+        case "remove_overlay":
+        case "apply_css_override":
+        case "revert_css_changes":
+        case "simulate_css_change":
+        case "why_style_not_applied":
+        case "get_applicable_rules":
+        case "get_effective_computed":
+        case "get_layout_tree":
+        case "measure_whitespace":
+        case "find_layout_containers":
+          if (this.browserRouter) {
+            const request = {
+              tool: name,
+              params: args as Record<string, unknown>,
+              context: MCPRequestContextFactory.create({
+                teamId: context.teamId,
+                userId: context.userId,
+                metadata: {
+                  permissions: context.permissions,
+                  correlationId: context.correlationId,
+                },
+              }),
+            };
+            const response = await this.browserRouter.route(request);
+            if (!response.success) {
+              throw new Error(response.error?.message || `${name} failed`);
+            }
+            return response.result;
+          }
+          throw new Error(`${name} requires browser pool connection`);
 
         case "get_text_content":
           // Phase 2: Use router for get_text_content
@@ -1273,17 +1569,14 @@ export class BrooklynEngine {
           // No fallback for get_screenshot - requires database
           throw new Error("Screenshot retrieval requires database connection");
 
-        // JavaScript execution tools (UX automation)
-        case "execute_script":
-        case "evaluate_expression":
-        case "get_console_messages":
-        case "add_script_tag":
-        // CSS analysis tools (UX understanding)
-        case "extract_css":
-        case "get_computed_styles":
-        case "diff_css":
-        case "analyze_specificity":
-          // Route all JavaScript and CSS tools through the browser router
+        // Phase 1C: Content extraction extensions
+        case "get_html":
+        case "describe_html":
+        case "get_attribute":
+        case "get_bounding_box":
+        case "is_visible":
+        case "is_enabled":
+          // Route all content extraction tools through the browser router
           if (this.browserRouter) {
             const request = {
               tool: name,
@@ -1304,6 +1597,85 @@ export class BrooklynEngine {
             return response.result;
           }
           throw new Error(`${name} requires browser pool connection`);
+
+        // JavaScript execution tools (UX automation)
+        case "execute_script":
+        case "evaluate_expression":
+        case "get_console_messages":
+        case "add_script_tag":
+        // CSS analysis tools (UX understanding)
+        case "extract_css":
+        case "get_computed_styles":
+        case "diff_css":
+        case "analyze_specificity":
+        case "render_pdf":
+        case "analyze_pdf_content":
+        case "extract_pdf_text":
+        case "search_pdf_content":
+        case "extract_pdf_tables":
+        case "analyze_pdf_layout":
+        case "compare_pdf_versions":
+        case "summarize_pdf_content":
+        case "extract_pdf_forms":
+          // Route all PDF tools through the browser router
+          if (this.browserRouter) {
+            const request = {
+              tool: name,
+              params: args as Record<string, unknown>,
+              context: MCPRequestContextFactory.create({
+                teamId: context.teamId,
+                userId: context.userId,
+                metadata: {
+                  permissions: context.permissions,
+                  correlationId: context.correlationId,
+                },
+              }),
+            };
+            const response = await this.browserRouter.route(request);
+            if (!response.success) {
+              throw new Error(response.error?.message || `${name} failed`);
+            }
+            return response.result;
+          }
+          throw new Error(`${name} requires browser pool connection`);
+
+        // Image Processing tools - Brooklyn MCP v1.6.0
+        case "compress_svg":
+          return await (await this.ensureImageProcessing()).compressSVG({
+            ...(args as any),
+            teamId: context.teamId,
+          });
+        case "analyze_svg":
+          return await (await this.ensureImageProcessing()).analyzeSVG(args as any);
+        case "convert_svg_to_png":
+          return await (await this.ensureImageProcessing()).convertSVGToPNG({
+            ...(args as any),
+            teamId: context.teamId,
+          });
+        case "convert_svg_to_multi_png":
+          return await (await this.ensureImageProcessing()).convertSVGToMultiPNG({
+            ...(args as any),
+            teamId: context.teamId,
+          });
+        case "list_processed_assets":
+          return await (await this.ensureImageProcessing()).listAssets({
+            ...(args as any),
+            teamId: context.teamId,
+          });
+        case "get_processed_asset":
+          return await (await this.ensureImageProcessing()).getAsset({
+            ...(args as any),
+            teamId: context.teamId,
+          });
+        case "purge_processed_assets":
+          return await (await this.ensureImageProcessing()).purgeAssets({
+            ...(args as any),
+            teamId: context.teamId,
+          });
+
+        // Documentation tools
+        case "brooklyn_docs":
+          return await this.handleBrooklynDocs(args as any);
 
         // Discovery tools
         case "brooklyn_list_tools":
@@ -1406,6 +1778,31 @@ export class BrooklynEngine {
         .slice(0, 3)
         .map((t) => ({ name: t.name, description: t.description })),
     };
+  }
+
+  /**
+   * Handle brooklyn_docs tool - intelligent documentation access
+   */
+  private async handleBrooklynDocs(args: DocumentationQueryArgs): Promise<unknown> {
+    this.getLogger().info("Accessing Brooklyn documentation", {
+      topic: args.topic,
+      search: args.search,
+      platform: args.platform,
+      format: args.format,
+    });
+
+    try {
+      return await this.docsService.getFormatted(args);
+    } catch (error) {
+      this.getLogger().error("Documentation access failed", {
+        args,
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      throw new Error(
+        `Documentation access failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
   /**

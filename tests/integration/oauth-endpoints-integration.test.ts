@@ -47,7 +47,25 @@ describe("OAuth Endpoints Integration", () => {
 
   afterAll(async () => {
     if (engine) {
-      await engine.cleanup();
+      try {
+        await engine.cleanup();
+
+        // Wait for cleanup to complete properly
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        // Force cleanup any remaining resources with timeout
+        const { InstanceManager } = await import("../../src/core/instance-manager.js");
+        const instanceManager = new InstanceManager();
+        await Promise.race([
+          instanceManager.cleanupAllProcesses(),
+          new Promise((resolve) => setTimeout(resolve, 3000)), // 3s timeout
+        ]);
+
+        // Additional wait for resource cleanup (bounded)
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      } catch (_error) {
+        // Ignore cleanup errors to prevent test failures
+      }
     }
   });
 

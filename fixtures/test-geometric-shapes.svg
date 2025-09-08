@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="400" height="300" viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+  <title>Test SVG - Geometric Shapes</title>
+  <desc>Brooklyn MCP test fixture with various geometric shapes for image processing tests</desc>
+  
+  <!-- Metadata for testing compression -->
+  <metadata>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+      <rdf:Description rdf:about="">
+        <dc:title xmlns:dc="http://purl.org/dc/elements/1.1/">Test Geometric Shapes</dc:title>
+        <dc:creator xmlns:dc="http://purl.org/dc/elements/1.1/">Brooklyn MCP</dc:creator>
+      </rdf:Description>
+    </rdf:RDF>
+  </metadata>
+  
+  <!-- Background rectangle -->
+  <rect x="0" y="0" width="400" height="300" fill="#f8f9fa" stroke="none"/>
+  
+  <!-- Circle with gradient -->
+  <defs>
+    <radialGradient id="circleGradient" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#ff6b6b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ee5a24;stop-opacity:1" />
+    </radialGradient>
+  </defs>
+  
+  <circle cx="100" cy="80" r="40" fill="url(#circleGradient)" stroke="#c44569" stroke-width="2"/>
+  
+  <!-- Rectangle with rounded corners -->
+  <rect x="200" y="40" width="80" height="60" rx="10" ry="10" fill="#4834d4" stroke="#686de0" stroke-width="1.5"/>
+  
+  <!-- Triangle (polygon) -->
+  <polygon points="50,200 100,150 150,200" fill="#00d2d3" stroke="#01a3a4" stroke-width="2"/>
+  
+  <!-- Star shape -->
+  <polygon points="320,120 332,148 364,148 340,168 348,196 320,180 292,196 300,168 276,148 308,148" 
+           fill="#ffa726" stroke="#fb8c00" stroke-width="1"/>
+  
+  <!-- Ellipse -->
+  <ellipse cx="300" cy="220" rx="60" ry="30" fill="#26de81" stroke="#20bf6b" stroke-width="2"/>
+  
+  <!-- Path with curves -->
+  <path d="M 50 250 Q 100 220 150 250 T 250 250" 
+        stroke="#8395a7" stroke-width="3" fill="none"/>
+  
+  <!-- Complex path for compression testing -->
+  <path d="M 10 10 L 20 10 L 20 20 L 15 20 L 15 15 L 10 15 Z" 
+        fill="#ff6348" stroke="#e55039" stroke-width="0.5"/>
+        
+  <!-- Text elements for advanced processing -->
+  <text x="50" y="280" font-family="Arial, sans-serif" font-size="16" fill="#2f3640">
+    Geometric Test Shapes
+  </text>
+  
+  <text x="250" y="280" font-family="Georgia, serif" font-size="12" fill="#57606f" font-style="italic">
+    Brooklyn MCP Fixture
+  </text>
+</svg>

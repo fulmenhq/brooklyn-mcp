@@ -1,0 +1,38 @@
+# Invalid Asset Manifest for Testing Schema Validation
+# Contains various schema violations for error testing
+
+version: "invalid-version-format" # Invalid version format
+
+assets:
+  pdfjs:
+    # Missing required 'version' field
+    description: "PDF.js library"
+    enabled: "not-a-boolean" # Should be boolean
+    files:
+      - filename: "pdf.min.mjs"
+        # Missing required 'sources' field
+        expectedSize: "not-a-number" # Should be number
+        contentType: "application/javascript"
+
+      - filename: "pdf.worker.min.mjs"
+        sources: [] # Empty sources array (should have at least one)
+        expectedSize: -1000 # Negative size (invalid)
+        contentType: "" # Empty content type
+
+  # Asset with no files
+  empty-asset:
+    version: "1.0.0"
+    enabled: true
+    files: [] # Empty files array
+
+  # Asset with invalid checksums
+  bad-checksums:
+    version: "1.0.0"
+    enabled: true
+    files:
+      - filename: "test.js"
+        sources: ["https://example.com/test.js"]
+        expectedSize: 1000
+        contentType: "application/javascript"
+        checksums:
+          sha256: "invalid-hash-format" # Invalid SHA256 format

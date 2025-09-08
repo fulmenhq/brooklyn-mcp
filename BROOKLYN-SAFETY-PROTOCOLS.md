@@ -38,7 +38,9 @@
 
 ## 🛡️ MANDATORY SAFETY PROTOCOLS
 
-### **Protocol 1: COMMIT QUALITY GATES**
+### **Protocol 1: DEPLOYMENT PROCESS INTEGRITY**
+
+⚠️ **CRITICAL**: [Deployment SOP](docs/development/standards/deployment-sop.md) - Mandatory process after 24-hour deployment crisis. These steps prevent production failures.
 
 **ALL commits must pass quality standards before integration:**
 

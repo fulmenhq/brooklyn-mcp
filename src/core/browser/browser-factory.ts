@@ -48,6 +48,14 @@ export class BrowserFactory {
       headless: config.headless,
     });
 
+    // Validate browser type
+    const validBrowserTypes = ["chromium", "firefox", "webkit"];
+    if (!validBrowserTypes.includes(config.browserType)) {
+      throw new Error(
+        `Invalid browser type: ${config.browserType}. Valid types are: ${validBrowserTypes.join(", ")}`,
+      );
+    }
+
     try {
       // Ensure browser is installed
       await this.ensureBrowserInstalled(config.browserType);
@@ -82,8 +90,21 @@ export class BrowserFactory {
     browserType: "chromium" | "firefox" | "webkit",
   ): Promise<void> {
     if (this.config.mcpMode && this.mcpBrowserManager) {
-      // Use MCP browser manager for silent acquisition
-      await this.mcpBrowserManager.acquireBrowser(browserType);
+      try {
+        // Use MCP browser manager for silent acquisition
+        await this.mcpBrowserManager.acquireBrowser(browserType);
+      } catch (error) {
+        logger.warn("MCP browser acquisition failed, falling back to standard installation", {
+          browserType,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        // Fall back to standard installation manager
+        const installed = await this.installationManager.isBrowserInstalled(browserType);
+        if (!installed) {
+          logger.info("Browser not installed, installing now", { browserType });
+          await this.installationManager.installBrowser(browserType);
+        }
+      }
     } else {
       // Use standard installation manager
       const installed = await this.installationManager.isBrowserInstalled(browserType);

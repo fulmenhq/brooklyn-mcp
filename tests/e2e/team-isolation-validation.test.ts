@@ -80,6 +80,11 @@ describe("Team Isolation Security Validation", () => {
         allowedDomains: ["example.com"],
         rateLimit: { requests: 100, windowMs: 60000 },
       },
+      authentication: {
+        mode: "none" as const,
+        developmentOnly: true,
+        providers: {},
+      },
       plugins: {
         directory: "",
         autoLoad: false,
@@ -90,6 +95,7 @@ describe("Team Isolation Security Validation", () => {
         logs: "/tmp/brooklyn-test-isolation/logs",
         plugins: "/tmp/brooklyn-test-isolation/plugins",
         browsers: "/tmp/brooklyn-test-isolation/browsers",
+        assets: "/tmp/brooklyn-test-isolation/assets",
         pids: "/tmp/brooklyn-test-isolation/pids",
         screenshots: "/tmp/brooklyn-test-isolation/screenshots",
       },

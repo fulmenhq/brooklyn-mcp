@@ -98,8 +98,11 @@ async function main(): Promise<void> {
 
     case "set": {
       const newVersion = process.argv[3];
-      if (!(newVersion && /^\d+\.\d+\.\d+$/.test(newVersion))) {
-        console.error("Please provide a valid version number (e.g., 1.2.3)");
+      // Accept SemVer with optional prerelease/build metadata (e.g., 1.2.3, 1.2.3-rc.1)
+      if (
+        !(newVersion && /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(newVersion))
+      ) {
+        console.error("Please provide a valid version number (e.g., 1.2.3 or 1.2.3-rc.1)");
         process.exit(1);
       }
       await updateVersion(newVersion);

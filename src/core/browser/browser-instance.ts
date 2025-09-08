@@ -238,6 +238,21 @@ export class BrowserInstance {
     }
 
     // Close all pages
+    await this.closeAllPages();
+
+    // Close context
+    await this.closeContext(force);
+
+    // Close browser with timeout
+    await this.closeBrowser(force);
+
+    logger.info("Browser instance closed", { id: this.id });
+  }
+
+  /**
+   * Close all pages
+   */
+  private async closeAllPages(): Promise<void> {
     const closePromises = Array.from(this.pages.values()).map((page) => {
       if (!page.isClosed()) {
         return page.close().catch((err) => {
@@ -251,34 +266,70 @@ export class BrowserInstance {
 
     await Promise.allSettled(closePromises);
     this.pages.clear();
+  }
 
-    // Close context
-    if (this.context) {
-      try {
-        await this.context.close();
-      } catch (error) {
-        if (!force) throw error;
-        logger.warn("Failed to close context", {
-          instanceId: this.id,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
+  /**
+   * Close browser context
+   */
+  private async closeContext(force: boolean): Promise<void> {
+    if (!this.context) return;
+
+    try {
+      await this.context.close();
+    } catch (error) {
+      if (!force) throw error;
+      logger.warn("Failed to close context", {
+        instanceId: this.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
+  }
 
-    // Close browser
-    if (this.browser?.isConnected()) {
-      try {
-        await this.browser.close();
-      } catch (error) {
-        if (!force) throw error;
-        logger.warn("Failed to close browser", {
-          instanceId: this.id,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
+  /**
+   * Close browser with timeout and force kill if needed
+   */
+  private async closeBrowser(force: boolean): Promise<void> {
+    if (!this.browser?.isConnected()) return;
+
+    try {
+      // Add timeout to prevent hanging on browser.close()
+      const closePromise = this.browser.close();
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Browser close timeout")), 5000),
+      );
+
+      await Promise.race([closePromise, timeoutPromise]);
+    } catch (error) {
+      if (!force) throw error;
+      logger.warn("Failed to close browser gracefully, attempting force kill", {
+        instanceId: this.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      // Try to force kill the browser process
+      this.forceKillBrowserProcess();
     }
+  }
 
-    logger.info("Browser instance closed", { id: this.id });
+  /**
+   * Force kill browser process
+   */
+  private forceKillBrowserProcess(): void {
+    try {
+      const browserProcess = (
+        this.browser as unknown as {
+          _process?: { kill: (signal: string) => void; killed?: boolean };
+        }
+      )._process;
+      if (browserProcess && !browserProcess.killed) {
+        browserProcess.kill("SIGKILL");
+      }
+    } catch (killError) {
+      logger.error("Failed to force kill browser process", {
+        instanceId: this.id,
+        error: killError instanceof Error ? killError.message : String(killError),
+      });
+    }
   }
 
   /**

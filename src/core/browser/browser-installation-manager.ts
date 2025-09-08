@@ -385,8 +385,9 @@ export class BrowserInstallationManager {
     // Install specific browser using Playwright's CLI
     const { spawnSync } = await import("node:child_process");
 
-    // Run playwright install command
-    const result = spawnSync("npx", ["playwright", "install", type], {
+    // Use local node_modules playwright to match MCP server version
+    const playwrightBin = join(process.cwd(), "node_modules", ".bin", "playwright");
+    const result = spawnSync(playwrightBin, ["install", type], {
       stdio: "pipe",
       encoding: "utf8",
       timeout: BROWSER_INSTALL_TIMEOUT,

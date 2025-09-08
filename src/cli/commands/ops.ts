@@ -259,6 +259,7 @@ export function registerOpsCommand(program: Command): void {
         console.log("Run 'brooklyn ops db init' to reinitialize");
 
         await dbManager.close();
+        process.exit(0);
       } catch (error) {
         console.error("❌ Reset failed:", error);
         process.exit(1);
@@ -471,6 +472,7 @@ export function registerOpsCommand(program: Command): void {
       }
 
       console.log("✅ Cleanup complete");
+      process.exit(0);
     });
 
   // System info command
@@ -543,6 +545,7 @@ export function registerOpsCommand(program: Command): void {
           `  Single Cache Hit Rate: ${(cacheStats.singleCache.hitRate * 100).toFixed(2)}%`,
         );
         console.log(`  Stats Cache Hit Rate: ${(cacheStats.statsCache.hitRate * 100).toFixed(2)}%`);
+        process.exit(0);
       } catch (error) {
         console.error("❌ Benchmark failed:", error);
         process.exit(1);
@@ -583,6 +586,7 @@ export function registerOpsCommand(program: Command): void {
           await dbManager.execute("DELETE FROM screenshots WHERE session_id LIKE 'session-%'");
           await dbManager.close();
         }
+        process.exit(0);
       } catch (error) {
         console.error("❌ Benchmark failed:", error);
         process.exit(1);

@@ -1,0 +1,162 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Gradient for lightning bolt -->
+    <linearGradient id="lightningGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FBB11B;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#F59E0B;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Gradient for bridge -->
+    <linearGradient id="bridgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1B4B8C;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1E40AF;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Gradient for gears -->
+    <linearGradient id="gearGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6B7280;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#4B5563;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Background circle gradient -->
+    <radialGradient id="bgGrad" cx="50%" cy="30%">
+      <stop offset="0%" style="stop-color:#3730A3;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1E1B4B;stop-opacity:1" />
+    </radialGradient>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="95" fill="url(#bgGrad)" stroke="#312E81" stroke-width="2"/>
+  
+  <!-- Stars/sparkles in background -->
+  <g fill="#FBB11B" opacity="0.6">
+    <circle cx="40" cy="50" r="1.5"/>
+    <circle cx="160" cy="45" r="1"/>
+    <circle cx="170" cy="80" r="1.5"/>
+    <circle cx="30" cy="120" r="1"/>
+    <circle cx="35" cy="160" r="1.5"/>
+    <circle cx="165" cy="150" r="1"/>
+  </g>
+  
+  <!-- Brooklyn Bridge structure -->
+  <g fill="url(#bridgeGrad)" stroke="#1B4B8C" stroke-width="1">
+    <!-- Bridge towers -->
+    <rect x="65" y="80" width="8" height="60" rx="1"/>
+    <rect x="127" y="80" width="8" height="60" rx="1"/>
+    
+    <!-- Bridge deck -->
+    <rect x="45" y="130" width="110" height="6" rx="2"/>
+    
+    <!-- Main suspension cables (curved) -->
+    <path d="M 45 135 Q 100 90 155 135" fill="none" stroke="#6B7280" stroke-width="2"/>
+    
+    <!-- Vertical suspension cables -->
+    <g stroke="#6B7280" stroke-width="1" opacity="0.8">
+      <line x1="55" y1="125" x2="55" y2="133"/>
+      <line x1="75" y1="115" x2="75" y2="133"/>
+      <line x1="95" y1="110" x2="95" y2="133"/>
+      <line x1="105" y1="110" x2="105" y2="133"/>
+      <line x1="125" y1="115" x2="125" y2="133"/>
+      <line x1="145" y1="125" x2="145" y2="133"/>
+    </g>
+  </g>
+  
+  <!-- Lightning bolt (Fulmen signature) -->
+  <g>
+    <path d="M 85 40 L 95 65 L 88 65 L 110 95 L 100 70 L 107 70 L 85 40 Z" 
+          fill="url(#lightningGrad)" 
+          stroke="#F59E0B" 
+          stroke-width="1"/>
+  </g>
+  
+  <!-- AI/Neural network nodes -->
+  <g fill="#10B981" stroke="#059669" stroke-width="1">
+    <circle cx="50" cy="100" r="4"/>
+    <circle cx="35" cy="115" r="3"/>
+    <circle cx="65" cy="115" r="3"/>
+    <circle cx="50" cy="130" r="2"/>
+  </g>
+  
+  <!-- Connection lines between AI nodes -->
+  <g stroke="#10B981" stroke-width="1.5" opacity="0.7">
+    <line x1="50" y1="100" x2="35" y2="115"/>
+    <line x1="50" y1="100" x2="65" y2="115"/>
+    <line x1="35" y1="115" x2="50" y2="130"/>
+    <line x1="65" y1="115" x2="50" y2="130"/>
+  </g>
+  
+  <!-- Wireframe/UX design elements -->
+  <g stroke="#9CA3AF" stroke-width="1" fill="none">
+    <!-- Main wireframe container -->
+    <rect x="135" y="90" width="35" height="25" rx="2"/>
+    
+    <!-- Browser chrome -->
+    <rect x="137" y="92" width="31" height="3" rx="1" fill="#6B7280"/>
+    <circle cx="140" cy="93.5" r="0.8" fill="#EF4444"/>
+    <circle cx="142.5" cy="93.5" r="0.8" fill="#F59E0B"/>
+    <circle cx="145" cy="93.5" r="0.8" fill="#10B981"/>
+    
+    <!-- Wireframe content blocks -->
+    <rect x="138" y="98" width="29" height="2" stroke-dasharray="1,1"/>
+    <rect x="138" y="102" width="20" height="1.5" stroke-dasharray="1,1"/>
+    <rect x="138" y="105" width="15" height="1" stroke-dasharray="1,1"/>
+    
+    <!-- Wireframe layout boxes -->
+    <rect x="138" y="108" width="8" height="5" stroke-dasharray="1,1"/>
+    <rect x="148" y="108" width="8" height="5" stroke-dasharray="1,1"/>
+    <rect x="158" y="108" width="8" height="5" stroke-dasharray="1,1"/>
+    
+    <!-- Form elements placeholder -->
+    <rect x="138" y="115" width="12" height="1" stroke-dasharray="0.5,0.5"/>
+    <rect x="152" y="115" width="6" height="1" fill="#6366F1" opacity="0.3"/>
+  </g>
+  
+  <!-- Design tools/cursor -->
+  <g fill="#6366F1" stroke="#4F46E5" stroke-width="0.8">
+    <!-- Cursor/pointer -->
+    <path d="M 145 120 L 150 125 L 147 126 L 148 129 L 146 130 L 145 127 L 143 128 Z"/>
+    
+    <!-- Selection handles -->
+    <rect x="137" y="106" width="2" height="2" fill="#6366F1"/>
+    <rect x="165" y="106" width="2" height="2" fill="#6366F1"/>
+    <rect x="137" y="112" width="2" height="2" fill="#6366F1"/>
+    <rect x="165" y="112" width="2" height="2" fill="#6366F1"/>
+  </g>
+  
+  <!-- Gear elements (automation) -->
+  <g fill="url(#gearGrad)" stroke="#4B5563" stroke-width="1">
+    <!-- Small gear -->
+    <g transform="translate(120,70)">
+      <circle cx="0" cy="0" r="6"/>
+      <circle cx="0" cy="0" r="3" fill="#374151"/>
+      <rect x="-1" y="-8" width="2" height="3"/>
+      <rect x="-1" y="5" width="2" height="3"/>
+      <rect x="-8" y="-1" width="3" height="2"/>
+      <rect x="5" y="-1" width="3" height="2"/>
+    </g>
+    
+    <!-- Tiny gear -->
+    <g transform="translate(105,55)">
+      <circle cx="0" cy="0" r="4"/>
+      <circle cx="0" cy="0" r="2" fill="#374151"/>
+      <rect x="-0.5" y="-5" width="1" height="2"/>
+      <rect x="-0.5" y="3" width="1" height="2"/>
+      <rect x="-5" y="-0.5" width="2" height="1"/>
+      <rect x="3" y="-0.5" width="2" height="1"/>
+    </g>
+  </g>
+  
+  <!-- MCP connection lines (data flow) -->
+  <g stroke="#6366F1" stroke-width="2" fill="none" opacity="0.6" stroke-dasharray="3,2">
+    <path d="M 70 108 Q 100 95 130 108"/>
+    <path d="M 80 75 Q 110 60 140 75"/>
+  </g>
+  
+  <!-- Subtle glow effect around lightning -->
+  <g opacity="0.3">
+    <path d="M 85 40 L 95 65 L 88 65 L 110 95 L 100 70 L 107 70 L 85 40 Z" 
+          fill="none" 
+          stroke="#FBB11B" 
+          stroke-width="4"/>
+  </g>
+</svg>
