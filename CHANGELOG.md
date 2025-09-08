@@ -7,7 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.6.3] - 2025-08-20
+## [0.2.1] - 2025-09-08
+
+- Collapse history to sanitized tip; adopt browser-based rendering; update docs
+- Use browser-based rendering for SVG→PNG
+- Update native-deps types/manager; availability reflects svgo/harfbuzz only
+- Rework docs for v0.2.0 strategy; provide SVGO-only guidance
+- Drop extraneous externals from build pipeline
+- Add .scratchpad/ to .gitignore
+- Improve client guide and doctor (HTTP reminder and handshake checks)
+- Remove pre-public 1.x tags locally (pre-release markers)
+- Reset initial public version to 0.2.1 to align with SemVer and best practices
+
+## [Untagged] - 2025-08-20
 
 ### Fixed
 
@@ -46,7 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Better error handling and logging for cleanup operations
 - More robust integration test execution environment
 
-## [1.6.2] - 2025-08-20
+## [Untagged] - 2025-08-20
 
 ### Fixed
 
@@ -59,7 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - v1.6.1 was orphaned due to incomplete prepush validation pipeline
 - This release includes the v1.6.1 fixes plus prepush pipeline corrections
 
-## [1.6.1] - 2025-08-20 (ORPHANED)
+## [Untagged] - 2025-08-20 (ORPHANED)
 
 ### Fixed
 
@@ -73,7 +85,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Build Process**: Ensured clean test suite execution for release pipeline
 - **Release Process**: Amended v1.6.1 to include complete test file cleanup (transparent about tag update)
 
-## [1.6.0] - 2025-08-20
+## [Untagged] - 2025-08-20
 
 ### Added
 
@@ -111,7 +123,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Process Improvements**: Enhanced AI-assisted development workflow with quality-first approach
 - **Dependencies**: Updated to PDF.js 4.x with improved character-level text extraction
 
-## [1.5.0] - 2025-08-16
+## [Untagged] - 2025-08-16
 
 ### Added
 
@@ -143,7 +155,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-**Note**: This changelog tracks changes from v1.5.0 forward. Previous development history is preserved in git commits for architectural reference but not tracked in this changelog format.
+**Note**: This changelog tracks changes from v0.2.1 forward. Prior pre‑public history was consolidated; pre‑public tags were removed, and relevant notes are documented under docs/ops/repository/.
 
 ## Links
 
