@@ -55,10 +55,20 @@ commit that follows Lanyte's quality and attribution standards.
 
 ## Prerequisites
 
+**CRITICAL**: Repository working tree must be clean before beginning consolidation:
+
+```bash
+# REQUIRED: Verify clean working tree
+git status
+# Output should show: "nothing to commit, working tree clean"
+```
+
+Additional requirements:
+
 - Git version 2.0 or higher
 - Understanding of git reset, rebase, and commit concepts
 - Backup strategy in place (automatic or manual)
-- Lanyte-specific: Familiarity with `make pre-push` and quality gates
+- Brooklyn-specific: Familiarity with `bun run prepush` and quality gates
 
 ## Safety First: Always Create a Backup
 
@@ -73,6 +83,18 @@ This saved us during our consolidation operation when we needed to recover from
 an incomplete state.
 
 ## Step-by-Step Process
+
+### 0. Verify Clean Working Tree (REQUIRED)
+
+**STOP**: Before proceeding, ensure your working tree is clean:
+
+```bash
+# Check repository status
+git status
+
+# Required output: "nothing to commit, working tree clean"
+# If you have uncommitted changes, commit or stash them first
+```
 
 ### 1. Identify the Target Commit
 

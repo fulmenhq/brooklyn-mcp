@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2-rc.1] - 2025-09-09
+
+### Fixed
+
+- **Build Configuration Architecture**: Separated static configuration from dynamic build metadata to prevent persistent dirty working tree issues during git operations
+- **Version Command Error Handling**: Improved graceful fallback when build signature is unavailable in development environments
+
+### Added
+
+- **License Compliance Documentation**: Comprehensive package licensing standard operating procedures with explicit allowlist/blacklist enforcement
+- **Build Signature Generation**: Dynamic build metadata now generated separately from static configuration, embedded in final binaries
+- **Git Hook Validation**: Enhanced pre-push hooks to include license compliance scanning
+
+### Changed
+
+- **Build Process**: Refactored to use `src/generated/build-signature.ts` (gitignored) for dynamic data and `src/shared/build-config.ts` for static configuration
+- **License Scanner**: Now enforces explicit allowlist validation with support for dual-license SPDX identifiers
+- **Version Management**: Improved separation of concerns between static version info and dynamic build metadata
+
+### Enhanced
+
+- **Release Documentation**: Updated git consolidation procedures with clean repository prerequisite requirements
+- **Quality Gates**: Strengthened pre-commit validation pipeline with comprehensive file-level checks
+
 ## [0.2.1] - 2025-09-08
 
 - Collapse history to sanitized tip; adopt browser-based rendering; update docs

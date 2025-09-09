@@ -54,13 +54,22 @@ async function runBuildSteps(): Promise<void> {
   const binaryHash = crypto.createHash("sha256").update(binaryData).digest("hex");
   const binaryStats = await fs.stat(binaryPath);
 
-  // Step 7: Read current build signature
+  // Step 7: Read static config and dynamic build signature
   const { buildConfig } = await import("../src/shared/build-config.js");
+  let buildSignature = null;
+  try {
+    const { buildSignature: dynamicSignature } = await import(
+      "../src/generated/build-signature.js"
+    );
+    buildSignature = dynamicSignature;
+  } catch (_error) {
+    console.warn("⚠️ Build signature not available - this is normal for clean builds");
+  }
 
   // Step 8: Create build manifest
   const buildManifest: BuildManifest = {
     version: buildConfig.version,
-    buildSignature: buildConfig.buildSignature,
+    buildSignature,
     binaryHash: {
       sha256: binaryHash,
       size: binaryStats.size,

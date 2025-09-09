@@ -1,13 +1,9 @@
 # Brooklyn MCP Release Checklist
 
-> **📋 Reference Copy** - This is a reference copy of the release checklist.  
-> **🔗 Authority**: See `RELEASE-CHECKLIST.md` in the project root for the authoritative version.
+> **🔗 AUTHORITY** - This is the authoritative version of the release checklist.  
+> **📋 Reference copies** may exist in `docs/ops/release/` for documentation embedding.
 
 This checklist ensures all requirements are met before releasing Brooklyn MCP to the public. Based on the goneat release template and adapted for Brooklyn's specific needs.
-
----
-
-**⚠️ IMPORTANT**: Always refer to the top-level `RELEASE-CHECKLIST.md` for the most current version. This file may be embedded in documentation or binaries and should not be edited directly.
 
 ## Pre-Release Preparation
 
@@ -118,6 +114,7 @@ This checklist ensures all requirements are met before releasing Brooklyn MCP to
 ### Recovery Checklist
 
 - [ ] **Repository State**: Local and remote repos in sync
+- [ ] **Working Tree Clean**: No uncommitted changes before consolidation (`git status` shows clean)
 - [ ] **Team Notified**: All stakeholders informed
 - [ ] **MCP Clients**: Notify MCP client users if needed
 
@@ -201,6 +198,8 @@ git tag -a v$VERSION -m "release: v$VERSION" && git push origin v$VERSION
 ```
 
 ## Commit Consolidation (Required before push)
+
+**PREREQUISITE**: Repository working tree must be clean (`git status` shows no uncommitted changes) before beginning consolidation.
 
 Follow the Git Commit Consolidation SOP to squash work-in-progress commits into a single, clean commit using `git reset --soft` to the last pushed commit.
 

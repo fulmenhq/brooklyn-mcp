@@ -12,7 +12,7 @@
  */
 
 // Version embedded at build time from VERSION file
-const VERSION = "0.2.0-rc.3";
+const VERSION = "0.2.2-rc.1";
 
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -2150,8 +2150,40 @@ function setupVersionCommand(program: Command): void {
     .option("--json", "Output in JSON format")
     .action(async (options) => {
       if (options.extended || options.json) {
-        // Import buildConfig to get build signature
-        const { buildConfig } = await import("../shared/build-config.js");
+        // Static version info is already available as VERSION constant
+
+        // Try to import build signature from generated file
+        let buildSignature = null;
+        try {
+          const { buildSignature: importedSignature } = await import(
+            "../generated/build-signature.js"
+          );
+          buildSignature = importedSignature;
+        } catch (_error) {
+          // Build signature not available - this means embed-version hasn't been run
+          if (options.json) {
+            console.log(
+              JSON.stringify(
+                {
+                  version: VERSION,
+                  buildSignature: null,
+                  error:
+                    "Build signature not available. Run 'bun run build' or 'bun run version:embed' first.",
+                },
+                null,
+                2,
+              ),
+            );
+            process.exit(0);
+          } else {
+            console.log(`Brooklyn MCP Server v${VERSION}`);
+            console.log("");
+            console.log("⚠️  Extended build information not available.");
+            console.log("📋 To see build details, run: bun run build");
+            console.log("💡 Or generate build signature: bun run version:embed");
+            process.exit(0);
+          }
+        }
 
         // Try to load build manifest for complete signature including binary hash
         let buildManifest = null;
@@ -2180,7 +2212,7 @@ function setupVersionCommand(program: Command): void {
 
         const extendedInfo = {
           version: VERSION,
-          buildSignature: buildConfig.buildSignature,
+          buildSignature: buildSignature,
           binaryHash: buildManifest?.binaryHash || null,
         };
 
@@ -2188,47 +2220,42 @@ function setupVersionCommand(program: Command): void {
           console.log(JSON.stringify(extendedInfo, null, 2));
         } else {
           console.log(`Brooklyn MCP Server v${VERSION}`);
-          if (buildConfig.buildSignature) {
+          if (buildSignature) {
             // Format git commit with dirty flag if needed
-            let gitInfo = `Git commit: ${buildConfig.buildSignature.gitCommit.slice(0, 8)}`;
-            if (!buildConfig.buildSignature.gitStatus.clean) {
+            let gitInfo = `Git commit: ${buildSignature.gitCommit.slice(0, 8)}`;
+            if (!buildSignature.gitStatus.clean) {
               const dirtyFlags = [];
-              if (buildConfig.buildSignature.gitStatus.staged > 0)
-                dirtyFlags.push(`+${buildConfig.buildSignature.gitStatus.staged}`);
-              if (buildConfig.buildSignature.gitStatus.unstaged > 0)
-                dirtyFlags.push(`~${buildConfig.buildSignature.gitStatus.unstaged}`);
-              if (buildConfig.buildSignature.gitStatus.untracked > 0)
-                dirtyFlags.push(`?${buildConfig.buildSignature.gitStatus.untracked}`);
+              if (buildSignature.gitStatus.staged > 0)
+                dirtyFlags.push(`+${buildSignature.gitStatus.staged}`);
+              if (buildSignature.gitStatus.unstaged > 0)
+                dirtyFlags.push(`~${buildSignature.gitStatus.unstaged}`);
+              if (buildSignature.gitStatus.untracked > 0)
+                dirtyFlags.push(`?${buildSignature.gitStatus.untracked}`);
               if (dirtyFlags.length > 0) gitInfo += `-dirty(${dirtyFlags.join(",")})`;
             }
             console.log(gitInfo);
 
             // Show branch with ahead/behind info
-            let branchInfo = `Git branch: ${buildConfig.buildSignature.gitBranch}`;
-            if (
-              buildConfig.buildSignature.gitStatus.ahead > 0 ||
-              buildConfig.buildSignature.gitStatus.behind > 0
-            ) {
+            let branchInfo = `Git branch: ${buildSignature.gitBranch}`;
+            if (buildSignature.gitStatus.ahead > 0 || buildSignature.gitStatus.behind > 0) {
               const aheadBehind = [];
-              if (buildConfig.buildSignature.gitStatus.ahead > 0)
-                aheadBehind.push(`ahead ${buildConfig.buildSignature.gitStatus.ahead}`);
-              if (buildConfig.buildSignature.gitStatus.behind > 0)
-                aheadBehind.push(`behind ${buildConfig.buildSignature.gitStatus.behind}`);
+              if (buildSignature.gitStatus.ahead > 0)
+                aheadBehind.push(`ahead ${buildSignature.gitStatus.ahead}`);
+              if (buildSignature.gitStatus.behind > 0)
+                aheadBehind.push(`behind ${buildSignature.gitStatus.behind}`);
               branchInfo += ` (${aheadBehind.join(", ")})`;
             }
             console.log(branchInfo);
 
-            console.log(`Build time: ${buildConfig.buildSignature.buildTime}`);
+            console.log(`Build time: ${buildSignature.buildTime}`);
+            console.log(`Platform: ${buildSignature.platform}/${buildSignature.arch}`);
             console.log(
-              `Platform: ${buildConfig.buildSignature.platform}/${buildConfig.buildSignature.arch}`,
+              `Runtime: Node ${buildSignature.nodeVersion}, Bun ${buildSignature.bunVersion}`,
             );
-            console.log(
-              `Runtime: Node ${buildConfig.buildSignature.nodeVersion}, Bun ${buildConfig.buildSignature.bunVersion}`,
-            );
-            console.log(`Environment: ${buildConfig.buildSignature.buildEnv}`);
+            console.log(`Environment: ${buildSignature.buildEnv}`);
 
             // Show binary hash from manifest if available, otherwise from buildSignature
-            const binaryInfo = extendedInfo.binaryHash || buildConfig.buildSignature.binaryHash;
+            const binaryInfo = extendedInfo.binaryHash || buildSignature.binaryHash;
             if (binaryInfo) {
               console.log(
                 `Binary: ${(binaryInfo.size / 1024 / 1024).toFixed(2)}MB, SHA256: ${binaryInfo.sha256.slice(0, 16)}...`,

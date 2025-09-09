@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Brooklyn Pre-push Hook
-# Full test suite - includes integration tests
+# Full validation suite including license scanning and integration tests
 
 echo "🌉 Brooklyn Pre-push Validation..."
 
@@ -11,21 +11,39 @@ brooklyn cleanup --all || {
   echo "⚠️  Warning: Cleanup failed, continuing anyway..."
 }
 
-# Run full test suite
-echo "🧪 Running full test suite..."
+# Run full prepush validation (includes license scanning)
+echo "🔍 Running comprehensive pre-push validation..."
+echo "   - Code quality checks (format, typecheck, lint)"
+echo "   - License compliance scanning"
+echo "   - Build artifacts validation"
+echo "   - Full test suite"
 echo "⚠️  Note: Browser integration tests may fail if Playwright browsers are not installed."
 echo "   Run 'bun run setup:browsers' to install browsers for full testing."
 
-bun run test:prepush || {
+bun run prepush || {
   echo ""
-  echo "❌ Tests failed. Please fix before pushing."
+  echo "❌ Pre-push validation failed. Please fix before pushing."
   echo ""
-  echo "💡 Tip: If browser tests are failing:"
-  echo "   - Unit tests must always pass"
-  echo "   - Integration tests requiring browsers can be skipped locally"
-  echo "   - Use 'bun run test:unit' to run only unit tests"
-  echo "   - CI will run full test suite with browsers installed"
+  echo "💡 Common fixes:"
+  echo "   - Format issues: 'bun run format:code'"
+  echo "   - License issues: Check 'dist/licenses/' output"
+  echo "   - Test failures: 'bun run test:unit' for unit tests only"
+  echo "   - Build issues: 'bun run build' to check compilation"
+  echo "   - Browser tests: 'bun run setup:browsers' to install browsers"
   exit 1
 }
+
+# Run release validation for version tags
+if echo "$1" | grep -q "refs/tags/v"; then
+  echo "🏷️  Version tag detected - running release validation..."
+  bun run release:validate || {
+    echo ""
+    echo "❌ Release validation failed. Please fix before pushing version tag."
+    echo ""
+    echo "💡 Run 'bun run release:validate' locally to see detailed validation results"
+    exit 1
+  }
+  echo "✅ Release validation passed!"
+fi
 
 echo "✅ All pre-push checks passed!"

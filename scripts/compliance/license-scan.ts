@@ -16,7 +16,16 @@ const nodeModulesDir = path.join(root, "node_modules");
 const outDir = path.join(root, "dist", "licenses");
 const strict = process.argv.includes("--strict");
 
-const _ALLOWLIST = new Set(["MIT", "BSD-2-Clause", "BSD-3-Clause", "Apache-2.0", "ISC", "CC0-1.0"]);
+const ALLOWLIST = new Set([
+  "MIT",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "Apache-2.0",
+  "ISC",
+  "CC0-1.0",
+  "0BSD",
+  "BlueOak-1.0.0",
+]);
 
 const DISALLOWED_PREFIXES = ["GPL", "LGPL", "AGPL"];
 
@@ -104,6 +113,18 @@ function toSpdx(license: LicenseRecord["license"]): string {
   return "UNKNOWN";
 }
 
+function isDualLicenseAllowed(spdx: string): boolean {
+  // Handle dual licenses like "MIT OR Apache-2.0", "(MIT OR CC0-1.0)"
+  if (spdx.includes(" OR ")) {
+    const licenses = spdx
+      .replace(/[()]/g, "") // Remove parentheses
+      .split(" OR ")
+      .map((l) => l.trim());
+    return licenses.some((license) => ALLOWLIST.has(license));
+  }
+  return false;
+}
+
 function uniqueAndSort(records: LicenseRecord[]): LicenseRecord[] {
   const map = new Map<string, LicenseRecord>();
   for (const r of records) {
@@ -155,9 +176,12 @@ async function generateNotices(
       }
     }
     if (strict) {
-      if (spdx === "UNKNOWN") unknowns.push(`${p.name}@${p.version}`);
-      if (DISALLOWED_PREFIXES.some((pref) => spdx.toUpperCase().startsWith(pref))) {
+      if (spdx === "UNKNOWN") {
+        unknowns.push(`${p.name}@${p.version}`);
+      } else if (DISALLOWED_PREFIXES.some((pref) => spdx.toUpperCase().startsWith(pref))) {
         disallowed.push(`${p.name}@${p.version} (${spdx})`);
+      } else if (!(ALLOWLIST.has(spdx) || isDualLicenseAllowed(spdx))) {
+        unknowns.push(`${p.name}@${p.version} (${spdx} - not in allowlist)`);
       }
     }
   }
