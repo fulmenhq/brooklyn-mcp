@@ -86,11 +86,17 @@ async function validateTests(): Promise<ValidationResult[]> {
 
   const results: ValidationResult[] = [];
 
+  // Setup test infrastructure first
+  results.push(await runValidation("Test Infrastructure Setup", "bun run setup:test-infra"));
+
   // Unit tests
   results.push(await runValidation("Unit Tests", "bun run test:unit"));
 
   // Integration tests
   results.push(await runValidation("Integration Tests", "bun run test:integration"));
+
+  // E2E tests
+  results.push(await runValidation("E2E Tests", "bun run test:e2e"));
 
   return results;
 }
