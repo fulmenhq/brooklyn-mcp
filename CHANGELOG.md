@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2-rc.2] - 2025-09-09
+
+### Fixed
+
+- **GitHub Actions**: Added missing browser installation step to CI workflow preventing E2E test failures
+
 ## [0.2.2-rc.1] - 2025-09-09
 
 ### Fixed
