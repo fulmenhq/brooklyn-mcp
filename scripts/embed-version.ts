@@ -156,6 +156,9 @@ async function updateFile(
 async function generateBuildSignatureFile(buildSignature: BuildSignature): Promise<void> {
   const buildSignatureFilePath = path.join(rootDir, "src/generated/build-signature.ts");
 
+  // Ensure the generated directory exists
+  await fs.mkdir(path.dirname(buildSignatureFilePath), { recursive: true });
+
   // Generate TypeScript-compatible object literal instead of JSON
   const formatValue = (value: unknown, indent = 0): string => {
     const spaces = "  ".repeat(indent);

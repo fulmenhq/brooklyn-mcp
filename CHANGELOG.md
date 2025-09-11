@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2-rc.5] - 2025-09-10
+
+### Fixed
+
+- **Windows Build Support**: Resolve directory creation issues preventing Windows builds from completing during dependency installation
+- **Cross-Platform Build Process**: Ensure `src/generated/` directory is created before build signature file generation
+- **CI/CD Database Initialization**: Fixed SQLite database initialization failures in containerized CI environments
+
+### Added
+
+- **Multi-Platform Build Documentation**: Comprehensive guide for cross-platform build support in `docs/deployment/multi-platform-build-support.md`
+- **Test Infrastructure Setup**: New `setup:test-infra` command creates required directory structure for testing across all platforms
+
+### Enhanced
+
+- **Build Reliability**: Improved cross-platform compatibility for Windows, macOS, and Linux CI environments
+- **Release Validation**: Updated release validation to include comprehensive test suite matching CI requirements exactly
+
+## [0.2.2-rc.4] - 2025-09-10
+
+### Fixed
+
+- **CI/CD Test Infrastructure**: Resolve database initialization failures in CI/CD environments by ensuring required test directories exist
+- **Release Validation Alignment**: Updated `check-all` and `release:validate` commands to run identical test suites, preventing CI/release mismatches
+
+### Added
+
+- **Infrastructure Setup Script**: `scripts/setup-test-infrastructure.ts` creates all required directories for testing in clean CI environments
+- **Enhanced CI Workflow**: Added test infrastructure setup step to GitHub Actions workflow before test execution
+
 ## [0.2.2-rc.3] - 2025-09-10
 
 ### Fixed
