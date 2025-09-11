@@ -30,7 +30,9 @@ const logger = getLogger("brooklyn-dev-mode");
 /**
  * Setup development mode with named pipes
  */
-export async function setupDevMode(pipesPrefix = "/tmp/brooklyn-dev"): Promise<DevModeConfig> {
+export async function setupDevMode(
+  pipesPrefix = path.join(os.tmpdir(), "brooklyn-dev"),
+): Promise<DevModeConfig> {
   // Check if pipes are provided via environment (MCP dev manager)
   const providedInputPipe = process.env["BROOKLYN_DEV_INPUT_PIPE"];
   const providedOutputPipe = process.env["BROOKLYN_DEV_OUTPUT_PIPE"];

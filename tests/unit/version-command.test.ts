@@ -11,7 +11,7 @@ import path from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 
 const rootDir = path.resolve(import.meta.dirname, "../..");
-const binaryPath = path.join(rootDir, "dist/brooklyn");
+const binaryPath = path.join(rootDir, `dist/brooklyn${process.platform === "win32" ? ".exe" : ""}`);
 
 // Ensure binary exists before running tests
 beforeAll(async () => {

@@ -6,6 +6,8 @@
  * without external dependencies or complex integration scenarios.
  */
 
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   HTTPConfig,
@@ -128,7 +130,7 @@ describe("Transport Factory Comprehensive Tests", () => {
 
       const transport = trackTransport(
         await createMCPStdio({
-          socketPath: "/tmp/test-socket",
+          socketPath: join(tmpdir(), "test-socket"),
         }),
       );
 
@@ -142,8 +144,8 @@ describe("Transport Factory Comprehensive Tests", () => {
 
       const transport = trackTransport(
         await createMCPStdio({
-          inputPipe: "/tmp/test-input",
-          outputPipe: "/tmp/test-output",
+          inputPipe: join(tmpdir(), "test-input"),
+          outputPipe: join(tmpdir(), "test-output"),
         }),
       );
 
@@ -157,9 +159,9 @@ describe("Transport Factory Comprehensive Tests", () => {
 
       const transport = trackTransport(
         await createMCPStdio({
-          socketPath: "/tmp/test-socket",
-          inputPipe: "/tmp/test-input", // Should be ignored
-          outputPipe: "/tmp/test-output", // Should be ignored
+          socketPath: join(tmpdir(), "test-socket"),
+          inputPipe: join(tmpdir(), "test-input"), // Should be ignored
+          outputPipe: join(tmpdir(), "test-output"), // Should be ignored
         }),
       );
 
@@ -359,9 +361,9 @@ describe("Transport Factory Comprehensive Tests", () => {
       const promises = [
         createMCPStdio(),
         createHTTP(3011),
-        createMCPStdio({ socketPath: "/tmp/test1" }),
+        createMCPStdio({ socketPath: join(tmpdir(), "test1") }),
         createHTTP(3012, "localhost"),
-        createMCPStdio({ inputPipe: "/tmp/in", outputPipe: "/tmp/out" }),
+        createMCPStdio({ inputPipe: join(tmpdir(), "in"), outputPipe: join(tmpdir(), "out") }),
       ];
 
       const transports = await Promise.all(promises);

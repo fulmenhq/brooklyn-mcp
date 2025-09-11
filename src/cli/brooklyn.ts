@@ -15,7 +15,7 @@
 const VERSION = "0.2.2-rc.7";
 
 import { existsSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { HELP_TEXT } from "../generated/help/index.js";
 import { type AgentClientKey, agentDrivers, resolvePathFor } from "../shared/agent-drivers.js";
@@ -143,7 +143,7 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
     .option(
       "--pipes-prefix <prefix>",
       "Named pipes prefix (experimental dev mode only)",
-      "/tmp/brooklyn-dev",
+      join(tmpdir(), "brooklyn-dev"),
     )
     .action(async (options) => {
       // Lightweight imports to avoid top-level side effects

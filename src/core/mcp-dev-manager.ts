@@ -340,8 +340,9 @@ export class MCPDevManager {
         const execAsync = promisify(exec);
 
         // Find all cat processes reading from our named pipes
+        const devPrefix = process.env["BROOKLYN_DEV_PIPE_DIR"] || os.tmpdir();
         const { stdout } = await execAsync(
-          "ps -ef | grep 'cat.*/tmp/brooklyn-mcp-dev-.*' | grep -v grep || true",
+          `ps -ef | grep 'cat.*${devPrefix}/brooklyn-mcp-dev-.*' | grep -v grep || true`,
         );
 
         const lines = stdout
@@ -356,7 +357,11 @@ export class MCPDevManager {
           const command = parts.slice(7).join(" ");
 
           // Verify this is a cat process reading from our pipes
-          if (pid && command.includes("cat") && command.includes("/tmp/brooklyn-mcp-dev-")) {
+          if (
+            pid &&
+            command.includes("cat") &&
+            command.includes(`${devPrefix}/brooklyn-mcp-dev-`)
+          ) {
             try {
               process.kill(Number(pid), "SIGTERM");
               this.getLogger()?.info("Killed orphaned cat process", { pid, command });
@@ -430,7 +435,7 @@ export class MCPDevManager {
   private setupTransportPaths(transport: "socket" | "pipe", halfPipe?: boolean) {
     const timestamp = Date.now();
     const instanceUuid = Math.random().toString(36).substring(2, 8);
-    const devPrefix = process.env["BROOKLYN_DEV_PIPE_DIR"] || "/tmp";
+    const devPrefix = process.env["BROOKLYN_DEV_PIPE_DIR"] || os.tmpdir();
 
     if (transport === "socket") {
       return {

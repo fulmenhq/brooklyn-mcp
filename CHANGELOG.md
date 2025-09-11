@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2-rc.8] - 2025-09-11
+
+### Fixed
+
+- **Cross-Platform Path Compatibility**: Complete resolution of Windows path separator issues across infrastructure and test files
+- **Test Infrastructure**: Fixed hardcoded `/tmp/` paths to use `os.tmpdir()` for Windows compatibility in setup scripts, dev mode, and MCP manager
+- **Test Timing Tolerance**: Added 5ms tolerance for JavaScript execution timing tests to handle CI environment variations
+- **Transport Factory Tests**: Enhanced port cleanup mechanism with proper tracking and teardown for all transport types
+- **Windows Binary Path**: Fixed version command test to use `.exe` extension on Windows platform for proper binary execution
+
+### Enhanced
+
+- **Windows CI Compatibility**: All test suites now use platform-aware path handling with `path.sep` and dynamic regex patterns
+- **Integration Test Coverage**: Comprehensive validation including MCP stdout purity, HTTP mode, OAuth endpoints, and tool definitions
+- **Cross-Platform Development**: Dev mode, CLI commands, and infrastructure setup now work identically on Windows, macOS, and Linux
+
+### Technical Details
+
+- Updated transport factory tests with `trackTransport()` helper for proper cleanup
+- Fixed screenshot storage manager tests with dynamic path separator handling  
+- Enhanced MCP dev manager with cross-platform temp directory resolution
+- Fixed version command test with platform-aware binary path handling (`.exe` on Windows)
+- Added comprehensive integration test validation to release pipeline
+
+This release addresses all Windows compatibility issues identified in rc.7 CI failures and ensures robust cross-platform operation.
+
 ## [0.2.2-rc.7] - 2025-09-11
 
 ### Fixed

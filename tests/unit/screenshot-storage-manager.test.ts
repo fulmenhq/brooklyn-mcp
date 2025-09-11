@@ -6,7 +6,7 @@
 import { existsSync, rmSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getDatabaseManager } from "../../src/core/database/database-manager.js";
@@ -63,7 +63,7 @@ describe("ScreenshotStorageManager", () => {
 
       // Verify result structure (Architecture Committee v2)
       expect(result).toMatchObject({
-        filePath: expect.stringContaining("instances/"),
+        filePath: expect.stringContaining(`instances${sep}`),
         filename: expect.stringMatching(/^screenshot-.*\.png$/),
         auditId: expect.any(String),
         fileSize: testBuffer.length,
@@ -72,7 +72,11 @@ describe("ScreenshotStorageManager", () => {
       });
 
       // Verify new structure: instances/{instanceId}/{tag}/
-      expect(result.filePath).toMatch(/instances\/[a-z0-9-]+\/[a-z0-9-]+\/screenshot-.*\.png$/);
+      const pathSeparatorRegex = sep === "\\" ? "\\\\" : "/";
+      const pathPattern = new RegExp(
+        `instances${pathSeparatorRegex}[a-z0-9-]+${pathSeparatorRegex}[a-z0-9-]+${pathSeparatorRegex}screenshot-.*\\.png$`,
+      );
+      expect(result.filePath).toMatch(pathPattern);
       expect(result.metadata.instanceId).toBeDefined();
       expect(result.metadata.tag).toBeDefined();
 
@@ -177,9 +181,9 @@ describe("ScreenshotStorageManager", () => {
       );
 
       // Verify separate instance and tag directories exist
-      expect(result1.filePath).toContain("instances/");
+      expect(result1.filePath).toContain(`instances${sep}`);
       expect(result1.filePath).toContain("integration-test");
-      expect(result2.filePath).toContain("instances/");
+      expect(result2.filePath).toContain(`instances${sep}`);
       expect(result2.filePath).toContain("beta-test");
 
       expect(existsSync(result1.filePath)).toBe(true);
@@ -197,7 +201,7 @@ describe("ScreenshotStorageManager", () => {
       );
 
       // Should use instance-based directory with auto-generated tag
-      expect(result.filePath).toContain("instances/");
+      expect(result.filePath).toContain(`instances${sep}`);
       expect(result.metadata.tag).toMatch(/^[a-z]+-[a-z]+-[a-z]+$/); // Three-word slug pattern
       expect(result.metadata.instanceId).toBeDefined();
     });

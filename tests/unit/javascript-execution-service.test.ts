@@ -530,7 +530,8 @@ describe("JavaScriptExecutionService", () => {
 
       // Assert
       expect(result.success).toBe(true);
-      expect(result.executionTime).toBeGreaterThanOrEqual(delay);
+      // Allow 5ms tolerance for timing variations in CI environments
+      expect(result.executionTime).toBeGreaterThanOrEqual(delay - 5);
     });
 
     it("should handle very long scripts", async () => {

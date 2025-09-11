@@ -6,6 +6,7 @@
  */
 
 import { existsSync, mkdirSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const requiredDirectories = [
@@ -18,15 +19,19 @@ const requiredDirectories = [
   "tmp/brooklyn-test-isolation",
 ];
 
-const requiredTempDirs = [
-  "/tmp/brooklyn-test-isolation/config",
-  "/tmp/brooklyn-test-isolation/logs",
-  "/tmp/brooklyn-test-isolation/plugins",
-  "/tmp/brooklyn-test-isolation/browsers",
-  "/tmp/brooklyn-test-isolation/assets",
-  "/tmp/brooklyn-test-isolation/pids",
-  "/tmp/brooklyn-test-isolation/screenshots",
-];
+// Create cross-platform temp directory paths
+function getRequiredTempDirs(): string[] {
+  const tempBase = join(tmpdir(), "brooklyn-test-isolation");
+  return [
+    join(tempBase, "config"),
+    join(tempBase, "logs"),
+    join(tempBase, "plugins"),
+    join(tempBase, "browsers"),
+    join(tempBase, "assets"),
+    join(tempBase, "pids"),
+    join(tempBase, "screenshots"),
+  ];
+}
 
 export function setupTestInfrastructure(): void {
   console.log("🔧 Setting up test infrastructure...");
@@ -41,6 +46,7 @@ export function setupTestInfrastructure(): void {
   }
 
   // Create required temp directories
+  const requiredTempDirs = getRequiredTempDirs();
   for (const dir of requiredTempDirs) {
     if (!existsSync(dir)) {
       mkdirSync(dir, { recursive: true });

@@ -1,6 +1,6 @@
 {
   "name": "brooklyn-mcp",
-  "version": "0.2.2-rc.7",
+  "version": "0.2.2-rc.8",
   "description": "Enterprise-ready MCP server for browser automation with multi-team support",
   "type": "module",
   "private": true,
@@ -47,7 +47,7 @@
     "lint": "biome check . && prettier --check \"**/*.{json,md,yaml,yml}\"",
     "lint:fix": "biome check --write . && prettier --write \"**/*.{json,md,yaml,yml}\"",
     "typecheck": "tsc --noEmit",
-    "check-all": "bun run format && bun run typecheck && bun run version:embed && bun run lint && bun run check:mcp-schema && bun run test:unit && bun run test:integration && bun run test:e2e",
+    "check-all": "bun run format && bun run typecheck && bun run version:embed && bun run lint && bun run check:mcp-schema && bun run build:artifacts:local && bun run test:unit && bun run test:integration && bun run test:e2e",
     "check-all:safe": "bun run format && bun run typecheck && bun run version:embed && bun run lint && BROOKLYN_CLEAN_BEFORE_TESTS=1 bun run test:safe",
     "// === ⚡ HUSKY INTEGRATION ===": "",
     "precommit": "bun run format:code && bun run typecheck && bun run version:embed && bun run lint && bun run test:precommit",
