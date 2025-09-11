@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2-rc.10] - 2025-09-11
+
+### Fixed
+
+- **Windows CI Build Tools**: Added Scoop package manager installation for Windows GitHub runners
+- **Windows Build Dependencies**: Fixed missing `zip` and `shasum` tools on Windows CI by installing via Scoop
+- **Release Artifact Upload**: Enhanced GitHub release upload with `fail_on_unmatched_files: false` and `overwrite: true`
+- **CI Tool Verification**: Added version verification step for Windows build tools to ensure proper installation
+
+### Enhanced
+
+- **Cross-Platform CI Reliability**: Windows, macOS, and Linux runners now have consistent build tool availability
+- **Build Process Validation**: Added fail-fast verification with version printouts for all required tools
+- **Release Process Robustness**: Improved handling of existing GitHub releases during artifact upload
+
+### Technical Details
+
+- Replaced Chocolatey with Scoop for Windows package management in CI
+- Added PowerShell-based tool installation and verification on Windows runners
+- Enhanced GitHub Actions workflow with proper tool dependency resolution
+- Improved release upload resilience for multiple platform builds
+
+This resolves Windows CI build failures and ensures consistent cross-platform release artifacts.
+
 ## [0.2.2-rc.9] - 2025-09-11
 
 ### Fixed

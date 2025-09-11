@@ -56,6 +56,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install Windows build tools
+        if: runner.os == 'Windows'
+        run: |
+          Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+          Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
+          echo "$env:USERPROFILE\scoop\shims" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          scoop install zip shasum
+        shell: pwsh
+
+      - name: Verify Windows tools
+        if: runner.os == 'Windows'
+        run: |
+          zip --version
+          shasum --version
+          tar --version
+        shell: pwsh
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
@@ -99,6 +116,8 @@ jobs:
             dist/release/SHA256SUMS_*.txt
             dist/release/licenses.json
             dist/release/THIRD_PARTY_NOTICES.md
+          fail_on_unmatched_files: false
+          overwrite: true
           body: |
             ## Brooklyn MCP ${{ github.ref_name }}
 
