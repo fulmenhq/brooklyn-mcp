@@ -16,13 +16,31 @@ import type {
 import { TransportRegistry, TransportType } from "../../src/core/transport.js";
 
 describe("Transport Factory Comprehensive Tests", () => {
+  const createdTransports: Transport[] = [];
+
+  // Helper to track created transports for cleanup
+  function trackTransport(transport: Transport): Transport {
+    createdTransports.push(transport);
+    return transport;
+  }
+
   beforeEach(() => {
     // Clear any registered transports before each test
     vi.clearAllMocks();
   });
 
-  afterEach(() => {
-    // Clean up any running transports
+  afterEach(async () => {
+    // Clean up any running transports - critical for Windows port cleanup
+    for (const transport of createdTransports) {
+      try {
+        if (transport.isRunning?.()) {
+          await transport.stop();
+        }
+      } catch (_error) {
+        // Ignore cleanup errors, but ensure we try to stop all transports
+      }
+    }
+    createdTransports.length = 0;
     vi.restoreAllMocks();
   });
 
@@ -37,7 +55,7 @@ describe("Transport Factory Comprehensive Tests", () => {
         options: {},
       };
 
-      const transport = await createTransport(config);
+      const transport = trackTransport(await createTransport(config));
 
       expect(transport).toBeDefined();
       expect(transport.name).toBe("mcp-stdio");
@@ -61,7 +79,7 @@ describe("Transport Factory Comprehensive Tests", () => {
         },
       };
 
-      const transport = await createTransport(config);
+      const transport = trackTransport(await createTransport(config));
 
       expect(transport).toBeDefined();
       expect(transport.name).toBe("mcp-http");
@@ -97,7 +115,7 @@ describe("Transport Factory Comprehensive Tests", () => {
     it("should create standard stdio transport with minimal config", async () => {
       const { createMCPStdio } = await import("../../src/transports/index.js");
 
-      const transport = await createMCPStdio();
+      const transport = trackTransport(await createMCPStdio());
 
       expect(transport).toBeDefined();
       expect(transport.name).toBe("mcp-stdio");
@@ -108,9 +126,11 @@ describe("Transport Factory Comprehensive Tests", () => {
     it("should create socket transport with socketPath option", async () => {
       const { createMCPStdio } = await import("../../src/transports/index.js");
 
-      const transport = await createMCPStdio({
-        socketPath: "/tmp/test-socket",
-      });
+      const transport = trackTransport(
+        await createMCPStdio({
+          socketPath: "/tmp/test-socket",
+        }),
+      );
 
       expect(transport).toBeDefined();
       expect(transport.name).toBe("mcp-socket");
@@ -120,10 +140,12 @@ describe("Transport Factory Comprehensive Tests", () => {
     it("should create FIFO transport with pipe options", async () => {
       const { createMCPStdio } = await import("../../src/transports/index.js");
 
-      const transport = await createMCPStdio({
-        inputPipe: "/tmp/test-input",
-        outputPipe: "/tmp/test-output",
-      });
+      const transport = trackTransport(
+        await createMCPStdio({
+          inputPipe: "/tmp/test-input",
+          outputPipe: "/tmp/test-output",
+        }),
+      );
 
       expect(transport).toBeDefined();
       expect(transport.name).toBe("mcp-fifo");
@@ -133,11 +155,13 @@ describe("Transport Factory Comprehensive Tests", () => {
     it("should prioritize socket over FIFO when both options provided", async () => {
       const { createMCPStdio } = await import("../../src/transports/index.js");
 
-      const transport = await createMCPStdio({
-        socketPath: "/tmp/test-socket",
-        inputPipe: "/tmp/test-input", // Should be ignored
-        outputPipe: "/tmp/test-output", // Should be ignored
-      });
+      const transport = trackTransport(
+        await createMCPStdio({
+          socketPath: "/tmp/test-socket",
+          inputPipe: "/tmp/test-input", // Should be ignored
+          outputPipe: "/tmp/test-output", // Should be ignored
+        }),
+      );
 
       expect(transport).toBeDefined();
       expect(transport.name).toBe("mcp-socket");
@@ -146,7 +170,7 @@ describe("Transport Factory Comprehensive Tests", () => {
     it("should handle undefined dev options gracefully", async () => {
       const { createMCPStdio } = await import("../../src/transports/index.js");
 
-      const transport = await createMCPStdio(undefined);
+      const transport = trackTransport(await createMCPStdio(undefined));
 
       expect(transport).toBeDefined();
       expect(transport.name).toBe("mcp-stdio");
@@ -155,7 +179,7 @@ describe("Transport Factory Comprehensive Tests", () => {
     it("should handle empty dev options object", async () => {
       const { createMCPStdio } = await import("../../src/transports/index.js");
 
-      const transport = await createMCPStdio({});
+      const transport = trackTransport(await createMCPStdio({}));
 
       expect(transport).toBeDefined();
       expect(transport.name).toBe("mcp-stdio");
@@ -166,7 +190,7 @@ describe("Transport Factory Comprehensive Tests", () => {
     it("should create HTTP transport with port only", async () => {
       const { createHTTP } = await import("../../src/transports/index.js");
 
-      const transport = await createHTTP(3002);
+      const transport = trackTransport(await createHTTP(3002));
 
       expect(transport).toBeDefined();
       expect(transport.name).toBe("mcp-http");
@@ -176,7 +200,7 @@ describe("Transport Factory Comprehensive Tests", () => {
     it("should create HTTP transport with port and host", async () => {
       const { createHTTP } = await import("../../src/transports/index.js");
 
-      const transport = await createHTTP(3003, "127.0.0.1");
+      const transport = trackTransport(await createHTTP(3003, "127.0.0.1"));
 
       expect(transport).toBeDefined();
       expect(transport.name).toBe("mcp-http");
@@ -185,7 +209,7 @@ describe("Transport Factory Comprehensive Tests", () => {
     it("should create HTTP transport with CORS disabled", async () => {
       const { createHTTP } = await import("../../src/transports/index.js");
 
-      const transport = await createHTTP(3004, "localhost", false);
+      const transport = trackTransport(await createHTTP(3004, "localhost", false));
 
       expect(transport).toBeDefined();
       expect(transport.name).toBe("mcp-http");
@@ -195,9 +219,9 @@ describe("Transport Factory Comprehensive Tests", () => {
       const { createHTTP } = await import("../../src/transports/index.js");
 
       // Test different port ranges
-      const transport1 = await createHTTP(8080);
-      const transport2 = await createHTTP(9000);
-      const transport3 = await createHTTP(3000);
+      const transport1 = trackTransport(await createHTTP(8080));
+      const transport2 = trackTransport(await createHTTP(9000));
+      const transport3 = trackTransport(await createHTTP(3000));
 
       expect(transport1).toBeDefined();
       expect(transport2).toBeDefined();
@@ -208,11 +232,11 @@ describe("Transport Factory Comprehensive Tests", () => {
       const { createHTTP } = await import("../../src/transports/index.js");
 
       // Test minimum valid port
-      const transport1 = await createHTTP(1024);
+      const transport1 = trackTransport(await createHTTP(1024));
       expect(transport1).toBeDefined();
 
       // Test high port number
-      const transport2 = await createHTTP(65000);
+      const transport2 = trackTransport(await createHTTP(65000));
       expect(transport2).toBeDefined();
     });
   });
@@ -221,8 +245,8 @@ describe("Transport Factory Comprehensive Tests", () => {
     it("should create transports with complete interface", async () => {
       const { createMCPStdio, createHTTP } = await import("../../src/transports/index.js");
 
-      const stdioTransport = await createMCPStdio();
-      const httpTransport = await createHTTP(3005);
+      const stdioTransport = trackTransport(await createMCPStdio());
+      const httpTransport = trackTransport(await createHTTP(3005));
 
       // Test required properties
       for (const transport of [stdioTransport, httpTransport]) {
@@ -247,7 +271,7 @@ describe("Transport Factory Comprehensive Tests", () => {
     it("should support tool handler registration", async () => {
       const { createMCPStdio } = await import("../../src/transports/index.js");
 
-      const transport = await createMCPStdio();
+      const transport = trackTransport(await createMCPStdio());
 
       const toolListHandler = vi.fn().mockResolvedValue({ tools: [] });
       const toolCallHandler = vi.fn().mockResolvedValue({
@@ -261,8 +285,8 @@ describe("Transport Factory Comprehensive Tests", () => {
     it("should handle initialization without errors", async () => {
       const { createMCPStdio, createHTTP } = await import("../../src/transports/index.js");
 
-      const stdioTransport = await createMCPStdio();
-      const httpTransport = await createHTTP(3006);
+      const stdioTransport = trackTransport(await createMCPStdio());
+      const httpTransport = trackTransport(await createHTTP(3006));
 
       // Should initialize without throwing
       await expect(stdioTransport.initialize()).resolves.not.toThrow();
@@ -272,8 +296,8 @@ describe("Transport Factory Comprehensive Tests", () => {
     it("should handle stop operation when not started", async () => {
       const { createMCPStdio, createHTTP } = await import("../../src/transports/index.js");
 
-      const stdioTransport = await createMCPStdio();
-      const httpTransport = await createHTTP(3007);
+      const stdioTransport = trackTransport(await createMCPStdio());
+      const httpTransport = trackTransport(await createHTTP(3007));
 
       // Should stop gracefully even when not started
       await expect(stdioTransport.stop()).resolves.not.toThrow();
@@ -293,7 +317,7 @@ describe("Transport Factory Comprehensive Tests", () => {
         },
       };
 
-      const transport = await createTransport(config);
+      const transport = trackTransport(await createTransport(config));
       expect(transport).toBeDefined();
     });
 
@@ -305,17 +329,17 @@ describe("Transport Factory Comprehensive Tests", () => {
         options: {}, // Empty options should work
       };
 
-      const transport = await createTransport(config);
+      const transport = trackTransport(await createTransport(config));
       expect(transport).toBeDefined();
     });
 
     it("should create transports with consistent naming", async () => {
       const { createMCPStdio, createHTTP } = await import("../../src/transports/index.js");
 
-      const stdioTransport1 = await createMCPStdio();
-      const stdioTransport2 = await createMCPStdio();
-      const httpTransport1 = await createHTTP(3009);
-      const httpTransport2 = await createHTTP(3010);
+      const stdioTransport1 = trackTransport(await createMCPStdio());
+      const stdioTransport2 = trackTransport(await createMCPStdio());
+      const httpTransport1 = trackTransport(await createHTTP(3009));
+      const httpTransport2 = trackTransport(await createHTTP(3010));
 
       // Names should be consistent across instances
       expect(stdioTransport1.name).toBe(stdioTransport2.name);
@@ -341,6 +365,8 @@ describe("Transport Factory Comprehensive Tests", () => {
       ];
 
       const transports = await Promise.all(promises);
+      // Track all created transports for cleanup
+      transports.forEach(trackTransport);
 
       expect(transports).toHaveLength(5);
       for (const transport of transports) {
@@ -359,8 +385,8 @@ describe("Transport Factory Comprehensive Tests", () => {
       expect(types1.length).toBeGreaterThan(0);
 
       // Create some transports
-      await createMCPStdio();
-      await createHTTP(3013);
+      trackTransport(await createMCPStdio());
+      trackTransport(await createHTTP(3013));
 
       // Registry should remain consistent
       const types2 = getAvailableTransports();
@@ -386,6 +412,9 @@ describe("Transport Factory Comprehensive Tests", () => {
       ]);
 
       const [types1, stdioTransport, httpTransport, types2] = await operations;
+      // Track created transports for cleanup
+      trackTransport(stdioTransport);
+      trackTransport(httpTransport);
 
       expect(types1).toEqual(types2);
       expect(stdioTransport).toBeDefined();

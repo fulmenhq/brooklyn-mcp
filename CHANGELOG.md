@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2-rc.7] - 2025-09-11
+
+### Fixed
+
+- **Windows Test Port Cleanup**: Resolve test hanging issues caused by improper HTTP transport cleanup in Windows CI environments
+- **Transport Resource Management**: Enhanced test teardown with proper tracking and cleanup of all created transports to prevent port conflicts
+- **CI Build Order**: Prioritize Windows builds first to catch platform-specific issues early in CI pipeline
+
+### Enhanced
+
+- **Test Reliability**: Comprehensive transport tracking system ensures all HTTP and MCP stdio transports are properly cleaned up between tests
+- **Windows Compatibility**: Improved port resource management for Windows-specific timing requirements in test environments
+
 ## [0.2.2-rc.6] - 2025-09-11
 
 ### Fixed

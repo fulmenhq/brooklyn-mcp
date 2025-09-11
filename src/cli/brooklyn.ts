@@ -12,7 +12,7 @@
  */
 
 // Version embedded at build time from VERSION file
-const VERSION = "0.2.2-rc.6";
+const VERSION = "0.2.2-rc.7";
 
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
