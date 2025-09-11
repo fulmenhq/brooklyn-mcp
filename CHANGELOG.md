@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2-rc.6] - 2025-09-11
+
+### Fixed
+
+- **Windows Help Text Extraction**: Fix build failures when help text extraction finds 0 blocks by generating empty but valid help files for build compatibility
+- **Cross-Platform Regex**: Improve help text extraction regex to handle both Unix (`\n`) and Windows (`\r\n`) line endings
+- **Build Robustness**: Ensure builds succeed even when markdown help blocks aren't found, preventing "Could not resolve" errors
+
+### Enhanced
+
+- **Debug Logging**: Added debug output to help text extraction for better troubleshooting of platform-specific issues
+- **Fallback Generation**: Empty help file generation maintains TypeScript compatibility when no help blocks are detected
+
 ## [0.2.2-rc.5] - 2025-09-10
 
 ### Fixed
