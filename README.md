@@ -60,6 +60,13 @@ Brooklyn MCP is the **"MCP Forge"** for the Fulmen ecosystem - the reference imp
 - **Bun** (>= 1.2.0+) - [Install Bun](https://bun.sh)
 - **Claude Code** - [Install Claude Code](https://claude.ai/code)
 
+#### For Local Development/Building
+
+- **Windows**: `zip` and `shasum` (install via [Scoop](https://scoop.sh/), Chocolatey, or Git for Windows)
+- **macOS/Linux**: Usually pre-installed (verify with `which zip tar shasum`)
+
+> **Note**: CI/CD builds work out-of-the-box. Local prerequisites only needed for `bun run package:all`.
+
 ### Lightning Setup
 
 ```bash

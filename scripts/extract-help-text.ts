@@ -109,7 +109,7 @@ ${Array.from(blockMap.keys())
     const varName = name.replace(/-/g, "_").toUpperCase();
     return `  "${name}": ${varName}`;
   })
-  .join(",\n")}
+  .join(",\n")},
 } as const;
 `;
 

@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2-rc.9] - 2025-09-11
+
+### Fixed
+
+- **Release Validation**: Fixed linting issues preventing release validation from passing
+- **Help Text Generator**: Corrected TypeScript object generation to include trailing commas for Biome compliance
+- **Generated Files**: Root cause fix in `extract-help-text.ts` script rather than manual fixes to generated files
+
+### Enhanced
+
+- **Build Prerequisites Documentation**: Added comprehensive platform-specific installation guides for Windows, macOS, and Linux developers
+- **Local Development Support**: Clear guidance for installing `zip` and `shasum` on Windows via Scoop, Chocolatey, and winget
+- **CI/CD Distinction**: Documented that GitHub Actions runners have all prerequisites pre-installed
+
+### Technical Details
+
+- Fixed trailing comma generation in `scripts/extract-help-text.ts` line 112
+- Enhanced multi-platform build documentation with package manager instructions
+- Updated README with local development prerequisites section
+- Maintained distinction between CI requirements (auto-fulfilled) and local development needs
+- **Process Improvement**: Added `release:validate` to `prepush` to catch generator-created linting issues before push
+
+This resolves the release validation pipeline failures by addressing code generation quality issues.
+
 ## [0.2.2-rc.8] - 2025-09-11
 
 ### Fixed
@@ -26,7 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Technical Details
 
 - Updated transport factory tests with `trackTransport()` helper for proper cleanup
-- Fixed screenshot storage manager tests with dynamic path separator handling  
+- Fixed screenshot storage manager tests with dynamic path separator handling
 - Enhanced MCP dev manager with cross-platform temp directory resolution
 - Fixed version command test with platform-aware binary path handling (`.exe` on Windows)
 - Added comprehensive integration test validation to release pipeline

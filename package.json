@@ -1,6 +1,6 @@
 {
   "name": "brooklyn-mcp",
-  "version": "0.2.2-rc.8",
+  "version": "0.2.2-rc.9",
   "description": "Enterprise-ready MCP server for browser automation with multi-team support",
   "type": "module",
   "private": true,
@@ -51,7 +51,7 @@
     "check-all:safe": "bun run format && bun run typecheck && bun run version:embed && bun run lint && BROOKLYN_CLEAN_BEFORE_TESTS=1 bun run test:safe",
     "// === ⚡ HUSKY INTEGRATION ===": "",
     "precommit": "bun run format:code && bun run typecheck && bun run version:embed && bun run lint && bun run test:precommit",
-    "prepush": "bun run precommit && bun run build:artifacts:local && bun run license:scan:strict && bun run test:prepush",
+    "prepush": "bun run precommit && bun run build:artifacts:local && bun run release:validate",
     "release:validate": "bun scripts/release-validation.ts",
     "precommit:fast": "bun run format:code && bun run lint && bun run test:precommit",
     "precommit:format-only": "bun run format:code",

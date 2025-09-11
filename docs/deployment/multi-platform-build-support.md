@@ -135,6 +135,87 @@ bun run test:integration   # Integration tests
 bun run test:e2e          # End-to-end tests
 ```
 
+## Build Prerequisites
+
+### Required Tools by Platform
+
+Brooklyn MCP requires specific build tools for cross-platform binary packaging:
+
+#### Windows
+
+```powershell
+# Using Scoop (recommended)
+scoop install zip unzip
+scoop install coreutils  # Provides shasum
+
+# Using Chocolatey
+choco install zip unzip
+choco install coreutils-sha256sum
+
+# Using Windows Package Manager (winget)
+winget install 7zip.7zip
+# Note: For shasum, install Git for Windows which includes it
+winget install Git.Git
+```
+
+#### macOS
+
+```bash
+# Using Homebrew (usually pre-installed)
+brew install coreutils  # Provides shasum (if missing)
+
+# Usually pre-installed: zip, tar, shasum
+# Verify with: which zip tar shasum
+```
+
+#### Linux
+
+```bash
+# Ubuntu/Debian
+sudo apt install zip unzip coreutils
+
+# CentOS/RHEL/Fedora
+sudo yum install zip unzip coreutils
+# or
+sudo dnf install zip unzip coreutils
+
+# Alpine
+apk add zip unzip coreutils
+
+# Arch Linux
+sudo pacman -S zip unzip coreutils
+```
+
+### CI/CD Environment
+
+✅ **GitHub Actions runners include all prerequisites pre-installed**
+
+- No additional setup required for CI builds
+- All platforms (windows-latest, ubuntu-latest, macos-latest) have: `zip`, `tar`, `shasum`
+
+### Local Development Setup
+
+For developers who want to run full cross-platform builds locally:
+
+```bash
+# Verify prerequisites
+which zip tar shasum
+# Should return paths to all three tools
+
+# If missing on Windows, install via your preferred package manager
+# If missing on macOS/Linux, install via your system's package manager
+```
+
+### Build Script Dependencies
+
+The packaging pipeline requires these tools in `PATH`:
+
+- **`zip`**: For creating `.zip` archives (`package-all.ts` line 92)
+- **`tar`**: For creating `.tar.gz` archives (`package-all.ts` line 99)
+- **`shasum`**: For generating SHA256 checksums (local packaging only)
+
+**Note**: CI uses Node.js crypto module for checksums, not `shasum` command.
+
 ## Platform-Specific Considerations
 
 ### Windows
@@ -143,6 +224,7 @@ bun run test:e2e          # End-to-end tests
 - **Path handling**: Use `path.join()` consistently
 - **SQLite**: Requires proper directory setup for database file creation
 - **PowerShell vs CMD**: Scripts should work in both environments
+- **Build tools**: Requires `zip` and `shasum` for local packaging (see prerequisites above)
 
 ### macOS
 
