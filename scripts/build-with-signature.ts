@@ -30,22 +30,36 @@ async function runBuildSteps(): Promise<void> {
   console.log("📝 Extracting help text...");
   execSync("bun scripts/extract-help-text.ts", { cwd: rootDir, stdio: "inherit" });
 
-  // Step 2: Ensure dist directory
+  // Step 2: Ensure dist directory exists
+  console.log("📁 Ensuring dist directory exists...");
   await fs.mkdir(path.join(rootDir, "dist"), { recursive: true });
 
   // Step 3: Embed version and build signature
   console.log("🔧 Embedding version and build signature...");
   execSync("bun scripts/embed-version.ts", { cwd: rootDir, stdio: "inherit" });
 
-  // Step 4: Build the binary
-  console.log("📦 Building binary...");
-  const buildCmd =
-    "bun build src/cli/brooklyn.ts --outfile dist/brooklyn --target node --external playwright --external @playwright/test --external electron --external svgo --external xml2js";
+  // Step 4: Build the binary with correct platform extension
+  const isWindows = process.platform === "win32";
+  const binaryName = isWindows ? "brooklyn.exe" : "brooklyn";
+  const binaryPath = path.join(rootDir, "dist", binaryName);
+
+  console.log(`📦 Building binary for ${process.platform}: ${binaryName}`);
+  const buildCmd = [
+    "bun build src/cli/brooklyn.ts",
+    `--outfile ${binaryPath}`,
+    "--target node",
+    "--external playwright",
+    "--external @playwright/test",
+    "--external electron",
+    "--external svgo",
+    "--external xml2js",
+  ].join(" ");
   execSync(buildCmd, { cwd: rootDir, stdio: "inherit" });
 
-  // Step 5: Make binary executable
-  const binaryPath = path.join(rootDir, "dist/brooklyn");
-  execSync(`chmod +x ${binaryPath}`, { cwd: rootDir });
+  // Step 5: Make binary executable (Unix-like systems only)
+  if (!isWindows) {
+    execSync(`chmod +x ${binaryPath}`, { cwd: rootDir });
+  }
 
   // Step 6: Calculate binary hash and create manifest
   console.log("🔐 Calculating binary signature...");

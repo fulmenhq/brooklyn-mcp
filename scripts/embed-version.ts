@@ -55,7 +55,12 @@ function getGitStatus(): GitStatus {
 
 async function generateBuildSignature(version: string): Promise<BuildSignature> {
   const gitCommit = safeExec("git rev-parse HEAD");
-  const gitBranch = safeExec("git branch --show-current", "main");
+  // Windows-compatible git branch detection with multiple fallbacks
+  const gitBranch =
+    safeExec("git rev-parse --abbrev-ref HEAD") ||
+    safeExec("git symbolic-ref --short HEAD") ||
+    safeExec("git describe --contains --all HEAD") ||
+    "main";
   const gitStatus = getGitStatus();
   const nodeVersion = process.version;
   const bunVersion = safeExec("bun --version");

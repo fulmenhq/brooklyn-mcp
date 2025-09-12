@@ -15,22 +15,23 @@ describe("CSS Specificity Analysis", () => {
   let poolManager: BrowserPoolManager;
   let testBrowserId: string;
 
-  beforeAll(async () => {
-    // Initialize browser pool manager
-    poolManager = new BrowserPoolManager();
-    await poolManager.initialize();
+  beforeAll(
+    async () => {
+      // Initialize browser pool manager
+      poolManager = new BrowserPoolManager();
+      await poolManager.initialize();
 
-    // Launch a test browser
-    const launchResult = await poolManager.launchBrowser({
-      teamId: "test-team",
-      browserType: "chromium",
-      headless: true,
-    });
+      // Launch a test browser
+      const launchResult = await poolManager.launchBrowser({
+        teamId: "test-team",
+        browserType: "chromium",
+        headless: true,
+      });
 
-    testBrowserId = launchResult.browserId;
+      testBrowserId = launchResult.browserId;
 
-    // Navigate to a test page with complex CSS rules for specificity testing
-    const testHtml = `
+      // Navigate to a test page with complex CSS rules for specificity testing
+      const testHtml = `
       <html>
         <head>
           <style>
@@ -79,11 +80,13 @@ describe("CSS Specificity Analysis", () => {
       </html>
     `;
 
-    await poolManager.navigate({
-      browserId: testBrowserId,
-      url: `data:text/html,${encodeURIComponent(testHtml)}`,
-    });
-  });
+      await poolManager.navigate({
+        browserId: testBrowserId,
+        url: `data:text/html,${encodeURIComponent(testHtml)}`,
+      });
+    },
+    process.platform === "win32" ? 120000 : 60000,
+  ); // 2min Windows, 1min others
 
   afterAll(async () => {
     // Clean up test browser

@@ -87,6 +87,11 @@ jobs:
       - name: Setup test infrastructure
         run: bun run setup:test-infra
 
+      - name: Build Local Binary (Required for Tests)
+        run: |
+          echo "🔨 Building local binary for test dependencies..."
+          bun run build:local
+
       - name: Run Quality Gates
         run: |
           echo "🔍 Running pre-release quality gates..."
