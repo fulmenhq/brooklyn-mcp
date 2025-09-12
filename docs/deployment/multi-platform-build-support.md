@@ -76,19 +76,56 @@ const filePath = "src/generated/build-signature.ts";
 const filePath = path.join("src", "generated", "build-signature.ts");
 ```
 
-### 4. CI/CD Environment Differences
+**Fixed in**: All build scripts now use proper path handling and dynamic regex patterns for cross-platform compatibility.
+
+### 4. Cross-Platform Temp Directory Handling
+
+**Problem**: Hardcoded `/tmp/` paths fail on Windows, which uses different temporary directory locations.
+
+**Root Cause**: Windows uses `%TEMP%` (typically `C:\Users\Username\AppData\Local\Temp\`) while Unix-like systems use `/tmp/`.
+
+**Solution**: Always use Node.js `os.tmpdir()` for temporary directory operations.
+
+```typescript
+// ❌ WRONG: Hardcoded Unix temp path
+const tempPath = "/tmp/brooklyn-dev";
+
+// ✅ CORRECT: Cross-platform temp directory
+import { tmpdir } from "os";
+import { join } from "path";
+const tempPath = join(tmpdir(), "brooklyn-dev");
+```
+
+**Fixed in**:
+
+- `scripts/setup-dev-mode.ts` - Uses `os.tmpdir()` for cross-platform temp directory
+- `src/core/mcp-dev-manager.ts` - Updated temp directory resolution
+- All test infrastructure scripts now use platform-aware paths
+
+### 5. CI/CD Environment Differences
 
 **Problem**: Different CI environments (Ubuntu, Windows, macOS) have different default directory structures and permissions.
 
 **Solution**: Standardized setup process that works across all CI environments.
 
-**CI Workflow Steps**:
+**Enhanced CI Workflow Steps**:
 
-1. Install dependencies: `bun install --frozen-lockfile`
-2. Setup browsers: `bun run setup:browsers`
-3. **Setup test infrastructure**: `bun run setup:test-infra` ⬅ **Critical for Windows**
-4. Run quality gates: `bun run check-all`
-5. Build all platforms: `bun run build:all`
+1. **Platform-specific tool installation**: Install required build tools (Windows only)
+2. **Tool verification**: Verify all required tools are available and working
+3. Install dependencies: `bun install --frozen-lockfile`
+4. Setup browsers: `bun run setup:browsers` (for browser-dependent tests)
+5. **Setup test infrastructure**: `bun run setup:test-infra` ⬅ **Critical for Windows**
+6. Run quality gates: `bun run check-all` (now includes `release:validate`)
+7. Build all platforms: `bun run build:all`
+8. Package distribution artifacts: `bun run package:all`
+9. **Enhanced release upload**: Graceful handling of existing releases and missing files
+
+**Key Improvements in CI Process:**
+
+- **Fail-fast validation**: Tool version checks prevent build failures later in pipeline
+- **Enhanced prepush validation**: Now includes full `release:validate` to catch issues locally
+- **Robust artifact upload**: Uses `fail_on_unmatched_files: false` and `overwrite: true` for reliability
+- **Cross-platform consistency**: All platforms now have identical tooling available
 
 ## Build Process Architecture
 
@@ -188,10 +225,35 @@ sudo pacman -S zip unzip coreutils
 
 ### CI/CD Environment
 
-✅ **GitHub Actions runners include all prerequisites pre-installed**
+**GitHub Actions Platform Support:**
 
-- No additional setup required for CI builds
-- All platforms (windows-latest, ubuntu-latest, macos-latest) have: `zip`, `tar`, `shasum`
+| Platform         | `zip`                | `tar`            | `shasum`             | Additional Setup Required       |
+| ---------------- | -------------------- | ---------------- | -------------------- | ------------------------------- |
+| `ubuntu-latest`  | ✅ Pre-installed     | ✅ Pre-installed | ✅ Pre-installed     | None                            |
+| `macos-latest`   | ✅ Pre-installed     | ✅ Pre-installed | ✅ Pre-installed     | None                            |
+| `windows-latest` | ❌ **Not available** | ✅ Pre-installed | ❌ **Not available** | **Scoop installation required** |
+
+**Windows CI Setup (Required):**
+Our GitHub Actions workflow automatically installs missing tools on Windows runners using Scoop:
+
+```yaml
+- name: Install Windows build tools
+  if: runner.os == 'Windows'
+  run: |
+    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+    Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
+    echo "$env:USERPROFILE\scoop\shims" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+    scoop install zip shasum
+  shell: pwsh
+
+- name: Verify Windows tools
+  if: runner.os == 'Windows'
+  run: |
+    zip --version
+    shasum --version  
+    tar --version
+  shell: pwsh
+```
 
 ### Local Development Setup
 
@@ -221,10 +283,21 @@ The packaging pipeline requires these tools in `PATH`:
 ### Windows
 
 - **Directory creation**: Must explicitly create directories before file writes
-- **Path handling**: Use `path.join()` consistently
+- **Path handling**: Use `path.join()` consistently for all file operations
+- **Temp directory**: Use `os.tmpdir()` instead of hardcoded `/tmp/` paths
 - **SQLite**: Requires proper directory setup for database file creation
 - **PowerShell vs CMD**: Scripts should work in both environments
-- **Build tools**: Requires `zip` and `shasum` for local packaging (see prerequisites above)
+- **Build tools**: Missing `zip` and `shasum` by default - automatically installed via Scoop in CI
+- **Path separator handling**: Test assertions must use dynamic patterns (`path.sep`) instead of hardcoded `/`
+- **CI environment**: Requires special setup for build tools (handled automatically in GitHub Actions)
+
+**Recent Windows Compatibility Fixes:**
+
+- Fixed hardcoded `/tmp/` paths to use `os.tmpdir()` in dev mode and MCP manager
+- Updated test assertions to use platform-aware path separators
+- Added comprehensive Scoop-based tool installation for CI builds
+- Enhanced version command test to handle `.exe` extension correctly
+- Improved timing tolerance for CI environment variations (5ms buffer)
 
 ### macOS
 
@@ -282,6 +355,26 @@ The release workflow validates across all platforms:
 - **Cause**: Hardcoded `/` or `\` in file paths
 - **Fix**: Use `path.join()` for all path operations
 
+**Error**: `bun: command not found: zip` (Windows CI)
+
+- **Cause**: Windows GitHub runners don't have `zip` or `shasum` pre-installed
+- **Fix**: Automatic Scoop installation in CI workflow (see Windows CI Setup above)
+
+**Error**: Test assertions failing with path mismatches on Windows
+
+- **Cause**: Test expectations using hardcoded Unix path separators (`/`)
+- **Fix**: Use dynamic path separator patterns (`path.sep`) or platform-aware assertions
+
+**Error**: Temp directory access failures on Windows
+
+- **Cause**: Using hardcoded `/tmp/` paths instead of Windows temp directory
+- **Fix**: Always use `os.tmpdir()` for temporary file operations
+
+**Error**: `Pattern 'file.json' does not match any files` in GitHub release upload
+
+- **Cause**: Missing license files or build artifacts not created properly
+- **Fix**: Ensure `package:all` runs before release upload; use `fail_on_unmatched_files: false`
+
 ### Debugging Build Issues
 
 1. **Enable verbose logging**: Set `DEBUG=brooklyn:*` environment variable
@@ -295,15 +388,21 @@ The release workflow validates across all platforms:
 
 1. **Always use `path.join()`** for file path construction
 2. **Create directories before writing files** using `{ recursive: true }`
-3. **Test on multiple platforms** when possible
-4. **Use cross-platform commands** in package.json scripts
+3. **Use `os.tmpdir()`** instead of hardcoded `/tmp/` paths
+4. **Test assertions**: Use dynamic path separators (`path.sep`) not hardcoded `/` or `\`
+5. **Test on multiple platforms** when possible, especially Windows
+6. **Use cross-platform commands** in package.json scripts
+7. **Handle binary extensions**: Remember `.exe` suffix on Windows for executable tests
 
 ### For CI/CD
 
-1. **Run infrastructure setup** before tests on all platforms
-2. **Use consistent Node.js/Bun versions** across all runners
-3. **Validate artifacts** are created correctly on each platform
-4. **Test installation process** on each target platform
+1. **Platform-specific setup**: Install required tools before build process
+2. **Tool verification**: Add fail-fast checks for required build tools
+3. **Run infrastructure setup** before tests on all platforms
+4. **Use consistent Node.js/Bun versions** across all runners
+5. **Validate artifacts** are created correctly on each platform
+6. **Graceful error handling**: Use robust upload configurations with appropriate fallbacks
+7. **Enhanced prepush validation**: Include `release:validate` to catch issues before push
 
 ## Future Improvements
 

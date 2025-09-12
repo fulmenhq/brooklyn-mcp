@@ -111,8 +111,20 @@ export class MCPHTTPTransport implements Transport {
         return;
       }
 
+      // Add overall timeout to prevent hanging (especially on Windows)
+      const overallTimeout = setTimeout(() => {
+        this.logger().error("Server start timed out", { port, host });
+        this.running = false;
+        reject(
+          new Error(
+            `Server start timed out on port ${port}. The port may be in use or there may be a network issue.`,
+          ),
+        );
+      }, 5000); // 5-second timeout for server start
+
       // Set up error handler BEFORE calling listen
       const errorHandler = (error: NodeJS.ErrnoException) => {
+        clearTimeout(overallTimeout);
         this.logger().error("Failed to start MCP HTTP transport", {
           error: error.message,
           code: error.code,
@@ -140,7 +152,8 @@ export class MCPHTTPTransport implements Transport {
       this.server.once("error", errorHandler);
 
       this.server.listen(port, host, () => {
-        // Remove the error handler after successful start
+        // Clear timeout and remove error handler after successful start
+        clearTimeout(overallTimeout);
         this.server?.removeListener("error", errorHandler);
 
         this.running = true;
@@ -158,19 +171,36 @@ export class MCPHTTPTransport implements Transport {
    * Check if a port is already in use
    */
   private async checkPortInUse(port: number, host: string): Promise<boolean> {
-    return new Promise((resolve) => {
+    return new Promise((resolve, _reject) => {
       const net = require("node:net");
+
+      // Set up timeout for fail-fast behavior (especially important on Windows)
+      const timeout = setTimeout(() => {
+        this.logger().warn("Port availability check timed out", { port, host });
+        resolve(false); // Assume port is free if we can't determine quickly
+      }, 2000); // 2-second timeout
+
       const tester = net
         .createServer()
         .once("error", (err: NodeJS.ErrnoException) => {
+          clearTimeout(timeout);
           if (err.code === "EADDRINUSE") {
+            this.logger().debug("Port check: port in use", { port, host, error: err.code });
             resolve(true); // Port is in use
           } else {
+            this.logger().debug("Port check: other error, assuming port free", {
+              port,
+              host,
+              error: err.code,
+              message: err.message,
+            });
             resolve(false); // Some other error, assume port is free
           }
         })
         .once("listening", () => {
+          clearTimeout(timeout);
           tester.close(() => {
+            this.logger().debug("Port check: port available", { port, host });
             resolve(false); // Port is free
           });
         })
