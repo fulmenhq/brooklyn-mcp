@@ -23,7 +23,7 @@ interface ValidationResult {
 function safeExec(command: string): string {
   try {
     return execSync(command, { encoding: "utf-8", cwd: process.cwd() }).toString().trim();
-  } catch (error) {
+  } catch (_error) {
     return "";
   }
 }

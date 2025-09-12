@@ -105,7 +105,7 @@ async function commitVersionArtifacts(version: string): Promise<void> {
         execSync(`git add ${file}`);
         console.log(`📝 Staged ${file}`);
       }
-    } catch (error) {
+    } catch (_error) {
       // File might not exist or have changes - that's OK
     }
   }
@@ -154,7 +154,7 @@ async function versionCommitWorkflow(
   console.log("");
 
   // Check initial status
-  const initialStatus = checkGitStatus();
+  const _initialStatus = checkGitStatus();
 
   if (!commitOnly) {
     // Step 1: Embed version
