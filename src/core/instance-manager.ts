@@ -127,10 +127,13 @@ export class InstanceManager {
    * Get patterns used to detect Brooklyn processes
    */
   static getBrooklynProcessPatterns(): string[] {
+    const isWindows = process.platform === "win32";
+    const binaryName = isWindows ? "brooklyn\\.exe" : "brooklyn";
+
     return [
       "brooklyn (mcp|web)",
       "brooklyn\\.ts mcp",
-      "dist/brooklyn mcp",
+      `dist/${binaryName} mcp`,
       "brooklyn\\.js mcp",
       "/brooklyn mcp",
     ];

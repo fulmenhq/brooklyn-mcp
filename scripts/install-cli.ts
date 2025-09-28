@@ -36,8 +36,10 @@ const log = {
 function getInstallPaths() {
   const homeDir = homedir();
   const globalBinPath = join(homeDir, ".local", "bin");
-  const cliSourcePath = join(process.cwd(), "dist", "brooklyn");
-  const cliTargetPath = join(globalBinPath, "brooklyn");
+  const isWindows = platform() === "win32";
+  const binaryName = isWindows ? "brooklyn.exe" : "brooklyn";
+  const cliSourcePath = join(process.cwd(), "dist", binaryName);
+  const cliTargetPath = join(globalBinPath, binaryName);
 
   return {
     homeDir,

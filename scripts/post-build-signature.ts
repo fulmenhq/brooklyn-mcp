@@ -72,7 +72,9 @@ async function updateBuildConfigWithBinaryHash(binarySignature: BinarySignature)
 }
 
 async function addBinarySignature(): Promise<void> {
-  const binaryPath = path.join(rootDir, "dist/brooklyn");
+  const isWindows = process.platform === "win32";
+  const binaryName = isWindows ? "brooklyn.exe" : "brooklyn";
+  const binaryPath = path.join(rootDir, "dist", binaryName);
 
   // Check if binary exists
   try {

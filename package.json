@@ -1,6 +1,6 @@
 {
   "name": "brooklyn-mcp",
-  "version": "0.2.2-rc.13",
+  "version": "0.2.2-rc.14",
   "description": "Enterprise-ready MCP server for browser automation with multi-team support",
   "type": "module",
   "private": true,
@@ -105,7 +105,7 @@
     "bootstrap:remove": "bun scripts/bootstrap-brooklyn.ts remove",
     "license:scan": "bun scripts/compliance/license-scan.ts",
     "license:scan:strict": "bun scripts/compliance/license-scan.ts --strict",
-    "package:local": "OS=$(uname -s | tr '[:upper:]' '[:lower:]') ARCH=$(uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/' -e 's/arm64/arm64/') NAME=brooklyn-$OS-$ARCH && mkdir -p dist/release && cp dist/brooklyn dist/$NAME && (cd dist && zip -q release/$NAME.zip $NAME) && (cd dist && tar -czf release/$NAME.tar.gz $NAME) && (cd dist/release && shasum -a 256 $NAME.zip $NAME.tar.gz > SHA256SUMS_${OS}_${ARCH}.txt)",
+    "package:local": "OS=$(uname -s | tr '[:upper:]' '[:lower:]') ARCH=$(uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/' -e 's/arm64/arm64/') NAME=brooklyn-$OS-$ARCH && BINARY=$([ \"$OS\" = \"windows\" ] && echo \"brooklyn.exe\" || echo \"brooklyn\") && mkdir -p dist/release && cp dist/$BINARY dist/$NAME && (cd dist && zip -q release/$NAME.zip $NAME) && (cd dist && tar -czf release/$NAME.tar.gz $NAME) && (cd dist/release && shasum -a 256 $NAME.zip $NAME.tar.gz > SHA256SUMS_${OS}_${ARCH}.txt)",
     "build:artifacts:local": "bun run build:local && bun run package:local",
     "// === 🔬 MCP DEV MODE (Internal) ===": "",
     "mcp-dev:start": "bun src/cli/brooklyn.ts mcp dev-start",
