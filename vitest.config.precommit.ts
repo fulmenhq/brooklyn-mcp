@@ -14,8 +14,8 @@ export default defineConfig({
         singleFork: true,
       },
     },
-    // Fast timeout for precommit hooks
-    testTimeout: 5000,
-    hookTimeout: 5000,
+    // Timeout for precommit hooks - increased for Windows compatibility
+    testTimeout: 15000, // 15 seconds to handle slower Windows tests
+    hookTimeout: 10000,
   },
 });

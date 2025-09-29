@@ -4,6 +4,7 @@
  */
 
 import { readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ImageProcessingService } from "./image-processing-service.js";
 
@@ -125,7 +126,7 @@ describe("ImageProcessingService", () => {
 
       // Assert
       expect(result.success).toBe(true);
-      expect(result.outputPath).toBe("/test/input-compressed.svg");
+      expect(result.outputPath).toBe(join("/test", "input-compressed.svg"));
     });
   });
 
@@ -238,7 +239,7 @@ describe("ImageProcessingService", () => {
 
       // Assert
       expect(result.success).toBe(true);
-      expect(result.outputPath).toBe("/test/input.png");
+      expect(result.outputPath).toBe(join("/test", "input.png"));
     });
   });
 

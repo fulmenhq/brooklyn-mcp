@@ -32,7 +32,8 @@ async function runValidation(
     console.log(chalk.blue(`🔍 ${name}...`));
     execSync(`${command} ${args.join(" ")}`, {
       cwd: rootDir,
-      stdio: "inherit",
+      stdio: ["inherit", "inherit", "pipe"], // Capture stderr to avoid Windows warnings causing failures
+      encoding: "utf-8",
     });
 
     const duration = Date.now() - startTime;
@@ -46,8 +47,23 @@ async function runValidation(
     };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const errorMessage = error instanceof Error ? error.message : String(error);
 
+    // Check if this is just a Windows stderr warning with successful exit code
+    if (error && typeof error === "object" && "status" in error) {
+      const execError = error as { status: number; stderr?: Buffer | string };
+      if (execError.status === 0) {
+        // Command succeeded but had stderr output (common on Windows)
+        console.log(chalk.green(`✅ ${name} passed (${duration}ms)`));
+        return {
+          name,
+          success: true,
+          message: "Passed with warnings",
+          duration,
+        };
+      }
+    }
+
+    const errorMessage = error instanceof Error ? error.message : String(error);
     console.log(chalk.red(`❌ ${name} failed: ${errorMessage}`));
 
     return {

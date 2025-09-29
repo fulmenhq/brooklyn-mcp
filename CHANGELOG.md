@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2-rc.15] - 2025-09-28
+
+### Fixed
+
+- **Windows Line Endings**: Added `.gitattributes` file to ensure consistent line endings across platforms
+- **Windows Test Suite**: Fixed Windows path handling in image processing service tests (backslash vs forward slash)
+- **Cross-Platform Process Management**: Enhanced instance manager error handling for Windows process cleanup
+- **Linting Compliance**: Fixed import ordering and unused variable warnings in database manager tests
+
+### Added
+
+- **Database Manager Tests**: Comprehensive unit test suite with 12 test cases covering path handling, configuration, and error scenarios
+- **Cleanup Utilities**: Cross-platform `clean.ts` script for build artifact and cache cleanup operations
+- **Local Package Management**: `package-local.ts` utility for local package installation and management
+- **Git Configuration**: Added `.gitattributes` to prevent line ending issues on Windows development
+
+### Enhanced
+
+- **Windows Compatibility**: Complete Windows test suite now passes successfully on Windows 11
+- **Build Configuration**: Updated cross-platform binary support with improved Windows path handling
+- **Process Management**: Improved cleanup and error handling for Windows-specific process management
+
+### Technical Details
+
+- Fixed Windows-specific path separators in test expectations (backslash handling)
+- Added proper error variable naming to satisfy linting rules
+- Enhanced database manager with comprehensive cross-platform testing
+- Resolved git autocrlf conflicts with explicit `.gitattributes` configuration
+
+This release establishes full Windows compatibility and resolves all Windows-specific CI and development issues.
+
 ## [0.2.2-rc.10] - 2025-09-11
 
 ### Fixed

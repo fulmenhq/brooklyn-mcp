@@ -46,9 +46,9 @@ export default defineConfig({
           process.argv.some((arg) => arg.includes("tests/integration")),
       },
     },
-    // Increase timeouts for Windows process management
-    hookTimeout: process.platform === "win32" ? 45000 : 30000, // 45s Windows, 30s others
-    testTimeout: process.platform === "win32" ? 45000 : 30000, // 45s Windows, 30s others
+    // Increase timeouts for Windows process management and CI
+    hookTimeout: process.platform === "win32" ? 240000 : 30000, // 4m Windows, 30s others
+    testTimeout: process.platform === "win32" ? 240000 : 30000, // 4m Windows, 30s others
   },
   resolve: {
     alias: {

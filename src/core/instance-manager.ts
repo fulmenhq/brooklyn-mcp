@@ -147,11 +147,29 @@ export class InstanceManager {
     const patterns = InstanceManager.getBrooklynProcessPatterns();
     const grepPattern = patterns.join("|");
 
-    const result = execSync(`ps aux | grep -E '${grepPattern}' | grep -v grep || true`, {
-      encoding: "utf-8",
-    });
+    try {
+      let result: string;
 
-    return result.trim().split("\n").filter(Boolean);
+      if (process.platform === "win32") {
+        // Windows: Use tasklist and findstr
+        result = execSync(
+          `tasklist /FO CSV | findstr /R /C:"${grepPattern.replace(/\|/g, '" /C:"')}"`,
+          {
+            encoding: "utf-8",
+          },
+        );
+      } else {
+        // Unix: Use ps and grep
+        result = execSync(`ps aux | grep -E '${grepPattern}' | grep -v grep || true`, {
+          encoding: "utf-8",
+        });
+      }
+
+      return result.trim().split("\n").filter(Boolean);
+    } catch (_error) {
+      // If command fails (e.g., no processes found), return empty array
+      return [];
+    }
   }
 
   /**

@@ -20,7 +20,7 @@
 - Lifecycle Phase: alpha (see docs/standards/lifecycle-maturity.md)
 - Release Phase: rc (preparing 0.2.x public track)
 
-**Latest**: v0.2.0-rc.2 (public RC) includes **enterprise authentication** foundations, improved MCP client configuration, and a stabilized test/release pipeline.
+**Latest**: v0.2.2-rc.15 (public RC) includes **Windows compatibility**, comprehensive test suite, cross-platform utilities, and resolved line ending issues for Windows development.
 
 ---
 

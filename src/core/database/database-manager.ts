@@ -104,6 +104,13 @@ export class DatabaseManager {
       mkdirSync(baseDir, { recursive: true });
     }
 
+    // Convert Windows paths to proper file URLs
+    // Windows: C:\path\to\file -> file:///C:/path/to/file
+    // Unix: /path/to/file -> file:/path/to/file
+    if (process.platform === "win32") {
+      const normalizedPath = dbPath.replace(/\\/g, "/");
+      return `file:///${normalizedPath}`;
+    }
     return `file:${dbPath}`;
   }
 

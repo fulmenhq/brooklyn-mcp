@@ -1,7 +1,7 @@
 # Brooklyn MCP Release Checklist
 
 **Project**: Brooklyn MCP - Enterprise Browser Automation Platform  
-**Current Target**: v0.2.2-rc.12  
+**Current Target**: v0.2.2-rc.15  
 **Release Type**: Release Candidate  
 **Governance**: Fulmen Ecosystem Standards
 
@@ -49,9 +49,9 @@
 
 ### Version Management ✅
 
-- [ ] **Version Updated**: VERSION file contains target version (0.2.2-rc.12)
+- [ ] **Version Updated**: VERSION file contains target version (0.2.2-rc.15)
 - [ ] **Package.json Sync**: package.json version matches VERSION file
-- [ ] **Changelog Updated**: CHANGELOG.md reflects all rc.12 changes
+- [ ] **Changelog Updated**: CHANGELOG.md reflects all rc.15 changes
 - [ ] **Version Workflow Complete**: `bun run version:commit` executed successfully
 - [ ] **Artifacts Committed**: All version embedding changes properly committed
 - [ ] **Working Tree Clean**: No uncommitted version artifacts remain
@@ -139,23 +139,23 @@ bun run validate:clean-working-tree:strict # Ensure still clean after builds
 bun run validate:clean-working-tree:strict
 
 # Create annotated release tag (4-minute timeout)
-export VERSION="0.2.2-rc.12"
+export VERSION="0.2.2-rc.15"
 timeout 240 git tag -a v$VERSION -m "Brooklyn MCP v$VERSION
 
-🌉 Brooklyn MCP Release Candidate 12
+🌉 Brooklyn MCP Release Candidate 15
 
 ✨ Features:
-- Clean working tree validation prevents release contamination
-- Automated version artifact commit workflow
-- Enhanced prepush validation with strict repository state checks
-- Windows CI timeout fixes for HTTP transport layer
-- Comprehensive release checklist compliance automation
+- Complete Windows compatibility and development support
+- Cross-platform git line ending management with .gitattributes
+- Comprehensive database manager test suite with Windows path handling
+- Multi-platform development standards and utilities
+- Cross-platform cleanup and package management scripts
 
 🔧 Improvements:
-- Zero-tolerance policy for uncommitted version artifacts
-- 4-minute timeout support for all git operations
-- Programmatic enforcement of release quality standards
-- Automated detection and handling of repository state issues
+- Fixed Windows-specific path handling in test expectations
+- Added comprehensive multi-platform development SOP documentation
+- Enhanced process management with Windows-compatible error handling
+- Resolved git autocrlf conflicts for consistent cross-platform development
 
 📋 Quality Metrics:
 - MCP Protocol: Full compliance with 50+ tools
@@ -176,7 +176,7 @@ timeout 240 git push origin main
 
 **Git Validation Requirements:**
 
-- [ ] **Tag Created**: Annotated tag v0.2.2-rc.12 created successfully
+- [ ] **Tag Created**: Annotated tag v0.2.2-rc.15 created successfully
 - [ ] **Tag Pushed**: Tag successfully pushed to origin
 - [ ] **Commits Pushed**: All commits successfully pushed to origin
 - [ ] **Repository Sync**: Local and remote repositories in sync
@@ -184,9 +184,9 @@ timeout 240 git push origin main
 
 ### GitHub Release ✅
 
-- [ ] **Release Created**: New GitHub release created for v0.2.2-rc.12
-- [ ] **Tag Selected**: Correct version tag selected (v0.2.2-rc.12)
-- [ ] **Release Title**: "Brooklyn MCP v0.2.2-rc.12"
+- [ ] **Release Created**: New GitHub release created for v0.2.2-rc.15
+- [ ] **Tag Selected**: Correct version tag selected (v0.2.2-rc.15)
+- [ ] **Release Title**: "Brooklyn MCP v0.2.2-rc.15"
 - [ ] **Release Notes**: Comprehensive changelog from tag message
 - [ ] **Binaries Attached**: All 6 platform binaries uploaded
 - [ ] **Checksums Included**: SHA256SUMS files for all platforms
@@ -251,8 +251,8 @@ If critical issues are discovered after release:
 
 ```bash
 # Delete tag locally and remotely (4-minute timeouts)
-timeout 240 git tag -d v0.2.2-rc.12
-timeout 240 git push origin :refs/tags/v0.2.2-rc.12
+timeout 240 git tag -d v0.2.2-rc.15
+timeout 240 git push origin :refs/tags/v0.2.2-rc.15
 
 # Delete GitHub release
 # (Manual process through GitHub UI or gh CLI)
@@ -277,14 +277,14 @@ bun run version:commit
 
 ## Release Command Sequence
 
-**Complete release workflow for Brooklyn MCP v0.2.2-rc.12:**
+**Complete release workflow for Brooklyn MCP v0.2.2-rc.15:**
 
 ```bash
 # 1. Repository state validation (CRITICAL)
 bun run validate:clean-working-tree:strict
 
 # 2. Version management (if not already done)
-export VERSION="0.2.2-rc.12"
+export VERSION="0.2.2-rc.15"
 bun run version:set $VERSION
 bun run version:commit
 bun run validate:clean-working-tree:strict
@@ -353,7 +353,7 @@ timeout 240 git push origin main
 
 ---
 
-**Release Checklist Version**: 2.0 (Updated for Brooklyn MCP v0.2.2-rc.12)  
+**Release Checklist Version**: 2.0 (Updated for Brooklyn MCP v0.2.2-rc.15)  
 **Last Updated**: 2025-09-12  
 **Next Review**: After rc.12 release completion  
 **Based On**: Fulmen Ecosystem Release Standards
