@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2-rc.16] - 2025-09-29
+
+### Fixed
+
+- **CI Pipeline Hanging**: Resolved critical browser process deadlock in CI environments that caused infinite hanging instead of timeouts
+- **Browser Instance Cleanup**: Fixed `Promise.race()` deadlock in browser-instance.ts that left zombie browser processes
+- **Focus Element Tests**: Browser cleanup now properly terminates processes, preventing CI runner hangs on focus-element tests
+
+### Technical
+
+- **Process Termination**: Replaced unreliable `Promise.race()` pattern with controlled timeout mechanism that actively kills browser processes
+- **Resource Management**: Improved browser instance cleanup with proper timeout handling and force-kill capabilities
+- **Windows CI Compatibility**: Browser process termination now works reliably in Windows CI environments
+
 ## [0.2.2-rc.15] - 2025-09-28
 
 ### Fixed

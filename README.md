@@ -20,7 +20,7 @@
 - Lifecycle Phase: alpha (see docs/standards/lifecycle-maturity.md)
 - Release Phase: rc (preparing 0.2.x public track)
 
-**Latest**: v0.2.2-rc.15 (public RC) includes **Windows compatibility**, comprehensive test suite, cross-platform utilities, and resolved line ending issues for Windows development.
+**Latest**: v0.2.2-rc.16 (public RC) includes **Windows compatibility**, comprehensive test suite, cross-platform utilities, resolved line ending issues, and critical CI pipeline hanging fixes for Windows development.
 
 ---
 

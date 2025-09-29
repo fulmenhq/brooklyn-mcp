@@ -76,9 +76,9 @@ const CHECK_STEPS: CheckStep[] = [
   {
     name: "test:unit",
     command: "bun",
-    args: ["run", "test:unit"],
+    args: ["run", "test:precommit"],
     timeoutMs: 300000, // 5 minutes (Windows process tests can be slow)
-    description: "Unit test execution",
+    description: "Unit test execution with Windows-compatible timeouts (15s per test)",
     required: true,
   },
   {

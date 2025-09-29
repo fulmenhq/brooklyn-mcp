@@ -48,7 +48,7 @@ export interface BuildSignature {
 export const buildConfig = {
   serviceName: templateVars.SERVICE_NAME,
   displayName: templateVars.DISPLAY_NAME,
-  version: "0.2.2-rc.15", // Synced from VERSION file
+  version: "0.2.2-rc.16", // Synced from VERSION file
   execName: templateVars.EXEC_NAME,
   repoName: templateVars.REPO_NAME,
 };

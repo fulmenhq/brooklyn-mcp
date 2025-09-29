@@ -291,22 +291,43 @@ export class BrowserInstance {
   private async closeBrowser(force: boolean): Promise<void> {
     if (!this.browser?.isConnected()) return;
 
-    try {
-      // Add timeout to prevent hanging on browser.close()
-      const closePromise = this.browser.close();
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Browser close timeout")), 5000),
-      );
+    let timeoutId: NodeJS.Timeout | undefined;
+    let timedOut = false;
 
-      await Promise.race([closePromise, timeoutPromise]);
+    try {
+      // Create a controlled timeout that can kill the browser process
+      const closeWithTimeout = new Promise<void>((resolve, reject) => {
+        this.browser?.close().then(resolve).catch(reject);
+
+        timeoutId = setTimeout(() => {
+          timedOut = true;
+          logger.warn("Browser close timed out, force killing process", {
+            instanceId: this.id,
+          });
+
+          // Force kill the browser process immediately
+          this.forceKillBrowserProcess();
+          resolve(); // Resolve to prevent hanging
+        }, 5000);
+      });
+
+      await closeWithTimeout;
+
+      if (timeoutId && !timedOut) {
+        clearTimeout(timeoutId);
+      }
     } catch (error) {
+      if (timeoutId && !timedOut) {
+        clearTimeout(timeoutId);
+      }
+
       if (!force) throw error;
       logger.warn("Failed to close browser gracefully, attempting force kill", {
         instanceId: this.id,
         error: error instanceof Error ? error.message : String(error),
       });
 
-      // Try to force kill the browser process
+      // Ensure browser process is killed
       this.forceKillBrowserProcess();
     }
   }
