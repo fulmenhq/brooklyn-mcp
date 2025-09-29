@@ -19,14 +19,14 @@ echo "   - Build artifacts validation"
 echo "   - Full test suite"
 echo "⚠️  Note: Browser integration tests may fail if Playwright browsers are not installed."
 echo "   Run 'bun run setup:browsers' to install browsers for full testing."
-echo "⏱️  Expected duration: ~4 minutes on Windows"
+echo "⏱️  Expected duration: ~6 minutes on Windows"
 
 # Set consistent environment variables for cross-platform testing
 export BROOKLYN_HEADLESS=true
 export PLAYWRIGHT_HEADLESS=true
 export NODE_OPTIONS="--max-old-space-size=4096"
 
-timeout 300 bun run prepush || {
+timeout 600 bun run prepush || {
   echo ""
   echo "❌ Pre-push validation failed. Please fix before pushing."
   echo ""
@@ -42,7 +42,7 @@ timeout 300 bun run prepush || {
 # Run release validation for version tags
 if echo "$1" | grep -q "refs/tags/v"; then
   echo "🏷️  Version tag detected - running release validation..."
-  BROOKLYN_HEADLESS=true PLAYWRIGHT_HEADLESS=true NODE_OPTIONS="--max-old-space-size=4096" timeout 300 bun run release:validate || {
+  BROOKLYN_HEADLESS=true PLAYWRIGHT_HEADLESS=true NODE_OPTIONS="--max-old-space-size=4096" timeout 600 bun run release:validate || {
     echo ""
     echo "❌ Release validation failed. Please fix before pushing version tag."
     echo ""
