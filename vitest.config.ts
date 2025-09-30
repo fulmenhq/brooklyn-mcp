@@ -29,21 +29,24 @@ export default defineConfig({
       forks: {
         // Auto-detect workers based on CPU cores, with constraints for Windows CI
         // BUT force single fork for integration tests to prevent resource conflicts
+        // Windows CI uses single fork due to browser process hanging issues
         maxForks:
           process.env["VITEST_FILE_PARALLELISM"] === "false" ||
           process.argv.some((arg) => arg.includes("tests/integration"))
             ? 1
             : process.env["CI"]
               ? process.platform === "win32"
-                ? 2
+                ? 1 // Force single fork on Windows CI to prevent browser hangs
                 : 4
-              : // Windows CI: 2, others: 4
+              : // Windows CI: 1, others: 4
                 Math.max(1, Math.ceil(cpus().length / 2)), // Local: half CPU cores
         minForks: 1,
         // Force single fork for integration tests to prevent process/port conflicts
+        // Also force single fork on Windows CI to prevent browser process deadlocks
         singleFork:
           process.env["VITEST_FILE_PARALLELISM"] === "false" ||
-          process.argv.some((arg) => arg.includes("tests/integration")),
+          process.argv.some((arg) => arg.includes("tests/integration")) ||
+          (process.env["CI"] === "true" && process.platform === "win32"),
       },
     },
     // Increase timeouts for Windows process management and CI

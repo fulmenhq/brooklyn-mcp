@@ -302,6 +302,8 @@ export class BrowserPool extends EventEmitter {
         instance = await this.createInstance({
           teamId: request.teamId,
           browserType: request.browserType || "chromium",
+          // Thread through metadata for headless, timeout, viewport, etc.
+          ...(request.metadata || {}),
         });
       }
 

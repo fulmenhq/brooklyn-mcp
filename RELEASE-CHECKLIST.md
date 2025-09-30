@@ -1,8 +1,8 @@
 # Brooklyn MCP Release Checklist
 
-**Project**: Brooklyn MCP - Enterprise Browser Automation Platform  
-**Current Target**: v0.2.2-rc.16  
-**Release Type**: Release Candidate  
+**Project**: Brooklyn MCP - Enterprise Browser Automation Platform
+**Current Target**: v0.2.2-rc.17
+**Release Type**: Release Candidate
 **Governance**: Fulmen Ecosystem Standards
 
 ---

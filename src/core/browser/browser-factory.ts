@@ -142,6 +142,7 @@ export class BrowserFactory {
    * Build launch options for browser
    */
   private buildLaunchOptions(config: BrowserInstanceConfig): LaunchOptions {
+    // Standard Playwright headless configuration
     const baseOptions: LaunchOptions = {
       headless: config.headless ?? this.config.defaultHeadless ?? true,
       timeout: config.timeout ?? this.config.defaultTimeout ?? 30000,
@@ -153,17 +154,13 @@ export class BrowserFactory {
     // Merge options
     const options = { ...browserOptions, ...baseOptions };
 
-    // Add Chromium-specific flags for better stability
+    // Add Chromium-specific stability flags (NOT headless-related)
     if (config.browserType === "chromium") {
       options.args = [
         ...(options.args || []),
         "--no-sandbox",
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
-        "--disable-web-security",
-        "--disable-features=VizDisplayCompositor",
-        "--disable-gpu",
-        "--no-zygote",
       ];
 
       // Add memory limits if specified

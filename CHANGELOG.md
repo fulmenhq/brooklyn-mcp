@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2-rc.17] - 2025-09-30
+
+### Fixed
+
+- **Windows Test Timeouts**: Fixed critical timeout mismatches causing Windows CI to hang during test execution
+- **Precommit Test Configuration**: Updated `vitest.config.precommit.ts` to use Windows-aware timeouts (4 minutes vs 15 seconds)
+- **Browser Headless Mode**: Added explicit `--headless=new` flag for Windows Chromium to prevent window popups
+- **Test Fork Configuration**: Enforced single fork execution on Windows CI to prevent browser process deadlocks
+
+### Technical
+
+- **Vitest Configuration**: Aligned precommit test timeouts with main config - Windows needs 240s, not 15s
+- **Browser Factory**: Added Windows-specific Chromium args to force new headless mode
+- **Fork Management**: Windows CI now uses `singleFork: true` to eliminate parallel test hanging
+- **Root Cause**: Test framework timeout (15s) was far too short for Windows browser operations (needs 240s)
+
+### Impact
+
+- Resolves GH Actions Windows runner hanging issues that plagued rc.13-rc.16
+- Eliminates Chromium window popups on Windows despite headless mode being enabled
+- Prevents test suite from timing out during pre-push validation on Windows
+- Allows tag push operations to complete successfully on all three platforms (Ubuntu, macOS, Windows)
+
 ## [0.2.2-rc.16] - 2025-09-29
 
 ### Fixed
