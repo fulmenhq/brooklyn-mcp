@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2025-01-17
+
+### Major Improvements
+
+- **Windows CI Compatibility**: Achieved full cross-platform CI/CD pipeline stability across Ubuntu, macOS, and Windows
+- **Developer Experience**: Streamlined quality gates and validation processes for faster development cycles
+- **Browser Automation Reliability**: Resolved critical browser process management issues in headless CI environments
+
+### Fixed
+
+- **Headless Windows CI Hang**: Added critical GPU-related flags (`--disable-gpu`, `--disable-software-rasterizer`, `--disable-gpu-compositing`) to prevent Chromium hanging on headless Windows CI environments
+- **Windows Test Timeouts**: Fixed critical timeout mismatches causing Windows CI to hang during test execution
+- **Browser Process Deadlock**: Resolved `Promise.race()` deadlock in browser-instance.ts that left zombie browser processes
+- **Windows Line Endings**: Added `.gitattributes` file to ensure consistent line endings across platforms
+- **Windows Build Dependencies**: Fixed missing `zip` and `shasum` tools on Windows CI by installing via Scoop
+
+### Enhanced
+
+- **Precommit Test Configuration**: Updated to use Windows-aware timeouts (4 minutes vs 15 seconds)
+- **Browser Headless Mode**: Added explicit `--headless=new` flag for Windows Chromium to prevent window popups
+- **Test Fork Configuration**: Enforced single fork execution on Windows CI to prevent browser process deadlocks
+- **Process Termination**: Replaced unreliable `Promise.race()` pattern with controlled timeout mechanism
+- **Cross-Platform Process Management**: Enhanced instance manager error handling for Windows process cleanup
+
+### Technical Details
+
+- **Root Cause Analysis**: Chromium GPU initialization hangs on truly headless Windows systems (GitHub Actions runners) without display server
+- **Solution Implementation**: Detect Windows + CI + headless mode and add GPU-disabling flags to prevent initialization deadlock
+- **Vitest Configuration**: Aligned precommit test timeouts with main config - Windows needs 240s, not 15s
+- **Resource Management**: Improved browser instance cleanup with proper timeout handling and force-kill capabilities
+
+### Impact
+
+- ✅ All three platforms (Ubuntu, macOS, Windows) now pass CI successfully
+- ✅ Pre-push validation completes reliably on all platforms
+- ✅ Tag push operations complete successfully across all environments
+- ✅ Eliminated Chromium window popups on Windows despite headless mode being enabled
+
+### Acknowledgments
+
+This release represents the culmination of extensive cross-platform testing and fixes across RC.1 through RC.18, establishing Brooklyn MCP as a truly enterprise-ready, cross-platform browser automation solution.
+
 ## [0.2.2-rc.18] - 2025-09-30
 
 ### Fixed
