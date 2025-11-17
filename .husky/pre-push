@@ -5,11 +5,21 @@
 
 echo "🌉 Brooklyn Pre-push Validation..."
 
-# First cleanup all Brooklyn services
-echo "🧹 Cleaning up Brooklyn services..."
-brooklyn cleanup --all || {
-  echo "⚠️  Warning: Cleanup failed, continuing anyway..."
-}
+# Detect platform and set binary path
+BINARY_PATH="./dist/brooklyn"
+if [ "$(uname -s)" = "MINGW64_NT" ] || [ "$(uname -s)" = "MSYS_NT" ]; then
+  BINARY_PATH="./dist/brooklyn.exe"
+fi
+
+# First cleanup all Brooklyn services (if binary exists)
+if [ -f "$BINARY_PATH" ]; then
+  echo "🧹 Cleaning up Brooklyn services..."
+  "$BINARY_PATH" cleanup --all || {
+    echo "⚠️  Warning: Cleanup failed, continuing anyway..."
+  }
+else
+  echo "⚠️  Note: Brooklyn binary not built yet, skipping cleanup"
+fi
 
 # Run full prepush validation (includes license scanning)
 echo "🔍 Running comprehensive pre-push validation..."
@@ -26,7 +36,8 @@ export BROOKLYN_HEADLESS=true
 export PLAYWRIGHT_HEADLESS=true
 export NODE_OPTIONS="--max-old-space-size=4096"
 
-timeout 600 bun run prepush || {
+# Run prepush (bun handles timeout internally via package.json script)
+bun run prepush || {
   echo ""
   echo "❌ Pre-push validation failed. Please fix before pushing."
   echo ""
@@ -42,7 +53,7 @@ timeout 600 bun run prepush || {
 # Run release validation for version tags
 if echo "$1" | grep -q "refs/tags/v"; then
   echo "🏷️  Version tag detected - running release validation..."
-  BROOKLYN_HEADLESS=true PLAYWRIGHT_HEADLESS=true NODE_OPTIONS="--max-old-space-size=4096" timeout 600 bun run release:validate || {
+  BROOKLYN_HEADLESS=true PLAYWRIGHT_HEADLESS=true NODE_OPTIONS="--max-old-space-size=4096" bun run release:validate || {
     echo ""
     echo "❌ Release validation failed. Please fix before pushing version tag."
     echo ""

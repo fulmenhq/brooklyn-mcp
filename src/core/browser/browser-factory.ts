@@ -163,14 +163,15 @@ export class BrowserFactory {
         "--disable-dev-shm-usage",
       ];
 
-      // Critical flags for headless Windows CI (prevents GPU init hang on systems without display server)
+      // Critical flags for headless Windows (prevents GPU init hang and visible windows)
+      // WINDOWS BUG: Playwright doesn't properly handle headless mode without explicit GPU disabling
+      // This affects BOTH local development AND CI - Windows tries to use GPU even in headless mode
       if (
         process.platform === "win32" &&
-        process.env["CI"] === "true" &&
         (config.headless ?? this.config.defaultHeadless ?? true)
       ) {
         options.args.push(
-          "--disable-gpu", // Prevents hanging on headless Windows
+          "--disable-gpu", // Prevents hanging on headless Windows AND stops visible windows
           "--disable-software-rasterizer", // Force no rendering
           "--disable-gpu-compositing", // Disable GPU compositing
         );
