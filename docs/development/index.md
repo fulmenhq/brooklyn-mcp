@@ -233,6 +233,22 @@ bun run server:status
 }
 ```
 
+## Quality & CI/CD Overview
+
+Brooklyn follows a strict quality-first pipeline:
+
+- **Vitest as default runner**: All core unit, integration, and E2E tests, and all quality gates (pre-commit, pre-push, CI, release) use Vitest.
+- **Bun-only tests as exceptions**: A small number of Bun runtime tests (e.g. `tests/integration/bun/local-http-server-bun.bun-test.ts`) are explicitly documented and never wired into mandatory gates.
+- **Local quality pipeline**: `bun run check-all` (driven by `scripts/check-all.ts`) runs format → typecheck → lint → tests with Windows/headless-friendly settings.
+- **Release validation gate**: `bun run release:validate` runs code quality, tests, builds, license scans, and binary checks. It is invoked by the pre-push hook and the GitHub Release workflow (`.github/workflows/release.yml`).
+
+For full details, see:
+
+- `docs/testing/test-categorization-guide.md` – test categories, Vitest vs Bun runners, hooks, and CI usage
+- `docs/testing/integration-test-guide.md` – integration test setup and troubleshooting
+- `docs/development/validation-procedures.md` – validation commands, including `check-all` and `release:validate`
+- `docs/development/standards/deployment-sop.md` – pre-commit/pre-push process and tag-based release SOP
+
 ## MCP Development Mode (Internal Use Only)
 
 Brooklyn includes a revolutionary development mode for internal MCP development that allows rapid iteration without Claude Code restarts.

@@ -25,15 +25,20 @@ async function runValidation(
   name: string,
   command: string,
   args: string[] = [],
+  envOverride?: NodeJS.ProcessEnv,
 ): Promise<ValidationResult> {
   const startTime = Date.now();
 
   try {
     console.log(chalk.blue(`🔍 ${name}...`));
-    execSync(`${command} ${args.join(" ")}`, {
+    execSync(`${command} ${args.join(" ")}`.trim(), {
       cwd: rootDir,
       stdio: ["inherit", "inherit", "pipe"], // Capture stderr to avoid Windows warnings causing failures
       encoding: "utf-8",
+      env: {
+        ...process.env,
+        ...envOverride,
+      },
     });
 
     const duration = Date.now() - startTime;
@@ -82,16 +87,16 @@ async function validateCodeQuality(): Promise<ValidationResult[]> {
   const results: ValidationResult[] = [];
 
   // Format check
-  results.push(await runValidation("Code Formatting", "bun run format:code"));
+  results.push(await runValidation("Code Formatting", "bun", ["run", "format:code"]));
 
   // Type check
-  results.push(await runValidation("TypeScript Check", "bun run typecheck"));
+  results.push(await runValidation("TypeScript Check", "bun", ["run", "typecheck"]));
 
   // Lint check
-  results.push(await runValidation("Linting", "bun run lint"));
+  results.push(await runValidation("Linting", "bun", ["run", "lint"]));
 
   // MCP schema compliance
-  results.push(await runValidation("MCP Schema Compliance", "bun run check:mcp-schema"));
+  results.push(await runValidation("MCP Schema Compliance", "bun", ["run", "check:mcp-schema"]));
 
   return results;
 }
@@ -102,17 +107,27 @@ async function validateTests(): Promise<ValidationResult[]> {
 
   const results: ValidationResult[] = [];
 
+  const testEnv: NodeJS.ProcessEnv = {
+    BROOKLYN_HEADLESS: "true",
+    PLAYWRIGHT_HEADLESS: "true",
+    NODE_OPTIONS: "--max-old-space-size=4096",
+  };
+
   // Setup test infrastructure first
-  results.push(await runValidation("Test Infrastructure Setup", "bun run setup:test-infra"));
+  results.push(
+    await runValidation("Test Infrastructure Setup", "bun", ["run", "setup:test-infra"], testEnv),
+  );
 
   // Unit tests
-  results.push(await runValidation("Unit Tests", "bun run test:unit"));
+  results.push(await runValidation("Unit Tests", "bun", ["run", "test:unit"], testEnv));
 
   // Integration tests
-  results.push(await runValidation("Integration Tests", "bun run test:integration"));
+  results.push(
+    await runValidation("Integration Tests", "bun", ["run", "test:integration"], testEnv),
+  );
 
   // E2E tests
-  results.push(await runValidation("E2E Tests", "bun run test:e2e"));
+  results.push(await runValidation("E2E Tests", "bun", ["run", "test:e2e"], testEnv));
 
   return results;
 }
@@ -124,13 +139,13 @@ async function validateBuild(): Promise<ValidationResult[]> {
   const results: ValidationResult[] = [];
 
   // Single platform build
-  results.push(await runValidation("Single Platform Build", "bun run build"));
+  results.push(await runValidation("Single Platform Build", "bun", ["run", "build"]));
 
   // Cross-platform builds
-  results.push(await runValidation("Cross-Platform Builds", "bun run build:all"));
+  results.push(await runValidation("Cross-Platform Builds", "bun", ["run", "build:all"]));
 
   // Distribution packaging
-  results.push(await runValidation("Distribution Packaging", "bun run package:all"));
+  results.push(await runValidation("Distribution Packaging", "bun", ["run", "package:all"]));
 
   return results;
 }
@@ -142,10 +157,10 @@ async function validateLicenses(): Promise<ValidationResult[]> {
   const results: ValidationResult[] = [];
 
   // License scan
-  results.push(await runValidation("License Scan", "bun run license:scan"));
+  results.push(await runValidation("License Scan", "bun", ["run", "license:scan"]));
 
   // Strict license policy
-  results.push(await runValidation("Strict License Policy", "bun run license:scan:strict"));
+  results.push(await runValidation("Strict License Policy", "bun", ["run", "license:scan:strict"]));
 
   return results;
 }

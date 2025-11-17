@@ -150,7 +150,7 @@ kill -9 <PID>
 
 ## CI/CD Integration
 
-The same commands work in both local and CI environments:
+The same commands work in both local and CI environments. In addition, Brooklyn's release pipeline uses `release:validate` as the comprehensive quality gate before building and publishing artifacts.
 
 ```yaml
 # GitHub Actions example
@@ -163,6 +163,10 @@ The same commands work in both local and CI environments:
 
 - name: Run integration tests
   run: bun run test:integration
+
+# Release validation (Ubuntu): format, typecheck, lint, tests, build, licenses, binaries
+- name: Run release validation
+  run: bun run release:validate
 ```
 
 ## Advanced Usage

@@ -84,10 +84,13 @@ EOF
 ```bash
 # This should run automatically, but verify:
 bun run prepush
+# package.json:
+#   "prepush": "bun run validate:clean-working-tree:strict && bun run precommit && bun run build:artifacts:local && bun run release:validate"
 
 # Manual verification if needed:
-bun run precommit     # Format + typecheck + lint + fast tests
-bun run test:prepush  # Full test suite including integration tests
+bun run validate:clean-working-tree:strict   # Ensure no stray changes
+bun run precommit                            # Format + typecheck + lint + fast tests
+bun run release:validate                     # Full gate: tests + build + licenses + binaries
 ```
 
 **Expected Results:**
@@ -230,13 +233,13 @@ git push origin main --force-with-lease -m "EMERGENCY: broken deployment pipelin
 
 ## Common Failure Points & Solutions
 
-### ❌ "prepush script doesn't run precommit"
+### ❌ "prepush script doesn't run full validation"
 
-**Root cause**: prepush only ran tests, not format/lint/typecheck
+**Root cause**: prepush only ran tests, not format/lint/typecheck/build/release validation
 
 ```bash
-# Fix in package.json:
-"prepush": "bun run precommit && bun run test:prepush"
+# Fix in package.json (current pattern):
+"prepush": "bun run validate:clean-working-tree:strict && bun run precommit && bun run build:artifacts:local && bun run release:validate"
 ```
 
 ### ❌ "Tests pass locally but fail on tag push"

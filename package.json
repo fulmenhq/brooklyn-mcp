@@ -29,7 +29,7 @@
     "// === 🧪 TESTING (Specialized) ===": "",
     "test:safe": "vitest run",
     "test:ci:safe": "BROOKLYN_CLEAN_BEFORE_TESTS=1 bun run test:safe",
-    "test:cleanup": "brooklyn cleanup --mcp || true && brooklyn cleanup --mcp-all --force || true",
+    "test:cleanup": "bun scripts/test-cleanup.ts",
     "test:precommit": "vitest run --config vitest.config.precommit.ts",
     "test:prepush": "vitest run",
     "test:integration:mock": "vitest run tests/integration/team-onboarding-functional.test.ts",

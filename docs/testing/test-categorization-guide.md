@@ -96,7 +96,14 @@ Brooklyn uses a **hybrid test runner approach** to optimize for both scalability
 
 ### Vitest (Primary Test Runner)
 
-**Used for**: 90% of tests including unit tests, integration tests, and browser automation
+**Used for**: All core tests, including unit tests, standard integration tests, and browser automation
+
+Vitest is the **mandatory default** runner for anything that participates in quality gates:
+
+- Pre-commit hooks
+- Pre-push hooks
+- CI pipelines (including `test:ci`)
+- Release validation (`release:validate` and the GitHub Release workflow)
 
 **Why Vitest**:
 
@@ -128,7 +135,7 @@ export default defineConfig({
 
 ### Bun Test Runner (Strategic Integration Testing)
 
-**Used for**: 10% of tests requiring Bun-specific runtime APIs
+**Used for**: A small number of specialized tests requiring Bun-specific runtime APIs
 
 **Why Bun Test**:
 
@@ -136,12 +143,18 @@ export default defineConfig({
 - **8x faster execution** than Vitest for runtime-specific operations
 - **Production runtime alignment** - tests run in same environment as production
 
-**When to Use Bun Test**:
+**When to Use Bun Test** (advanced/optional):
 
-- LocalHttpServer integration testing (requires `Bun.serve()`)
+- LocalHttpServer integration testing (requires `Bun.serve()`), e.g. `tests/integration/bun/local-http-server-bun.bun-test.ts`
 - File ID generation testing (requires `Bun.hash()`)
 - Performance benchmarking of Bun-specific code
 - HTTP transport protocol validation
+
+These suites:
+
+- Are **never** wired into pre-commit, pre-push, or `release:validate`
+- Are intended for targeted runtime validation or manual runs
+- Should not be treated as part of the core quality gates
 
 **Limitations**:
 
@@ -164,13 +177,13 @@ export default defineConfig({
 ### Script Configuration
 
 ```bash
-# Primary test commands (Vitest)
+# Primary test commands (Vitest; used in hooks, CI, release)
 bun run test                      # All tests (hybrid execution)
 bun run test:unit                 # Vitest unit tests
 bun run test:integration          # Vitest integration tests
 bun run test:watch                # Vitest watch mode
 
-# Bun-specific tests
+# Bun-specific tests (advanced / optional; not part of hooks or release gates)
 bun run test:integration:bun      # Bun test runner for HTTP server (✅ IMPLEMENTED)
 bun run test:performance          # Bun performance benchmarks (included in :integration:bun)
 ```

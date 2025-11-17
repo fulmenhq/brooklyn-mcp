@@ -160,12 +160,27 @@ expect(response.data?.items?.length).toBe(3);
 ### 11. Use Correct Test Runner
 
 ```bash
-# ❌ WRONG - Bun's built-in runner
+# ❌ WRONG (by default) - Bun's built-in runner for core tests
 bun test
 
-# ✅ CORRECT - Always use vitest
+# ✅ CORRECT (mandatory default) - Vitest for unit/integration/e2e
 bun run test
 ```
+
+Brooklyn uses Vitest as the **mandatory default** test runner for:
+
+- All unit tests
+- All standard integration tests
+- All E2E tests
+- All quality gates (pre-commit, pre-push, CI, and release validation)
+
+The only allowed exceptions are **explicit Bun-only suites** that exercise Bun runtime APIs directly (for example `tests/integration/bun/local-http-server-bun.bun-test.ts`). These:
+
+- Must be invoked through dedicated scripts in `package.json` (e.g. `bun run test:integration:bun`)
+- Must never be wired into pre-commit, pre-push, or `release:validate`
+- Are treated as advanced/runtime-specific coverage, not as part of the core quality gates
+
+> Fulmen ecosystem note: In the 0.3.x series, Brooklyn's test runner policy will be aligned with crucible/tsfulmen as the single source of truth for CI/testing standards. This document will track project-specific overlays on top of that ecosystem baseline.
 
 ## 🔧 Quality Commands (Run These Before Committing)
 

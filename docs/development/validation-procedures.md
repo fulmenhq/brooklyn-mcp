@@ -114,14 +114,17 @@ bun run check:file:fix path/to/file.ts  # Auto-fix where possible
 ### Project-Level Validation
 
 ```bash
-# Complete quality pipeline
-bun run check-all  # format → typecheck → lint → test
+# Complete local quality pipeline (developer-focused)
+bun run check-all  # format → typecheck → lint → test (uses scripts/check-all.ts)
+
+# Release/CI validation gate (used by pre-push hook and Release workflow)
+bun run release:validate  # format → typecheck → lint → schema → tests → build → licenses → binary checks
 
 # Individual steps
 bun run format     # Format code and docs
 bun run typecheck  # TypeScript compilation
 bun run lint       # Linting with exceptions
-bun run test       # Test execution
+bun run test       # Test execution (Vitest)
 ```
 
 ### Integration Test Preparation

@@ -163,6 +163,22 @@ Brooklyn serves as the **foundational template** for the entire MCP ecosystem, p
 - **Security Patterns** - Enterprise authentication, authorization, and compliance frameworks
 - **Development Workflows** - Testing strategies, quality gates, and operational excellence
 
+### **Quality & CI/CD Overview**
+
+Brooklyn is wired around a strict quality pipeline that will later align with Fulmen's crucible/tsfulmen information architecture:
+
+- **Vitest as default runner**: All core unit, integration, and E2E tests – and all quality gates (pre-commit, pre-push, CI, release) – run under Vitest.
+- **Bun-only suites as explicit exceptions**: A small number of Bun tests (for Bun-specific APIs like `Bun.serve`/`Bun.hash`) live in dedicated paths (e.g. `tests/integration/bun/local-http-server-bun.bun-test.ts`) and are never wired into mandatory gates.
+- **Local quality pipeline**: `bun run check-all` (via `scripts/check-all.ts`) runs format → typecheck → lint → tests with cross-platform, headless-friendly settings.
+- **Release validation gate**: `bun run release:validate` runs code quality checks, tests, builds, license scans, and binary validation. It is invoked by the pre-push hook and the GitHub Release workflow.
+
+See:
+
+- `docs/testing/test-categorization-guide.md` – Vitest vs Bun and test categories
+- `docs/testing/integration-test-guide.md` – integration setup and CI usage
+- `docs/development/validation-procedures.md` – `check-all` vs `release:validate`
+- `docs/development/standards/deployment-sop.md` – pre-commit/pre-push and release SOP
+
 ### **Post-Release Roadmap**
 
 - **🔐 Authentication Backends** - OAuth, LDAP, API keys with rotation for HTTP transport

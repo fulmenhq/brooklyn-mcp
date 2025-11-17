@@ -11,7 +11,7 @@
  * - Performance monitoring for each step
  */
 
-import { execSync, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import { performance } from "node:perf_hooks";
 
 interface CheckStep {
