@@ -154,7 +154,7 @@ export class BrowserFactory {
     // Merge options
     const options = { ...browserOptions, ...baseOptions };
 
-    // Add Chromium-specific stability flags (NOT headless-related)
+    // Add Chromium-specific stability flags
     if (config.browserType === "chromium") {
       options.args = [
         ...(options.args || []),
@@ -162,6 +162,19 @@ export class BrowserFactory {
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
       ];
+
+      // Critical flags for headless Windows CI (prevents GPU init hang on systems without display server)
+      if (
+        process.platform === "win32" &&
+        process.env["CI"] === "true" &&
+        (config.headless ?? this.config.defaultHeadless ?? true)
+      ) {
+        options.args.push(
+          "--disable-gpu", // Prevents hanging on headless Windows
+          "--disable-software-rasterizer", // Force no rendering
+          "--disable-gpu-compositing", // Disable GPU compositing
+        );
+      }
 
       // Add memory limits if specified
       if (config.resourceLimits?.maxMemoryMB) {

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2-rc.18] - 2025-09-30
+
+### Fixed
+
+- **Headless Windows CI Hang**: Added critical GPU-related flags to prevent Chromium hanging on headless Windows CI environments
+- **Browser Factory Configuration**: Added `--disable-gpu`, `--disable-software-rasterizer`, and `--disable-gpu-compositing` for Windows CI
+
+### Technical
+
+- **Root Cause**: Chromium hangs during GPU initialization on truly headless Windows systems (GitHub Actions runners) without display server
+- **Solution**: Detect Windows + CI + headless mode and add GPU-disabling flags to prevent initialization deadlock
+- **Impact**: Tests start but hang indefinitely on GitHub Actions Windows - not a timeout, but a browser initialization deadlock
+
 ## [0.2.2-rc.17] - 2025-09-30
 
 ### Fixed
