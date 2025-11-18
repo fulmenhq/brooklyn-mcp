@@ -19,7 +19,6 @@ import {
   type BrowserInstallationStatus,
   type BrowserType,
   type InstallationCache,
-  MAX_INSTALLATION_RETRIES,
 } from "./types.js";
 
 // Lazy logger initialization

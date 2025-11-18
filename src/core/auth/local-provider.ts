@@ -12,7 +12,7 @@ import { promisify } from "node:util";
 import type { BrooklynConfig } from "../config.js";
 import { BaseAuthProvider } from "./base-provider.js";
 import type { AuthResult, UserAccount, UserInfo } from "./types.js";
-import { AuthenticationError, AuthorizationError } from "./types.js";
+import { AuthenticationError } from "./types.js";
 
 const scryptAsync = promisify(scrypt);
 

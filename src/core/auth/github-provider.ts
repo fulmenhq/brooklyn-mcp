@@ -5,7 +5,7 @@
 
 import type { BrooklynConfig } from "../config.js";
 import { BaseAuthProvider } from "./base-provider.js";
-import type { AuthResult, OrganizationInfo, TeamInfo, TokenResult, UserInfo } from "./types.js";
+import type { AuthResult, TokenResult, UserInfo } from "./types.js";
 import { AuthenticationError, AuthorizationError } from "./types.js";
 
 /**

@@ -7,7 +7,6 @@
  */
 
 import { createInterface, type Interface } from "node:readline";
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import type { CallToolRequest, Tool } from "@modelcontextprotocol/sdk/types.js";
 
 import { getLogger } from "../shared/pino-logger.js";

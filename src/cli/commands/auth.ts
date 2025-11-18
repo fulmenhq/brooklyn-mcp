@@ -13,7 +13,6 @@ import { Command } from "commander";
 import inquirer from "inquirer";
 
 import type { UserAccount } from "../../core/auth/types.js";
-import type { BrooklynConfig } from "../../core/config.js";
 import { configManager } from "../../core/config.js";
 
 const scryptAsync = promisify(scrypt);

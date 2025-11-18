@@ -565,7 +565,7 @@ function setupMCPDevCommands(mcpCmd: Command): void {
 
         const { BrooklynHTTP } = await import("../core/brooklyn-http.js");
         const httpServer = new BrooklynHTTP({
-          port: Number.parseInt(options.port),
+          port: Number.parseInt(options.port, 10),
           host: options.host,
           cors: !options.noCors,
           teamId: options.teamId,
@@ -625,7 +625,7 @@ function setupMCPDevCommands(mcpCmd: Command): void {
       try {
         const { BrooklynHTTP } = await import("../core/brooklyn-http.js");
         const httpServer = new BrooklynHTTP({
-          port: Number.parseInt(options.port),
+          port: Number.parseInt(options.port, 10),
           host: options.host,
           cors: !options.noCors,
           teamId: options.teamId,
@@ -674,7 +674,7 @@ function setupMCPDevCommands(mcpCmd: Command): void {
         const parts = line.trim().split(/\s+/);
         const pidStr = parts[1];
         if (!pidStr) continue;
-        const pid = Number.parseInt(pidStr);
+        const pid = Number.parseInt(pidStr, 10);
         if (Number.isNaN(pid)) continue;
 
         const command = parts.slice(10).join(" ");
@@ -732,7 +732,7 @@ function setupMCPDevCommands(mcpCmd: Command): void {
         process.exit(1);
       }
 
-      const pid = Number.parseInt(readFileSync(pidFile, "utf8").trim());
+      const pid = Number.parseInt(readFileSync(pidFile, "utf8").trim(), 10);
       const success = await stopHttpProcess(pid, force, port);
 
       if (success) {
@@ -761,7 +761,7 @@ function setupMCPDevCommands(mcpCmd: Command): void {
         for (const pidFile of pidFiles) {
           const port = pidFile.match(/\.brooklyn-http-(\d+)\.pid$/)?.[1];
           const pidPath = `${cwd}/${pidFile}`;
-          const pid = Number.parseInt(readFileSync(pidPath, "utf8").trim());
+          const pid = Number.parseInt(readFileSync(pidPath, "utf8").trim(), 10);
 
           const success = await stopHttpProcess(pid, force, port);
           if (success) {

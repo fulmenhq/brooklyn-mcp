@@ -6,7 +6,7 @@
 import { EventEmitter } from "node:events";
 import type { Page } from "playwright";
 import { getLogger } from "../../shared/pino-logger.js";
-import type { BrowserInstance, BrowserInstanceConfig } from "./browser-instance.js";
+import type { BrowserInstance } from "./browser-instance.js";
 
 const logger = getLogger("browser-pool");
 
