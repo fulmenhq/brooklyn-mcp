@@ -57,8 +57,8 @@
  * - docs/user-guide/local-development.md
  */
 
-import { spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
+import { spawn } from "node:child_process";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 /**

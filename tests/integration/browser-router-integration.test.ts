@@ -6,9 +6,9 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { BrowserPoolManager } from "../../src/core/browser-pool-manager.js";
 import { MCPBrowserRouter } from "../../src/core/browser/mcp-browser-router.js";
 import { MCPRequestContextFactory } from "../../src/core/browser/mcp-request-context.js";
+import { BrowserPoolManager } from "../../src/core/browser-pool-manager.js";
 import { getLogger } from "../../src/shared/pino-logger.js";
 
 const _logger = getLogger("browser-router-integration-test");

@@ -81,6 +81,7 @@ import { createHTTP, createMCPStdio } from "../transports/index.js";
 import { registerCleanupCommand } from "./commands/cleanup.js";
 import { registerOpsCommand } from "./commands/ops.js";
 import { handleDebugCommand } from "./debug.js";
+
 // (imports above)
 
 // Config logger no longer needed with Pino
@@ -1702,7 +1703,7 @@ function setupDoctorCommand(program: Command): void {
         const hasBrooklyn = Boolean(cfg?.mcp?.["brooklyn"]);
         const entry = hasBrooklyn ? cfg.mcp["brooklyn"] : undefined;
         // Normalize a summary for doctor view
-        let summary: any = undefined;
+        let summary: any;
         if (entry) {
           summary =
             entry.type === "local"
@@ -2022,7 +2023,7 @@ function setupDoctorCommand(program: Command): void {
       const clineList: any[] = (result.configs as any).clineAll || [];
       for (const entry of clineList) {
         if (entry?.hasBrooklyn && entry?.brooklyn && typeof entry.brooklyn === "object") {
-          if (Object.prototype.hasOwnProperty.call(entry.brooklyn, "url")) {
+          if (Object.hasOwn(entry.brooklyn, "url")) {
             // Try to extract product name from label "cline user (Product)"
             const m = /\(([^)]+)\)/.exec(entry.label || "");
             const productName = m ? m[1] : "Code";

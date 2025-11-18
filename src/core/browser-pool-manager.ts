@@ -1251,11 +1251,7 @@ export class BrowserPoolManager {
    * Focus an element on the page
    * Essential for accessibility and keyboard navigation workflows
    */
-  async focusElement(args: {
-    browserId: string;
-    selector: string;
-    timeout?: number;
-  }): Promise<{
+  async focusElement(args: { browserId: string; selector: string; timeout?: number }): Promise<{
     success: boolean;
     selector: string;
     focused: boolean;

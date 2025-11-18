@@ -4,8 +4,8 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { chromium, firefox, webkit } from "playwright";
 import type { Browser, BrowserContext, Page } from "playwright";
+import { chromium, firefox, webkit } from "playwright";
 
 import { config } from "../shared/config.js";
 import { getLogger } from "../shared/pino-logger.js";

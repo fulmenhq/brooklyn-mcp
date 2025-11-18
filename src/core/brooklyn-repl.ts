@@ -6,7 +6,7 @@
  * See biome config file-level excludes for lint rule overrides.
  */
 
-import { type Interface, createInterface } from "node:readline";
+import { createInterface, type Interface } from "node:readline";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import type { CallToolRequest, Tool } from "@modelcontextprotocol/sdk/types.js";
 

@@ -4,7 +4,7 @@
  */
 
 import { exec } from "node:child_process";
-import { constants, access } from "node:fs/promises";
+import { access, constants } from "node:fs/promises";
 import { homedir, platform } from "node:os";
 import { promisify } from "node:util";
 import { getLogger } from "../../shared/pino-logger.js";

@@ -4,13 +4,13 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { BrowserInstance } from "./browser-instance.js";
+import type { AllocationRequest, PoolConfig } from "./browser-pool.js";
 import {
   BrowserPool,
   LeastUsedStrategy,
   RoundRobinStrategy,
   TeamIsolatedStrategy,
 } from "./browser-pool.js";
-import type { AllocationRequest, PoolConfig } from "./browser-pool.js";
 
 // Mock logger
 vi.mock("../../shared/pino-logger.js", () => ({

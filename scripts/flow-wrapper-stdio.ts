@@ -15,7 +15,7 @@
  */
 
 import { type ChildProcess, spawn } from "node:child_process";
-import { type WriteStream, createWriteStream } from "node:fs";
+import { createWriteStream, type WriteStream } from "node:fs";
 import { parseArgs } from "node:util";
 
 interface LogStreams {

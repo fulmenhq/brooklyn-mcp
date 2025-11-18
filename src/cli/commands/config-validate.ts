@@ -5,8 +5,8 @@
 
 import { readFileSync } from "node:fs";
 import { Command } from "commander";
-import { getValidator, validateBrooklynConfigFile } from "../../core/config-validator.js";
 import { configManager } from "../../core/config.js";
+import { getValidator, validateBrooklynConfigFile } from "../../core/config-validator.js";
 
 /**
  * Configuration validation command

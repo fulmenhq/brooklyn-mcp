@@ -12,9 +12,8 @@ import { unlinkSync } from "node:fs";
 import { join } from "node:path";
 import type { CallToolRequest } from "@modelcontextprotocol/sdk/types.js";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-
-import { BrooklynEngine } from "../../src/core/brooklyn-engine.js";
 import type { BrooklynContext } from "../../src/core/brooklyn-engine.js";
+import { BrooklynEngine } from "../../src/core/brooklyn-engine.js";
 import {
   getDatabaseManager,
   resetDatabaseManager,

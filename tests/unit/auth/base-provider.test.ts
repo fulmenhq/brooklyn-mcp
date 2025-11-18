@@ -5,8 +5,8 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BaseAuthProvider } from "../../../src/core/auth/base-provider.js";
-import { AuthenticationError } from "../../../src/core/auth/types.js";
 import type { AuthResult, UserInfo } from "../../../src/core/auth/types.js";
+import { AuthenticationError } from "../../../src/core/auth/types.js";
 import type { BrooklynConfig } from "../../../src/core/config.js";
 
 // Mock the logger to avoid circular dependencies

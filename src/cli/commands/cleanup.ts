@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, readdirSync, unlinkSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, unlinkSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { Command } from "commander";
@@ -206,10 +206,7 @@ async function cleanupMcpAll(pm: PM, opts: { allProjects: boolean }): Promise<vo
   const candidates = processes.filter((p) => p.type === "mcp-stdio");
 
   // Helper to decide if a process belongs to current project when metadata exists
-  const belongsToCurrentProject = (p: {
-    cwd?: string;
-    projectKey?: string;
-  }): boolean => {
+  const belongsToCurrentProject = (p: { cwd?: string; projectKey?: string }): boolean => {
     const pcwd = p.cwd;
     if (pcwd && pcwd === cwd) return true;
     const pkey = p.projectKey;

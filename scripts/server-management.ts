@@ -20,6 +20,7 @@ const _STARTUP_TIMEOUT = 10000; // 10 seconds
 
 // Ensure directories exist
 import { mkdirSync } from "node:fs";
+
 mkdirSync(join(homedir(), ".local", "share", SERVER_NAME), { recursive: true });
 mkdirSync(join(homedir(), ".local", "share", SERVER_NAME, "logs"), { recursive: true });
 

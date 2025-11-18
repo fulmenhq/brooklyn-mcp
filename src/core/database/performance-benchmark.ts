@@ -8,8 +8,8 @@ import { performance } from "node:perf_hooks";
 
 import { getLogger } from "../../shared/pino-logger.js";
 import { getDatabaseManager } from "./database-manager.js";
-import { ScreenshotRepositoryOptimized } from "./repositories/screenshot-repository-optimized.js";
 import { ScreenshotRepository } from "./repositories/screenshot-repository.js";
+import { ScreenshotRepositoryOptimized } from "./repositories/screenshot-repository-optimized.js";
 import type { ScreenshotQuery, ScreenshotRecord } from "./types.js";
 
 // Lazy logger initialization

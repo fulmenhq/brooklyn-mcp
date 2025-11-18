@@ -4,8 +4,8 @@
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
+import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 
 import { config } from "../shared/config.js";
 import { getLogger } from "../shared/pino-logger.js";
@@ -13,6 +13,7 @@ import { type BrooklynContext, BrooklynEngine } from "./brooklyn-engine.js";
 
 // Lazy logger initialization to avoid circular dependency
 const logger = getLogger("server");
+
 import { OnboardingTools } from "./onboarding-tools.js";
 import { PluginManager } from "./plugin-manager.js";
 import { SecurityMiddleware } from "./security-middleware.js";

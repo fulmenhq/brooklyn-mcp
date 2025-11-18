@@ -3,7 +3,7 @@
  * Supports multiple models with appropriate tokenizers
  */
 
-import { type Tiktoken, getEncoding } from "js-tiktoken";
+import { getEncoding, type Tiktoken } from "js-tiktoken";
 import { getLogger } from "../shared/pino-logger.js";
 
 // Lazy logger initialization

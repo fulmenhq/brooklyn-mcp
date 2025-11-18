@@ -14,8 +14,8 @@ import type { Command } from "commander";
 import { BackgroundSyncService } from "../../core/database/background-sync-service.js";
 import { getDatabaseManager } from "../../core/database/database-manager.js";
 import { PerformanceBenchmark } from "../../core/database/performance-benchmark.js";
-import { ScreenshotRepositoryOptimized } from "../../core/database/repositories/screenshot-repository-optimized.js";
 import { ScreenshotRepository } from "../../core/database/repositories/screenshot-repository.js";
+import { ScreenshotRepositoryOptimized } from "../../core/database/repositories/screenshot-repository-optimized.js";
 
 // For ops commands, use console.log directly to avoid logger initialization issues
 // The CLI ops commands are meant to be simple and direct

@@ -4,7 +4,7 @@
  */
 
 import { existsSync, unlinkSync, writeFileSync } from "node:fs";
-import { type IncomingMessage, type Server, type ServerResponse, createServer } from "node:http";
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { join } from "node:path";
 import { parse } from "node:url";
 import type { CallToolRequest, Tool } from "@modelcontextprotocol/sdk/types.js";

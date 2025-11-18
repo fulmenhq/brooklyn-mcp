@@ -9,15 +9,14 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+// Import actual implementations to test real code
+import { parse as parseYAML } from "yaml";
 import {
   createTestConfig,
   setupTestAssets,
   testSetup,
   testTeardown,
 } from "../../tests/utils/test-infrastructure.js";
-
-// Import actual implementations to test real code
-import { parse as parseYAML } from "yaml";
 
 // Asset interfaces from actual implementation
 interface AssetFile {

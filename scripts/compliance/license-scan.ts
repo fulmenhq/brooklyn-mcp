@@ -8,7 +8,7 @@
  * - --strict: exits non-zero on unknown/missing/disallowed licenses
  */
 
-import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const root = process.cwd();

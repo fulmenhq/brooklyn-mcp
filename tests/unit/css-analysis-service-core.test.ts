@@ -25,17 +25,21 @@ vi.mock("../../src/shared/pino-logger.js", () => ({
   })),
 }));
 
-vi.mock("../../src/core/tokenizer-service.js", () => ({
-  TokenizerService: vi.fn(() => ({
-    countTokens: vi.fn(() => ({
+vi.mock("../../src/core/tokenizer-service.js", () => {
+  class MockTokenizerService {
+    countTokens = vi.fn(() => ({
       tokens: 100,
       method: "estimated",
       byteCount: 1000,
       characterCount: 500,
       model: "default",
-    })),
-  })),
-}));
+    }));
+  }
+
+  return {
+    TokenizerService: MockTokenizerService,
+  };
+});
 
 describe("CSSAnalysisService", () => {
   let service: CSSAnalysisService;

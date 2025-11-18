@@ -4,7 +4,6 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { AuthenticationError, AuthorizationError } from "../../../src/core/auth/types.js";
 import type {
   AuthContext,
   AuthResult,
@@ -16,6 +15,7 @@ import type {
   UserAccount,
   UserInfo,
 } from "../../../src/core/auth/types.js";
+import { AuthenticationError, AuthorizationError } from "../../../src/core/auth/types.js";
 
 describe("AuthenticationError", () => {
   it("should create error with all parameters", () => {

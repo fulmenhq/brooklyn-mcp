@@ -4,8 +4,8 @@
  */
 
 import { beforeAll, describe, expect, it } from "vitest";
-import { ConfigValidator, validateBrooklynConfig } from "./config-validator.js";
 import type { BrooklynConfig } from "./config.js";
+import { ConfigValidator, validateBrooklynConfig } from "./config-validator.js";
 
 describe("ConfigValidator", () => {
   let validator: ConfigValidator;

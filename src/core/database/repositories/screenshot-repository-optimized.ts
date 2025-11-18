@@ -9,7 +9,7 @@ import type { InValue } from "@libsql/client";
 
 import { getLogger } from "../../../shared/pino-logger.js";
 import { getDatabaseManager } from "../database-manager.js";
-import { QueryCache, createCacheKey } from "../query-cache.js";
+import { createCacheKey, QueryCache } from "../query-cache.js";
 import type { ScreenshotListResult, ScreenshotQuery, ScreenshotRecord } from "../types.js";
 
 // Lazy logger initialization with safe fallback

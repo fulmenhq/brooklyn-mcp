@@ -394,10 +394,7 @@ async function addUser(options: {
 /**
  * Set password implementation
  */
-async function setPassword(options: {
-  username?: string;
-  password?: string;
-}): Promise<void> {
+async function setPassword(options: { username?: string; password?: string }): Promise<void> {
   const { username, password } = options;
 
   if (!username) {
@@ -500,10 +497,7 @@ async function listUsers(options: { json?: boolean }): Promise<void> {
 /**
  * Remove user implementation
  */
-async function removeUser(options: {
-  username?: string;
-  force?: boolean;
-}): Promise<void> {
+async function removeUser(options: { username?: string; force?: boolean }): Promise<void> {
   const { username, force } = options;
 
   if (!username) {
@@ -558,10 +552,7 @@ async function removeUser(options: {
 /**
  * Revoke sessions implementation
  */
-async function revokeSessions(options: {
-  username?: string;
-  all?: boolean;
-}): Promise<void> {
+async function revokeSessions(options: { username?: string; all?: boolean }): Promise<void> {
   const { username, all } = options;
 
   if (!(username || all)) {

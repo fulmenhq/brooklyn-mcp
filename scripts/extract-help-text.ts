@@ -11,7 +11,7 @@
  * Extracts to src/generated/help/ for CLI embedding
  */
 
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 interface HelpBlock {

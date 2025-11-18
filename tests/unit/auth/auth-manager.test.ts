@@ -6,13 +6,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { BrooklynAuthManager } from "../../../src/core/auth/auth-manager.js";
 import type { AuthProvider } from "../../../src/core/auth/auth-provider.js";
-import { AuthenticationError } from "../../../src/core/auth/types.js";
 import type {
   AuthContext,
   AuthResult,
   TokenResult,
   UserInfo,
 } from "../../../src/core/auth/types.js";
+import { AuthenticationError } from "../../../src/core/auth/types.js";
 import type { BrooklynConfig } from "../../../src/core/config.js";
 
 // Mock the logger
@@ -160,7 +160,9 @@ describe("BrooklynAuthManager", () => {
     it("should initialize with local provider", async () => {
       const mockProvider = createMockProvider("local", "local", false, true);
       const { LocalAuthProvider } = await import("../../../src/core/auth/local-provider.js");
-      vi.mocked(LocalAuthProvider).mockImplementation(() => mockProvider as any);
+      vi.mocked(LocalAuthProvider).mockImplementation(function MockLocalAuthProvider() {
+        return mockProvider as any;
+      });
 
       mockConfig.authentication.mode = "local";
       await authManager.initialize(mockConfig);
@@ -174,7 +176,9 @@ describe("BrooklynAuthManager", () => {
     it("should initialize with github provider", async () => {
       const mockProvider = createMockProvider("github", "github", true, false);
       const { GitHubAuthProvider } = await import("../../../src/core/auth/github-provider.js");
-      vi.mocked(GitHubAuthProvider).mockImplementation(() => mockProvider as any);
+      vi.mocked(GitHubAuthProvider).mockImplementation(function MockGitHubAuthProvider() {
+        return mockProvider as any;
+      });
 
       mockConfig.authentication.mode = "github";
       await authManager.initialize(mockConfig);
@@ -324,7 +328,9 @@ describe("BrooklynAuthManager", () => {
     beforeEach(async () => {
       mockProvider = createMockProvider("github", "github", true, false);
       const { GitHubAuthProvider } = await import("../../../src/core/auth/github-provider.js");
-      vi.mocked(GitHubAuthProvider).mockImplementation(() => mockProvider as any);
+      vi.mocked(GitHubAuthProvider).mockImplementation(function MockGitHubAuthProvider() {
+        return mockProvider as any;
+      });
       mockConfig.authentication.mode = "github";
       await authManager.initialize(mockConfig);
     });

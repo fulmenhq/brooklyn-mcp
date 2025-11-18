@@ -3,7 +3,7 @@
  * Tests OAuth flow, organization/team validation, and API integration
  */
 
-import { type MockedFunction, afterAll, beforeEach, describe, expect, test, vi } from "vitest";
+import { afterAll, beforeEach, describe, expect, type MockedFunction, test, vi } from "vitest";
 import { GitHubAuthProvider } from "../../../src/core/auth/github-provider.js";
 import { AuthenticationError, AuthorizationError } from "../../../src/core/auth/types.js";
 import type { BrooklynConfig } from "../../../src/core/config.js";

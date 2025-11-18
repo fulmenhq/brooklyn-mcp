@@ -31,7 +31,6 @@ import type {
   SVGCompressionOptions,
   SVGCompressionResult,
 } from "../../src/core/image/types.js";
-import { BUILD_TARGETS, NATIVE_LIBRARIES } from "../../src/core/native-deps/types.js";
 import type {
   BuildTarget,
   DependencyHealthCheck,
@@ -40,6 +39,7 @@ import type {
   NativeLibraryName,
   PlatformSupport,
 } from "../../src/core/native-deps/types.js";
+import { BUILD_TARGETS, NATIVE_LIBRARIES } from "../../src/core/native-deps/types.js";
 
 describe("Documentation Types", () => {
   describe("Platform Types", () => {

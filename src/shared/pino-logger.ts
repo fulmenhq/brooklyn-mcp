@@ -8,8 +8,8 @@ import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
-import pino from "pino";
 import type { LoggerOptions, Logger as PinoLogger } from "pino";
+import pino from "pino";
 import type { BrooklynConfig } from "../core/config.js";
 
 /**

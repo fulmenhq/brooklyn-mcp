@@ -6,10 +6,10 @@
 import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { type Client, type InValue, type ResultSet, createClient } from "@libsql/client";
+import { type Client, createClient, type InValue, type ResultSet } from "@libsql/client";
 
 import { getLogger } from "../../shared/pino-logger.js";
-import { type InstanceContext, getStableInstanceId } from "./instance-id-generator.js";
+import { getStableInstanceId, type InstanceContext } from "./instance-id-generator.js";
 import type { DatabaseConfig } from "./types.js";
 
 // Lazy logger initialization with safe fallback

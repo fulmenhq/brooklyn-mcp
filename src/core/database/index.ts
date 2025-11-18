@@ -3,27 +3,23 @@
  * Central export point for all database-related functionality
  */
 
+// Background services
+export { BackgroundSyncService } from "./background-sync-service.js";
 // Core database manager
-export { getDatabaseManager, DatabaseManager } from "./database-manager.js";
-
+export { DatabaseManager, getDatabaseManager } from "./database-manager.js";
 // Instance ID generation
 export { generateStableInstanceId, getStableInstanceId } from "./instance-id-generator.js";
-
+// Performance utilities
+export { PerformanceBenchmark } from "./performance-benchmark.js";
+export { createCacheKey, QueryCache } from "./query-cache.js";
 // Repositories
 export { ScreenshotRepository } from "./repositories/screenshot-repository.js";
 export { ScreenshotRepositoryOptimized } from "./repositories/screenshot-repository-optimized.js";
 
-// Background services
-export { BackgroundSyncService } from "./background-sync-service.js";
-
-// Performance utilities
-export { PerformanceBenchmark } from "./performance-benchmark.js";
-export { QueryCache, createCacheKey } from "./query-cache.js";
-
 // Types
 export type {
-  ScreenshotRecord,
-  ScreenshotQuery,
-  ScreenshotListResult,
   DatabaseConfig,
+  ScreenshotListResult,
+  ScreenshotQuery,
+  ScreenshotRecord,
 } from "./types.js";

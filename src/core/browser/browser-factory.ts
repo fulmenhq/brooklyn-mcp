@@ -3,8 +3,8 @@
  * Integrates with browser installation manager from Phase 0
  */
 
-import { chromium, firefox, webkit } from "playwright";
 import type { Browser, LaunchOptions } from "playwright";
+import { chromium, firefox, webkit } from "playwright";
 import { getLogger } from "../../shared/pino-logger.js";
 import { BrowserInstallationManager } from "./browser-installation-manager.js";
 import { BrowserInstance, type BrowserInstanceConfig } from "./browser-instance.js";

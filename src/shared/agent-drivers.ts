@@ -243,10 +243,10 @@ export const agentDrivers: Record<AgentClientKey, AgentDriver> = {
       http: (opts) => [
         "# ~/.codex/config.toml",
         "[mcp_servers.brooklyn]",
-        `type = \"http\"`,
-        `url = \"http://${opts.host || "127.0.0.1"}:${opts.port || 3000}${
+        `type = "http"`,
+        `url = "http://${opts.host || "127.0.0.1"}:${opts.port || 3000}${
           opts.teamId ? `/team/${opts.teamId}` : ""
-        }\"`,
+        }"`,
       ],
     },
   },

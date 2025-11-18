@@ -4,22 +4,19 @@
  */
 
 import type { CallToolRequest, Tool } from "@modelcontextprotocol/sdk/types.js";
-import type { ToolCallHandler, ToolListHandler, Transport } from "./transport.js";
-
 import { getLogger, initializeLogging, isLoggingInitialized } from "../shared/pino-logger.js";
-import { BrowserPoolManager } from "./browser-pool-manager.js";
 import { MCPBrowserRouter } from "./browser/mcp-browser-router.js";
-
 import { MCPRequestContextFactory } from "./browser/mcp-request-context.js";
+import { BrowserPoolManager } from "./browser-pool-manager.js";
 import type { BrooklynConfig } from "./config.js";
 import { ToolDiscoveryService } from "./discovery/tool-discovery-service.js";
-
 import { BrooklynDocsService } from "./documentation/brooklyn-docs-service.js";
 import type { DocumentationQueryArgs } from "./documentation/types.js";
 import { OnboardingTools } from "./onboarding-tools.js";
 import { PluginManager } from "./plugin-manager.js";
 import { SecurityMiddleware } from "./security-middleware.js";
 import type { EnhancedTool } from "./tool-definitions.js";
+import type { ToolCallHandler, ToolListHandler, Transport } from "./transport.js";
 
 /**
  * Brooklyn engine initialization options
@@ -730,11 +727,7 @@ export class BrooklynEngine {
 
         // If rawResult already looks like our envelope, augment as needed
         let envelope: Record<string, unknown>;
-        if (
-          rawResult &&
-          typeof rawResult === "object" &&
-          Object.prototype.hasOwnProperty.call(rawResult, "success")
-        ) {
+        if (rawResult && typeof rawResult === "object" && Object.hasOwn(rawResult, "success")) {
           const r = rawResult as {
             success?: boolean;
             data?: unknown;
@@ -742,7 +735,7 @@ export class BrooklynEngine {
             diagnostics?: { durationMs?: number };
           };
           // Ensure data exists
-          if (r.data === undefined && Object.prototype.hasOwnProperty.call(r, "result")) {
+          if (r.data === undefined && Object.hasOwn(r, "result")) {
             (r as Record<string, unknown>)["data"] = (rawResult as Record<string, unknown>)[
               "result"
             ];

@@ -242,7 +242,7 @@ export class ImageProcessingService {
         ? `background:${options.backgroundColor};`
         : "background:transparent;";
       const svgContent = svgBuffer.toString("utf-8");
-      const html = `<!doctype html><html><head><meta charset=\"utf-8\"></head><body style=\"margin:0;${bgStyle}\">${svgContent}</body></html>`;
+      const html = `<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;${bgStyle}">${svgContent}</body></html>`;
       await page.setContent(html, { waitUntil: "load" });
 
       const outputBuffer = await page.screenshot({
@@ -483,7 +483,7 @@ export class ImageProcessingService {
             ? `background:${args.options.backgroundColor};`
             : "background:transparent;";
           const svgContent = svgBuffer.toString("utf-8");
-          const html = `<!doctype html><html><head><meta charset=\"utf-8\"></head><body style=\"margin:0;${bgStyle}\">${svgContent}</body></html>`;
+          const html = `<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;${bgStyle}">${svgContent}</body></html>`;
           await page.setContent(html, { waitUntil: "load" });
           const outputBuffer = await page.screenshot({
             type: "png",

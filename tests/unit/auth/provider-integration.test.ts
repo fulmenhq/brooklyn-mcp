@@ -7,12 +7,12 @@ import { existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  type MockedFunction,
   afterAll,
   afterEach,
   beforeEach,
   describe,
   expect,
+  type MockedFunction,
   test,
   vi,
 } from "vitest";
