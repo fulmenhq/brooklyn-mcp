@@ -40,8 +40,8 @@ function getGitStatus(): GitStatus {
     "0\t0",
   );
   const parts = aheadBehind.split("\t");
-  const behind = Number.parseInt(parts[0] || "0");
-  const ahead = Number.parseInt(parts[1] || "0");
+  const behind = Number.parseInt(parts[0] || "0", 10);
+  const ahead = Number.parseInt(parts[1] || "0", 10);
 
   return {
     clean: statusOutput.length === 0,
@@ -83,7 +83,7 @@ async function generateBuildSignature(version: string): Promise<BuildSignature> 
 const filesToUpdate = [
   {
     path: path.join(rootDir, "src/cli/brooklyn.ts"),
-    pattern: /const VERSION = "(?:{{VERSION}}|[\d\.]+(?:-[0-9A-Za-z.-]+)?)";/,
+    pattern: /const VERSION = "(?:{{VERSION}}|[\d.]+(?:-[0-9A-Za-z.-]+)?)";/,
     replacement: (version: string) => `const VERSION = "${version}";`,
     description: "CLI version constant",
     type: "version" as const,
@@ -91,7 +91,7 @@ const filesToUpdate = [
   {
     path: path.join(rootDir, "src/core/config.ts"),
     pattern:
-      /version: "[\d\.]+(?:-[0-9A-Za-z.-]+)?", \/\/ (?:Will be replaced at build time|Embedded at build time)/,
+      /version: "[\d.]+(?:-[0-9A-Za-z.-]+)?", \/\/ (?:Will be replaced at build time|Embedded at build time)/,
     replacement: (version: string) => `version: "${version}", // Embedded at build time`,
     description: "Core config version",
     type: "version" as const,
@@ -99,7 +99,7 @@ const filesToUpdate = [
   {
     path: path.join(rootDir, "src/shared/build-config.ts"),
     pattern:
-      /version: "[\d\.]+(?:-[0-9A-Za-z.-]+)?", \/\/ (?:This will be synced from package\.json|Synced from VERSION file)/,
+      /version: "[\d.]+(?:-[0-9A-Za-z.-]+)?", \/\/ (?:This will be synced from package\.json|Synced from VERSION file)/,
     replacement: (version: string) => `version: "${version}", // Synced from VERSION file`,
     description: "Build config version",
     type: "version" as const,

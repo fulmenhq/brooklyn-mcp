@@ -262,6 +262,7 @@ export class BrowserInstance {
           });
         });
       }
+      return undefined;
     });
 
     await Promise.allSettled(closePromises);

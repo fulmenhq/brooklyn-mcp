@@ -1,8 +1,11 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
-  "organizeImports": {
-    "enabled": true
+  "$schema": "https://biomejs.dev/schemas/2.2.5/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
   },
+  "assist": { "actions": { "source": { "organizeImports": "on" } } },
   "linter": {
     "enabled": true,
     "rules": {
@@ -23,7 +26,8 @@
       },
       "correctness": {
         "noUnusedVariables": "error",
-        "noUndeclaredVariables": "error"
+        "noUndeclaredVariables": "error",
+        "noUnusedPrivateClassMembers": "warn"
       },
       "style": {
         "noNonNullAssertion": "error",
@@ -43,31 +47,29 @@
     "indentStyle": "space",
     "indentWidth": 2,
     "lineWidth": 100,
-    "ignore": ["*.md", "*.yml", "*.yaml"]
+    "includes": ["**", "!**/*.md", "!**/*.yml", "!**/*.yaml"]
   },
   "files": {
     "ignoreUnknown": true,
-    "include": [
-      "src/**/*.ts",
-      "src/**/*.tsx",
-      "src/**/*.js",
-      "scripts/**/*.ts",
-      "tests/**/*.ts",
-      "*.config.{ts,js,mjs,cjs}",
-      "*.ts"
-    ],
-    "ignore": [
-      ".DS_Store",
-      "*.log",
-      "*.temp",
-      "node_modules",
-      "dist",
-      "**/*.gen.ts",
-      "**/*.gen.js",
-      "*.json",
-      "*.md",
-      "*.yaml",
-      "*.yml"
+    "includes": [
+      "**/src/**/*.ts",
+      "**/src/**/*.tsx",
+      "**/src/**/*.js",
+      "**/scripts/**/*.ts",
+      "**/tests/**/*.ts",
+      "**/*.config.{ts,js,mjs,cjs}",
+      "**/*.ts",
+      "!**/.DS_Store",
+      "!**/*.log",
+      "!**/*.temp",
+      "!**/node_modules",
+      "!**/dist",
+      "!**/*.gen.ts",
+      "!**/*.gen.js",
+      "!**/*.json",
+      "!**/*.md",
+      "!**/*.yaml",
+      "!**/*.yml"
     ]
   },
   "javascript": {
@@ -81,7 +83,7 @@
   },
   "overrides": [
     {
-      "include": ["scripts/**/*.ts", "scripts/**/*.js"],
+      "includes": ["**/scripts/**/*.ts", "**/scripts/**/*.js"],
       "linter": {
         "rules": {
           "suspicious": {
@@ -91,16 +93,16 @@
       }
     },
     {
-      "include": [
-        "src/core/brooklyn-engine.ts",
-        "src/core/onboarding-tools.ts",
-        "src/core/server.ts",
-        "src/core/config.ts",
-        "src/cli/brooklyn.ts",
-        "src/cli/brooklyn-server.ts",
-        "src/shared/structured-logger.ts",
-        "src/transports/http-transport.ts",
-        "src/transports/mcp-stdio-transport.ts"
+      "includes": [
+        "**/src/core/brooklyn-engine.ts",
+        "**/src/core/onboarding-tools.ts",
+        "**/src/core/server.ts",
+        "**/src/core/config.ts",
+        "**/src/cli/brooklyn.ts",
+        "**/src/cli/brooklyn-server.ts",
+        "**/src/shared/structured-logger.ts",
+        "**/src/transports/http-transport.ts",
+        "**/src/transports/mcp-stdio-transport.ts"
       ],
       "linter": {
         "rules": {
@@ -120,7 +122,7 @@
       }
     },
     {
-      "include": ["src/**/*.test.ts", "tests/**/*.ts"],
+      "includes": ["**/src/**/*.test.ts", "**/tests/**/*.ts"],
       "linter": {
         "rules": {
           "suspicious": {
@@ -136,13 +138,13 @@
       }
     },
     {
-      "include": [
-        "src/cli/brooklyn.ts",
-        "src/cli/brooklyn-server.ts",
-        "src/cli/commands/*.ts",
-        "src/cli/cleanup/*.ts",
-        "src/core/brooklyn-repl.ts",
-        "src/core/brooklyn-http.ts"
+      "includes": [
+        "**/src/cli/brooklyn.ts",
+        "**/src/cli/brooklyn-server.ts",
+        "**/src/cli/commands/**/*.ts",
+        "**/src/cli/cleanup/**/*.ts",
+        "**/src/core/brooklyn-repl.ts",
+        "**/src/core/brooklyn-http.ts"
       ],
       "linter": {
         "rules": {
@@ -156,10 +158,10 @@
       }
     },
     {
-      "include": [
-        "src/core/onboarding-tools.ts",
-        "src/core/transport.ts",
-        "src/core/database/repositories/screenshot-repository-optimized.ts"
+      "includes": [
+        "**/src/core/onboarding-tools.ts",
+        "**/src/core/transport.ts",
+        "**/src/core/database/repositories/screenshot-repository-optimized.ts"
       ],
       "linter": {
         "rules": {
@@ -171,7 +173,7 @@
       }
     },
     {
-      "include": ["src/cli/brooklyn-server.ts"],
+      "includes": ["**/src/cli/brooklyn-server.ts"],
       "linter": {
         "rules": {
           "correctness": {
