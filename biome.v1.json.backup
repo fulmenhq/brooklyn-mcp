@@ -1,0 +1,184 @@
+{
+  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "organizeImports": {
+    "enabled": true
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "complexity": {
+        "noBannedTypes": "error",
+        "noForEach": "warn",
+        "noStaticOnlyClass": "error",
+        "useOptionalChain": "error",
+        "useSimplifiedLogicExpression": "error",
+        "useLiteralKeys": "off",
+        "noExcessiveCognitiveComplexity": {
+          "level": "error",
+          "options": {
+            "maxAllowedComplexity": 22
+          }
+        }
+      },
+      "correctness": {
+        "noUnusedVariables": "error",
+        "noUndeclaredVariables": "error"
+      },
+      "style": {
+        "noNonNullAssertion": "error",
+        "useConst": "error",
+        "useDefaultParameterLast": "error",
+        "useTemplate": "error",
+        "noParameterAssign": "error"
+      },
+      "suspicious": {
+        "noExplicitAny": "error",
+        "noConsole": "error"
+      }
+    }
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "ignore": ["*.md", "*.yml", "*.yaml"]
+  },
+  "files": {
+    "ignoreUnknown": true,
+    "include": [
+      "src/**/*.ts",
+      "src/**/*.tsx",
+      "src/**/*.js",
+      "scripts/**/*.ts",
+      "tests/**/*.ts",
+      "*.config.{ts,js,mjs,cjs}",
+      "*.ts"
+    ],
+    "ignore": [
+      ".DS_Store",
+      "*.log",
+      "*.temp",
+      "node_modules",
+      "dist",
+      "**/*.gen.ts",
+      "**/*.gen.js",
+      "*.json",
+      "*.md",
+      "*.yaml",
+      "*.yml"
+    ]
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "jsxQuoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "all"
+    },
+    "globals": ["BufferEncoding", "describe", "it", "expect", "vi", "Bun"]
+  },
+  "overrides": [
+    {
+      "include": ["scripts/**/*.ts", "scripts/**/*.js"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "off"
+          }
+        }
+      }
+    },
+    {
+      "include": [
+        "src/core/brooklyn-engine.ts",
+        "src/core/onboarding-tools.ts",
+        "src/core/server.ts",
+        "src/core/config.ts",
+        "src/cli/brooklyn.ts",
+        "src/cli/brooklyn-server.ts",
+        "src/shared/structured-logger.ts",
+        "src/transports/http-transport.ts",
+        "src/transports/mcp-stdio-transport.ts"
+      ],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noExplicitAny": "off"
+          },
+          "style": {
+            "noNonNullAssertion": "off"
+          },
+          "complexity": {
+            "noExcessiveCognitiveComplexity": "off"
+          },
+          "performance": {
+            "noDelete": "off"
+          }
+        }
+      }
+    },
+    {
+      "include": ["src/**/*.test.ts", "tests/**/*.ts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noExplicitAny": "off"
+          },
+          "style": {
+            "noNonNullAssertion": "off"
+          },
+          "performance": {
+            "noDelete": "off"
+          }
+        }
+      }
+    },
+    {
+      "include": [
+        "src/cli/brooklyn.ts",
+        "src/cli/brooklyn-server.ts",
+        "src/cli/commands/*.ts",
+        "src/cli/cleanup/*.ts",
+        "src/core/brooklyn-repl.ts",
+        "src/core/brooklyn-http.ts"
+      ],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "off"
+          },
+          "complexity": {
+            "noForEach": "off"
+          }
+        }
+      }
+    },
+    {
+      "include": [
+        "src/core/onboarding-tools.ts",
+        "src/core/transport.ts",
+        "src/core/database/repositories/screenshot-repository-optimized.ts"
+      ],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noStaticOnlyClass": "off",
+            "noBannedTypes": "off"
+          }
+        }
+      }
+    },
+    {
+      "include": ["src/cli/brooklyn-server.ts"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noUnusedVariables": "off"
+          }
+        }
+      }
+    }
+  ]
+}

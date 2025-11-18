@@ -95,18 +95,24 @@ describe("BrowserFactory", () => {
       const instance = await factory.createInstance(config);
 
       expect(mockInstallationManager.isBrowserInstalled).toHaveBeenCalledWith("chromium");
-      expect(chromium.launch).toHaveBeenCalledWith({
-        headless: true,
-        timeout: 30000,
-        args: [
-          "--no-sandbox",
-          "--disable-setuid-sandbox",
-          "--disable-dev-shm-usage",
+
+      // Base args for all platforms
+      const expectedArgs = ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"];
+
+      // Windows-specific GPU flags for headless mode
+      if (process.platform === "win32") {
+        expectedArgs.push(
           "--disable-web-security",
           "--disable-features=VizDisplayCompositor",
           "--disable-gpu",
           "--no-zygote",
-        ],
+        );
+      }
+
+      expect(chromium.launch).toHaveBeenCalledWith({
+        headless: true,
+        timeout: 30000,
+        args: expectedArgs,
       });
       expect(instance.initialize).toHaveBeenCalledWith(mockBrowser);
     });

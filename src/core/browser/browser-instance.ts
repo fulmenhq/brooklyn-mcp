@@ -297,7 +297,12 @@ export class BrowserInstance {
     try {
       // Create a controlled timeout that can kill the browser process
       const closeWithTimeout = new Promise<void>((resolve, reject) => {
-        this.browser?.close().then(resolve).catch(reject);
+        const closePromise = this.browser?.close();
+        if (closePromise) {
+          closePromise.then(resolve).catch(reject);
+        } else {
+          resolve();
+        }
 
         timeoutId = setTimeout(() => {
           timedOut = true;
