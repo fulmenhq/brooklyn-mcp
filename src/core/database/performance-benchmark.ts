@@ -3,7 +3,6 @@
  * Phase 3: Performance testing and optimization validation
  */
 
-import { randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
 
 import { getLogger } from "../../shared/pino-logger.js";

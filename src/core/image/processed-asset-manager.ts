@@ -4,9 +4,9 @@
  * Follows Architecture Committee approved patterns from screenshot storage
  */
 
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync } from "node:fs";
-import { readdir, readFile, rm, stat, unlink, writeFile } from "node:fs/promises";
+import { readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { basename, extname, join, normalize, relative, resolve } from "node:path";
 import { minimatch } from "minimatch";
 import { getLogger } from "../../shared/pino-logger.js";

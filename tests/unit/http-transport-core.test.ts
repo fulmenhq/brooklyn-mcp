@@ -9,9 +9,7 @@
  * maximum coverage of the 0% → 60%+ target for HTTP transport.
  */
 
-import type { IncomingMessage, ServerResponse } from "node:http";
-import { createServer } from "node:http";
-import { createConnection } from "node:net";
+import type { IncomingMessage } from "node:http";
 import { Readable } from "node:stream";
 import type { MockedFunction } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

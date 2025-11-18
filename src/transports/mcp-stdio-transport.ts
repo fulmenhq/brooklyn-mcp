@@ -3,8 +3,6 @@
  * Handles Claude Code integration via MCP protocol
  */
 
-import * as fs from "node:fs";
-
 import { MCPDebugMiddleware } from "../core/mcp-debug-middleware.js";
 import type {
   MCPStdioConfig,

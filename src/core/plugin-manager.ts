@@ -4,7 +4,6 @@
 
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import type { PluginManager as IPluginManager, WebPilotPlugin } from "../ports/plugin.js";
-import { config } from "../shared/config.js";
 import { getLogger } from "../shared/pino-logger.js";
 
 // ARCHITECTURE FIX: Lazy logger initialization

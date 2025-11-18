@@ -4,7 +4,7 @@
  * MIT License - No external dependencies
  */
 
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { extname, join } from "node:path";
 import type { Server } from "bun";

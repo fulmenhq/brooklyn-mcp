@@ -29,7 +29,7 @@ export class MCPDebugMiddleware {
       traceToStderr: process.env["BROOKLYN_MCP_TRACE"] === "true",
       includeRequests: process.env["BROOKLYN_MCP_TRACE_REQUESTS"] !== "false",
       includeResponses: process.env["BROOKLYN_MCP_TRACE_RESPONSES"] !== "false",
-      maxPayloadSize: Number.parseInt(process.env["BROOKLYN_MCP_TRACE_MAX_SIZE"] || "2048"),
+      maxPayloadSize: Number.parseInt(process.env["BROOKLYN_MCP_TRACE_MAX_SIZE"] || "2048", 10),
       toolFilter: process.env["BROOKLYN_MCP_TRACE_FILTER"],
       ...config,
     };

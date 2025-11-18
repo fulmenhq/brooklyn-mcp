@@ -7,7 +7,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { MCPStdioConfig, ToolCallHandler, ToolListHandler } from "../../src/core/transport.js";
+import type { MCPStdioConfig } from "../../src/core/transport.js";
 import { TransportType } from "../../src/core/transport.js";
 
 describe("MCP STDIO Transport Extended Tests", () => {

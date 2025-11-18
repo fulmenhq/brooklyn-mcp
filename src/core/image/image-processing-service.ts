@@ -14,7 +14,6 @@ import type {
   CompressSVGArgs,
   ConvertSVGToMultiPNGArgs,
   ConvertSVGToPNGArgs,
-  ImageFormatConversionOptions,
   ImageFormatConversionResult,
   MultiPNGConversionResult,
   SVGAnalysisResult,

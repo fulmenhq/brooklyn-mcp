@@ -6,12 +6,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { BrooklynAuthManager } from "../../../src/core/auth/auth-manager.js";
 import type { AuthProvider } from "../../../src/core/auth/auth-provider.js";
-import type {
-  AuthContext,
-  AuthResult,
-  TokenResult,
-  UserInfo,
-} from "../../../src/core/auth/types.js";
+import type {} from "../../../src/core/auth/types.js";
 import { AuthenticationError } from "../../../src/core/auth/types.js";
 import type { BrooklynConfig } from "../../../src/core/config.js";
 

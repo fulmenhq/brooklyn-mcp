@@ -10,7 +10,7 @@ import { config } from "../shared/config.js";
 import { getLogger } from "../shared/pino-logger.js";
 import { BrowserFactory } from "./browser/browser-factory.js";
 import type { BrowserInstance } from "./browser/browser-instance.js";
-import { type AllocationRequest, BrowserPool } from "./browser/browser-pool.js";
+import { BrowserPool } from "./browser/browser-pool.js";
 import {
   ContentExtractionService,
   type DescribeHtmlArgs,

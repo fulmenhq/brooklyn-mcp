@@ -884,7 +884,7 @@ function setupMCPDevCommands(mcpCmd: Command): void {
         let httpServers = await BrooklynProcessManager.findHttpDevServers();
 
         if (options.port) {
-          const port = Number.parseInt(options.port);
+          const port = Number.parseInt(options.port, 10);
           httpServers = httpServers.filter((p) => p.port === port);
 
           if (httpServers.length === 0) {

@@ -10,7 +10,7 @@
  * Integration tests run under Bun's native test runner for full-stack validation.
  */
 
-import { rmSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {

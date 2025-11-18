@@ -7,7 +7,6 @@ import type {
   CallToolRequest,
   CallToolResult,
   ListToolsResult,
-  Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 
 /**

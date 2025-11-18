@@ -10,14 +10,12 @@
  * Integration tests run under Bun's native test runner for full-stack validation.
  */
 
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createTestConfig,
   setupTestAssets,
-  TEST_PORT_RANGES,
   testServerManager,
   testSetup,
   testTeardown,

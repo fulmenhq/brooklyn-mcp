@@ -18,10 +18,8 @@ import type {
   BrooklenStatus,
   CommunicationProvider,
   CommunicationTools,
-  MattermostIntegration,
-  SlackIntegration,
 } from "../../src/ports/communication.js";
-import type { BrowserConfig, Config, RateLimitConfig, TeamConfig } from "../../src/ports/config.js";
+import type { Config, TeamConfig } from "../../src/ports/config.js";
 import type { PluginContext, PluginManager, WebPilotPlugin } from "../../src/ports/plugin.js";
 
 describe("Browser Port Interfaces", () => {

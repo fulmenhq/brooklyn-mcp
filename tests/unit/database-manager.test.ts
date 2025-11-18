@@ -7,7 +7,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DatabaseError, DatabaseManager } from "../../src/core/database/database-manager.js";
+import { DatabaseManager } from "../../src/core/database/database-manager.js";
 
 // Mock the database client to avoid actual database connections in tests
 vi.mock("@libsql/client", () => ({
@@ -29,8 +29,6 @@ vi.mock("node:os", () => ({
   homedir: vi.fn().mockReturnValue("/home/testuser"),
 }));
 
-// Import actual path for platform detection
-import { join as actualJoin } from "node:path";
 
 describe("DatabaseManager", () => {
   beforeEach(async () => {

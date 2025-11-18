@@ -5,7 +5,7 @@
  * simulating real Claude Code interactions.
  */
 
-import { type ChildProcess, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import { resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { InstanceManager } from "../../src/core/instance-manager.js";

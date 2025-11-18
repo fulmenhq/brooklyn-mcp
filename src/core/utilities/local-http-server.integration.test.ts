@@ -10,7 +10,7 @@
  * docs/testing/test-categorization-guide.md
  */
 
-import { existsSync, rmSync, writeFileSync } from "node:fs";
+import { rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {

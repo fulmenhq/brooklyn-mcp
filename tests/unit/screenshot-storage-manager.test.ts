@@ -9,7 +9,6 @@ import { tmpdir } from "node:os";
 import { join, sep } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getDatabaseManager } from "../../src/core/database/database-manager.js";
 import { ScreenshotRepositoryOptimized as ScreenshotRepository } from "../../src/core/database/repositories/screenshot-repository-optimized.js";
 import {
   type ScreenshotMetadata,
