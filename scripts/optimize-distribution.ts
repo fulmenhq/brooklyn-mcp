@@ -7,7 +7,6 @@
 
 import { execSync } from "node:child_process";
 import { existsSync, statSync } from "node:fs";
-import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import chalk from "chalk";
 

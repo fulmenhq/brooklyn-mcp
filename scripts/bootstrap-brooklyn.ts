@@ -17,8 +17,8 @@
 
 import { execSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { homedir, platform, type } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { homedir, platform } from "node:os";
+import { dirname, join } from "node:path";
 import { Command } from "commander";
 import inquirer from "inquirer";
 

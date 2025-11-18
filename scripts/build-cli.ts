@@ -8,7 +8,7 @@
  */
 
 import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 
 // ANSI color codes
 const colors = {
