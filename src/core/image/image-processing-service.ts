@@ -5,7 +5,6 @@
 
 import { readFile, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, join } from "node:path";
-import { parseString } from "xml2js";
 import { getLogger } from "../../shared/pino-logger.js";
 import { NativeDependencyManager } from "../native-deps/dependency-manager.js";
 import { ProcessedAssetManager } from "./processed-asset-manager.js";
@@ -304,8 +303,10 @@ export class ImageProcessingService {
 
   /**
    * Parse SVG content to XML object
+   * Uses lazy import to avoid loading xml2js until needed
    */
   private async parseSVGContent(svgContent: string): Promise<unknown> {
+    const { parseString } = await import("xml2js");
     return new Promise((resolve, reject) => {
       parseString(svgContent, (err, result) => {
         if (err) {
