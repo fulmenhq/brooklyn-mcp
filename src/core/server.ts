@@ -288,69 +288,6 @@ export class MCPServer {
       },
     ];
   }
-
-  private isCoreTools(toolName: string): boolean {
-    const coreTools = ["launch_browser", "navigate_to_url", "take_screenshot", "close_browser"];
-    return coreTools.includes(toolName);
-  }
-
-  private isOnboardingTools(toolName: string): boolean {
-    const onboardingTools = [
-      "brooklyn_status",
-      "brooklyn_capabilities",
-      "brooklyn_getting_started",
-      "brooklyn_examples",
-      "brooklyn_team_setup",
-      "brooklyn_troubleshooting",
-    ];
-    return onboardingTools.includes(toolName);
-  }
-
-  private async handleCoreTool(name: string, args: unknown): Promise<unknown> {
-    try {
-      // Route ALL core tools through BrooklynEngine → MCPBrowserRouter
-      // Map legacy tool names to engine/router names
-      const mappedName =
-        name === "navigate" ? "navigate_to_url" : name === "screenshot" ? "take_screenshot" : name;
-
-      const response = await this.engine.executeToolCall(
-        {
-          params: {
-            name: mappedName,
-            arguments: (args as Record<string, unknown>) ?? {},
-          },
-          method: "tools/call",
-        } as unknown as import("@modelcontextprotocol/sdk/types.js").CallToolRequest,
-        this.context,
-      );
-
-      // Engine returns MCP-style content wrapper; unwrap into result value
-      if ((response as any)?.error) {
-        const err = (response as any).error;
-        throw new Error(err?.message || "Tool execution failed");
-      }
-
-      // If content is a text block, try to parse JSON, else return as-is
-      const content = (response as any)?.content;
-      if (Array.isArray(content) && content.length > 0 && content[0]?.type === "text") {
-        const text = content[0].text as string;
-        try {
-          return JSON.parse(text);
-        } catch {
-          return { message: text };
-        }
-      }
-
-      // If already object/nested 'result', pass through
-      return (response as any)?.result ?? response;
-    } catch (error) {
-      logger.error("Core tool execution failed", {
-        tool: name,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      throw error;
-    }
-  }
 }
 
 export async function createServer(): Promise<MCPServer> {

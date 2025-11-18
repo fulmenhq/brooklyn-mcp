@@ -60,8 +60,6 @@ export interface GenerateSelectorResult {
  * Reduces AI friction with "find the red button" workflows
  */
 export class SmartSelectorService {
-  private readonly defaultTimeout = 30000;
-
   /**
    * Generate smart selectors from natural language description
    * Uses multiple strategies for maximum reliability

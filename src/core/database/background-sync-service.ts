@@ -11,7 +11,6 @@ import { basename, join } from "node:path";
 import { getLogger } from "../../shared/pino-logger.js";
 import { getDatabaseManager } from "./database-manager.js";
 import { ScreenshotRepository } from "./repositories/screenshot-repository.js";
-import type { ScreenshotRecord } from "./types.js";
 
 // Lazy logger initialization
 let logger: ReturnType<typeof getLogger> | null = null;
@@ -59,7 +58,7 @@ export class BackgroundSyncService {
   private readonly maxAge: number;
   private readonly dryRun: boolean;
 
-  constructor(private options: SyncOptions = {}) {
+  constructor(options: SyncOptions = {}) {
     this.batchSize = options.batchSize || 50;
     this.intervalMs = options.intervalMs || 300000; // 5 minutes default
     this.maxAge = options.maxAge || 30; // 30 days default

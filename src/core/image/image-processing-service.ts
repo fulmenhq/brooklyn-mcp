@@ -31,10 +31,6 @@ function ensureLogger() {
 }
 
 export class ImageProcessingService {
-  // biome-ignore lint/suspicious/noExplicitAny: Dynamic SVGO configuration
-  private readonly defaultSVGConfig: any = {
-    plugins: ["preset-default"],
-  };
   private readonly assetManager: ProcessedAssetManager;
 
   constructor() {

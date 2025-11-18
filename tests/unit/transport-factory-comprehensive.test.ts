@@ -9,13 +9,8 @@
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type {
-  HTTPConfig,
-  MCPStdioConfig,
-  Transport,
-  TransportConfig,
-} from "../../src/core/transport.js";
-import { TransportRegistry, TransportType } from "../../src/core/transport.js";
+import type { HTTPConfig, MCPStdioConfig, Transport } from "../../src/core/transport.js";
+import { TransportType } from "../../src/core/transport.js";
 
 describe("Transport Factory Comprehensive Tests", () => {
   const createdTransports: Transport[] = [];

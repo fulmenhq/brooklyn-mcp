@@ -4,12 +4,7 @@
  */
 
 import { MCPDebugMiddleware } from "../core/mcp-debug-middleware.js";
-import type {
-  MCPStdioConfig,
-  ToolCallHandler,
-  ToolListHandler,
-  Transport,
-} from "../core/transport.js";
+import type { ToolCallHandler, ToolListHandler, Transport } from "../core/transport.js";
 import { TransportType } from "../core/transport.js";
 import { buildConfig } from "../shared/build-config.js";
 import { getLogger } from "../shared/pino-logger.js";
@@ -31,7 +26,6 @@ export class MCPStdioTransport implements Transport {
 
   // Lazy logger to avoid module-level side effects and stdout pollution
   private _logger: ReturnType<typeof getLogger> | null = null;
-  private readonly config: MCPStdioConfig;
 
   private logger() {
     if (!this._logger) {
@@ -47,10 +41,6 @@ export class MCPStdioTransport implements Transport {
 
   // MCP debug middleware for tracing (STDIO: file-only for Claude Code compatibility)
   private debugMiddleware = new MCPDebugMiddleware({ traceToStderr: false });
-
-  constructor(config: MCPStdioConfig) {
-    this.config = config;
-  }
 
   /**
    * Initialize the MCP transport

@@ -793,30 +793,6 @@ export class BrooklynEngine {
   }
 
   /**
-   * Get core tools from enhanced tool definitions
-   * @private
-   */
-  private async getCoreTools(): Promise<Tool[]> {
-    try {
-      const { getAllTools } = await import("./tool-definitions.js");
-      const enhancedTools = getAllTools();
-
-      // Convert enhanced tools to MCP Tool format
-      return enhancedTools.map((tool) => ({
-        name: tool.name,
-        description: tool.description,
-        inputSchema: tool.inputSchema,
-      }));
-    } catch (error) {
-      // Fallback to basic tools if enhanced definitions not available yet
-      this.getLogger().warn("Enhanced tool definitions not available, using basic tools", {
-        error,
-      });
-      return this.getBasicCoreTools();
-    }
-  }
-
-  /**
    * Get basic core tools (fallback)
    */
   private getBasicCoreTools(): Tool[] {

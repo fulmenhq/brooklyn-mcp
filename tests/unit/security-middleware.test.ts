@@ -5,7 +5,7 @@
  */
 
 import type { CallToolRequest } from "@modelcontextprotocol/sdk/types.js";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   type SecurityConfig,
   SecurityError,

@@ -93,11 +93,6 @@ export class BrooklynREPL {
     }
   }
 
-  private async getAvailableTools(): Promise<Tool[]> {
-    // Tools are now loaded directly from tool definitions
-    return this.availableTools;
-  }
-
   private showWelcome(): void {
     const version = process.env["BROOKLYN_VERSION"] || "1.3.3";
     console.log(`\n🌉 Brooklyn Dev REPL v${version}`);

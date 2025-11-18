@@ -20,7 +20,6 @@ import {
   testSetup,
   testTeardown,
 } from "../../../tests/utils/test-infrastructure.js";
-import { LocalHttpServer } from "./local-http-server.js";
 
 // Mock Bun global to avoid actual HTTP server during testing
 global.Bun = {

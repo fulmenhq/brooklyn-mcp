@@ -38,7 +38,7 @@ const createMCPStdioTransport: TransportFactory = async (
   }
 
   // Use standard stdio transport for production
-  return new MCPStdioTransport(mcpConfig);
+  return new MCPStdioTransport();
 };
 
 /**

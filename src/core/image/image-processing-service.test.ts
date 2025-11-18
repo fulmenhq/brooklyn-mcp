@@ -3,7 +3,6 @@
  * Tests SVG compression, analysis, and format conversion functionality
  */
 
-import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ImageProcessingService } from "./image-processing-service.js";

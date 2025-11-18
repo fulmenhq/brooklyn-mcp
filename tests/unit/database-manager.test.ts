@@ -29,7 +29,6 @@ vi.mock("node:os", () => ({
   homedir: vi.fn().mockReturnValue("/home/testuser"),
 }));
 
-
 describe("DatabaseManager", () => {
   beforeEach(async () => {
     // Reset singleton before each test

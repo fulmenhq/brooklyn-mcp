@@ -6,8 +6,8 @@
 
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync } from "node:fs";
-import { readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
-import { basename, extname, join, normalize, relative, resolve } from "node:path";
+import { readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { basename, extname, join, relative, resolve } from "node:path";
 import { minimatch } from "minimatch";
 import { getLogger } from "../../shared/pino-logger.js";
 

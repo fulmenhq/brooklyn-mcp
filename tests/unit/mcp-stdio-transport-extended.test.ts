@@ -18,7 +18,7 @@ describe("MCP STDIO Transport Extended Tests", () => {
   let mockStdinPause: any;
   let mockStdinRemoveAllListeners: any;
 
-  const testConfig: MCPStdioConfig = {
+  const _testConfig: MCPStdioConfig = {
     type: TransportType.MCP_STDIO,
     options: {},
   };
@@ -62,7 +62,7 @@ describe("MCP STDIO Transport Extended Tests", () => {
 
     // Create transport instance
     const { MCPStdioTransport } = await import("../../src/transports/mcp-stdio-transport.js");
-    stdioTransport = new MCPStdioTransport(testConfig);
+    stdioTransport = new MCPStdioTransport();
   });
 
   afterEach(() => {

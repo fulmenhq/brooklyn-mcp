@@ -82,13 +82,13 @@ describe("STDIO Transport Simple Tests", () => {
 
   describe("Configuration Handling", () => {
     it("should handle empty configuration options", async () => {
-      const emptyConfig: MCPStdioConfig = {
+      const _emptyConfig: MCPStdioConfig = {
         type: TransportType.MCP_STDIO,
         options: {},
       };
 
       const { MCPStdioTransport } = await import("../../src/transports/mcp-stdio-transport.js");
-      const transport = new MCPStdioTransport(emptyConfig);
+      const transport = new MCPStdioTransport();
 
       expect(transport.name).toBe("mcp-stdio");
       expect(transport.type).toBe("mcp-stdio");
@@ -96,7 +96,7 @@ describe("STDIO Transport Simple Tests", () => {
     });
 
     it("should handle configuration with development options", async () => {
-      const devConfig: MCPStdioConfig = {
+      const _devConfig: MCPStdioConfig = {
         type: TransportType.MCP_STDIO,
         options: {
           devMode: true,
@@ -106,14 +106,14 @@ describe("STDIO Transport Simple Tests", () => {
       };
 
       const { MCPStdioTransport } = await import("../../src/transports/mcp-stdio-transport.js");
-      const transport = new MCPStdioTransport(devConfig);
+      const transport = new MCPStdioTransport();
 
       expect(transport.name).toBe("mcp-stdio");
       await expect(transport.initialize()).resolves.not.toThrow();
     });
 
     it("should handle configuration with socket options", async () => {
-      const socketConfig: MCPStdioConfig = {
+      const _socketConfig: MCPStdioConfig = {
         type: TransportType.MCP_STDIO,
         options: {
           socketPath: "/tmp/test-socket",
@@ -121,7 +121,7 @@ describe("STDIO Transport Simple Tests", () => {
       };
 
       const { MCPStdioTransport } = await import("../../src/transports/mcp-stdio-transport.js");
-      const transport = new MCPStdioTransport(socketConfig);
+      const transport = new MCPStdioTransport();
 
       expect(transport.name).toBe("mcp-stdio");
       await expect(transport.initialize()).resolves.not.toThrow();
