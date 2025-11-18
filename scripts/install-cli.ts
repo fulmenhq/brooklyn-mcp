@@ -91,11 +91,11 @@ ${colors.cyan}${paths.cliTargetPath} mcp start${colors.reset}
     log.success("CLI is ready to use globally!");
   }
 
-  // Test the installation
+  // Test the built binary (before installation)
   log.title("Testing Installation");
   try {
     const { execSync } = require("node:child_process");
-    const result = execSync(`"${paths.cliTargetPath}" --version`, {
+    const result = execSync(`"${paths.cliSourcePath}" --version`, {
       encoding: "utf8",
     });
 
