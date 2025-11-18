@@ -17,17 +17,11 @@ import type {
   Platform,
 } from "../../src/core/documentation/types.js";
 import type {
-  BatchConvertArgs,
   BatchProcessingOptions,
-  BatchProcessingResult,
   CompressSVGArgs,
   ConvertSVGToMultiPNGArgs,
-  ConvertSVGToPNGArgs,
-  ImageAnalysisMetrics,
   ImageFormatConversionOptions,
-  ImageFormatConversionResult,
   MultiPNGConversionResult,
-  SVGAnalysisResult,
   SVGCompressionOptions,
   SVGCompressionResult,
 } from "../../src/core/image/types.js";

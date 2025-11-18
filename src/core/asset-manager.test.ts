@@ -5,18 +5,13 @@
  * COVERAGE TARGET: scripts/download-assets.ts functionality
  */
 
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 // Import actual implementations to test real code
 import { parse as parseYAML } from "yaml";
-import {
-  createTestConfig,
-  setupTestAssets,
-  testSetup,
-  testTeardown,
-} from "../../tests/utils/test-infrastructure.js";
+import { testSetup, testTeardown } from "../../tests/utils/test-infrastructure.js";
 
 // Asset interfaces from actual implementation
 interface AssetFile {
