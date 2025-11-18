@@ -7,6 +7,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type Ajv from "ajv";
 
+// biome-ignore lint/correctness/noUnusedImports: SchemaObject is used via assertions (lines 62, 76, 209, 213)
 import type { AnySchema, ErrorObject, SchemaObject, ValidateFunction } from "ajv";
 import { parse as parseYaml } from "yaml";
 import type { BrooklynConfig } from "./config.js";
