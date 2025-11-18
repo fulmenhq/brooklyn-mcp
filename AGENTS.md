@@ -13,6 +13,7 @@
 3. ✅ **No exceptions policy** - Quality failures mean STOP, not continue with --no-verify
 4. ❌ **NEVER stage files with known quality issues**
 5. ❌ **NEVER use git commit --no-verify or similar bypasses**
+6. ❌ 🚨 **NEVER use `biome check --unsafe` or `biome check --write --unsafe`** - CRITICAL: Biome's "unsafe" fixes have been proven to **DELETE WORKING CODE**. During our v2.2.5 upgrade, the `noUnusedPrivateClassMembers` rule deleted 40+ static class members that were used via class name access (e.g., `TransportRegistry.factories`), breaking 155 tests. All Biome fixes must be applied **manually** with human review. This is not negotiable.
 
 ### Pre-Commit Self-Validation Protocol
 
