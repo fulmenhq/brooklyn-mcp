@@ -12,10 +12,19 @@ import type { LoggerOptions, Logger as PinoLogger } from "pino";
 import pino from "pino";
 import type { BrooklynConfig } from "../core/config.js";
 
+type MessageFirstLogMethod = (msg: string, ...args: unknown[]) => void;
+
+type AugmentedLogMethod<T extends (...args: unknown[]) => unknown> = T & MessageFirstLogMethod;
+
 /**
- * Brooklyn logger instance type
+ * Brooklyn logger instance type with legacy-friendly overloads
  */
-export type Logger = PinoLogger;
+export type Logger = PinoLogger & {
+  info: AugmentedLogMethod<PinoLogger["info"]>;
+  warn: AugmentedLogMethod<PinoLogger["warn"]>;
+  error: AugmentedLogMethod<PinoLogger["error"]>;
+  debug: AugmentedLogMethod<PinoLogger["debug"]>;
+};
 
 /**
  * Global configuration for logging behavior
@@ -244,7 +253,7 @@ async function configureMCPFileLogging(): Promise<void> {
       },
     },
     transport,
-  );
+  ) as Logger;
 
   // Update the root logger reference
   Object.setPrototypeOf(rootLogger, Object.getPrototypeOf(newLogger));
@@ -292,7 +301,7 @@ function createPinoOptions(config?: Partial<BrooklynConfig>): LoggerOptions {
 /**
  * Root logger instance - created immediately, no initialization needed
  */
-const rootLogger = pino(createPinoOptions(), createSafeStream());
+const rootLogger = pino(createPinoOptions(), createSafeStream()) as Logger;
 
 /**
  * Logger cache for child loggers

@@ -8,8 +8,7 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { extname, join } from "node:path";
 import type { Server } from "bun";
-import type { Logger } from "pino";
-import { getLogger } from "../../shared/pino-logger.js";
+import { getLogger, type Logger } from "../../shared/pino-logger.js";
 
 // Lazy logger initialization per AGENT.md requirements
 let logger: Logger | null = null;
