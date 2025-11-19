@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] - 2025-01-19
+
+### Dependency Updates
+
+- **Logging Stack**: Upgraded `pino` from v9 to v10.1.0 and `pino-pretty` from v11 to v13.1.2 for improved logging performance and type safety
+- **CLI Tooling**: Upgraded `inquirer` from v9 to v13.0.1 for better interactive prompts in CLI commands
+- **dotenv Pinned**: Pinned `dotenv` to v16.6.1 (exact version) due to stdout purity issues in v17.x that violate MCP protocol requirements
+
+### Fixed
+
+- **MCP Stdout Purity**: Prevented dotenv v17.x upgrade that would have polluted stdout with package information, breaking JSON-RPC protocol compliance
+- **Build Process**: Fixed CLI binary testing to use local `./dist/brooklyn` instead of globally installed version, preventing confusing ENOENT errors during development
+
+### Documentation
+
+- **Package Dependencies**: Added `docs/architecture/notes/package-dependencies-special-handling.md` to document dependencies requiring special version constraints
+- **Planning**: Added comprehensive feature briefs for v0.3.0 MCP SDK upgrade and vitest v4 upgrade
+
+### Technical Details
+
+- All quality gates passing: format, typecheck, lint, tests (755 passing)
+- MCP stdout purity tests: 4/4 passing with dotenv v16.6.1
+- Full test suite execution time: ~87 seconds
+
 ## [0.2.2] - 2025-01-17
 
 ### Major Improvements
