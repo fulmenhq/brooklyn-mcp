@@ -120,6 +120,7 @@
     "@modelcontextprotocol/sdk": "^0.5.0",
     "ajv": "^8.12.0",
     "ajv-formats": "^2.1.1",
+    "dotenv": "16.6.1",
     "js-tiktoken": "^1.0.21",
     "minimatch": "^10.1.1",
     "pino": "^10.1.0",
@@ -127,8 +128,8 @@
     "playwright": "^1.56.1",
     "svgo": "^4.0.0",
     "tiktoken": "^1.0.22",
-    "xml2js": "^0.6.2",
     "toml": "^3.0.0",
+    "xml2js": "^0.6.2",
     "yaml": "^2.3.4"
   },
   "devDependencies": {
@@ -140,9 +141,8 @@
     "@vitest/coverage-v8": "^2.0.0",
     "chalk": "^5.6.2",
     "commander": "^14.0.2",
-    "dotenv": "^16.0.0",
     "husky": "^9.1.7",
-    "inquirer": "^9.0.0",
+    "inquirer": "^13.0.1",
     "prettier": "^3.0.0",
     "typescript": "^5.9.3",
     "vitest": "^2.0.0"
