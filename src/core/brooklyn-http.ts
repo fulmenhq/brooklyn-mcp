@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { parse } from "node:url";
 import type { CallToolRequest, Tool } from "@modelcontextprotocol/sdk/types.js";
 
+import { negotiateHandshake } from "../shared/mcp-handshake.js";
 import { getLogger } from "../shared/pino-logger.js";
 import { type BrooklynContext, BrooklynEngine } from "./brooklyn-engine.js";
 import { loadConfig } from "./config.js";
@@ -406,18 +407,14 @@ export class BrooklynHTTP {
 
       // Process supported methods per MCP spec
       if (method === "initialize") {
-        const serverProtocolVersion = "2025-06-18";
         const clientVersion = (params?.["protocolVersion"] as string | undefined) ?? undefined;
+        const negotiation = negotiateHandshake(clientVersion);
 
-        if (clientVersion && clientVersion !== serverProtocolVersion) {
+        if (!negotiation.ok) {
           this.sendJSON(res, 200, {
             jsonrpc: "2.0",
             id,
-            error: {
-              code: -32600,
-              message: `Unsupported protocolVersion "${clientVersion}". Server supports "${serverProtocolVersion}".`,
-              data: { supported: serverProtocolVersion },
-            },
+            error: negotiation.error,
           });
           return;
         }
@@ -425,19 +422,7 @@ export class BrooklynHTTP {
         this.sendJSON(res, 200, {
           jsonrpc: "2.0",
           id,
-          result: {
-            protocolVersion: serverProtocolVersion,
-            serverInfo: {
-              name: "brooklyn-mcp-server",
-              version: (await import("../shared/build-config.js")).buildConfig.version,
-            },
-            capabilities: {
-              tools: { listChanged: true },
-              roots: {},
-              resources: {},
-              prompts: {},
-            },
-          },
+          result: negotiation.payload,
         });
         return;
       }

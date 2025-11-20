@@ -6,7 +6,7 @@
 import { MCPDebugMiddleware } from "../core/mcp-debug-middleware.js";
 import type { ToolCallHandler, ToolListHandler, Transport } from "../core/transport.js";
 import { TransportType } from "../core/transport.js";
-import { buildConfig } from "../shared/build-config.js";
+import { negotiateHandshake } from "../shared/mcp-handshake.js";
 import { getLogger } from "../shared/pino-logger.js";
 
 /**
@@ -143,32 +143,20 @@ export class MCPStdioTransport implements Transport {
 
       if (msg.method === "initialize") {
         this.logger().debug("Handling initialize request", { params: msg.params });
-        // Align with MCP SDK v0.5.0 reference version used across other transports
-        const serverProtocolVersion = "2025-06-18";
         const clientVersion = (msg.params?.protocolVersion as string | undefined) ?? undefined;
+        const negotiation = negotiateHandshake(clientVersion);
 
-        if (clientVersion && clientVersion !== serverProtocolVersion) {
-          // Version mismatch: return JSON-RPC error with informative message
+        if (!negotiation.ok) {
           response = {
             jsonrpc: "2.0",
             id: msg.id,
-            error: {
-              code: -32600,
-              message: `Unsupported protocolVersion "${clientVersion}". Server supports "${serverProtocolVersion}".`,
-              data: { supported: serverProtocolVersion },
-            },
+            error: negotiation.error,
           };
         } else {
           response = {
             jsonrpc: "2.0",
             id: msg.id,
-            result: {
-              protocolVersion: serverProtocolVersion,
-              serverInfo: { name: "brooklyn-mcp-server", version: buildConfig.version },
-              capabilities: {
-                tools: { listChanged: true },
-              },
-            },
+            result: negotiation.payload,
           };
         }
         this.logger().debug("Initialize response prepared", { response });

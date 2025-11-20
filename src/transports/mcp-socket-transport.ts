@@ -15,7 +15,7 @@ import type {
   Transport,
 } from "../core/transport.js";
 import { TransportType } from "../core/transport.js";
-import { buildConfig } from "../shared/build-config.js";
+import { negotiateHandshake } from "../shared/mcp-handshake.js";
 import { getLogger } from "../shared/pino-logger.js";
 
 // Type definitions for JSON-RPC messages
@@ -279,18 +279,21 @@ export class MCPSocketTransport implements Transport {
 
   private handleInitialize(msg: JsonRpcRequest): unknown {
     const params = msg.params as InitializeParams | undefined;
+    const clientVersion = params?.protocolVersion;
+    const negotiation = negotiateHandshake(clientVersion);
+
+    if (!negotiation.ok) {
+      return {
+        jsonrpc: "2.0",
+        id: msg.id,
+        error: negotiation.error,
+      };
+    }
+
     return {
       jsonrpc: "2.0",
       id: msg.id,
-      result: {
-        protocolVersion: params?.protocolVersion || "2024-11-05",
-        serverInfo: { name: "brooklyn-mcp-server", version: buildConfig.version },
-        capabilities: {
-          tools: { listChanged: true },
-          resources: {},
-          roots: {},
-        },
-      },
+      result: negotiation.payload,
     };
   }
 

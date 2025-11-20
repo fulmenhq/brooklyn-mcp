@@ -257,15 +257,11 @@ generate_selector browserId=browser_123 target="login form"
 brooklyn_status                    # Server health and capabilities
 brooklyn_list_tools                # Available automation tools
 list_active_browsers               # Current browser sessions
-
-# Team management
-brooklyn_team_setup team_id=frontend use_cases=["e2e_testing"]
-list_screenshots team=frontend date_range="last_7_days"
-
-# Troubleshooting
-brooklyn_troubleshooting issue=connection_failed
-brooklyn_examples task=form_automation format=claude_commands
 ```
+
+> Tip: after rebuilding (`bun run build && bun run install`), call `brooklyn_status`
+> over both stdio (`brooklyn mcp start`) and HTTP (`curl /tools/brooklyn_status`) to
+> confirm clients are seeing the refreshed binary before continuing work.
 
 ---
 

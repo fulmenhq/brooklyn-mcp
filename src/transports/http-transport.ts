@@ -10,6 +10,7 @@ import { traceIncomingMCPRequest, traceOutgoingMCPResponse } from "../core/mcp-d
 import type { HTTPConfig, ToolCallHandler, ToolListHandler, Transport } from "../core/transport.js";
 import { TransportType } from "../core/transport.js";
 import { buildConfig } from "../shared/build-config.js";
+import { negotiateHandshake } from "../shared/mcp-handshake.js";
 import { getLogger } from "../shared/pino-logger.js";
 
 /**
@@ -818,35 +819,20 @@ export class MCPHTTPTransport implements Transport {
 
     switch (method) {
       case "initialize": {
-        // Spec: server declares its supported protocol version; optionally validate client version
         const clientVersion = (params?.["protocolVersion"] as string | undefined) ?? undefined;
-        const serverProtocolVersion = "2025-06-18";
+        const negotiation = negotiateHandshake(clientVersion);
 
-        if (clientVersion && clientVersion !== serverProtocolVersion) {
-          // Version mismatch: return JSON-RPC error with informative message
+        if (!negotiation.ok) {
           response = {
             jsonrpc: "2.0",
             id,
-            error: {
-              code: -32600,
-              message: `Unsupported protocolVersion "${clientVersion}". Server supports "${serverProtocolVersion}".`,
-              data: { supported: serverProtocolVersion },
-            },
+            error: negotiation.error,
           };
         } else {
           response = {
             jsonrpc: "2.0",
             id,
-            result: {
-              protocolVersion: serverProtocolVersion,
-              serverInfo: { name: "brooklyn-mcp-server", version: buildConfig.version },
-              capabilities: {
-                tools: { listChanged: true },
-                roots: {},
-                resources: {},
-                prompts: {},
-              },
-            },
+            result: negotiation.payload,
           };
         }
         break;
