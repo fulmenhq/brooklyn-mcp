@@ -8,6 +8,7 @@ import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 
 import { config } from "../shared/config.js";
+import { createCallToolRequest } from "../shared/mcp-request.js";
 import { getLogger } from "../shared/pino-logger.js";
 import { type BrooklynContext, BrooklynEngine } from "./brooklyn-engine.js";
 
@@ -92,14 +93,13 @@ export class MCPServer {
               ? "take_screenshot"
               : name;
 
+        const callRequest = createCallToolRequest({
+          name: mappedName,
+          arguments: (args as Record<string, unknown>) ?? {},
+        });
+
         const engineResponse = (await this.engine.executeToolCall(
-          {
-            params: {
-              name: mappedName,
-              arguments: (args as Record<string, unknown>) ?? {},
-            },
-            method: "tools/call",
-          } as unknown as import("@modelcontextprotocol/sdk/types.js").CallToolRequest,
+          callRequest,
           this.context,
         )) as any;
 

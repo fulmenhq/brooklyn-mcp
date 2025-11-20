@@ -7,9 +7,10 @@ import { existsSync, unlinkSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { join } from "node:path";
 import { parse } from "node:url";
-import type { CallToolRequest, Tool } from "@modelcontextprotocol/sdk/types.js";
+import type { CallToolRequestParams, Tool } from "@modelcontextprotocol/sdk/types.js";
 
 import { negotiateHandshake } from "../shared/mcp-handshake.js";
+import { createCallToolRequest } from "../shared/mcp-request.js";
 import { getLogger } from "../shared/pino-logger.js";
 import { type BrooklynContext, BrooklynEngine } from "./brooklyn-engine.js";
 import { loadConfig } from "./config.js";
@@ -336,13 +337,10 @@ export class BrooklynHTTP {
       const toolRequest = body as ToolCallRequest;
 
       // Create MCP-style request
-      const mcpRequest: CallToolRequest = {
-        method: "tools/call",
-        params: {
-          name: toolName,
-          arguments: toolRequest.arguments || {},
-        },
-      };
+      const mcpRequest = createCallToolRequest({
+        name: toolName,
+        arguments: toolRequest.arguments,
+      });
 
       // Execute tool via Brooklyn engine
       const mcpResponse = await this.brooklynEngine.executeToolCall(mcpRequest, this.context);
@@ -455,14 +453,17 @@ export class BrooklynHTTP {
           return;
         }
 
-        // Execute through engine using MCP CallToolRequest shape
-        const mcpRequest: CallToolRequest = {
-          method: "tools/call",
-          params: {
-            name,
-            arguments: (params?.["arguments"] as Record<string, unknown>) ?? {},
-          },
+        const callParams: CallToolRequestParams = {
+          name,
+          arguments: (params?.["arguments"] as Record<string, unknown>) ?? {},
         };
+
+        const meta = params?.["_meta"];
+        if (meta && typeof meta === "object") {
+          callParams._meta = meta as CallToolRequestParams["_meta"];
+        }
+
+        const mcpRequest = createCallToolRequest(callParams);
 
         const mcpResponse = await this.brooklynEngine.executeToolCall(mcpRequest, this.context);
 

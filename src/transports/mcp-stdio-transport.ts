@@ -3,10 +3,13 @@
  * Handles Claude Code integration via MCP protocol
  */
 
+import type { CallToolRequestParams } from "@modelcontextprotocol/sdk/types.js";
+
 import { MCPDebugMiddleware } from "../core/mcp-debug-middleware.js";
 import type { ToolCallHandler, ToolListHandler, Transport } from "../core/transport.js";
 import { TransportType } from "../core/transport.js";
 import { negotiateHandshake } from "../shared/mcp-handshake.js";
+import { createCallToolRequestFromMessage } from "../shared/mcp-request.js";
 import { getLogger } from "../shared/pino-logger.js";
 
 /**
@@ -177,10 +180,11 @@ export class MCPStdioTransport implements Transport {
             "Invalid params: 'name' must be a string",
           );
         } else {
-          const handlerResult = await this.toolCallHandler({
-            params: msg.params,
-            method: "tools/call",
-          });
+          const handlerResult = await this.toolCallHandler(
+            createCallToolRequestFromMessage({
+              params: msg.params as CallToolRequestParams,
+            }),
+          );
 
           let normalizedEnvelope: { result: { result: any; metadata: { executionTime: number } } };
           const start = Date.now();

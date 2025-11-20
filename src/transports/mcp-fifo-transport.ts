@@ -7,7 +7,7 @@ import * as fs from "node:fs";
 import { constants as fsConstants } from "node:fs";
 import * as readline from "node:readline";
 
-import type { CallToolRequest } from "@modelcontextprotocol/sdk/types.js";
+import type { CallToolRequestParams } from "@modelcontextprotocol/sdk/types.js";
 import type {
   MCPStdioConfig,
   ToolCallHandler,
@@ -16,6 +16,7 @@ import type {
 } from "../core/transport.js";
 import { TransportType } from "../core/transport.js";
 import { negotiateHandshake } from "../shared/mcp-handshake.js";
+import { createCallToolRequestFromMessage } from "../shared/mcp-request.js";
 import { getLogger } from "../shared/pino-logger.js";
 
 // Type definitions for JSON-RPC messages
@@ -368,7 +369,11 @@ export class MCPFifoTransport implements Transport {
 
   private async handleToolsCall(msg: JsonRpcRequest): Promise<unknown> {
     if (!this.toolCallHandler) throw new Error("Tool call handler not set");
-    const result = await this.toolCallHandler(msg as CallToolRequest);
+    const result = await this.toolCallHandler(
+      createCallToolRequestFromMessage({
+        params: msg.params as CallToolRequestParams,
+      }),
+    );
     return { jsonrpc: "2.0", id: msg.id, result };
   }
 

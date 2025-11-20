@@ -7,8 +7,9 @@
  */
 
 import { createInterface, type Interface } from "node:readline";
-import type { CallToolRequest, Tool } from "@modelcontextprotocol/sdk/types.js";
+import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 
+import { createCallToolRequest } from "../shared/mcp-request.js";
 import { getLogger } from "../shared/pino-logger.js";
 import { type BrooklynContext, BrooklynEngine } from "./brooklyn-engine.js";
 import { loadConfig } from "./config.js";
@@ -218,13 +219,10 @@ export class BrooklynREPL {
       const params = this.parseToolArguments(args, tool);
 
       // Create MCP-style request
-      const request: CallToolRequest = {
-        method: "tools/call",
-        params: {
-          name: toolName,
-          arguments: params,
-        },
-      };
+      const request = createCallToolRequest({
+        name: toolName,
+        arguments: params,
+      });
 
       const startTime = Date.now();
 
