@@ -78,11 +78,19 @@ bun install
 # Build and install CLI
 bun run build && bun run install
 
-# Connect to Claude Code (stdio transport)
-claude mcp add -s user brooklyn "brooklyn mcp start"
+# Start Brooklyn HTTP server (recommended for multi-agent workflows)
+brooklyn web start --port 3000 --daemon
 
-# Verify connection
-claude mcp list
+# Connect to Claude Code (HTTP transport)
+claude mcp add -s user -t http brooklyn http://127.0.0.1:3000
+
+# Verify installation
+brooklyn_status  # Run in Claude Code - shows version and 50+ tools
+brooklyn doctor --json  # Run in terminal - comprehensive health check
+
+# Alternative: Legacy single-agent only (stdio transport)
+# ⚠️ Warning: stdio does not support multiple agents simultaneously
+# claude mcp add -s user -t stdio brooklyn "brooklyn mcp start"
 ```
 
 ### Test Your First Automation

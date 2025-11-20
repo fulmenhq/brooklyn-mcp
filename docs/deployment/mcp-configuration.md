@@ -31,17 +31,23 @@ After installation, the `brooklyn` command is available system-wide (assuming `~
 Use the Claude Code CLI to add Brooklyn:
 
 ```help-text-mcp-setup
-Add Brooklyn for all your projects (user-wide):
+Recommended: Start Brooklyn HTTP server for multi-agent workflows
+
+1. Start server (once per machine):
+   brooklyn web start --port 3000 --daemon
+
+2. Add to Claude Code:
+   claude mcp add -s user -t http brooklyn http://127.0.0.1:3000
+
+3. Verify installation:
+   brooklyn_status  # Run in Claude Code - shows version and 50+ tools
+   brooklyn doctor --json  # Run in terminal - comprehensive health check
+
+For detailed setup: docs/deployment/mcp-configuration.md
+
+Legacy single-agent only (stdio transport):
   claude mcp add -s user -t stdio brooklyn brooklyn mcp start
-
-Alternative - add for current project only:
-  claude mcp add -t stdio brooklyn brooklyn mcp start
-
-Verify configuration:
-  claude mcp list
-  claude mcp get brooklyn
-
-For troubleshooting, see: https://github.com/fulmenhq/fulmen-mcp-brooklyn
+  ⚠️ Note: stdio does not support multiple agents simultaneously
 ```
 
 ### With Environment Variables
@@ -183,22 +189,50 @@ brooklyn mcp status
 ### MCP Mode Issues
 
 ```help-text-mcp-troubleshooting
-Brooklyn tools not appearing in Claude Code:
-  1. Restart Claude Code completely
-  2. Check configuration: claude mcp get brooklyn
-  3. Verify binary exists: which brooklyn
+## Quick Diagnostics
 
-Connection errors or timeouts:
-  1. Clean up orphaned processes: brooklyn mcp cleanup
-  2. Ensure Brooklyn installed: brooklyn --version
-  3. Test MCP directly: brooklyn mcp start --help
-  4. Check Claude Code logs
+Run health check first:
+  brooklyn doctor --json     # Comprehensive system check
+  brooklyn_status            # Verify version and tools (in Claude Code)
 
-Multiple processes running:
-  brooklyn mcp cleanup              # Graceful cleanup
-  brooklyn mcp cleanup --force      # Force cleanup if stuck
+## Tools Not Appearing
 
-Need help? Visit: https://github.com/fulmenhq/fulmen-mcp-brooklyn
+For HTTP transport:
+  1. Verify server running: brooklyn status
+  2. Reconnect MCP: /mcp (in Claude Code)
+  3. Check server health: curl http://localhost:3000/health
+  4. Restart server if needed:
+     brooklyn web cleanup --port 3000
+     brooklyn web start --port 3000 --daemon
+
+For stdio transport:
+  1. Reconnect MCP: /mcp (in Claude Code)
+  2. Clean up processes: brooklyn mcp cleanup
+  3. Verify binary: which brooklyn && brooklyn --version
+  4. Alternative: Remove and re-add:
+     claude mcp remove brooklyn
+     claude mcp add -s user -t stdio brooklyn brooklyn mcp start
+
+## Connection Errors
+
+HTTP transport:
+  1. Port conflicts: brooklyn web cleanup --port 3000
+  2. Check network: curl http://127.0.0.1:3000/health
+  3. Firewall rules: ensure localhost access allowed
+
+stdio transport:
+  1. Process cleanup: brooklyn mcp cleanup --force
+  2. Check for orphaned processes: ps aux | grep brooklyn
+  3. Verify stdout purity: no log output to terminal
+
+## Post-Install Verification
+
+After rebuild (bun run build && bun run install):
+  1. Verify binary version: brooklyn --version
+  2. Test via HTTP: curl http://localhost:3000/tools/brooklyn_status
+  3. Confirm in Claude Code: brooklyn_status (check version matches)
+
+For detailed troubleshooting: docs/deployment/mcp-configuration.md
 ```
 
 ### Binary Path Issues
