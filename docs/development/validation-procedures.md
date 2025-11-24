@@ -129,6 +129,24 @@ bun run test       # Test execution (Vitest)
 
 ### Integration Test Preparation
 
+The test suite includes automatic browser preflight verification that runs before tests:
+
+```bash
+# This verification happens automatically with 'bun run test'
+🔧 Setting up test infrastructure...
+🌐 Verifying browser installations...
+✅ Chromium verified: chromium-1194
+✅ Test infrastructure setup complete!
+```
+
+**Benefits of Preflight Verification:**
+
+- ⚡ Fast failure (~1s vs 50s mid-test) with clear error messages
+- 🛡️ Prevents "Worker exited unexpectedly" errors from missing browsers
+- 📋 All diagnostic output to stderr per Unix convention
+
+**Test Preparation Commands:**
+
 ```bash
 # Prepare environment for integration tests
 bun run test:integration:prep        # Install browsers, cleanup processes
@@ -141,6 +159,23 @@ bun run test:unit                   # Fast unit tests (no dependencies)
 bun run test:integration           # Integration tests (requires browsers)
 bun run test:e2e                   # End-to-end tests (currently skipped)
 ```
+
+**Debug Integration Tests:**
+
+```bash
+# Enable debug output for child process tests
+DEBUG_STDOUT_PURITY=1 bun run test tests/integration/stdout-purity.test.ts
+
+# Debug Playwright browser tests
+DEBUG=pw:api bun run test:integration:browser
+
+# Debug MCP protocol
+BROOKLYN_MCP_STDERR=true bun run test tests/integration/
+```
+
+**Critical Testing Patterns:**
+
+For detailed patterns on child process testing, ready signal synchronization, and preventing worker crashes, see [Integration Test Guide](../testing/integration-test-guide.md#testing-patterns--best-practices).
 
 ### Exception Verification
 

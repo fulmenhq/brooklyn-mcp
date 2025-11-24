@@ -308,7 +308,29 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
         }
         // Remain silent in stdio production mode
       } catch (error) {
-        // Attempt to emit JSON-RPC error for stdio mode
+        // CRITICAL: Always log bootstrap failures to stderr for diagnostics
+        // This ensures the test suite sees structured logs even when startup aborts early,
+        // preventing "silent exit" misinterpretation as "another instance running".
+        try {
+          const logger = getLogger("brooklyn-cli");
+          logger.error("MCP server failed to start", {
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+            mode: options.devMode ? "dev-pipes" : "stdio",
+          });
+        } catch {
+          // Fallback if logger isn't initialized yet
+          console.error(
+            JSON.stringify({
+              level: 50,
+              time: Date.now(),
+              msg: "MCP server failed to start",
+              error: error instanceof Error ? error.message : String(error),
+            }),
+          );
+        }
+
+        // Additionally emit JSON-RPC error to stdout in stdio mode (for MCP clients)
         if (!options.devMode) {
           const errorResponse = {
             jsonrpc: "2.0",
@@ -324,19 +346,9 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
           } catch {
             // ignore
           }
-        } else {
-          try {
-            const logger = getLogger("brooklyn-cli");
-            logger.error("Failed to start MCP server", {
-              error: error instanceof Error ? error.message : String(error),
-              stack: error instanceof Error ? error.stack : undefined,
-              mode: "dev-pipes",
-            });
-          } catch {
-            console.error("Failed to start MCP server:", error);
-          }
         }
-        process.exit(1);
+
+        process.exitCode = 1;
       }
     });
 

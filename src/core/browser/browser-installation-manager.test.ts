@@ -4,6 +4,18 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+// Mock child_process to prevent shell execution of browser paths during version checks
+vi.mock("node:child_process", () => ({
+  execSync: vi.fn(() => "Chromium 120.0.6099.129"),
+  exec: vi.fn((_cmd, _opts, callback) => {
+    if (callback) callback(null, { stdout: "Chromium 120.0.6099.129", stderr: "" });
+    return { stdout: "Chromium 120.0.6099.129", stderr: "" };
+  }),
+  spawn: vi.fn(),
+  spawnSync: vi.fn(() => ({ status: 0, stdout: "", stderr: "" })),
+}));
+
 import { BrowserInstallationManager } from "./browser-installation-manager.js";
 import type { SystemBrowserInfo } from "./types.js";
 

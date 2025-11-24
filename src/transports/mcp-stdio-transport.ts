@@ -119,6 +119,14 @@ export class MCPStdioTransport implements Transport {
     process.stdin.resume();
 
     // Transport started successfully
+    // CRITICAL: Emit ready signal for test suite synchronization
+    // The test suite waits for this marker before writing to stdin, eliminating the
+    // "blind 3s wait" race condition. This turns timing from "hope 3s is enough" into
+    // "wait until transport says it's listening". Only emitted in test mode to avoid
+    // polluting production stderr. See tests/integration/stdout-purity.test.ts for usage.
+    if (process.env["BROOKLYN_TEST_MODE"] === "true") {
+      process.stderr.write(`${JSON.stringify({ msg: "mcp-stdio-ready" })}\n`);
+    }
   }
 
   private async handleIncomingMessage(line: string): Promise<void> {

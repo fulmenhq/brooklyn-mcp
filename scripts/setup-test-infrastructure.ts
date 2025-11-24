@@ -3,10 +3,12 @@
  * Setup Test Infrastructure
  *
  * Ensures all required directories and files exist for testing in CI/CD environments
+ * Includes browser preflight checks to prevent mid-test worker crashes
  */
 
-import { existsSync, mkdirSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { execSync } from "node:child_process";
+import { existsSync, mkdirSync, readdirSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 
 const requiredDirectories = [
@@ -33,15 +35,131 @@ function getRequiredTempDirs(): string[] {
   ];
 }
 
-export function setupTestInfrastructure(): void {
-  console.log("🔧 Setting up test infrastructure...");
+/**
+ * Verify Playwright browsers are installed and accessible
+ * Prevents mid-test "worker exited unexpectedly" errors
+ *
+ * Note: Uses stderr for all output per Unix convention (stdout = data, stderr = diagnostics)
+ */
+async function verifyBrowsersInstalled(): Promise<void> {
+  // Always use stderr for diagnostic output (Unix convention)
+  const log = console.error;
+
+  log("🌐 Verifying browser installations...");
+
+  // Check if we're skipping browser checks (for unit tests only)
+  if (process.env["SKIP_BROWSER_CHECK"] === "true") {
+    log("⏭️  Skipping browser check (SKIP_BROWSER_CHECK=true)");
+    return;
+  }
+
+  try {
+    // Get Playwright cache directory
+    const cacheBase =
+      process.platform === "darwin"
+        ? join(homedir(), "Library", "Caches")
+        : process.platform === "win32"
+          ? join(homedir(), "AppData", "Local")
+          : join(homedir(), ".cache");
+
+    const playwrightCacheDir = join(cacheBase, "ms-playwright");
+
+    // Check if Playwright cache exists
+    if (!existsSync(playwrightCacheDir)) {
+      log("❌ Playwright browsers not found");
+      log(`   Expected at: ${playwrightCacheDir}`);
+      log("");
+      log("   Run one of the following commands to install:");
+      log("   • bun run setup:browsers");
+      log("   • bunx playwright install chromium");
+      log("");
+      process.exit(1);
+    }
+
+    // Check for Chromium installation (required for most tests)
+    const entries = readdirSync(playwrightCacheDir);
+    const chromiumDirs = entries.filter((entry) => entry.startsWith("chromium-"));
+
+    if (chromiumDirs.length === 0) {
+      log("❌ Chromium browser not installed");
+      log(`   Playwright cache: ${playwrightCacheDir}`);
+      log("");
+      log("   Run: bun run setup:browsers");
+      log("");
+      process.exit(1);
+    }
+
+    // Verify browser executable exists and is accessible
+    // Safety: chromiumDirs.length > 0 is guaranteed by check above
+    const chromiumDir = join(playwrightCacheDir, chromiumDirs[0] as string);
+    let browserExecutable: string;
+
+    if (process.platform === "darwin") {
+      browserExecutable = join(
+        chromiumDir,
+        "chrome-mac",
+        "Chromium.app",
+        "Contents",
+        "MacOS",
+        "Chromium",
+      );
+    } else if (process.platform === "win32") {
+      browserExecutable = join(chromiumDir, "chrome-win", "chrome.exe");
+    } else {
+      browserExecutable = join(chromiumDir, "chrome-linux", "chrome");
+    }
+
+    if (!existsSync(browserExecutable)) {
+      log("❌ Chromium executable not found");
+      log(`   Expected at: ${browserExecutable}`);
+      log("");
+      log("   Browser directory may be corrupted. Reinstall with:");
+      log("   • bun run setup:browsers");
+      log("");
+      process.exit(1);
+    }
+
+    // Verify executable can be called (basic version check)
+    try {
+      execSync(`"${browserExecutable}" --version`, {
+        stdio: "pipe",
+        timeout: 5000,
+      });
+      log(`✅ Chromium verified: ${chromiumDirs[0]}`);
+    } catch (execError) {
+      log("❌ Chromium executable exists but cannot be executed");
+      log(`   Path: ${browserExecutable}`);
+      log("");
+      log("   Error:", execError instanceof Error ? execError.message : String(execError));
+      log("");
+      log("   Try reinstalling browsers:");
+      log("   • bun run setup:browsers");
+      log("");
+      process.exit(1);
+    }
+  } catch (catchError) {
+    log("❌ Browser verification failed");
+    log("   Error:", catchError instanceof Error ? catchError.message : String(catchError));
+    log("");
+    log("   If you're running unit tests only, set:");
+    log("   SKIP_BROWSER_CHECK=true bun run test");
+    log("");
+    process.exit(1);
+  }
+}
+
+export async function setupTestInfrastructure(): Promise<void> {
+  // Always use stderr for diagnostic output (Unix convention: stdout = data, stderr = diagnostics)
+  const log = console.error;
+
+  log("🔧 Setting up test infrastructure...");
 
   // Create required directories in project
   for (const dir of requiredDirectories) {
     const dirPath = join(process.cwd(), dir);
     if (!existsSync(dirPath)) {
       mkdirSync(dirPath, { recursive: true });
-      console.log(`✅ Created directory: ${dir}`);
+      log(`✅ Created directory: ${dir}`);
     }
   }
 
@@ -50,14 +168,17 @@ export function setupTestInfrastructure(): void {
   for (const dir of requiredTempDirs) {
     if (!existsSync(dir)) {
       mkdirSync(dir, { recursive: true });
-      console.log(`✅ Created temp directory: ${dir}`);
+      log(`✅ Created temp directory: ${dir}`);
     }
   }
 
-  console.log("✅ Test infrastructure setup complete!");
+  // Verify browsers are installed (preflight check)
+  await verifyBrowsersInstalled();
+
+  log("✅ Test infrastructure setup complete!");
 }
 
 // Run if called directly
 if (import.meta.main) {
-  setupTestInfrastructure();
+  await setupTestInfrastructure();
 }

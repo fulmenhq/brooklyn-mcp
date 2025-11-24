@@ -22,6 +22,15 @@ vi.mock("../../shared/pino-logger.js", () => ({
   })),
 }));
 
+// Mock child_process to prevent shell execution of browser paths during version checks
+vi.mock("node:child_process", () => ({
+  execSync: vi.fn(() => "Chromium 120.0.0.0"),
+  exec: vi.fn((_cmd, _opts, callback) => {
+    if (callback) callback(null, { stdout: "Chromium 120.0.0.0", stderr: "" });
+  }),
+  spawn: vi.fn(),
+}));
+
 describe("BrowserPool", () => {
   let pool: BrowserPool;
   let mockCreateInstance: ReturnType<typeof vi.fn>;

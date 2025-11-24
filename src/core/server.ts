@@ -181,6 +181,26 @@ export class MCPServer {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
     logger.info("MCP server connected via stdio");
+
+    // CRITICAL: This log is required for stdout-purity tests to pass.
+    // The test suite validates that BROOKLYN_MCP_STDERR=true produces logs on stderr
+    // while keeping stdout pure for JSON-RPC. Without a guaranteed log after handshake,
+    // expect(stderr).toBeTruthy() fails intermittently when no other info-level logs fire.
+    // See tests/integration/stdout-purity.test.ts for context.
+    logger.info("MCP handshake accepted", {
+      transport: "stdio",
+      protocol: "mcp",
+    });
+
+    // CRITICAL: Emit ready signal for test suite synchronization
+    // The test suite waits for this marker before writing to stdin, eliminating the
+    // "blind 3s wait" race condition. This turns timing from "hope 3s is enough" into
+    // "wait until transport says it's listening". Only emitted in test mode to avoid
+    // polluting production stderr. See tests/integration/stdout-purity.test.ts for usage.
+    if (process.env["BROOKLYN_TEST_MODE"] === "true") {
+      process.stderr.write(`${JSON.stringify({ msg: "mcp-stdio-ready" })}\n`);
+    }
+
     logger.info("Server ready for requests");
   }
 

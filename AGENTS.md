@@ -62,7 +62,7 @@ bun run format:code                     # Code formatting
 
 ## Project Overview
 
-Brooklyn is a multi-team MCP server for browser automation using Bun, TypeScript, and Playwright. Follow fulmen ecosystem standards in docs/fulmen/.
+Brooklyn is a multi-team MCP server for browser automation using Bun, TypeScript, and Playwright.
 
 Release Process
 

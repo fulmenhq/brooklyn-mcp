@@ -42,7 +42,10 @@ interface TestResult {
 const BROOKLYN_PATH = resolve(process.cwd(), "src", "cli", "brooklyn.ts");
 const TEST_TIMEOUT = 60000; // 60 seconds
 
-describe("Architecture Committee: MCP Stdout Purity Tests", () => {
+// CRITICAL: Sequential execution prevents timing races between child processes
+// and makes logs easier to follow. Heavy child-process tests should never run
+// in parallel as they can cause tinypool worker crashes from resource contention.
+describe.sequential("Architecture Committee: MCP Stdout Purity Tests", () => {
   beforeAll(async () => {
     // Enable stderr for tests to pass expect(stderr).toBeTruthy()
     process.env["BROOKLYN_MCP_STDERR"] = "true";
@@ -350,6 +353,8 @@ async function runMCPTest(input: string): Promise<TestResult> {
     const startTime = Date.now();
     let stdout = "";
     let stderr = "";
+    let childClosed = false;
+    let serverReady = false;
 
     // Spawning child process
     const child = spawn("bun", [BROOKLYN_PATH, "mcp", "start"], {
@@ -360,23 +365,42 @@ async function runMCPTest(input: string): Promise<TestResult> {
         BROOKLYN_TEST_MODE: "true",
       },
     });
-    // Child spawned
+
+    // DIAGNOSTIC: Log child PID and input payload for debugging hung tests
+    if (process.env["DEBUG_STDOUT_PURITY"]) {
+      // biome-ignore lint/suspicious/noConsole: Debug diagnostic output for test failures
+      console.error(
+        `[runMCPTest] Spawned child PID=${child.pid}, input=${input.substring(0, 100)}...`,
+      );
+    }
 
     child.stdout?.on("data", (data: Buffer) => {
       const chunk = data.toString();
       stdout += chunk;
-      // Received stdout
     });
 
+    // CRITICAL: Listen for mcp-stdio-ready signal to eliminate timing races
+    // Instead of blindly waiting 3s, we wait until the server explicitly signals
+    // that the transport is listening and ready for requests.
     child.stderr?.on("data", (data: Buffer) => {
       const chunk = data.toString();
       stderr += chunk;
-      // Received stderr
+
+      // Check for ready signal in this chunk
+      if (!serverReady && chunk.includes('"msg":"mcp-stdio-ready"')) {
+        serverReady = true;
+        if (process.env["DEBUG_STDOUT_PURITY"]) {
+          // biome-ignore lint/suspicious/noConsole: Debug diagnostic output for test failures
+          console.error(`[runMCPTest] PID=${child.pid} signaled ready, sending input now`);
+        }
+        // Server is ready, send input immediately
+        sendInput();
+      }
     });
 
     child.on("close", (code) => {
       const duration = Date.now() - startTime;
-      // Child closed
+      childClosed = true;
       clearTimeout(timeout);
       resolve({
         stdout,
@@ -388,43 +412,82 @@ async function runMCPTest(input: string): Promise<TestResult> {
 
     child.on("spawn", () => {});
     child.on("error", (err) => {
-      // Child error
+      childClosed = true;
       clearTimeout(timeout);
       reject(new Error(`Child process error: ${err.message}`));
     });
     child.on("exit", () => {});
 
     const timeout = setTimeout(() => {
-      // Test timeout
+      // DIAGNOSTIC: Log timeout occurrence
+      if (process.env["DEBUG_STDOUT_PURITY"]) {
+        // biome-ignore lint/suspicious/noConsole: Debug diagnostic output for test failures
+        console.error(
+          `[runMCPTest] Test timeout after ${TEST_TIMEOUT}ms, PID=${child.pid}, killing...`,
+        );
+      }
+
+      // First try SIGTERM for graceful shutdown
       child.kill("SIGTERM");
+
+      // CRITICAL: If process doesn't close within 1s, force kill with SIGKILL
+      // This prevents lingering processes that cause "Worker exited unexpectedly"
+      setTimeout(() => {
+        if (!childClosed && child.pid) {
+          if (process.env["DEBUG_STDOUT_PURITY"]) {
+            // biome-ignore lint/suspicious/noConsole: Debug diagnostic output for test failures
+            console.error(`[runMCPTest] Force killing PID=${child.pid} with SIGKILL`);
+          }
+          try {
+            process.kill(child.pid, "SIGKILL");
+          } catch (_err) {
+            // Process might have already exited
+          }
+        }
+      }, 1000);
+
       reject(new Error(`Test timeout after ${TEST_TIMEOUT}ms`));
     }, TEST_TIMEOUT);
 
-    // CRITICAL TIMING REQUIREMENTS:
-    // 1. The server starts COMPLETELY SILENT (no output) until transport is initialized
-    // 2. We must wait for the server to:
-    //    - Load configuration
-    //    - Create MCP transport (which calls setGlobalTransport)
-    //    - Initialize Brooklyn engine (browser pool, tools, plugins)
-    //    - Start the transport and begin listening on stdin
-    // 3. Only AFTER all this can we send the initialize request
-    // 4. The server will NOT respond until it receives a valid initialize request
-    // 5. CRITICAL: Use Claude's exact message format with id:0, not id:1
-    setTimeout(() => {
-      if (child.stdin && !child.killed) {
-        // Sending input
-        child.stdin.write(`${input}\n`);
-        // Input sent
-        // Don't end stdin immediately - let the server process the request
-        setTimeout(() => {
-          child.stdin.end();
-          // Stdin ended
-        }, 3000); // Give time for response before closing stdin
-      } else {
-        // Child not ready for input
-      }
-    }, 5000); // Wait 5s for full server initialization (increased from 3s)
+    // Helper function to send input to child stdin
+    let inputSent = false;
+    const sendInput = () => {
+      if (inputSent || !child.stdin || child.killed) return;
+      inputSent = true;
 
-    child.on("close", () => clearTimeout(timeout));
+      if (process.env["DEBUG_STDOUT_PURITY"]) {
+        // biome-ignore lint/suspicious/noConsole: Debug diagnostic output for test failures
+        console.error(`[runMCPTest] Writing to stdin: ${input.substring(0, 100)}...`);
+      }
+
+      child.stdin.write(`${input}\n`);
+
+      // OPTIMIZED: Reduced from 3s to 1s drain delay
+      setTimeout(() => {
+        if (!child.killed && child.stdin) {
+          child.stdin.end();
+        }
+      }, 1000);
+    };
+
+    // FALLBACK: If ready signal never arrives, send input after 3s anyway
+    // This maintains backwards compatibility if the ready signal fails for any reason.
+    // Once the server is mature, this timeout could be reduced further or removed entirely.
+    const fallbackTimer = setTimeout(() => {
+      if (!(serverReady || inputSent)) {
+        if (process.env["DEBUG_STDOUT_PURITY"]) {
+          // biome-ignore lint/suspicious/noConsole: Debug diagnostic output for test failures
+          console.error(
+            `[runMCPTest] PID=${child.pid} ready signal timeout, falling back to blind send`,
+          );
+        }
+        sendInput();
+      }
+    }, 3000);
+
+    child.on("close", () => {
+      clearTimeout(timeout);
+      clearTimeout(fallbackTimer);
+    });
   });
 }

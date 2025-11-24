@@ -4,6 +4,21 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+// Mock child_process to prevent shell execution of browser paths during version checks
+// The exec mock must work with util.promisify - callback signature: (cmd, opts?, callback?)
+vi.mock("node:child_process", () => ({
+  execSync: vi.fn(() => "Chromium 120.0.6099.129"),
+  exec: vi.fn((...args: unknown[]) => {
+    // util.promisify passes callback as last argument
+    const callback = args[args.length - 1];
+    if (typeof callback === "function") {
+      setImmediate(() => callback(null, "Chromium 120.0.6099.129", ""));
+    }
+  }),
+  spawn: vi.fn(),
+}));
+
 import { SystemBrowserDetector } from "./system-browser-detector.js";
 
 // Mock modules

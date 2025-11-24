@@ -245,13 +245,210 @@ DEBUG=pw:api bun run test:integration:browser
 | `brooklyn mcp cleanup`               | Clean processes       | None               |
 | `brooklyn browser info`              | Check browsers        | None               |
 
+## Testing Patterns & Best Practices
+
+### Child Process Testing
+
+When testing MCP servers or CLI tools that spawn child processes, follow these critical patterns to prevent worker crashes and flaky tests:
+
+#### 1. Mock `child_process` to Prevent Shell Execution
+
+**Problem**: Tests that mock browser paths like `/path/to/chromium` can cause real shell executions during version checks.
+
+**Solution**: Always mock `node:child_process` in tests that use browser or process-related functionality:
+
+```typescript
+// At the top of your test file, BEFORE importing the module under test
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+// Mock child_process to prevent shell execution of fake browser paths
+vi.mock("node:child_process", () => ({
+  execSync: vi.fn(() => "Chromium 120.0.0.0"),
+  exec: vi.fn((cmd, opts, callback) => {
+    if (callback) callback(null, { stdout: "Chromium 120.0.0.0", stderr: "" });
+    return { stdout: "Chromium 120.0.0.0", stderr: "" };
+  }),
+  spawn: vi.fn(),
+  spawnSync: vi.fn(() => ({ status: 0, stdout: "", stderr: "" })),
+}));
+
+// Now import your module
+import { ModuleToTest } from "./module-to-test.js";
+```
+
+**Files that need this pattern**:
+
+- Any test mocking Playwright browser paths
+- Tests that interact with browser version detection
+- Tests spawning child processes
+
+#### 2. Ready Signal Synchronization
+
+**Problem**: Blindly waiting for fixed timeouts (e.g., 3s) leads to race conditions and flaky tests.
+
+**Solution**: Use ready signals from child processes:
+
+```typescript
+async function spawnAndWaitForReady(command: string[]): Promise<ChildProcess> {
+  const child = spawn(command[0], command.slice(1), {
+    stdio: ["pipe", "pipe", "pipe"],
+    env: { ...process.env, BROOKLYN_TEST_MODE: "true" },
+  });
+
+  return new Promise((resolve, reject) => {
+    let serverReady = false;
+
+    child.stderr?.on("data", (data: Buffer) => {
+      const chunk = data.toString();
+
+      // Wait for ready signal
+      if (!serverReady && chunk.includes('"msg":"mcp-stdio-ready"')) {
+        serverReady = true;
+        resolve(child);
+      }
+    });
+
+    // Fallback timeout if signal never arrives
+    setTimeout(() => {
+      if (!serverReady) {
+        reject(new Error("Server ready signal timeout"));
+      }
+    }, 5000);
+  });
+}
+```
+
+#### 3. Proper Cleanup with SIGKILL Fallback
+
+**Problem**: Child processes that don't terminate cause "Worker exited unexpectedly" errors.
+
+**Solution**: Always use SIGTERM → SIGKILL escalation:
+
+```typescript
+const timeout = setTimeout(() => {
+  // First try graceful shutdown
+  child.kill("SIGTERM");
+
+  // Force kill if not closed within 1s
+  setTimeout(() => {
+    if (!childClosed && child.pid) {
+      try {
+        process.kill(child.pid, "SIGKILL");
+      } catch {
+        // Process might have already exited
+      }
+    }
+  }, 1000);
+
+  reject(new Error(`Test timeout after ${TIMEOUT}ms`));
+}, TIMEOUT);
+
+child.on("close", () => {
+  childClosed = true;
+  clearTimeout(timeout);
+});
+```
+
+#### 4. Sequential Execution for Process-Heavy Tests
+
+**Problem**: Parallel child process tests cause resource contention and worker crashes.
+
+**Solution**: Use `describe.sequential` for tests that spawn processes:
+
+```typescript
+// CRITICAL: Sequential execution prevents timing races
+describe.sequential("MCP Server Tests", () => {
+  it("should start server", async () => {
+    // Test implementation
+  });
+});
+```
+
+#### 5. Bootstrap Failure Logging
+
+**Problem**: Silent startup failures cause confusing test errors.
+
+**Solution**: Always log failures to stderr before exiting:
+
+```typescript
+try {
+  await server.start();
+} catch (error) {
+  // CRITICAL: Log to stderr for test suite visibility
+  logger.error("MCP server failed to start", {
+    error: error instanceof Error ? error.message : String(error),
+    stack: error instanceof Error ? error.stack : undefined,
+  });
+
+  // Set exit code but don't call process.exit() in tests
+  process.exitCode = 1;
+}
+```
+
+### Debugging Integration Tests
+
+#### Enable Debug Output
+
+```bash
+# Debug stdout-purity tests
+DEBUG_STDOUT_PURITY=1 bun run test tests/integration/stdout-purity.test.ts
+
+# Debug Playwright browser tests
+DEBUG=pw:api bun run test:integration:browser
+
+# Debug MCP protocol
+BROOKLYN_MCP_STDERR=true bun run test tests/integration/
+```
+
+#### Check for Lingering Processes
+
+```bash
+# After failed tests, check for zombie processes
+ps aux | grep brooklyn
+
+# Clean up manually if needed
+pkill -f brooklyn
+
+# Or use the cleanup command
+brooklyn mcp cleanup
+```
+
+### Performance Optimization
+
+#### Browser Preflight Verification
+
+The test suite now includes automatic browser verification before tests run:
+
+```bash
+# This runs automatically before tests
+🔧 Setting up test infrastructure...
+🌐 Verifying browser installations...
+✅ Chromium verified: chromium-1194
+✅ Test infrastructure setup complete!
+```
+
+**Benefits**:
+
+- Fast failure (~1s vs 50s mid-test)
+- Clear error messages
+- Prevents "Worker exited unexpectedly"
+
+#### Test Suite Performance
+
+| Metric         | Before Optimization | After Optimization |
+| -------------- | ------------------- | ------------------ |
+| Duration       | 49s                 | 15s (70% faster)   |
+| Exit Code      | 1 (with errors)     | 0 (clean pass)     |
+| Worker Crashes | 1 unhandled error   | 0                  |
+
 ## Getting Help
 
 If you encounter issues not covered here:
 
 1. Check the [Brooklyn documentation](../README.md)
 2. Review [BROOKLYN-SAFETY-PROTOCOLS.md](../../BROOKLYN-SAFETY-PROTOCOLS.md)
-3. Ask in the team chat with error details
-4. File an issue with reproduction steps
+3. Check test logs: `/tmp/brooklyn-test-*.log`
+4. Ask in the team chat with error details
+5. File an issue with reproduction steps
 
 Remember: Integration tests require a properly configured environment. When in doubt, run the preparation script!
