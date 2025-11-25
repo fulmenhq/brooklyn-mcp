@@ -8,7 +8,7 @@ import type { CallToolRequestParams } from "@modelcontextprotocol/sdk/types.js";
 import { MCPDebugMiddleware } from "../core/mcp-debug-middleware.js";
 import type { ToolCallHandler, ToolListHandler, Transport } from "../core/transport.js";
 import { TransportType } from "../core/transport.js";
-import { negotiateHandshake } from "../shared/mcp-handshake.js";
+import { negotiateHandshakeWithMeta } from "../shared/mcp-handshake.js";
 import { createCallToolRequestFromMessage } from "../shared/mcp-request.js";
 import { getLogger } from "../shared/pino-logger.js";
 
@@ -155,7 +155,7 @@ export class MCPStdioTransport implements Transport {
       if (msg.method === "initialize") {
         this.logger().debug("Handling initialize request", { params: msg.params });
         const clientVersion = (msg.params?.protocolVersion as string | undefined) ?? undefined;
-        const negotiation = negotiateHandshake(clientVersion);
+        const { result: negotiation, meta } = negotiateHandshakeWithMeta(clientVersion);
 
         if (!negotiation.ok) {
           response = {
@@ -164,6 +164,11 @@ export class MCPStdioTransport implements Transport {
             error: negotiation.error,
           };
         } else {
+          this.logger().info("MCP stdio handshake negotiated", {
+            requestedProtocolVersion: meta.requestedProtocolVersion ?? "unspecified",
+            negotiatedProtocolVersion: meta.negotiatedProtocolVersion,
+            transport: this.name,
+          });
           response = {
             jsonrpc: "2.0",
             id: msg.id,

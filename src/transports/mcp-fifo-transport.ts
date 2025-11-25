@@ -15,7 +15,7 @@ import type {
   Transport,
 } from "../core/transport.js";
 import { TransportType } from "../core/transport.js";
-import { negotiateHandshake } from "../shared/mcp-handshake.js";
+import { negotiateHandshakeWithMeta } from "../shared/mcp-handshake.js";
 import { createCallToolRequestFromMessage } from "../shared/mcp-request.js";
 import { getLogger } from "../shared/pino-logger.js";
 
@@ -344,7 +344,7 @@ export class MCPFifoTransport implements Transport {
   private handleInitialize(msg: JsonRpcRequest): unknown {
     const params = msg.params as InitializeParams | undefined;
     const clientVersion = params?.protocolVersion;
-    const negotiation = negotiateHandshake(clientVersion);
+    const { result: negotiation, meta } = negotiateHandshakeWithMeta(clientVersion);
 
     if (!negotiation.ok) {
       return {
@@ -353,6 +353,12 @@ export class MCPFifoTransport implements Transport {
         error: negotiation.error,
       };
     }
+
+    this.getLogger().info("MCP FIFO handshake negotiated", {
+      requestedProtocolVersion: meta.requestedProtocolVersion ?? "unspecified",
+      negotiatedProtocolVersion: meta.negotiatedProtocolVersion,
+      transport: this.name,
+    });
 
     return {
       jsonrpc: "2.0",

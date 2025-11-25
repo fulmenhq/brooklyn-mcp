@@ -16,7 +16,7 @@ import type {
 } from "../core/transport.js";
 import { TransportType } from "../core/transport.js";
 import { buildConfig } from "../shared/build-config.js";
-import { negotiateHandshake } from "../shared/mcp-handshake.js";
+import { negotiateHandshakeWithMeta } from "../shared/mcp-handshake.js";
 import { getLogger } from "../shared/pino-logger.js";
 import type { HttpAuthContext } from "./http-auth-guard.js";
 import { HttpAuthError, HttpAuthGuard, isEventStreamRequest } from "./http-auth-guard.js";
@@ -859,7 +859,7 @@ export class MCPHTTPTransport implements Transport {
     switch (method) {
       case "initialize": {
         const clientVersion = (params?.["protocolVersion"] as string | undefined) ?? undefined;
-        const negotiation = negotiateHandshake(clientVersion);
+        const { result: negotiation, meta } = negotiateHandshakeWithMeta(clientVersion);
 
         if (!negotiation.ok) {
           response = {
@@ -868,6 +868,11 @@ export class MCPHTTPTransport implements Transport {
             error: negotiation.error,
           };
         } else {
+          this.logger().info("MCP HTTP handshake negotiated", {
+            requestedProtocolVersion: meta.requestedProtocolVersion ?? "unspecified",
+            negotiatedProtocolVersion: meta.negotiatedProtocolVersion,
+            transport: this.name,
+          });
           response = {
             jsonrpc: "2.0",
             id,

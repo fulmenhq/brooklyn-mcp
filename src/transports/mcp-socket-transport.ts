@@ -15,7 +15,7 @@ import type {
   Transport,
 } from "../core/transport.js";
 import { TransportType } from "../core/transport.js";
-import { negotiateHandshake } from "../shared/mcp-handshake.js";
+import { negotiateHandshakeWithMeta } from "../shared/mcp-handshake.js";
 import { createCallToolRequestFromMessage } from "../shared/mcp-request.js";
 import { getLogger } from "../shared/pino-logger.js";
 
@@ -281,7 +281,7 @@ export class MCPSocketTransport implements Transport {
   private handleInitialize(msg: JsonRpcRequest): unknown {
     const params = msg.params as InitializeParams | undefined;
     const clientVersion = params?.protocolVersion;
-    const negotiation = negotiateHandshake(clientVersion);
+    const { result: negotiation, meta } = negotiateHandshakeWithMeta(clientVersion);
 
     if (!negotiation.ok) {
       return {
@@ -290,6 +290,11 @@ export class MCPSocketTransport implements Transport {
         error: negotiation.error,
       };
     }
+
+    this.getLogger().info("MCP socket handshake negotiated", {
+      requestedProtocolVersion: meta.requestedProtocolVersion ?? "unspecified",
+      negotiatedProtocolVersion: meta.negotiatedProtocolVersion,
+    });
 
     return {
       jsonrpc: "2.0",

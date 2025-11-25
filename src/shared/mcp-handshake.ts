@@ -1,5 +1,5 @@
 import {
-  LATEST_PROTOCOL_VERSION,
+  DEFAULT_NEGOTIATED_PROTOCOL_VERSION,
   type ServerCapabilities,
   SUPPORTED_PROTOCOL_VERSIONS,
 } from "@modelcontextprotocol/sdk/types.js";
@@ -36,6 +36,12 @@ export type HandshakeNegotiationResult =
   | { ok: true; payload: HandshakeSuccessPayload }
   | { ok: false; error: HandshakeErrorPayload };
 
+export interface HandshakeNegotiationMeta {
+  requestedProtocolVersion?: string;
+  negotiatedProtocolVersion: string;
+  supportedProtocolVersions: string[];
+}
+
 export function negotiateHandshake(clientVersion?: string): HandshakeNegotiationResult {
   if (clientVersion && !SUPPORTED_VERSION_SET.has(clientVersion)) {
     return {
@@ -53,7 +59,7 @@ export function negotiateHandshake(clientVersion?: string): HandshakeNegotiation
   const negotiatedVersion =
     clientVersion && SUPPORTED_VERSION_SET.has(clientVersion)
       ? clientVersion
-      : LATEST_PROTOCOL_VERSION;
+      : DEFAULT_NEGOTIATED_PROTOCOL_VERSION;
 
   return {
     ok: true,
@@ -61,6 +67,27 @@ export function negotiateHandshake(clientVersion?: string): HandshakeNegotiation
       protocolVersion: negotiatedVersion,
       serverInfo: { ...DEFAULT_SERVER_INFO },
       capabilities: { ...DEFAULT_CAPABILITIES },
+    },
+  };
+}
+
+export function negotiateHandshakeWithMeta(clientVersion?: string): {
+  result: HandshakeNegotiationResult;
+  meta: HandshakeNegotiationMeta;
+} {
+  const negotiatedProtocolVersion =
+    clientVersion && SUPPORTED_VERSION_SET.has(clientVersion)
+      ? clientVersion
+      : DEFAULT_NEGOTIATED_PROTOCOL_VERSION;
+
+  const result = negotiateHandshake(clientVersion);
+
+  return {
+    result,
+    meta: {
+      requestedProtocolVersion: clientVersion,
+      negotiatedProtocolVersion,
+      supportedProtocolVersions: [...SUPPORTED_PROTOCOL_VERSIONS],
     },
   };
 }

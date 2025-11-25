@@ -47,7 +47,7 @@ For detailed setup: docs/deployment/mcp-configuration.md
 
 Legacy single-agent only (stdio transport):
   claude mcp add -s user -t stdio brooklyn brooklyn mcp start
-  ⚠️ Note: stdio does not support multiple agents simultaneously
+  Warning: stdio does not support multiple agents simultaneously
 ```
 
 > `--auth-mode` defaults to `required`. For loopback-only prototypes you may temporarily run `brooklyn web start --auth-mode localhost`, but switch back to `required` (or supply a token) before exposing the port outside your machine.
@@ -57,25 +57,11 @@ Legacy single-agent only (stdio transport):
 Add Brooklyn with team-specific configuration:
 
 ```bash
-# Add with environment variables
-claude mcp add -s user -t stdio brooklyn brooklyn mcp start \
+# Add with environment variables (HTTP transport)
+claude mcp add -s user -t http brooklyn http://127.0.0.1:3000 \
   -e BROOKLYN_TEAM_ID=your-team \
+  -e BROOKLYN_HTTP_AUTH_MODE=required \
   -e BROOKLYN_LOG_LEVEL=info
-```
-
-### Configuration Scopes
-
-Brooklyn supports different configuration scopes:
-
-```bash
-# User-wide (recommended for individual use)
-claude mcp add -s user -t stdio brooklyn brooklyn mcp start
-
-# Project-specific (for team collaboration)
-claude mcp add -s project -t stdio brooklyn brooklyn mcp start
-
-# Local (private to current project directory)
-claude mcp add -t stdio brooklyn brooklyn mcp start
 ```
 
 ### Legacy Manual Configuration (Not Recommended)
@@ -89,11 +75,14 @@ For manual configuration, see the Claude Code documentation for setting up MCP s
 Brooklyn supports different configuration scopes:
 
 ```bash
-# User-wide configuration (default)
-brooklyn config agent --client claude --scope user --transport stdio --apply
+# User-wide configuration (recommended HTTP default)
+brooklyn config agent --client claude --scope user --transport http --host 127.0.0.1 --port 3000 --apply
 
-# Project-specific configuration
-brooklyn config agent --client cursor --scope project --transport stdio --apply
+# Project-specific configuration (HTTP transport)
+brooklyn config agent --client cursor --scope project --transport http --host 127.0.0.1 --port 3000 --apply
+
+# Legacy stdio (single-agent only; avoid for multi-agent workflows)
+brooklyn config agent --client claude --scope user --transport stdio --apply
 
 # Check current configuration
 brooklyn mcp status

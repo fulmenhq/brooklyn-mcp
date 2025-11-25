@@ -17,25 +17,29 @@ ls -la
 
 ## 🚀 **Quick Setup (5 minutes)**
 
-### **Option A: Quick Setup with Claude MCP CLI (Recommended)**
+### **Option A: Quick Setup with Claude MCP CLI (Recommended, HTTP-first)**
 
-Use the modern Claude MCP CLI for seamless integration:
+Use the modern Claude MCP CLI for seamless integration over HTTP (multi-agent ready):
 
 ```bash
 # From the Brooklyn repository - build and install Brooklyn CLI
 bun install
 bun run build && bun run install
 
-# Add Brooklyn to Claude Code (user-wide)
-claude mcp add -s user -t stdio brooklyn "brooklyn mcp start"
+# Start Brooklyn HTTP server (auth required by default)
+brooklyn web start --port 3000 --auth-mode required --daemon
+
+# Add Brooklyn to Claude Code (user-wide, HTTP transport)
+claude mcp add -s user -t http brooklyn http://127.0.0.1:3000
 
 # Verify configuration
-claude mcp list
-brooklyn version  # Should show current version
+brooklyn_status          # In Claude Code - shows version + tools
+brooklyn doctor --json   # In terminal - health check
 ```
 
 This approach:
 
+- ✅ HTTP-first; supports multiple agents sharing one server
 - ✅ Uses the official Claude MCP CLI (no manual JSON editing)
 - ✅ Works across all your projects automatically
 - ✅ Leverages Brooklyn's silent logger for reliable MCP connections
@@ -70,8 +74,11 @@ brooklyn setup
 # Build and install Brooklyn CLI
 bun run build && bun run install
 
-# Add to Claude Code (recommended)
-claude mcp add -s user -t stdio brooklyn "brooklyn mcp start"
+# Start HTTP server (recommended for multi-agent)
+brooklyn web start --port 3000 --auth-mode required --daemon
+
+# Add to Claude Code (HTTP transport)
+claude mcp add -s user -t http brooklyn http://127.0.0.1:3000
 ```
 
 **If you DON'T have access to the Brooklyn repository:**
@@ -86,7 +93,7 @@ claude mcp add -s user -t stdio brooklyn "brooklyn mcp start"
 
 ```bash
 # Start a local HTTP server (defaults to background)
-brooklyn mcp dev-http --port 8081 --host 127.0.0.1 --team-id local
+brooklyn mcp dev-http --port 8081 --host 127.0.0.1 --team-id local --auth-mode required
 # Check status
 brooklyn mcp dev-http-status --port 8081
 # Health endpoint
@@ -95,7 +102,7 @@ curl -sS http://127.0.0.1:8081/health | jq .
 brooklyn cleanup --http
 ```
 
-SOP note: dev-http now defaults to background mode (AI-friendly). Use --foreground for debugging (blocks terminal). Use dev-http-status to verify.
+SOP note: dev-http now defaults to background mode (AI-friendly). Use --foreground for debugging (blocks terminal). Use dev-http-status to verify. Use `--auth-mode localhost` only for loopback-only prototyping.
 
 ### **Step 3: Connect to Claude Code**
 
