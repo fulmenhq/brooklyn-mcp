@@ -4,6 +4,8 @@
  */
 
 import type { CallToolRequest, Tool } from "@modelcontextprotocol/sdk/types.js";
+import { attachProgressMetadata, getProgressContext } from "../shared/mcp-progress.js";
+import { normalizeCallToolResult } from "../shared/mcp-response.js";
 import { getLogger, initializeLogging, isLoggingInitialized } from "../shared/pino-logger.js";
 import { MCPBrowserRouter } from "./browser/mcp-browser-router.js";
 import { MCPRequestContextFactory } from "./browser/mcp-request-context.js";
@@ -598,6 +600,7 @@ export class BrooklynEngine {
       }
 
       const { name, arguments: args } = request.params;
+      const progressContext = getProgressContext(request);
 
       const startTime = Date.now();
       try {
@@ -637,16 +640,7 @@ export class BrooklynEngine {
           });
         } catch {}
 
-        // IMPORTANT: Return MCP-style content array for tests
-        // The result needs to be wrapped in a content array
-        return {
-          content: [
-            {
-              type: "text",
-              text: typeof result === "string" ? result : JSON.stringify(result),
-            },
-          ],
-        } as any;
+        return attachProgressMetadata(normalizeCallToolResult(result), progressContext);
       } catch (error) {
         const duration = Date.now() - startTime;
         try {
@@ -767,16 +761,11 @@ export class BrooklynEngine {
           };
         }
 
-        // IMPORTANT: Return MCP-style content array for tests
-        // The response is returned as a JSON text blob
-        return {
-          content: [
-            {
-              type: "text",
-              text: typeof envelope === "string" ? envelope : JSON.stringify(envelope),
-            },
-          ],
-        } as any;
+        return attachProgressMetadata(normalizeCallToolResult(envelope), {
+          progressToken: request.params._meta?.progressToken
+            ? String(request.params._meta?.progressToken)
+            : undefined,
+        });
       } catch (error) {
         const executionTime = Date.now() - startTime;
         try {
@@ -790,15 +779,17 @@ export class BrooklynEngine {
         } catch {}
 
         // Return error response in MCP format for tests
-        return {
-          isError: true,
-          content: [
-            {
-              type: "text",
-              text: error instanceof Error ? error.message : String(error),
-            },
-          ],
-        } as any;
+        return attachProgressMetadata(
+          normalizeCallToolResult({
+            isError: true,
+            error: error instanceof Error ? error.message : String(error),
+          }),
+          {
+            progressToken: request.params._meta?.progressToken
+              ? String(request.params._meta?.progressToken)
+              : undefined,
+          },
+        );
       }
     };
   }

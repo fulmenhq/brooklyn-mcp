@@ -306,6 +306,65 @@ describe.sequential("Architecture Committee: MCP Stdout Purity Tests", () => {
   );
 
   /**
+   * MCP v1.22 REGRESSION: tools/call envelope purity and shape
+   *
+   * Ensures tool responses are emitted as MCP v1.22 CallToolResult envelopes
+   * (content array + structuredContent) with no stdout contamination.
+   */
+  it(
+    "should emit MCP-compliant envelope for tools/call without stdout contamination",
+    async () => {
+      const requests = [
+        {
+          method: "initialize",
+          params: {
+            protocolVersion: "2025-06-18",
+            capabilities: { roots: {} },
+            clientInfo: { name: "claude-code", version: "1.0.61" },
+          },
+          jsonrpc: "2.0",
+          id: 0,
+        },
+        {
+          jsonrpc: "2.0",
+          id: 5,
+          method: "tools/call",
+          params: {
+            name: "brooklyn_status",
+            arguments: {},
+          },
+        },
+      ];
+
+      const requestInput = requests.map((req) => JSON.stringify(req)).join("\n");
+      const result = await runMCPTest(requestInput);
+
+      const stdoutLines = result.stdout
+        .trim()
+        .split("\n")
+        .filter((line) => line.trim());
+
+      // Should only contain JSON-RPC responses
+      expect(stdoutLines.length).toBeGreaterThanOrEqual(2);
+      const callResponse: MCP_Message | undefined = stdoutLines
+        .map((line) => JSON.parse(line) as MCP_Message)
+        .find((msg) => msg.id === 5);
+
+      expect(callResponse).toBeDefined();
+      expect(callResponse?.jsonrpc).toBe("2.0");
+      expect(callResponse?.result).toBeDefined();
+      const resultBody = callResponse?.result as any;
+      expect(Array.isArray(resultBody?.content)).toBe(true);
+      expect(resultBody?.content?.[0]?.type).toBe("text");
+      expect(resultBody?.structuredContent).toBeDefined();
+
+      // Logging should remain on stderr only
+      expect(result.stderr).toBeTruthy();
+    },
+    TEST_TIMEOUT,
+  );
+
+  /**
    * REGRESSION TEST: Error Condition Purity
    *
    * Ensures that even error conditions maintain stdout purity.

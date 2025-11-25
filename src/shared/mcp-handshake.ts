@@ -15,9 +15,10 @@ const DEFAULT_SERVER_INFO = Object.freeze({
 
 const DEFAULT_CAPABILITIES: ServerCapabilities = Object.freeze({
   tools: { listChanged: true },
-  resources: { listChanged: false },
+  resources: { listChanged: false, subscribe: false },
   prompts: { listChanged: false },
   logging: {},
+  experimental: {},
 });
 
 export interface HandshakeSuccessPayload {

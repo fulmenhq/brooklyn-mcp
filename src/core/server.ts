@@ -8,7 +8,9 @@ import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 
 import { config } from "../shared/config.js";
+import { getServerCapabilities } from "../shared/mcp-handshake.js";
 import { createCallToolRequest } from "../shared/mcp-request.js";
+import { normalizeCallToolResult } from "../shared/mcp-response.js";
 import { getLogger } from "../shared/pino-logger.js";
 import { type BrooklynContext, BrooklynEngine } from "./brooklyn-engine.js";
 
@@ -39,9 +41,7 @@ export class MCPServer {
         version: config.version,
       },
       {
-        capabilities: {
-          tools: {},
-        },
+        capabilities: getServerCapabilities(),
       },
     );
 
@@ -103,26 +103,9 @@ export class MCPServer {
           this.context,
         )) as any;
 
-        // Engine returns { result: { result, metadata } } for success
-        // We need to return just the inner content for MCP protocol
-        if (engineResponse?.result?.result !== undefined) {
-          // Return the actual tool result directly
-          return engineResponse.result.result;
-        }
-
-        // If engine gave a content array (older shape), unwrap text -> json when possible
-        const content = engineResponse?.content;
-        if (Array.isArray(content) && content[0]?.type === "text") {
-          const text = content[0].text as string;
-          try {
-            return JSON.parse(text);
-          } catch {
-            return { message: text };
-          }
-        }
-
-        // Fallback: return the response as-is
-        return engineResponse;
+        return normalizeCallToolResult(
+          engineResponse?.result?.result ?? engineResponse?.result ?? engineResponse,
+        );
       } catch (error) {
         // Return JSON-RPC error envelope (no stdout noise)
         logger.error("Tool call failed", {

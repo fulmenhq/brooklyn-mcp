@@ -17,6 +17,7 @@ import type {
 import { TransportType } from "../core/transport.js";
 import { buildConfig } from "../shared/build-config.js";
 import { negotiateHandshakeWithMeta } from "../shared/mcp-handshake.js";
+import { normalizeCallToolResult } from "../shared/mcp-response.js";
 import { getLogger } from "../shared/pino-logger.js";
 import type { HttpAuthContext } from "./http-auth-guard.js";
 import { HttpAuthError, HttpAuthGuard, isEventStreamRequest } from "./http-auth-guard.js";
@@ -916,26 +917,10 @@ export class MCPHTTPTransport implements Transport {
               metadata,
             );
 
-            // PROTOCOL FIX: Transform to proper MCP format with content array
-            // Previous version used direct result format which worked with Claude Code HTTP mode
-            // but was not MCP protocol compliant. See docs/development/mcp-protocol-guide.md
-            //
-            // Original working format (can be restored if needed):
-            // response = { jsonrpc: "2.0", id, result };
-            //
-            // New MCP-compliant format:
-            const mcpResponse = {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify(result),
-                },
-              ],
-            };
             response = {
               jsonrpc: "2.0",
               id,
-              result: mcpResponse,
+              result: normalizeCallToolResult(result),
             };
           }
         }

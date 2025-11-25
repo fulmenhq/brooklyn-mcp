@@ -2,7 +2,7 @@
  * Plugin management for Fulmen MCP Brooklyn
  */
 
-import type { Tool } from "@modelcontextprotocol/sdk/types.js";
+import { type Tool, ToolSchema } from "@modelcontextprotocol/sdk/types.js";
 import type { PluginManager as IPluginManager, WebPilotPlugin } from "../ports/plugin.js";
 import { getLogger } from "../shared/pino-logger.js";
 
@@ -123,9 +123,7 @@ export class PluginManager implements IPluginManager {
 
     // Validate tool schemas
     for (const tool of plugin.tools) {
-      if (!(tool.name && tool.description && tool.inputSchema)) {
-        throw new Error(`Invalid tool definition in plugin ${plugin.name}`);
-      }
+      ToolSchema.parse(tool);
     }
 
     return true;

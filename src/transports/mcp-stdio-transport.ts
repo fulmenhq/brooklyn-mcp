@@ -10,6 +10,7 @@ import type { ToolCallHandler, ToolListHandler, Transport } from "../core/transp
 import { TransportType } from "../core/transport.js";
 import { negotiateHandshakeWithMeta } from "../shared/mcp-handshake.js";
 import { createCallToolRequestFromMessage } from "../shared/mcp-request.js";
+import { normalizeCallToolResult } from "../shared/mcp-response.js";
 import { getLogger } from "../shared/pino-logger.js";
 
 /**
@@ -281,48 +282,14 @@ export class MCPStdioTransport implements Transport {
             // ignore
           }
 
-          let payload =
+          const payload =
             normalizedEnvelope?.result?.result ?? normalizedEnvelope?.result ?? normalizedEnvelope;
 
-          try {
-            const toolName = (msg.params as any)?.name || (msg.params as any)?.tool || undefined;
-            const toolRequiresSuccessFlag = [
-              "navigate_to_url",
-              "take_screenshot",
-              "click_element",
-              "fill_text",
-              "fill_form_fields",
-              "wait_for_element",
-              "get_text_content",
-              "validate_element_presence",
-              "get_page_content",
-              "go_back",
-              "close_browser",
-              "find_elements",
-            ];
-            if (
-              toolRequiresSuccessFlag.includes(toolName as string) &&
-              payload &&
-              typeof payload === "object" &&
-              !("success" in (payload as any))
-            ) {
-              payload = { success: true, ...(payload as object) };
-            }
-          } catch {
-            // ignore shaping errors
-          }
-
-          // Transform to proper MCP protocol format with content array
-          // See docs/development/mcp-protocol-guide.md for specification details
-          const mcpResponse = {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify(payload),
-              },
-            ],
+          response = {
+            jsonrpc: "2.0",
+            id: msg.id,
+            result: normalizeCallToolResult(payload),
           };
-          response = { jsonrpc: "2.0", id: msg.id, result: mcpResponse };
         }
       } else {
         response = this.createJsonRpcError(msg.id, -32601, "Method not found");

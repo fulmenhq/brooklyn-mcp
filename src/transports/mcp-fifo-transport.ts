@@ -17,6 +17,7 @@ import type {
 import { TransportType } from "../core/transport.js";
 import { negotiateHandshakeWithMeta } from "../shared/mcp-handshake.js";
 import { createCallToolRequestFromMessage } from "../shared/mcp-request.js";
+import { normalizeCallToolResult } from "../shared/mcp-response.js";
 import { getLogger } from "../shared/pino-logger.js";
 
 // Type definitions for JSON-RPC messages
@@ -380,7 +381,7 @@ export class MCPFifoTransport implements Transport {
         params: msg.params as CallToolRequestParams,
       }),
     );
-    return { jsonrpc: "2.0", id: msg.id, result };
+    return { jsonrpc: "2.0", id: msg.id, result: normalizeCallToolResult(result) };
   }
 
   private sendResponse(response: unknown, method: string): void {

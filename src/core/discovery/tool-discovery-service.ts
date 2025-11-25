@@ -7,7 +7,7 @@
  * MCP server implementations.
  */
 
-import type { Tool } from "@modelcontextprotocol/sdk/types.js";
+import { type Tool, ToolSchema } from "@modelcontextprotocol/sdk/types.js";
 import type { EnhancedTool } from "../tool-definitions.js";
 
 export interface ToolCategory {
@@ -62,6 +62,13 @@ export class ToolDiscoveryService {
    * Register a tool with the discovery service
    */
   registerTool(tool: EnhancedTool): void {
+    // Validate against MCP Tool schema to ensure spec compliance
+    ToolSchema.parse({
+      name: tool.name,
+      description: tool.description,
+      inputSchema: tool.inputSchema,
+    });
+
     this.tools.set(tool.name, tool);
     this.metadata.totalTools = this.tools.size;
     this.metadata.lastUpdated = new Date().toISOString();
