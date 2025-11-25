@@ -4,7 +4,9 @@
  */
 
 import type {
+  HTTPAuthMode,
   HTTPConfig,
+  HTTPTokenResolver,
   MCPStdioConfig,
   Transport,
   TransportConfig,
@@ -101,16 +103,40 @@ export async function createMCPStdio(devOptions?: {
 }
 
 /**
+ * HTTP transport factory options
+ */
+export interface HTTPTransportOptions {
+  cors?: boolean;
+  authMode?: HTTPAuthMode;
+  trustedProxies?: string[];
+  tokenResolver?: HTTPTokenResolver;
+}
+
+/**
  * Create HTTP transport with configuration
  */
-export async function createHTTP(port: number, host?: string, cors = true): Promise<Transport> {
+export async function createHTTP(
+  port: number,
+  host?: string,
+  options?: boolean | HTTPTransportOptions,
+): Promise<Transport> {
+  const normalizedOptions: HTTPTransportOptions =
+    typeof options === "boolean"
+      ? {
+          cors: options,
+        }
+      : (options ?? {});
+
   const config: HTTPConfig = {
     type: TransportType.HTTP,
     options: {
       port,
       host,
-      cors,
+      cors: normalizedOptions.cors ?? true,
       rateLimiting: false, // TODO: Implement rate limiting
+      authMode: normalizedOptions.authMode ?? "disabled",
+      trustedProxies: normalizedOptions.trustedProxies,
+      tokenResolver: normalizedOptions.tokenResolver,
     },
   };
 

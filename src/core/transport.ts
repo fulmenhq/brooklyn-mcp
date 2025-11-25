@@ -50,10 +50,23 @@ export enum TransportType {
 }
 
 /**
+ * Transport metadata supplied with each HTTP/MCP request
+ */
+export interface TransportRequestMetadata {
+  transport?: string;
+  userId?: string;
+  teamId?: string;
+  auth?: unknown;
+}
+
+/**
  * Handler function types
  */
 export type ToolListHandler = () => Promise<ListToolsResult>;
-export type ToolCallHandler = (request: CallToolRequest) => Promise<CallToolResult>;
+export type ToolCallHandler = (
+  request: CallToolRequest,
+  metadata?: TransportRequestMetadata,
+) => Promise<CallToolResult>;
 
 /**
  * Transport configuration
@@ -79,7 +92,19 @@ export interface MCPStdioConfig extends TransportConfig {
 }
 
 /**
- * HTTP transport configuration
+ * HTTP auth configuration
+ */
+export type HTTPAuthMode = "required" | "localhost" | "disabled";
+
+export type HTTPTokenResolver = (
+  token: string,
+) =>
+  | Promise<{ userId?: string; teamId?: string } | null>
+  | { userId?: string; teamId?: string }
+  | null;
+
+/**
+ * MCP stdio transport configuration
  */
 export interface HTTPConfig extends TransportConfig {
   type: TransportType.HTTP;
@@ -88,6 +113,9 @@ export interface HTTPConfig extends TransportConfig {
     host?: string;
     cors?: boolean;
     rateLimiting?: boolean;
+    authMode?: HTTPAuthMode;
+    trustedProxies?: string[];
+    tokenResolver?: HTTPTokenResolver;
   };
 }
 

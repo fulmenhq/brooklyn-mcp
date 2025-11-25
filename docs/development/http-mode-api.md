@@ -50,6 +50,40 @@ brooklyn mcp dev-http --port 8080 --team-id my-team --foreground --verbose
 brooklyn mcp dev-http --port 3000 --host localhost --no-cors
 ```
 
+### Authentication Modes & Trusted Proxies
+
+The HTTP transport enforces one of three auth modes. Choose them via `--auth-mode <required|localhost|disabled>` or the `BROOKLYN_HTTP_AUTH_MODE` environment variable.
+
+| Mode        | Description                                                               | Default Command         |
+| ----------- | ------------------------------------------------------------------------- | ----------------------- |
+| `required`  | Every MCP/SSE request must supply `Authorization: Bearer <token>`         | `brooklyn web start`    |
+| `localhost` | Loopback clients (127.0.0.1/::1/::ffff:127.0.0.1) may connect anonymously | Manual opt-in           |
+| `disabled`  | No auth checks; intended only for isolated CI/dev servers                 | `brooklyn mcp dev-http` |
+
+- OAuth endpoints (`/oauth/*`), discovery (`/.well-known/...`), `/health`, and `/metrics` stay reachable without a token regardless of mode.
+- SSE subscriptions (`GET /` with `Accept: text/event-stream`) are blocked unless the guard accepts the request.
+- Set `BROOKLYN_HTTP_TRUSTED_PROXIES=10.0.0.5,10.0.0.6` to allow Brooklyn to honor `X-Forwarded-For` from those hops when evaluating `authMode=localhost`.
+- See `docs/deployment/mcp-configuration.md#property-file-examples-mcpjson-opencodejson` for `.mcp.json` and `opencode.json` entries that point IDEs at your chosen HTTP URL.
+
+Examples:
+
+```bash
+# Production-safe defaults
+brooklyn web start --port 3000 --auth-mode required --daemon
+
+# Loopback-only bypass for local debugging
+
+brooklyn web start --port 3000 --auth-mode localhost
+
+# Secure dev-http in CI
+brooklyn mcp dev-http --port 8080 --team-id qa --auth-mode required
+
+# Trust a reverse proxy while still enforcing tokens
+BROOKLYN_HTTP_AUTH_MODE=required \
+BROOKLYN_HTTP_TRUSTED_PROXIES=10.0.0.5 \
+brooklyn web start --host 0.0.0.0 --port 3000 --daemon
+```
+
 ### OAuth PKCE Authentication (NEW)
 
 Brooklyn now supports OAuth 2.0 PKCE for secure authentication with Claude Code:

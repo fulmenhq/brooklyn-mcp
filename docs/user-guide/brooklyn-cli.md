@@ -119,13 +119,38 @@ brooklyn status
 brooklyn mcp start
 
 # Start the Brooklyn web server
-brooklyn web start
+brooklyn web start --auth-mode required --port 3000 --daemon
 
 # Check server status
 brooklyn status
 
 # Clean up processes and resources
 brooklyn cleanup
+```
+
+#### HTTP authentication modes
+
+Both `brooklyn web start` and `brooklyn mcp dev-http` accept `--auth-mode <required|localhost|disabled>` or the `BROOKLYN_HTTP_AUTH_MODE` environment variable.
+
+| Mode        | Behavior                                                             | Default Command         |
+| ----------- | -------------------------------------------------------------------- | ----------------------- |
+| `required`  | Every non-OAuth request must present `Authorization: Bearer <token>` | `brooklyn web start`    |
+| `localhost` | Loopback clients (127.0.0.1/::1) may connect without tokens          | _manual opt-in_         |
+| `disabled`  | No auth checks (suitable only for CI/dev sandboxes)                  | `brooklyn mcp dev-http` |
+
+Use `--auth-mode localhost` for single-machine debugging, and reserve `--auth-mode disabled` for ephemeral CI jobs. For reverse proxies, supply a comma-separated allowlist via `BROOKLYN_HTTP_TRUSTED_PROXIES` so the guard honors `X-Forwarded-For` headers.
+
+```bash
+# Local loopback bypass
+brooklyn web start --port 3000 --auth-mode localhost
+
+# Enforce tokens but trust a load balancer
+BROOKLYN_HTTP_AUTH_MODE=required \
+BROOKLYN_HTTP_TRUSTED_PROXIES=10.0.0.5,10.0.0.6 \
+brooklyn web start --port 3000 --host 0.0.0.0 --daemon
+
+# Secure dev-http for integration tests
+brooklyn mcp dev-http --port 8080 --auth-mode required --team-id ci
 ```
 
 ### Authentication Management
@@ -245,6 +270,57 @@ Notes:
 - Add `--team-id <id>` to embed a team route or pass `--team-id` to stdio startup.
 - Omit `--apply` to preview file content/commands without writing.
 - `brooklyn mcp` and `brooklyn web` help now point to this command.
+
+### Property file examples (`.mcp.json`, `opencode.json`)
+
+Use `brooklyn config agent` to safely edit the files that IDEs and agents watch:
+
+- **Project `.mcp.json`** (Claude Desktop, Cursor): best for stdio transports and per-repo overrides.
+- **`opencode.json`** (OpenCode / Windsurf): supports HTTP remotes in user or project scope.
+
+#### `.mcp.json` (project root)
+
+```json
+{
+  "mcpServers": {
+    "brooklyn": {
+      "command": "brooklyn",
+      "args": ["mcp", "start"],
+      "env": {
+        "BROOKLYN_TEAM_ID": "demo"
+      }
+    }
+  }
+}
+```
+
+Generate it safely:
+
+```bash
+brooklyn config agent --client project --scope project --transport stdio --team-id demo --apply
+```
+
+#### `opencode.json` (user or project scope)
+
+```json
+{
+  "mcp": {
+    "brooklyn": {
+      "type": "remote",
+      "url": "http://127.0.0.1:3000",
+      "enabled": true
+    }
+  }
+}
+```
+
+Create/update it with:
+
+```bash
+brooklyn config agent --client opencode --scope user --transport http --host 127.0.0.1 --port 3000 --apply
+```
+
+When you point property files at the HTTP transport, ensure `brooklyn web start` is running with `--auth-mode required` (default). For single-machine prototypes, temporarily run `--auth-mode localhost` so loopback requests can skip bearer tokens; switch back to `required` before exposing the port to other hosts.
 
 ### Path Independence
 

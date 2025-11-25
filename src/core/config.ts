@@ -8,6 +8,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { getLogger } from "../shared/pino-logger.js";
 import { validateBrooklynConfig, validateBrooklynConfigFile } from "./config-validator.js";
+import type { HTTPAuthMode } from "./transport.js";
 
 // ARCHITECTURE FIX: Lazy logger initialization to avoid circular dependency
 // CRITICAL: Do not use logger during initial config loading to prevent circular dependency
@@ -46,6 +47,8 @@ export interface BrooklynConfig {
       host: string;
       cors: boolean;
       rateLimiting: boolean;
+      authMode?: HTTPAuthMode;
+      trustedProxies?: string[];
     };
   };
 
@@ -248,6 +251,8 @@ export class ConfigManager {
           host: "localhost",
           cors: true,
           rateLimiting: false,
+          authMode: "disabled",
+          trustedProxies: [],
         },
       },
 
@@ -337,6 +342,19 @@ export class ConfigManager {
       config.transports = config.transports || {};
       config.transports.http = config.transports.http || {};
       config.transports.http.host = env["BROOKLYN_HOST"];
+    }
+    if (env["BROOKLYN_HTTP_AUTH_MODE"]) {
+      config.transports = config.transports || {};
+      config.transports.http = config.transports.http || {};
+      config.transports.http.authMode = env["BROOKLYN_HTTP_AUTH_MODE"] as HTTPAuthMode;
+    }
+    if (env["BROOKLYN_HTTP_TRUSTED_PROXIES"]) {
+      config.transports = config.transports || {};
+      config.transports.http = config.transports.http || {};
+      config.transports.http.trustedProxies = env["BROOKLYN_HTTP_TRUSTED_PROXIES"]
+        .split(",")
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0);
     }
 
     // Browser configuration

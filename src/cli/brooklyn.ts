@@ -74,9 +74,10 @@ const _minimalConfig = {
 // 4. The initialize request MUST be properly formatted JSON-RPC with method "initialize"
 // 5. Any output before initialization breaks the MCP protocol
 
-import { Command } from "commander";
+import { Command, InvalidArgumentError } from "commander";
 import { type BrooklynConfig, enableConfigLogger, loadConfig } from "../core/config.js";
 import { InstanceManager } from "../core/instance-manager.js";
+import type { HTTPAuthMode } from "../core/transport.js";
 import { createHTTP, createMCPStdio } from "../transports/index.js";
 import { registerCleanupCommand } from "./commands/cleanup.js";
 import { registerOpsCommand } from "./commands/ops.js";
@@ -98,6 +99,19 @@ const program = new Command()
   .version(VERSION)
   .option("-v, --verbose", "Enable verbose logging")
   .option("--config <path>", "Configuration file path");
+
+const HTTP_AUTH_MODES: HTTPAuthMode[] = ["required", "localhost", "disabled"];
+const HTTP_AUTH_MODE_DESCRIPTION = "HTTP auth mode (required|localhost|disabled)";
+
+function parseHttpAuthMode(value: string): HTTPAuthMode {
+  const normalized = value.trim().toLowerCase() as HTTPAuthMode;
+  if (!HTTP_AUTH_MODES.includes(normalized)) {
+    throw new InvalidArgumentError(
+      `Invalid auth mode '${value}'. Expected one of ${HTTP_AUTH_MODES.join(", ")}`,
+    );
+  }
+  return normalized;
+}
 
 // Register cleanup as a proper subcommand so its options are recognized
 registerCleanupCommand(program);
@@ -540,8 +554,10 @@ function setupMCPDevCommands(mcpCmd: Command): void {
     .option("--verbose", "Enable verbose logging")
     .option("--foreground", "Run server in foreground (blocks terminal)")
     .option("--pid-file <path>", "Custom PID file location")
+    .option("--auth-mode <mode>", HTTP_AUTH_MODE_DESCRIPTION, parseHttpAuthMode)
     .action(async (options) => {
       try {
+        const resolvedAuthMode = (options.authMode as HTTPAuthMode | undefined) ?? "disabled";
         // Default to background mode for AI-friendly operation
         if (!options.foreground) {
           const { spawn } = await import("node:child_process");
@@ -559,8 +575,10 @@ function setupMCPDevCommands(mcpCmd: Command): void {
           if (options.noCors) args.push("--no-cors");
           if (options.verbose) args.push("--verbose");
           if (options.pidFile) args.push("--pid-file", options.pidFile);
+          if (options.authMode) args.push("--auth-mode", options.authMode);
 
           // Spawn detached process
+
           const child = spawn(process.execPath, [process.argv[1], ...args], {
             detached: true,
             stdio: ["ignore", "ignore", "ignore"],
@@ -584,6 +602,7 @@ function setupMCPDevCommands(mcpCmd: Command): void {
           verbose: options.verbose,
           background: false, // Always false when we get here
           pidFile: options.pidFile,
+          authMode: resolvedAuthMode,
         });
 
         // Start HTTP server (foreground mode)
@@ -633,8 +652,10 @@ function setupMCPDevCommands(mcpCmd: Command): void {
     .option("--team-id <teamId>", "Team identifier for HTTP session")
     .option("--verbose", "Enable verbose logging")
     .option("--pid-file <path>", "Custom PID file location")
+    .option("--auth-mode <mode>", HTTP_AUTH_MODE_DESCRIPTION, parseHttpAuthMode)
     .action(async (options) => {
       try {
+        const resolvedAuthMode = (options.authMode as HTTPAuthMode | undefined) ?? "disabled";
         const { BrooklynHTTP } = await import("../core/brooklyn-http.js");
         const httpServer = new BrooklynHTTP({
           port: Number.parseInt(options.port, 10),
@@ -644,6 +665,7 @@ function setupMCPDevCommands(mcpCmd: Command): void {
           verbose: options.verbose,
           background: true, // Always background for daemon
           pidFile: options.pidFile,
+          authMode: resolvedAuthMode,
         });
 
         // Start HTTP server in daemon mode
@@ -1064,6 +1086,7 @@ Assisted Configuration:
     .option("--daemon", "Run as background daemon")
     .option("--team-id <teamId>", "Team identifier")
     .option("--log-level <level>", "Log level (debug, info, warn, error)")
+    .option("--auth-mode <mode>", HTTP_AUTH_MODE_DESCRIPTION, parseHttpAuthMode)
     .action(async (options) => {
       try {
         // Resolve host/stack preferences
@@ -1079,8 +1102,11 @@ Assisted Configuration:
           resolvedHost = "127.0.0.1";
         }
 
+        const cliAuthMode = options.authMode as HTTPAuthMode | undefined;
+
         // Load configuration with CLI overrides
         const cliOverrides: Partial<BrooklynConfig> = {};
+
         if (options.teamId) cliOverrides.teamId = options.teamId;
         if (options.logLevel) cliOverrides.logging = { level: options.logLevel, format: "json" };
         if (options.port) {
@@ -1100,7 +1126,12 @@ Assisted Configuration:
 
         const config = await loadConfig(cliOverrides);
 
+        const resolvedAuthMode: HTTPAuthMode =
+          cliAuthMode ?? config.transports.http.authMode ?? "required";
+        config.transports.http.authMode = resolvedAuthMode;
+
         // Initialize logging for non-MCP commands
+
         // If daemon mode, spawn detached process and exit
         if (options.daemon) {
           const { spawn } = await import("node:child_process");
@@ -1108,6 +1139,7 @@ Assisted Configuration:
 
           if (options.teamId) args.push("--team-id", options.teamId);
           if (options.logLevel) args.push("--log-level", options.logLevel);
+          if (cliAuthMode) args.push("--auth-mode", cliAuthMode);
 
           // Spawn detached process
           const child = spawn(process.execPath, [process.argv[1], ...args], {
@@ -1130,11 +1162,13 @@ Assisted Configuration:
             port: options.port,
             host: resolvedHost,
             pid: child.pid,
+            authMode: resolvedAuthMode,
           });
 
           logger.info("Web server started successfully", {
             url: `http://${resolvedHost}:${options.port}`,
             pid: child.pid,
+            authMode: resolvedAuthMode,
           });
 
           logger.info("OAuth endpoints ready", {
@@ -1162,6 +1196,7 @@ Assisted Configuration:
             port: options.port,
             host: options.host,
             url: `http://${resolvedHost}:${options.port}`,
+            authMode: resolvedAuthMode,
           });
         }
 
@@ -1173,11 +1208,11 @@ Assisted Configuration:
         });
 
         // Create and add HTTP transport
-        const httpTransport = await createHTTP(
-          Number.parseInt(options.port, 10),
-          resolvedHost,
-          true, // CORS enabled
-        );
+        const httpTransport = await createHTTP(Number.parseInt(options.port, 10), resolvedHost, {
+          cors: true,
+          authMode: resolvedAuthMode,
+          trustedProxies: config.transports.http.trustedProxies,
+        });
         await engine.addTransport("http", httpTransport);
 
         // Start HTTP transport
@@ -1187,9 +1222,11 @@ Assisted Configuration:
           logger.info("Web server started successfully", {
             url: `http://${resolvedHost}:${options.port}`,
             teamId: config.teamId,
+            authMode: resolvedAuthMode,
           });
 
           // Helpful OAuth endpoint hints for Claude Code auth and manual fallback
+
           logger.info("OAuth endpoints ready", {
             discovery: `http://${resolvedHost}:${options.port}/.well-known/oauth-authorization-server`,
             authorize: `http://${resolvedHost}:${options.port}/oauth/authorize`,

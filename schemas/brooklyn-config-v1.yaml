@@ -110,6 +110,19 @@ properties:
             description: "Enable HTTP rate limiting"
             default: false
 
+          authMode:
+            type: string
+            description: "HTTP authentication enforcement mode"
+            enum: ["required", "localhost", "disabled"]
+            default: "disabled"
+
+          trustedProxies:
+            type: array
+            description: "Trusted proxy addresses for X-Forwarded-For"
+            items:
+              type: string
+            default: []
+
     additionalProperties: false
 
   # Browser Configuration

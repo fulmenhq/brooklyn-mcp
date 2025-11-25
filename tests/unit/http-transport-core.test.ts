@@ -15,11 +15,20 @@ import type { MockedFunction } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { HTTPConfig } from "../../src/core/transport.js";
 import { TransportType } from "../../src/core/transport.js";
+import type { HttpAuthContext } from "../../src/transports/http-auth-guard.js";
 
 // Utility to find an available port dynamically (simplified for tests)
 async function findAvailablePort(startPort = 3000): Promise<number> {
   // For tests, just return a pseudo-random port to avoid conflicts
   return startPort + Math.floor(Math.random() * 1000);
+}
+
+type MockMCPRequest = IncomingMessage & { context?: HttpAuthContext };
+
+function createTransportRequest(context?: Partial<HttpAuthContext>): MockMCPRequest {
+  return {
+    context: context as HttpAuthContext | undefined,
+  } as MockMCPRequest;
 }
 
 // Mock node:http and node:net modules
@@ -35,6 +44,7 @@ describe("HTTP Transport Core Unit Tests", () => {
   let httpTransport: any;
   let mockServer: any;
   let testPort: number;
+  let toolCallHandlerMock: MockedFunction<any>;
 
   // Use dynamic port allocation to avoid conflicts
   const createTestConfig = (port: number): HTTPConfig => ({
@@ -334,12 +344,12 @@ describe("HTTP Transport Core Unit Tests", () => {
       const toolListHandler = vi.fn().mockResolvedValue({
         tools: [{ name: "test_tool", description: "A test tool" }],
       });
-      const toolCallHandler = vi.fn().mockResolvedValue({
+      toolCallHandlerMock = vi.fn().mockResolvedValue({
         content: [{ type: "text", text: "Tool executed successfully" }],
       });
 
       httpTransport.setToolListHandler(toolListHandler);
-      httpTransport.setToolCallHandler(toolCallHandler);
+      httpTransport.setToolCallHandler(toolCallHandlerMock);
     });
 
     it("should process initialize request", async () => {
@@ -353,7 +363,7 @@ describe("HTTP Transport Core Unit Tests", () => {
         id: 1,
       };
 
-      const response = await httpTransport.processRequest(request);
+      const response = await httpTransport.processRequest(request, createTransportRequest());
 
       expect(response).toMatchObject({
         jsonrpc: "2.0",
@@ -372,7 +382,7 @@ describe("HTTP Transport Core Unit Tests", () => {
         id: 2,
       };
 
-      const response = await httpTransport.processRequest(request);
+      const response = await httpTransport.processRequest(request, createTransportRequest());
 
       expect(response).toMatchObject({
         jsonrpc: "2.0",
@@ -394,15 +404,43 @@ describe("HTTP Transport Core Unit Tests", () => {
         id: 3,
       };
 
-      const response = await httpTransport.processRequest(request);
+      const response = await httpTransport.processRequest(request, createTransportRequest());
 
       expect(response).toMatchObject({
         jsonrpc: "2.0",
         id: 3,
-        result: {
+        result: expect.objectContaining({
           content: expect.arrayContaining([expect.objectContaining({ type: "text" })]),
-        },
+        }),
       });
+    });
+
+    it("should forward auth metadata to tool call handler", async () => {
+      const request = {
+        jsonrpc: "2.0",
+        method: "tools/call",
+        params: {
+          name: "test_tool",
+          arguments: {},
+        },
+        id: 4,
+      };
+
+      const transportRequest = createTransportRequest({ userId: "user-123", teamId: "team-xyz" });
+
+      await httpTransport.processRequest(request, transportRequest);
+
+      expect(toolCallHandlerMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          params: expect.objectContaining({ name: "test_tool" }),
+        }),
+        expect.objectContaining({
+          transport: "mcp-http",
+          userId: "user-123",
+          teamId: "team-xyz",
+          auth: expect.objectContaining({ userId: "user-123", teamId: "team-xyz" }),
+        }),
+      );
     });
 
     it("should handle unknown method", async () => {
@@ -412,7 +450,7 @@ describe("HTTP Transport Core Unit Tests", () => {
         id: 4,
       };
 
-      const response = await httpTransport.processRequest(request);
+      const response = await httpTransport.processRequest(request, createTransportRequest());
 
       expect(response).toMatchObject({
         jsonrpc: "2.0",
@@ -434,7 +472,7 @@ describe("HTTP Transport Core Unit Tests", () => {
         id: 5,
       };
 
-      const response = await httpTransport.processRequest(request);
+      const response = await httpTransport.processRequest(request, createTransportRequest());
 
       expect(response).toMatchObject({
         jsonrpc: "2.0",
@@ -456,7 +494,7 @@ describe("HTTP Transport Core Unit Tests", () => {
         id: 6,
       };
 
-      const response = await httpTransport.processRequest(request);
+      const response = await httpTransport.processRequest(request, createTransportRequest());
 
       expect(response).toMatchObject({
         jsonrpc: "2.0",
@@ -475,7 +513,7 @@ describe("HTTP Transport Core Unit Tests", () => {
         // No id for notifications
       };
 
-      const response = await httpTransport.processRequest(request);
+      const response = await httpTransport.processRequest(request, createTransportRequest());
 
       // Unknown method returns error with undefined id
       expect(response).toMatchObject({
@@ -594,7 +632,7 @@ describe("HTTP Transport Core Unit Tests", () => {
 
       // The processRequest method doesn't currently catch handler exceptions,
       // so this test expects the error to be thrown
-      await expect(httpTransport.processRequest(request)).rejects.toThrow(
+      await expect(httpTransport.processRequest(request, createTransportRequest())).rejects.toThrow(
         "Tool list handler error",
       );
     });

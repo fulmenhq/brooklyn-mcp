@@ -7,16 +7,26 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { createServer } from "node:http";
 
 import { traceIncomingMCPRequest, traceOutgoingMCPResponse } from "../core/mcp-debug-middleware.js";
-import type { HTTPConfig, ToolCallHandler, ToolListHandler, Transport } from "../core/transport.js";
+import type {
+  HTTPConfig,
+  ToolCallHandler,
+  ToolListHandler,
+  Transport,
+  TransportRequestMetadata,
+} from "../core/transport.js";
 import { TransportType } from "../core/transport.js";
 import { buildConfig } from "../shared/build-config.js";
 import { negotiateHandshake } from "../shared/mcp-handshake.js";
 import { getLogger } from "../shared/pino-logger.js";
+import type { HttpAuthContext } from "./http-auth-guard.js";
+import { HttpAuthError, HttpAuthGuard, isEventStreamRequest } from "./http-auth-guard.js";
 
 /**
  * MCP Streamable HTTP transport
  * Handles JSON-RPC over HTTP POST with optional SSE for streaming
  */
+type MCPHTTPRequest = IncomingMessage & { context?: HttpAuthContext };
+
 export class MCPHTTPTransport implements Transport {
   readonly name = "mcp-http";
   readonly type = TransportType.HTTP;
@@ -34,9 +44,15 @@ export class MCPHTTPTransport implements Transport {
   private running = false;
   private toolListHandler?: ToolListHandler;
   private toolCallHandler?: ToolCallHandler;
+  private readonly authGuard: HttpAuthGuard;
 
   constructor(config: HTTPConfig) {
     this.config = config;
+    this.authGuard = new HttpAuthGuard({
+      mode: this.config.options.authMode ?? "disabled",
+      trustedProxies: this.config.options.trustedProxies ?? [],
+      tokenResolver: this.config.options.tokenResolver,
+    });
   }
 
   async initialize(): Promise<void> {
@@ -254,6 +270,9 @@ export class MCPHTTPTransport implements Transport {
   }
 
   private async handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const requestWithContext = req as MCPHTTPRequest;
+    const sseRequested = isEventStreamRequest(req);
+
     // CRITICAL: Check OAuth routes FIRST before any method restrictions
     // This ensures OAuth GET endpoints work properly
 
@@ -678,7 +697,7 @@ export class MCPHTTPTransport implements Transport {
     }
 
     // Basic connectivity root endpoint
-    if (req.url === "/" && req.method === "GET") {
+    if (req.url === "/" && req.method === "GET" && !sseRequested) {
       res.statusCode = 200;
       res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify({ status: "ok", version: buildConfig.version }));
@@ -699,6 +718,24 @@ export class MCPHTTPTransport implements Transport {
       return;
     }
 
+    const requiresAuth = this.authGuard.isProtectedEndpoint(req);
+    if (requiresAuth) {
+      try {
+        requestWithContext.context = await this.authGuard.enforce(req);
+      } catch (error) {
+        if (error instanceof HttpAuthError) {
+          this.logger().warn("HTTP auth rejected request", {
+            code: error.code,
+            url: req.url,
+            method: req.method,
+          });
+          this.respondWithAuthError(res, error);
+          return;
+        }
+        throw error;
+      }
+    }
+
     // MCP Streamable HTTP: Support both POST (send messages) and GET (SSE stream)
     // IMPORTANT: This check must come AFTER OAuth route handling to avoid blocking OAuth GET endpoints
 
@@ -713,8 +750,7 @@ export class MCPHTTPTransport implements Transport {
       // For non-special endpoints, enforce MCP rules
       if (req.method === "GET") {
         // GET request for SSE stream (optional per MCP spec)
-        const acceptHeader = req.headers.accept;
-        if (acceptHeader?.includes("text/event-stream")) {
+        if (sseRequested) {
           this.handleSSEStream(res);
           return;
         }
@@ -734,7 +770,7 @@ export class MCPHTTPTransport implements Transport {
     } else if (req.method === "GET") {
       // For special endpoints, GET is allowed
       // SSE stream handling for root endpoint
-      if (isRootEndpoint && req.headers.accept?.includes("text/event-stream")) {
+      if (isRootEndpoint && sseRequested) {
         this.handleSSEStream(res);
         return;
       }
@@ -766,7 +802,7 @@ export class MCPHTTPTransport implements Transport {
 
     let response: Record<string, unknown>;
     try {
-      response = await this.processRequest(msg);
+      response = await this.processRequest(msg, requestWithContext);
     } catch (e) {
       response = this.createErrorResponse(msg["id"], e);
     }
@@ -807,7 +843,10 @@ export class MCPHTTPTransport implements Transport {
     }
   }
 
-  private async processRequest(msg: Record<string, unknown>): Promise<Record<string, unknown>> {
+  private async processRequest(
+    msg: Record<string, unknown>,
+    req: MCPHTTPRequest,
+  ): Promise<Record<string, unknown>> {
     const method = msg["method"] as string;
     const params = msg["params"] as Record<string, unknown> | undefined;
     const id = msg["id"];
@@ -863,10 +902,14 @@ export class MCPHTTPTransport implements Transport {
               name: callParams["name"] as string,
               arguments: args,
             };
-            const result = await this.toolCallHandler({
-              params: toolInput,
-              method,
-            });
+            const metadata = this.buildRequestMetadata(req);
+            const result = await this.toolCallHandler(
+              {
+                params: toolInput,
+                method,
+              },
+              metadata,
+            );
 
             // PROTOCOL FIX: Transform to proper MCP format with content array
             // Previous version used direct result format which worked with Claude Code HTTP mode
@@ -948,7 +991,6 @@ export class MCPHTTPTransport implements Transport {
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
-    res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader(
       "Access-Control-Allow-Headers",
       "Content-Type, Accept, Mcp-Session-Id, MCP-Protocol-Version",
@@ -965,6 +1007,36 @@ export class MCPHTTPTransport implements Transport {
 
     // Initial connection event
     res.write(`data: ${JSON.stringify({ type: "connection", status: "ready" })}\n\n`);
+  }
+
+  private respondWithAuthError(res: ServerResponse, error: HttpAuthError): void {
+    if (res.headersSent) {
+      res.end();
+      return;
+    }
+
+    res.statusCode = error.statusCode;
+    res.setHeader("Content-Type", "application/json");
+    if (error.code === "AUTH_REQUIRED" || error.code === "INVALID_TOKEN") {
+      res.setHeader("WWW-Authenticate", 'Bearer realm="brooklyn-mcp"');
+    }
+    res.end(
+      JSON.stringify({
+        error: {
+          code: error.code,
+          message: error.message,
+        },
+      }),
+    );
+  }
+
+  private buildRequestMetadata(req: MCPHTTPRequest): TransportRequestMetadata {
+    return {
+      transport: this.name,
+      userId: req.context?.userId,
+      teamId: req.context?.teamId,
+      auth: req.context,
+    };
   }
 
   private parseRequestBody(req: IncomingMessage): Promise<Record<string, unknown>> {

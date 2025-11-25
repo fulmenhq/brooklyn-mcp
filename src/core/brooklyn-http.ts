@@ -21,6 +21,7 @@ import {
   interactionTools,
   navigationTools,
 } from "./tool-definitions.js";
+import type { HTTPAuthMode } from "./transport.js";
 
 export interface HTTPModeOptions {
   port?: number;
@@ -30,6 +31,7 @@ export interface HTTPModeOptions {
   verbose?: boolean;
   background?: boolean;
   pidFile?: string;
+  authMode?: HTTPAuthMode;
 }
 
 export interface ToolCallRequest {
@@ -57,6 +59,7 @@ export class BrooklynHTTP {
       port: 8080,
       host: "0.0.0.0",
       cors: true,
+      authMode: "disabled",
       ...options,
     };
 
@@ -106,6 +109,7 @@ export class BrooklynHTTP {
             teamId: this.context.teamId,
             background: this.options.background,
             pid: process.pid,
+            authMode: this.options.authMode,
           });
 
           // Handle background mode after server starts successfully

@@ -78,8 +78,11 @@ bun install
 # Build and install CLI
 bun run build && bun run install
 
-# Start Brooklyn HTTP server (recommended for multi-agent workflows)
-brooklyn web start --port 3000 --daemon
+# Start Brooklyn HTTP server (auth required by default)
+brooklyn web start --port 3000 --auth-mode required --daemon
+
+# Local development bypass (loopback-only)
+# brooklyn web start --port 3000 --auth-mode localhost
 
 # Connect to Claude Code (HTTP transport)
 claude mcp add -s user -t http brooklyn http://127.0.0.1:3000
@@ -92,6 +95,8 @@ brooklyn doctor --json  # Run in terminal - comprehensive health check
 # ⚠️ Warning: stdio does not support multiple agents simultaneously
 # claude mcp add -s user -t stdio brooklyn "brooklyn mcp start"
 ```
+
+> `--auth-mode` defaults to `required` for `brooklyn web start`. Use `localhost` only for single-machine testing (loopback traffic is exempt from bearer tokens) and reserve `disabled` for automated CI where network access is tightly controlled.
 
 ### Test Your First Automation
 
@@ -347,7 +352,10 @@ bun run check:file src/core/new-feature.ts  # Validate specific file
 brooklyn mcp start --log-level debug
 
 # HTTP transport (debugging friendly)
-brooklyn web start --port 3000 --daemon
+brooklyn web start --port 3000 --auth-mode required --daemon
+
+# Loopback-only HTTP (bypass bearer tokens during local development)
+brooklyn web start --port 3000 --auth-mode localhost
 ```
 
 ---

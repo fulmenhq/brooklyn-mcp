@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **HTTP Auth Guard**: Streamable HTTP transport now enforces configurable auth modes (`required`, `localhost`, `disabled`) with bearer validation, trusted proxy handling, and request context propagation into `SecurityMiddleware`.
+- **CLI Flags**: `brooklyn web start` and `brooklyn mcp dev-http` expose `--auth-mode` plus `BROOKLYN_HTTP_AUTH_MODE`/`BROOKLYN_HTTP_TRUSTED_PROXIES` env vars so deployments can toggle requirements without code changes.
+- **Testing**: Unit specs cover guard logic and transport metadata, and a new integration test verifies 401 vs 200 flows for the HTTP transport.
+
+### Documentation
+
+- **Auth Modes**: README, `docs/user-guide/brooklyn-cli.md`, and `docs/development/http-mode-api.md` describe auth modes, local bypass guidance, and trusted proxy env vars.
+- **Client Config Examples**: `docs/deployment/mcp-configuration.md` now includes concrete `.mcp.json`, `opencode.json`, and Codex TOML snippets for HTTP/STDIO setups.
+- **Release Notes**: Drafted `docs/ops/release/notes/v0.3.0.md` summarizing the HTTP auth hardening work for the upcoming release.
+
 ## [0.2.3] - 2025-01-19
 
 ### Dependency Updates

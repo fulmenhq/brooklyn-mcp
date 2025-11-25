@@ -34,7 +34,7 @@ Use the Claude Code CLI to add Brooklyn:
 Recommended: Start Brooklyn HTTP server for multi-agent workflows
 
 1. Start server (once per machine):
-   brooklyn web start --port 3000 --daemon
+   brooklyn web start --port 3000 --auth-mode required --daemon
 
 2. Add to Claude Code:
    claude mcp add -s user -t http brooklyn http://127.0.0.1:3000
@@ -49,6 +49,8 @@ Legacy single-agent only (stdio transport):
   claude mcp add -s user -t stdio brooklyn brooklyn mcp start
   ⚠️ Note: stdio does not support multiple agents simultaneously
 ```
+
+> `--auth-mode` defaults to `required`. For loopback-only prototypes you may temporarily run `brooklyn web start --auth-mode localhost`, but switch back to `required` (or supply a token) before exposing the port outside your machine.
 
 ### With Environment Variables
 
@@ -96,6 +98,28 @@ brooklyn config agent --client cursor --scope project --transport stdio --apply
 # Check current configuration
 brooklyn mcp status
 ```
+
+### HTTP Authentication Modes
+
+| Mode        | Behavior                                                      | Default Command         |
+| ----------- | ------------------------------------------------------------- | ----------------------- |
+| `required`  | Non-OAuth routes demand `Authorization: Bearer <token>`       | `brooklyn web start`    |
+| `localhost` | Loopback clients may connect anonymously; others need a token | Manual opt-in           |
+| `disabled`  | No auth checks (CI/dev only)                                  | `brooklyn mcp dev-http` |
+
+Set modes via `--auth-mode <value>` or environment variables:
+
+```bash
+# Enforce tokens but trust a proxy chain
+BROOKLYN_HTTP_AUTH_MODE=required \
+BROOKLYN_HTTP_TRUSTED_PROXIES=10.0.0.5,10.0.0.6 \
+brooklyn web start --host 0.0.0.0 --port 3000 --daemon
+
+# Secure dev-http for integration tests
+brooklyn mcp dev-http --port 8080 --team-id qa --auth-mode required
+```
+
+Use `--auth-mode localhost` sparingly for loopback-only machines, and keep `BROOKLYN_HTTP_AUTH_MODE=required` anywhere the port is reachable over the network.
 
 ## Dual-Mode Operation
 
@@ -151,6 +175,8 @@ Brooklyn respects environment variables for configuration:
 export BROOKLYN_PORT=3000              # Web server port
 export BROOKLYN_LOG_LEVEL=debug        # Logging verbosity
 export BROOKLYN_TEAM_ID=engineering    # Team identifier
+export BROOKLYN_HTTP_AUTH_MODE=required      # required|localhost|disabled
+export BROOKLYN_HTTP_TRUSTED_PROXIES=10.0.0.5,10.0.0.6  # optional proxy allowlist
 
 # Browser settings
 export BROOKLYN_MAX_BROWSERS=5         # Browser pool limit
@@ -168,6 +194,74 @@ export BROOKLYN_RATE_LIMIT=100         # Requests per minute
 3. System environment variables
 4. Configuration file (if specified)
 5. Built-in defaults (lowest priority)
+
+## Client Property Files
+
+Brooklyn ships a safe patcher so you do not have to hand-edit configuration files. Use `brooklyn config agent --client <name> ... --apply` to populate the file that each IDE/agent reads.
+
+### `.mcp.json` (Claude Desktop, Cursor)
+
+Lives in the project root and is ideal for stdio transports:
+
+```json
+{
+  "mcpServers": {
+    "brooklyn": {
+      "command": "brooklyn",
+      "args": ["mcp", "start"],
+      "env": {
+        "BROOKLYN_TEAM_ID": "demo"
+      }
+    }
+  }
+}
+```
+
+Create/update it with:
+
+```bash
+brooklyn config agent --client project --scope project --transport stdio --team-id demo --apply
+```
+
+### `opencode.json` (OpenCode / Windsurf)
+
+Supports HTTP remotes in either user scope (`~/.config/opencode/opencode.json`) or the current repo:
+
+```json
+{
+  "mcp": {
+    "brooklyn": {
+      "type": "remote",
+      "url": "http://127.0.0.1:3000",
+      "enabled": true
+    }
+  }
+}
+```
+
+Generate it with:
+
+```bash
+brooklyn config agent --client opencode --scope user --transport http --host 127.0.0.1 --port 3000 --apply
+```
+
+Pair remote entries with `brooklyn web start --auth-mode required` so tokens are enforced, or temporarily run `--auth-mode localhost` when everything stays on the same machine.
+
+### `~/.codex/config.toml`
+
+Codex CLI uses TOML:
+
+```toml
+[mcp_servers.brooklyn]
+type = "http"
+url = "http://127.0.0.1:3000"
+```
+
+Populate it with:
+
+```bash
+brooklyn config agent --client codex --scope user --transport http --host 127.0.0.1 --port 3000 --apply
+```
 
 ## Validating Your Setup
 

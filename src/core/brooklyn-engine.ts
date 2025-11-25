@@ -16,7 +16,12 @@ import { OnboardingTools } from "./onboarding-tools.js";
 import { PluginManager } from "./plugin-manager.js";
 import { SecurityMiddleware } from "./security-middleware.js";
 import type { EnhancedTool } from "./tool-definitions.js";
-import type { ToolCallHandler, ToolListHandler, Transport } from "./transport.js";
+import type {
+  ToolCallHandler,
+  ToolListHandler,
+  Transport,
+  TransportRequestMetadata,
+} from "./transport.js";
 
 /**
  * Brooklyn engine initialization options
@@ -37,6 +42,7 @@ export interface BrooklynContext {
   correlationId: string;
   permissions: string[];
   transport: string;
+  auth?: unknown;
 }
 
 /**
@@ -661,7 +667,7 @@ export class BrooklynEngine {
   }
 
   private createToolCallHandler(transportName: string): ToolCallHandler {
-    return async (request: CallToolRequest) => {
+    return async (request: CallToolRequest, metadata?: TransportRequestMetadata) => {
       // DEFENSIVE: Ensure logging is initialized before tool execution
       if (!isLoggingInitialized()) {
         try {
@@ -685,18 +691,23 @@ export class BrooklynEngine {
       } catch {}
 
       try {
+        const derivedTeamId = metadata?.teamId ?? this.config.teamId;
+        const derivedUserId = metadata?.userId;
+
         // Create context for this request
         const context: BrooklynContext = {
-          teamId: this.config.teamId,
+          teamId: derivedTeamId,
+          userId: derivedUserId,
           correlationId,
           permissions: [], // TODO: Extract from request
           transport: transportName,
+          auth: metadata?.auth,
         };
 
         // Apply security middleware with context
         await this.security.validateRequest(request, {
-          teamId: this.config.teamId,
-          userId: context.userId,
+          teamId: derivedTeamId,
+          userId: derivedUserId,
         });
 
         let rawResult: unknown;
