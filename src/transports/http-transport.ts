@@ -40,6 +40,7 @@ export class MCPHTTPTransport implements Transport {
     }
     return this._logger;
   }
+  private sseClients: Set<ServerResponse> = new Set();
   private readonly config: HTTPConfig;
   private server: ReturnType<typeof createServer> | null = null;
   private running = false;
@@ -909,6 +910,16 @@ export class MCPHTTPTransport implements Transport {
               arguments: args,
             };
             const metadata = this.buildRequestMetadata(req);
+            const progressToken = (callParams["_meta"] as Record<string, unknown> | undefined)?.[
+              "progressToken"
+            ];
+            if (progressToken !== undefined) {
+              this.emitProgress({
+                progressToken: String(progressToken),
+                progress: 0,
+                message: "started",
+              });
+            }
             const result = await this.toolCallHandler(
               {
                 params: toolInput,
@@ -922,6 +933,14 @@ export class MCPHTTPTransport implements Transport {
               id,
               result: normalizeCallToolResult(result),
             };
+
+            if (progressToken !== undefined) {
+              this.emitProgress({
+                progressToken: String(progressToken),
+                progress: 1,
+                message: "completed",
+              });
+            }
           }
         }
         break;
@@ -964,13 +983,26 @@ export class MCPHTTPTransport implements Transport {
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept, Mcp-Session-Id");
 
     // Send initial response
     res.write(`data: ${JSON.stringify(response)}\n\n`);
 
-    // For streaming, we can add logic here if needed for notifications
-    // For now, close after initial response
-    res.end();
+    this.sseClients.add(res);
+
+    const keepAlive = setInterval(() => {
+      if (res.closed) {
+        clearInterval(keepAlive);
+        this.sseClients.delete(res);
+        return;
+      }
+      res.write(`: heartbeat\n\n`);
+    }, 30000);
+
+    res.on("close", () => {
+      clearInterval(keepAlive);
+      this.sseClients.delete(res);
+    });
   }
 
   /**
@@ -1027,6 +1059,29 @@ export class MCPHTTPTransport implements Transport {
       teamId: req.context?.teamId,
       auth: req.context,
     };
+  }
+
+  private emitProgress(params: {
+    progressToken: string;
+    progress: number;
+    message?: string;
+  }): void {
+    if (this.sseClients.size === 0) {
+      return;
+    }
+    const payload = {
+      jsonrpc: "2.0",
+      method: "notifications/progress",
+      params: {
+        progressToken: params.progressToken,
+        progress: params.progress,
+        message: params.message,
+      },
+    };
+    const event = `data: ${JSON.stringify(payload)}\n\n`;
+    for (const client of this.sseClients) {
+      client.write(event);
+    }
   }
 
   private parseRequestBody(req: IncomingMessage): Promise<Record<string, unknown>> {
