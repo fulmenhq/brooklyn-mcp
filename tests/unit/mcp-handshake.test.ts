@@ -14,7 +14,6 @@ describe("negotiateHandshake", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.payload.protocolVersion).toBe(DEFAULT_NEGOTIATED_PROTOCOL_VERSION);
-      expect(result.payload.capabilities.experimental).toBeDefined();
     }
   });
 
