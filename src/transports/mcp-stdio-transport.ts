@@ -3,7 +3,10 @@
  * Handles Claude Code integration via MCP protocol
  */
 
-import type { CallToolRequestParams } from "@modelcontextprotocol/sdk/types.js";
+import type {
+  CallToolRequestParams,
+  ProgressNotificationParams,
+} from "@modelcontextprotocol/sdk/types.js";
 
 import { MCPDebugMiddleware } from "../core/mcp-debug-middleware.js";
 import type { ToolCallHandler, ToolListHandler, Transport } from "../core/transport.js";
@@ -194,6 +197,15 @@ export class MCPStdioTransport implements Transport {
             "Invalid params: 'name' must be a string",
           );
         } else {
+          const progressToken = (msg.params as any)?._meta?.progressToken;
+          if (progressToken !== undefined) {
+            this.emitProgressNotification({
+              progressToken: String(progressToken),
+              progress: 0,
+              message: "started",
+            });
+          }
+
           const handlerResult = await this.toolCallHandler(
             createCallToolRequestFromMessage({
               params: msg.params as CallToolRequestParams,
@@ -290,6 +302,14 @@ export class MCPStdioTransport implements Transport {
             id: msg.id,
             result: normalizeCallToolResult(payload),
           };
+
+          if (progressToken !== undefined) {
+            this.emitProgressNotification({
+              progressToken: String(progressToken),
+              progress: 1,
+              message: "completed",
+            });
+          }
         }
       } else {
         response = this.createJsonRpcError(msg.id, -32601, "Method not found");
@@ -382,4 +402,22 @@ export class MCPStdioTransport implements Transport {
   /**
    * Update server info (called by Brooklyn engine)
    */
+
+  private emitProgressNotification(params: ProgressNotificationParams): void {
+    const notification = {
+      jsonrpc: "2.0",
+      method: "notifications/progress",
+      params,
+    };
+    try {
+      process.stdout.write(`${JSON.stringify(notification)}\n`, "utf8");
+      if (typeof (process.stdout as any)?.flush === "function") {
+        (process.stdout as any).flush();
+      }
+    } catch (error) {
+      this.logger().warn("Failed to emit progress notification", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
 }

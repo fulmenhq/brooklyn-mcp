@@ -344,11 +344,10 @@ describe.sequential("Architecture Committee: MCP Stdout Purity Tests", () => {
         .split("\n")
         .filter((line) => line.trim());
 
-      // Should only contain JSON-RPC responses
-      expect(stdoutLines.length).toBeGreaterThanOrEqual(2);
-      const callResponse: MCP_Message | undefined = stdoutLines
-        .map((line) => JSON.parse(line) as MCP_Message)
-        .find((msg) => msg.id === 5);
+      // Expect both progress notifications and a final response
+      const parsed = stdoutLines.map((line) => JSON.parse(line) as MCP_Message);
+      const callResponse: MCP_Message | undefined = parsed.find((msg) => msg.id === 5);
+      const progressNotifications = parsed.filter((msg) => msg.method === "notifications/progress");
 
       expect(callResponse).toBeDefined();
       expect(callResponse?.jsonrpc).toBe("2.0");
@@ -356,7 +355,13 @@ describe.sequential("Architecture Committee: MCP Stdout Purity Tests", () => {
       const resultBody = callResponse?.result as any;
       expect(Array.isArray(resultBody?.content)).toBe(true);
       expect(resultBody?.content?.[0]?.type).toBe("text");
-      expect(resultBody?.structuredContent).toBeDefined();
+      expect(resultBody?.structuredContent?.progressToken).toBeDefined();
+
+      expect(progressNotifications.length).toBeGreaterThanOrEqual(2);
+      for (const note of progressNotifications) {
+        expect(note.params).toBeDefined();
+        expect((note.params as any).progressToken).toBeDefined();
+      }
 
       // Logging should remain on stderr only
       expect(result.stderr).toBeTruthy();

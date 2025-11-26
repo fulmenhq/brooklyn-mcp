@@ -1,9 +1,12 @@
 import { randomUUID } from "node:crypto";
-import type { CallToolRequest, CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import type {
+  CallToolRequest,
+  CallToolResult,
+  ProgressNotificationParams,
+} from "@modelcontextprotocol/sdk/types.js";
 
 export interface ProgressNotifier {
-  notifyProgress: (progress: { token: string; value: number; label?: string }) => void;
-  notifyCancelled: (token: string) => void;
+  notifyProgress: (progress: ProgressNotificationParams) => void;
 }
 
 export interface ProgressContext {
@@ -16,7 +19,6 @@ export interface ProgressContext {
 export function createNoopProgressNotifier(): ProgressNotifier {
   return {
     notifyProgress: () => {},
-    notifyCancelled: () => {},
   };
 }
 

@@ -761,11 +761,8 @@ export class BrooklynEngine {
           };
         }
 
-        return attachProgressMetadata(normalizeCallToolResult(envelope), {
-          progressToken: request.params._meta?.progressToken
-            ? String(request.params._meta?.progressToken)
-            : undefined,
-        });
+        const progressContext = getProgressContext(request);
+        return attachProgressMetadata(normalizeCallToolResult(envelope), progressContext);
       } catch (error) {
         const executionTime = Date.now() - startTime;
         try {
@@ -779,16 +776,13 @@ export class BrooklynEngine {
         } catch {}
 
         // Return error response in MCP format for tests
+        const progressContext = getProgressContext(request);
         return attachProgressMetadata(
           normalizeCallToolResult({
             isError: true,
             error: error instanceof Error ? error.message : String(error),
           }),
-          {
-            progressToken: request.params._meta?.progressToken
-              ? String(request.params._meta?.progressToken)
-              : undefined,
-          },
+          progressContext,
         );
       }
     };
