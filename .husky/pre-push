@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Brooklyn Pre-push Hook
-# Full validation suite including license scanning and integration tests
+# Delegates to Makefile for FulmenHQ ecosystem consistency
 
 echo "🌉 Brooklyn Pre-push Validation..."
 
@@ -21,43 +21,38 @@ else
   echo "⚠️  Note: Brooklyn binary not built yet, skipping cleanup"
 fi
 
-# Run full prepush validation (includes license scanning)
 echo "🔍 Running comprehensive pre-push validation..."
 echo "   - Code quality checks (format, typecheck, lint)"
-echo "   - License compliance scanning"
 echo "   - Build artifacts validation"
 echo "   - Full test suite"
 echo "⚠️  Note: Browser integration tests may fail if Playwright browsers are not installed."
-echo "   Run 'bun run setup:browsers' to install browsers for full testing."
-echo "⏱️  Expected duration: ~6 minutes on Windows"
+echo "   Run 'make bootstrap' to install browsers for full testing."
 
 # Set consistent environment variables for cross-platform testing
 export BROOKLYN_HEADLESS=true
 export PLAYWRIGHT_HEADLESS=true
 export NODE_OPTIONS="--max-old-space-size=4096"
 
-# Run prepush (bun handles timeout internally via package.json script)
-bun run prepush || {
+make prepush || {
   echo ""
   echo "❌ Pre-push validation failed. Please fix before pushing."
   echo ""
   echo "💡 Common fixes:"
-  echo "   - Format issues: 'bun run format:code'"
-  echo "   - License issues: Check 'dist/licenses/' output"
-  echo "   - Test failures: 'bun run test:unit' for unit tests only"
-  echo "   - Build issues: 'bun run build' to check compilation"
-  echo "   - Browser tests: 'bun run setup:browsers' to install browsers"
+  echo "   - Format issues: 'make fmt'"
+  echo "   - Test failures: 'make test-unit' for unit tests only"
+  echo "   - Build issues: 'make build' to check compilation"
+  echo "   - Browser tests: 'make bootstrap' to install browsers"
   exit 1
 }
 
 # Run release validation for version tags
 if echo "$1" | grep -q "refs/tags/v"; then
   echo "🏷️  Version tag detected - running release validation..."
-  BROOKLYN_HEADLESS=true PLAYWRIGHT_HEADLESS=true NODE_OPTIONS="--max-old-space-size=4096" bun run release:validate || {
+  make release-check || {
     echo ""
     echo "❌ Release validation failed. Please fix before pushing version tag."
     echo ""
-    echo "💡 Run 'bun run release:validate' locally to see detailed validation results"
+    echo "💡 Run 'make release-check' locally to see detailed validation results"
     exit 1
   }
   echo "✅ Release validation passed!"

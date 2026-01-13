@@ -21,6 +21,21 @@
 
 ## Quick Reference
 
+**Preferred (Makefile - ecosystem standard):**
+
+| Task           | Command          | Notes                   |
+| -------------- | ---------------- | ----------------------- |
+| Quality checks | `make check-all` | Run before committing   |
+| Tests          | `make test`      | Full test suite         |
+| Format         | `make fmt`       | Biome + Prettier        |
+| Typecheck      | `make typecheck` | TypeScript validation   |
+| Lint           | `make lint`      | Must pass before commit |
+| Build          | `make build`     | Build CLI binary        |
+| Pre-commit     | `make precommit` | Fast validation         |
+| Help           | `make help`      | Show all targets        |
+
+**Alternative (bun run - still works):**
+
 | Task           | Command             | Notes                     |
 | -------------- | ------------------- | ------------------------- |
 | Quality checks | `bun run check-all` | Run before committing     |
