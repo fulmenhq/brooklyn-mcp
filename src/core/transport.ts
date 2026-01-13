@@ -56,6 +56,7 @@ export interface TransportRequestMetadata {
   transport?: string;
   userId?: string;
   teamId?: string;
+  sessionId?: string;
   auth?: unknown;
 }
 

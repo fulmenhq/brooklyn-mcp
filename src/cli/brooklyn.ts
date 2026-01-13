@@ -2428,7 +2428,7 @@ function setupConfigCommands(program: Command): void {
     .option("--product <name>", "Editor product for user scope: Code|VSCodium|Cursor|Windsurf")
     .option("--host <host>", "HTTP host (for http transport)", "127.0.0.1")
     .option("--port <port>", "HTTP port (for http transport)", "3000")
-    .option("--team-id <id>", "Optional team id (adds --team-id or /team/<id>)")
+    .option("--team-id <id>", "Optional team id (prefers X-Team-Id; falls back to ?team=)")
     .option("--apply", "Write changes to disk (otherwise dry-run)", false)
     .option("--print", "Print resulting file content or commands", false)
     .action(async (options) => {

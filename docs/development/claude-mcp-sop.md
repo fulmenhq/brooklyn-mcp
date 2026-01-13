@@ -338,7 +338,7 @@ claude mcp add -s user -t http brooklyn http://127.0.0.1:3000
 claude mcp add -s project -t http brooklyn http://127.0.0.1:3000
 
 # With team-id in the URL (if needed)
-claude mcp add -s project -t http brooklyn http://127.0.0.1:3000/team/myteam
+claude mcp add -s project -t http brooklyn http://127.0.0.1:3000?team=myteam
 
 # Verify configuration
 claude mcp list

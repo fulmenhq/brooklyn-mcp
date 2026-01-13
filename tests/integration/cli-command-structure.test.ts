@@ -23,7 +23,7 @@ vi.mock("../../src/shared/agent-drivers.js", () => ({
         }),
         http: ({ host, port, teamId }: { host: string; port: number; teamId?: string }) => ({
           type: "http",
-          url: `http://${host}:${port}${teamId ? `/team/${teamId}` : ""}`,
+          url: `http://${host}:${port}${teamId ? `?team=${encodeURIComponent(teamId)}` : ""}`,
         }),
       },
       commands: {

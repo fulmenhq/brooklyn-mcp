@@ -61,6 +61,14 @@ export function resolvePathFor(location: Location, projectRoot: string): string 
   return location.resolvePath(homedir(), projectRoot);
 }
 
+function withTeamQuery(url: string, teamId?: string): string {
+  if (!teamId) {
+    return url;
+  }
+  const encoded = encodeURIComponent(teamId);
+  return url.includes("?") ? `${url}&team=${encoded}` : `${url}?team=${encoded}`;
+}
+
 /** Resolve VS Code/VSCodium/Cursor/Windsurf user globalStorage base for a specific product. */
 export function getEditorGlobalStorageBase(product: string, homeDir?: string): string {
   const home = homeDir || homedir();
@@ -179,9 +187,10 @@ export const agentDrivers: Record<AgentClientKey, AgentDriver> = {
         mcpServers: {
           brooklyn: {
             type: "http",
-            url: `http://${opts.host || "127.0.0.1"}:${opts.port || 3000}${
-              opts.teamId ? `/team/${opts.teamId}` : ""
-            }`,
+            url: withTeamQuery(
+              `http://${opts.host || "127.0.0.1"}:${opts.port || 3000}`,
+              opts.teamId,
+            ),
           },
         },
       }),
@@ -194,9 +203,10 @@ export const agentDrivers: Record<AgentClientKey, AgentDriver> = {
         }`,
       ],
       http: (opts) => [
-        `claude mcp add -s user -t http brooklyn http://${opts.host || "127.0.0.1"}:${
-          opts.port || 3000
-        }${opts.teamId ? `/team/${opts.teamId}` : ""}`,
+        `claude mcp add -s user -t http brooklyn ${withTeamQuery(
+          `http://${opts.host || "127.0.0.1"}:${opts.port || 3000}`,
+          opts.teamId,
+        )}`,
       ],
     },
   },
@@ -227,9 +237,10 @@ export const agentDrivers: Record<AgentClientKey, AgentDriver> = {
         toml: {
           section: "[mcp_servers.brooklyn]",
           type: "http",
-          url: `http://${opts.host || "127.0.0.1"}:${opts.port || 3000}${
-            opts.teamId ? `/team/${opts.teamId}` : ""
-          }`,
+          url: withTeamQuery(
+            `http://${opts.host || "127.0.0.1"}:${opts.port || 3000}`,
+            opts.teamId,
+          ),
         },
       }),
     },
@@ -244,9 +255,7 @@ export const agentDrivers: Record<AgentClientKey, AgentDriver> = {
         "# ~/.codex/config.toml",
         "[mcp_servers.brooklyn]",
         `type = "http"`,
-        `url = "http://${opts.host || "127.0.0.1"}:${opts.port || 3000}${
-          opts.teamId ? `/team/${opts.teamId}` : ""
-        }"`,
+        `url = "${withTeamQuery(`http://${opts.host || "127.0.0.1"}:${opts.port || 3000}`, opts.teamId)}"`,
       ],
     },
   },
@@ -287,9 +296,10 @@ export const agentDrivers: Record<AgentClientKey, AgentDriver> = {
         mcpServers: {
           brooklyn: {
             type: "http" as const,
-            url: `http://${opts.host || "127.0.0.1"}:${opts.port || 3000}${
-              opts.teamId ? `/team/${opts.teamId}` : ""
-            }`,
+            url: withTeamQuery(
+              `http://${opts.host || "127.0.0.1"}:${opts.port || 3000}`,
+              opts.teamId,
+            ),
           },
         },
       }),
@@ -327,9 +337,10 @@ export const agentDrivers: Record<AgentClientKey, AgentDriver> = {
         mcpServers: {
           brooklyn: {
             type: "http" as const,
-            url: `http://${opts.host || "127.0.0.1"}:${opts.port || 3000}${
-              opts.teamId ? `/team/${opts.teamId}` : ""
-            }`,
+            url: withTeamQuery(
+              `http://${opts.host || "127.0.0.1"}:${opts.port || 3000}`,
+              opts.teamId,
+            ),
           },
         },
       }),
@@ -352,9 +363,10 @@ export const agentDrivers: Record<AgentClientKey, AgentDriver> = {
         mcpServers: {
           brooklyn: {
             type: "http",
-            url: `http://${opts.host || "127.0.0.1"}:${opts.port || 3000}${
-              opts.teamId ? `/team/${opts.teamId}` : ""
-            }`,
+            url: withTeamQuery(
+              `http://${opts.host || "127.0.0.1"}:${opts.port || 3000}`,
+              opts.teamId,
+            ),
           },
         },
       }),

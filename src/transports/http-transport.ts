@@ -27,6 +27,7 @@ import { HttpAuthError, HttpAuthGuard, isEventStreamRequest } from "./http-auth-
  * Handles JSON-RPC over HTTP POST with optional SSE for streaming
  */
 type MCPHTTPRequest = IncomingMessage & { context?: HttpAuthContext };
+type JsonRpcPayload = Record<string, unknown>;
 
 export class MCPHTTPTransport implements Transport {
   readonly name = "mcp-http";
@@ -41,6 +42,7 @@ export class MCPHTTPTransport implements Transport {
     return this._logger;
   }
   private sseClients: Set<ServerResponse> = new Set();
+  private sseSessions: Map<string, Set<ServerResponse>> = new Map();
   private readonly config: HTTPConfig;
   private server: ReturnType<typeof createServer> | null = null;
   private running = false;
@@ -246,6 +248,17 @@ export class MCPHTTPTransport implements Transport {
         return;
       }
 
+      for (const client of this.sseClients) {
+        try {
+          client.end();
+          client.socket?.destroy();
+        } catch {
+          // ignore SSE shutdown errors
+        }
+      }
+      this.sseClients.clear();
+      this.sseSessions.clear();
+
       this.server.close((error) => {
         if (error) {
           this.logger().error("Error stopping MCP HTTP transport", { error: error.message });
@@ -274,6 +287,12 @@ export class MCPHTTPTransport implements Transport {
   private async handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const requestWithContext = req as MCPHTTPRequest;
     const sseRequested = isEventStreamRequest(req);
+
+    const teamResolution = this.resolveTeamFromRequest(req);
+    const sessionId = this.resolveSessionId(req);
+    if (teamResolution.rewrittenPath && req.url) {
+      req.url = teamResolution.rewrittenPath;
+    }
 
     // CRITICAL: Check OAuth routes FIRST before any method restrictions
     // This ensures OAuth GET endpoints work properly
@@ -347,7 +366,7 @@ export class MCPHTTPTransport implements Transport {
 
     if (req.url === "/oauth/register" && req.method === "POST") {
       // Dynamic Client Registration - return a mock client for MCP access
-      const body = await this.parseRequestBody(req);
+      const body = (await this.parseRequestBody(req)) as Record<string, unknown>;
 
       const clientName = (body["client_name"] as string) ?? "Brooklyn MCP Client";
       const redirectUris = (body["redirect_uris"] as string[]) ?? [
@@ -620,7 +639,7 @@ export class MCPHTTPTransport implements Transport {
           grantType = params.get("grant_type") || "";
           code = params.get("code") || "";
         } else if (contentType.includes("application/json")) {
-          const body = await this.parseRequestBody(req);
+          const body = (await this.parseRequestBody(req)) as Record<string, unknown>;
           grantType = (body["grant_type"] as string) || "";
           code = (body["code"] as string) || "";
         } else {
@@ -738,6 +757,16 @@ export class MCPHTTPTransport implements Transport {
       }
     }
 
+    if (teamResolution.teamId) {
+      requestWithContext.context = {
+        mode: requestWithContext.context?.mode ?? this.config.options.authMode ?? "disabled",
+        source: requestWithContext.context?.source ?? "disabled",
+        token: requestWithContext.context?.token,
+        userId: requestWithContext.context?.userId,
+        teamId: teamResolution.teamId,
+      };
+    }
+
     // MCP Streamable HTTP: Support both POST (send messages) and GET (SSE stream)
     // IMPORTANT: This check must come AFTER OAuth route handling to avoid blocking OAuth GET endpoints
 
@@ -753,7 +782,7 @@ export class MCPHTTPTransport implements Transport {
       if (req.method === "GET") {
         // GET request for SSE stream (optional per MCP spec)
         if (sseRequested) {
-          this.handleSSEStream(res);
+          this.handleSSEStream(requestWithContext, res, sessionId);
           return;
         }
         res.statusCode = 405;
@@ -773,15 +802,39 @@ export class MCPHTTPTransport implements Transport {
       // For special endpoints, GET is allowed
       // SSE stream handling for root endpoint
       if (isRootEndpoint && sseRequested) {
-        this.handleSSEStream(res);
+        this.handleSSEStream(requestWithContext, res, sessionId);
         return;
       }
       // Continue to process OAuth/health GET endpoints below
     }
 
     const body = await this.parseRequestBody(req);
-    const msg = body as Record<string, unknown>;
+    if (Array.isArray(body)) {
+      await this.handleBatchRequest(body, requestWithContext, res, sessionId);
+      return;
+    }
 
+    if (!body || typeof body !== "object") {
+      res.statusCode = 400;
+      res.setHeader("Content-Type", "application/json");
+      res.end(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          error: { code: -32600, message: "Invalid Request" },
+        }),
+      );
+      return;
+    }
+
+    await this.handleSingleRequest(body as JsonRpcPayload, requestWithContext, res, sessionId);
+  }
+
+  private async handleSingleRequest(
+    msg: JsonRpcPayload,
+    req: MCPHTTPRequest,
+    res: ServerResponse,
+    sessionId: string | undefined,
+  ): Promise<void> {
     if (!(msg["jsonrpc"] && msg["method"])) {
       // JSON-RPC 2.0: Invalid Request
       res.statusCode = 400;
@@ -804,50 +857,70 @@ export class MCPHTTPTransport implements Transport {
 
     let response: Record<string, unknown>;
     try {
-      response = await this.processRequest(msg, requestWithContext);
+      response = await this.processRequest(msg, req, sessionId);
     } catch (e) {
       response = this.createErrorResponse(msg["id"], e);
     }
 
-    // Wire compatibility adjustment: ensure Tool.inputSchema (camelCase) per MCP spec
-    try {
-      const methodName = msg["method"];
-      if (methodName === "tools/list") {
-        const currentResult = (response as any)?.result;
-        if (currentResult && Array.isArray(currentResult.tools)) {
-          const transformedTools = currentResult.tools.map((t: any) => {
-            if (!t || typeof t !== "object") return t;
-            const { input_schema, inputSchema, ...rest } = t;
-            const schema = inputSchema ?? input_schema;
-            return schema ? { ...rest, inputSchema: schema } : { ...rest };
-          });
+    response = this.transformToolsListResponse(msg, response);
 
-          response = {
-            ...(response as any),
-            result: {
-              ...currentResult,
-              tools: transformedTools,
-            },
-          };
-        }
-      }
-    } catch {
-      // non-fatal: if transform fails, fall back to original response
-    }
-
-    // Check if SSE is requested for streaming
     if (req.headers.accept === "text/event-stream") {
       this.handleSSE(res, response);
-    } else {
-      res.statusCode = 200;
-      res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify(response));
+      return;
     }
+
+    res.statusCode = 200;
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify(response));
+  }
+
+  private async handleBatchRequest(
+    batch: unknown[],
+    req: MCPHTTPRequest,
+    res: ServerResponse,
+    sessionId: string | undefined,
+  ): Promise<void> {
+    const responses: Record<string, unknown>[] = [];
+
+    for (const entry of batch) {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+        responses.push(
+          this.createJsonRpcError(null, -32600, "Invalid Request", { reason: "batch entry" }),
+        );
+        continue;
+      }
+
+      const msg = entry as JsonRpcPayload;
+      const id = msg["id"];
+      const isNotification = id == null;
+      if (isNotification) {
+        continue;
+      }
+
+      try {
+        let response = await this.processRequest(msg, req, sessionId);
+        response = this.transformToolsListResponse(msg, response);
+        responses.push(response);
+      } catch (e) {
+        responses.push(this.createErrorResponse(id, e));
+      }
+    }
+
+    if (responses.length === 0) {
+      res.statusCode = 204;
+      res.end();
+      return;
+    }
+
+    res.statusCode = 200;
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify(responses));
   }
 
   private async processRequest(
     msg: Record<string, unknown>,
     req: MCPHTTPRequest,
+    sessionId: string | undefined,
   ): Promise<Record<string, unknown>> {
     const method = msg["method"] as string;
     const params = msg["params"] as Record<string, unknown> | undefined;
@@ -914,7 +987,7 @@ export class MCPHTTPTransport implements Transport {
               "progressToken"
             ];
             if (progressToken !== undefined) {
-              this.emitProgress({
+              this.emitProgress(sessionId, {
                 progressToken: String(progressToken),
                 progress: 0,
                 message: "started",
@@ -935,7 +1008,7 @@ export class MCPHTTPTransport implements Transport {
             };
 
             if (progressToken !== undefined) {
-              this.emitProgress({
+              this.emitProgress(sessionId, {
                 progressToken: String(progressToken),
                 progress: 1,
                 message: "completed",
@@ -983,7 +1056,10 @@ export class MCPHTTPTransport implements Transport {
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept, Mcp-Session-Id");
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Accept, Authorization, Mcp-Session-Id, MCP-Protocol-Version, X-Team-Id",
+    );
 
     // Send initial response
     res.write(`data: ${JSON.stringify(response)}\n\n`);
@@ -1003,32 +1079,6 @@ export class MCPHTTPTransport implements Transport {
       clearInterval(keepAlive);
       this.sseClients.delete(res);
     });
-  }
-
-  /**
-   * Handle GET requests for SSE streams (MCP Streamable HTTP spec)
-   */
-  private handleSSEStream(res: ServerResponse): void {
-    res.statusCode = 200;
-    res.setHeader("Content-Type", "text/event-stream");
-    res.setHeader("Cache-Control", "no-cache");
-    res.setHeader("Connection", "keep-alive");
-    res.setHeader(
-      "Access-Control-Allow-Headers",
-      "Content-Type, Accept, Mcp-Session-Id, MCP-Protocol-Version",
-    );
-
-    // Keep connection alive for potential server-initiated messages
-    const keepAlive = setInterval(() => {
-      res.write(": heartbeat\n\n");
-    }, 30000);
-
-    res.on("close", () => {
-      clearInterval(keepAlive);
-    });
-
-    // Initial connection event
-    res.write(`data: ${JSON.stringify({ type: "connection", status: "ready" })}\n\n`);
   }
 
   private respondWithAuthError(res: ServerResponse, error: HttpAuthError): void {
@@ -1057,16 +1107,25 @@ export class MCPHTTPTransport implements Transport {
       transport: this.name,
       userId: req.context?.userId,
       teamId: req.context?.teamId,
+      sessionId: this.resolveSessionId(req),
       auth: req.context,
     };
   }
 
-  private emitProgress(params: {
-    progressToken: string;
-    progress: number;
-    message?: string;
-  }): void {
-    if (this.sseClients.size === 0) {
+  private emitProgress(
+    sessionId: string | undefined,
+    params: {
+      progressToken: string;
+      progress: number;
+      message?: string;
+    },
+  ): void {
+    const targets =
+      sessionId && this.sseSessions.has(sessionId)
+        ? this.sseSessions.get(sessionId)
+        : this.sseClients;
+
+    if (!targets || targets.size === 0) {
       return;
     }
     const payload = {
@@ -1079,12 +1138,12 @@ export class MCPHTTPTransport implements Transport {
       },
     };
     const event = `data: ${JSON.stringify(payload)}\n\n`;
-    for (const client of this.sseClients) {
+    for (const client of targets) {
       client.write(event);
     }
   }
 
-  private parseRequestBody(req: IncomingMessage): Promise<Record<string, unknown>> {
+  private parseRequestBody(req: IncomingMessage): Promise<unknown> {
     return new Promise((resolve, reject) => {
       const chunks: Array<Buffer> = [];
       // Ensure we always decode as UTF-8 per MCP spec
@@ -1102,8 +1161,8 @@ export class MCPHTTPTransport implements Transport {
           return;
         }
         try {
-          const parsed = JSON.parse(raw);
-          resolve(parsed as Record<string, unknown>);
+          const parsed: unknown = JSON.parse(raw);
+          resolve(parsed);
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
           // Surface a clear JSON parse error back to the caller
@@ -1113,4 +1172,160 @@ export class MCPHTTPTransport implements Transport {
       req.on("error", reject);
     });
   }
+
+  private transformToolsListResponse(
+    msg: JsonRpcPayload,
+    response: Record<string, unknown>,
+  ): Record<string, unknown> {
+    // Wire compatibility adjustment: ensure Tool.inputSchema (camelCase) per MCP spec
+    try {
+      const methodName = msg["method"];
+      if (methodName !== "tools/list") {
+        return response;
+      }
+
+      const currentResult = (response as any)?.result;
+      const tools = currentResult?.tools;
+      if (!Array.isArray(tools)) {
+        return response;
+      }
+
+      const transformedTools = tools.map((t: any) => {
+        if (!t || typeof t !== "object") return t;
+        const { input_schema, inputSchema, ...rest } = t;
+        const schema = inputSchema ?? input_schema;
+        return schema ? { ...rest, inputSchema: schema } : { ...rest };
+      });
+
+      return {
+        ...(response as any),
+        result: {
+          ...currentResult,
+          tools: transformedTools,
+        },
+      };
+    } catch {
+      return response;
+    }
+  }
+
+  private resolveSessionId(req: IncomingMessage): string | undefined {
+    const value = getHeaderValue(req, "mcp-session-id");
+    if (!value) {
+      return undefined;
+    }
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+
+  private resolveTeamFromRequest(req: IncomingMessage): {
+    teamId?: string;
+    rewrittenPath?: string;
+  } {
+    const headerTeamId = getHeaderValue(req, "x-team-id")?.trim();
+    if (headerTeamId) {
+      return { teamId: headerTeamId };
+    }
+
+    const url = req.url ?? "/";
+    const [path, queryString] = url.split("?", 2);
+    const searchParams = new URLSearchParams(queryString ?? "");
+
+    const queryTeamId = searchParams.get("team")?.trim();
+    if (queryTeamId) {
+      return { teamId: queryTeamId };
+    }
+
+    const segments = (path ?? "/").split("/").filter((s) => s.length > 0);
+    if (segments[0] === "team") {
+      const pathTeamId = segments[1]?.trim();
+      if (pathTeamId) {
+        const rest = segments.slice(2);
+        const rewrittenPathBase = `/${rest.join("/")}`;
+        const rewrittenPath = `${rewrittenPathBase === "/" ? "/" : rewrittenPathBase}${
+          queryString ? `?${queryString}` : ""
+        }`;
+        return { teamId: pathTeamId, rewrittenPath };
+      }
+    }
+
+    return {};
+  }
+
+  private handleSSEStream(
+    req: MCPHTTPRequest,
+    res: ServerResponse,
+    sessionId: string | undefined,
+  ): void {
+    const resolvedSessionId = sessionId ?? this.generateSessionId();
+    res.statusCode = 200;
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("Mcp-Session-Id", resolvedSessionId);
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Accept, Authorization, Mcp-Session-Id, MCP-Protocol-Version, X-Team-Id",
+    );
+    res.flushHeaders();
+
+    const existing = this.sseSessions.get(resolvedSessionId);
+    if (existing) {
+      existing.add(res);
+    } else {
+      this.sseSessions.set(resolvedSessionId, new Set([res]));
+    }
+
+    this.sseClients.add(res);
+
+    const keepAlive = setInterval(() => {
+      if (res.closed) {
+        clearInterval(keepAlive);
+        this.unregisterSseClient(resolvedSessionId, res);
+        return;
+      }
+      res.write(": heartbeat\n\n");
+    }, 30000);
+
+    res.on("close", () => {
+      clearInterval(keepAlive);
+      this.unregisterSseClient(resolvedSessionId, res);
+    });
+
+    const initialEvent = {
+      type: "connection",
+      status: "ready",
+      sessionId: resolvedSessionId,
+      teamId: req.context?.teamId,
+    };
+    res.write(`data: ${JSON.stringify(initialEvent)}\n\n`);
+  }
+
+  private unregisterSseClient(sessionId: string, res: ServerResponse): void {
+    const session = this.sseSessions.get(sessionId);
+    if (session) {
+      session.delete(res);
+      if (session.size === 0) {
+        this.sseSessions.delete(sessionId);
+      }
+    }
+    this.sseClients.delete(res);
+  }
+
+  private generateSessionId(): string {
+    return `mcp_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  }
+}
+
+function getHeaderValue(req: IncomingMessage, name: string): string | undefined {
+  const lower = name.toLowerCase();
+  const headers = (req as IncomingMessage).headers;
+  if (!headers) {
+    return undefined;
+  }
+  const raw = headers[lower] ?? (headers as Record<string, unknown>)[name];
+  if (!raw) {
+    return undefined;
+  }
+  return Array.isArray(raw) ? raw[0] : String(raw);
 }
