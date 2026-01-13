@@ -377,8 +377,7 @@ export const agentDrivers: Record<AgentClientKey, AgentDriver> = {
   opencode: {
     key: "opencode",
     displayName: "OpenCode",
-    // OpenCode HTTP requires SSE; disable HTTP template for now and force stdio
-    supportedTransports: ["stdio"],
+    supportedTransports: ["stdio", "http"],
     locations: [
       {
         scope: "user",
@@ -402,7 +401,19 @@ export const agentDrivers: Record<AgentClientKey, AgentDriver> = {
           },
         },
       }),
-      http: null as unknown as never, // temporarily disabled; see .plans/active/v1.6.6/v1.6.6-cline-sse-brief.md
+      http: (opts: HttpTemplateOptions) => ({
+        $schema: "https://opencode.ai/config.json",
+        mcp: {
+          brooklyn: {
+            type: "remote",
+            url: withTeamQuery(
+              `http://${opts.host || "127.0.0.1"}:${opts.port || 3000}`,
+              opts.teamId,
+            ),
+            enabled: true,
+          },
+        },
+      }),
     },
   },
 };

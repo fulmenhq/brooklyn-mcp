@@ -637,4 +637,102 @@ describe("HTTP Transport Core Unit Tests", () => {
       );
     });
   });
+
+  describe("OpenAI Compatibility Wrapper", () => {
+    it("should return JSON chat completion when no tool calls provided", async () => {
+      httpTransport.setToolListHandler(async () => ({
+        tools: [
+          {
+            name: "brooklyn_status",
+            description: "Return server status",
+            inputSchema: { type: "object", properties: {} },
+          } as any,
+        ],
+      }));
+      httpTransport.setToolCallHandler(async () => ({
+        content: [{ type: "text", text: "ok" }],
+      }));
+
+      const req = new Readable({
+        read() {
+          this.push(
+            JSON.stringify({
+              model: "test-model",
+              messages: [{ role: "user", content: "hi" }],
+            }),
+          );
+          this.push(null);
+        },
+      }) as any;
+      req.headers = { "content-type": "application/json" };
+
+      const writes: string[] = [];
+      const res = {
+        setHeader: vi.fn(),
+        write: vi.fn((chunk: string) => {
+          writes.push(chunk);
+          return true;
+        }),
+        end: vi.fn((chunk?: string) => {
+          if (chunk) writes.push(chunk);
+        }),
+        flushHeaders: vi.fn(),
+        statusCode: 0,
+      } as any;
+
+      await (httpTransport as any).handleOpenAIChatCompletions(req, res);
+
+      expect(res.setHeader).toHaveBeenCalledWith("Content-Type", "application/json");
+      const payload = JSON.parse(writes.join("")) as any;
+      expect(payload.object).toBe("chat.completion");
+      expect(payload.choices?.[0]?.message?.content).toContain("compatibility wrapper");
+      expect(payload.brooklyn?.tools?.[0]?.function?.name).toBe("brooklyn_status");
+    });
+
+    it("should stream SSE when stream=true and Accept: text/event-stream", async () => {
+      httpTransport.setToolListHandler(async () => ({ tools: [] }));
+      httpTransport.setToolCallHandler(async () => ({
+        content: [{ type: "text", text: "ok" }],
+      }));
+
+      const req = new Readable({
+        read() {
+          this.push(
+            JSON.stringify({
+              model: "test-model",
+              stream: true,
+              tool_calls: [
+                {
+                  id: "call_1",
+                  type: "function",
+                  function: { name: "brooklyn_status", arguments: "{}" },
+                },
+              ],
+            }),
+          );
+          this.push(null);
+        },
+      }) as any;
+      req.headers = { accept: "text/event-stream" };
+
+      const chunks: string[] = [];
+      const res = {
+        setHeader: vi.fn(),
+        write: vi.fn((chunk: string) => {
+          chunks.push(chunk);
+          return true;
+        }),
+        end: vi.fn((chunk?: string) => {
+          if (chunk) chunks.push(chunk);
+        }),
+        flushHeaders: vi.fn(),
+        statusCode: 0,
+      } as any;
+
+      await (httpTransport as any).handleOpenAIChatCompletions(req, res);
+
+      expect(res.setHeader).toHaveBeenCalledWith("Content-Type", "text/event-stream");
+      expect(chunks.join("")).toContain("data: [DONE]");
+    });
+  });
 });

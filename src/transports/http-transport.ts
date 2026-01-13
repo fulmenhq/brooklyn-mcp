@@ -28,6 +28,7 @@ import { HttpAuthError, HttpAuthGuard, isEventStreamRequest } from "./http-auth-
  */
 type MCPHTTPRequest = IncomingMessage & { context?: HttpAuthContext };
 type JsonRpcPayload = Record<string, unknown>;
+type OpenAIToolCall = { id?: string; name: string; arguments: Record<string, unknown> };
 
 export class MCPHTTPTransport implements Transport {
   readonly name = "mcp-http";
@@ -767,6 +768,12 @@ export class MCPHTTPTransport implements Transport {
       };
     }
 
+    const pathOnly = req.url ? req.url.split("?")[0] : "/";
+    if (pathOnly === "/v1/chat/completions" && req.method === "POST") {
+      await this.handleOpenAIChatCompletions(requestWithContext, res);
+      return;
+    }
+
     // MCP Streamable HTTP: Support both POST (send messages) and GET (SSE stream)
     // IMPORTANT: This check must come AFTER OAuth route handling to avoid blocking OAuth GET endpoints
 
@@ -1365,6 +1372,217 @@ export class MCPHTTPTransport implements Transport {
 
   private writeSseEvent(res: ServerResponse, payload: unknown): void {
     res.write(`data: ${JSON.stringify(payload)}\n\n`);
+  }
+
+  private writeSseDone(res: ServerResponse): void {
+    res.write("data: [DONE]\n\n");
+  }
+
+  private async handleOpenAIChatCompletions(
+    req: MCPHTTPRequest,
+    res: ServerResponse,
+  ): Promise<void> {
+    if (!(this.toolListHandler && this.toolCallHandler)) {
+      res.statusCode = 503;
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ error: { message: "Server not ready" } }));
+      return;
+    }
+
+    const rawBody = (await this.parseRequestBody(req)) as Record<string, unknown>;
+    const model = (rawBody["model"] as string) ?? "unknown";
+    const created = Math.floor(Date.now() / 1000);
+    const responseId = `chatcmpl_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+
+    const streamingRequested = Boolean(rawBody["stream"]) || isEventStreamRequest(req);
+    if (streamingRequested) {
+      this.prepareOneShotSse(res, this.resolveSessionId(req));
+    } else {
+      res.statusCode = 200;
+      res.setHeader("Content-Type", "application/json");
+    }
+
+    const toolCalls = this.extractOpenAiToolCalls(rawBody);
+    const mcpTools = await this.toolListHandler();
+    const openAiTools = (mcpTools.tools ?? []).map((t) => ({
+      type: "function",
+      function: {
+        name: t.name,
+        description: t.description,
+        parameters: t.inputSchema,
+      },
+    }));
+
+    if (toolCalls.length === 0) {
+      const message = {
+        role: "assistant",
+        content:
+          "Brooklyn MCP OpenAI compatibility wrapper is active. Provide tool_calls to execute MCP tools.",
+      };
+
+      const payload = {
+        id: responseId,
+        object: streamingRequested ? "chat.completion.chunk" : "chat.completion",
+        created,
+        model,
+        choices: [
+          {
+            index: 0,
+            ...(streamingRequested ? { delta: message, finish_reason: null } : { message }),
+            finish_reason: streamingRequested ? null : "stop",
+          },
+        ],
+        brooklyn: {
+          note: "Use MCP-native HTTP where possible; this wrapper is for OpenAI-style clients.",
+          tools: openAiTools,
+        },
+      };
+
+      if (streamingRequested) {
+        this.writeSseEvent(res, payload);
+        this.writeSseEvent(res, { choices: [{ index: 0, delta: {}, finish_reason: "stop" }] });
+        this.writeSseDone(res);
+        res.end();
+        return;
+      }
+
+      res.end(JSON.stringify(payload));
+      return;
+    }
+
+    const metadata = this.buildRequestMetadata(req);
+    const results: Array<{ id?: string; name: string; result: unknown }> = [];
+
+    for (const call of toolCalls) {
+      const result = await this.toolCallHandler(
+        {
+          method: "tools/call",
+          params: { name: call.name, arguments: call.arguments },
+        },
+        metadata,
+      );
+
+      results.push({
+        id: call.id,
+        name: call.name,
+        result,
+      });
+
+      if (streamingRequested) {
+        this.writeSseEvent(res, {
+          id: responseId,
+          object: "chat.completion.chunk",
+          created,
+          model,
+          choices: [
+            {
+              index: 0,
+              delta: {
+                role: "assistant",
+                content: JSON.stringify({ tool: call.name, result }),
+              },
+              finish_reason: null,
+            },
+          ],
+        });
+      }
+    }
+
+    if (streamingRequested) {
+      this.writeSseEvent(res, { choices: [{ index: 0, delta: {}, finish_reason: "stop" }] });
+      this.writeSseDone(res);
+      res.end();
+      return;
+    }
+
+    res.end(
+      JSON.stringify({
+        id: responseId,
+        object: "chat.completion",
+        created,
+        model,
+        choices: [
+          {
+            index: 0,
+            message: {
+              role: "assistant",
+              content: JSON.stringify({ results }),
+            },
+            finish_reason: "stop",
+          },
+        ],
+      }),
+    );
+  }
+
+  private extractOpenAiToolCalls(body: Record<string, unknown>): OpenAIToolCall[] {
+    const calls: unknown[] = [];
+
+    if (Array.isArray(body["tool_calls"])) {
+      calls.push(...(body["tool_calls"] as unknown[]));
+    }
+
+    const messages = body["messages"];
+    if (Array.isArray(messages)) {
+      const last = messages[messages.length - 1];
+      if (last && typeof last === "object") {
+        const lastToolCalls = (last as Record<string, unknown>)["tool_calls"];
+        if (Array.isArray(lastToolCalls)) {
+          calls.push(...lastToolCalls);
+        }
+      }
+    }
+
+    const functionCall = body["function_call"];
+    if (functionCall && typeof functionCall === "object" && !Array.isArray(functionCall)) {
+      calls.push({ type: "function", function: functionCall });
+    }
+
+    const parsed: OpenAIToolCall[] = [];
+    for (const entry of calls) {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+        continue;
+      }
+
+      const record = entry as Record<string, unknown>;
+      const fn = record["function"];
+      if (!fn || typeof fn !== "object" || Array.isArray(fn)) {
+        continue;
+      }
+
+      const name = (fn as Record<string, unknown>)["name"];
+      if (typeof name !== "string" || name.trim().length === 0) {
+        continue;
+      }
+
+      const rawArgs = (fn as Record<string, unknown>)["arguments"];
+      const args = this.parseOpenAiArguments(rawArgs);
+      const id = typeof record["id"] === "string" ? (record["id"] as string) : undefined;
+      parsed.push({ id, name, arguments: args });
+    }
+
+    return parsed;
+  }
+
+  private parseOpenAiArguments(raw: unknown): Record<string, unknown> {
+    if (!raw) {
+      return {};
+    }
+    if (typeof raw === "string") {
+      try {
+        const parsed = JSON.parse(raw) as unknown;
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          return parsed as Record<string, unknown>;
+        }
+        return {};
+      } catch {
+        return {};
+      }
+    }
+    if (typeof raw === "object" && !Array.isArray(raw)) {
+      return raw as Record<string, unknown>;
+    }
+    return {};
   }
 }
 
