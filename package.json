@@ -116,6 +116,7 @@
     "mcp-dev:test": "bun test --filter=mcp-dev"
   },
   "dependencies": {
+    "@fulmenhq/tsfulmen": "file:../tsfulmen",
     "@libsql/client": "^0.15.15",
     "@modelcontextprotocol/sdk": "^1.22.0",
     "ajv": "^8.12.0",

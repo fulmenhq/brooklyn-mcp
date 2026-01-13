@@ -1,349 +1,265 @@
-# AGENTS.md: Quality-First Development Guidelines for brooklyn-mcp
+# Brooklyn MCP - AI Agent Guide
 
-## 🚨 CRITICAL: Quality-First Commit Process
+**Project**: brooklyn-mcp
+**Purpose**: Enterprise-ready MCP server for browser automation with multi-team support
+**Maintainers**: See `MAINTAINERS.md`
 
-**MANDATORY FOR ALL AI AGENTS - NO EXCEPTIONS**
+## Read First
 
-⚠️ **REQUIRED READING**: [Deployment SOP](docs/development/standards/deployment-sop.md) - Written after a 24-hour deployment crisis. These processes prevent catastrophic failures.
+1. **Confirm your role.** Roles are defined below. Default to `devlead` if unspecified.
+2. **Check `AGENTS.local.md`** if it exists (gitignored) for tactical session guidance.
+3. **Read `MAINTAINERS.md`** for human maintainer contacts and governance.
+4. **Read `BROOKLYN-SAFETY-PROTOCOLS.md`** for browser automation safety requirements.
 
-### Before ANY Code Changes
+## Operating Model
 
-1. ✅ **NEVER bypass quality checks** - If there are lint/format/type errors, fix them FIRST
-2. ✅ **Run quality gates early** - Check code quality as you write, not just before commit
-3. ✅ **No exceptions policy** - Quality failures mean STOP, not continue with --no-verify
-4. ❌ **NEVER stage files with known quality issues**
-5. ❌ **NEVER use git commit --no-verify or similar bypasses**
-6. ❌ 🚨 **NEVER use `biome check --unsafe` or `biome check --write --unsafe`** - CRITICAL: Biome's "unsafe" fixes have been proven to **DELETE WORKING CODE**. During our v2.2.5 upgrade, the `noUnusedPrivateClassMembers` rule deleted 40+ static class members that were used via class name access (e.g., `TransportRegistry.factories`), breaking 155 tests. All Biome fixes must be applied **manually** with human review. This is not negotiable.
+| Aspect   | Setting                                  |
+| -------- | ---------------------------------------- |
+| Mode     | Supervised (human reviews before commit) |
+| Role     | Per session (see Role-Based Development) |
+| Identity | Per session (no persistent memory)       |
 
-### Pre-Commit Self-Validation Protocol
+## Quick Reference
 
-Before any git operations, ask yourself:
+| Task           | Command             | Notes                     |
+| -------------- | ------------------- | ------------------------- |
+| Quality checks | `bun run check-all` | Run before committing     |
+| Tests          | `bun run test`      | vitest - NEVER `bun test` |
+| Format         | `bun run format`    | Biome + Prettier          |
+| Typecheck      | `bun run typecheck` | TypeScript validation     |
+| Lint           | `bun run lint`      | Must pass before commit   |
+| Build          | `bun run build`     | Build CLI binary          |
 
-1. "Have I run quality checks on all modified files?"
-2. "Are there any lint, format, or type errors remaining?"
-3. "Do all relevant tests pass?"
-4. "Am I modeling the discipline I expect from the team?"
+## Role-Based Development
 
-**Only proceed to staging if all answers are YES.**
+Agents operate in role contexts. Each role has defined scope.
 
-### Quality Check Commands (MANDATORY)
+| Role       | Slug       | Focus                                      |
+| ---------- | ---------- | ------------------------------------------ |
+| Dev Lead   | `devlead`  | Implementation, architecture, feature work |
+| Dev Review | `devrev`   | Code review, four-eyes audit               |
+| UX Dev     | `uxdev`    | Frontend interfaces, CLI UX                |
+| QA         | `qa`       | Testing, validation, coverage              |
+| Prod Mktg  | `prodmktg` | Messaging, documentation, branding         |
+| Security   | `secrev`   | Security analysis, vulnerability review    |
 
-```bash
-# Fix and validate EVERY modified file
-bun run check:file:fix path/to/file.ts  # Auto-fix what's possible
-bun run check:file path/to/file.ts      # Verify all checks pass
+When assigned a role, constrain actions to that scope.
 
-# Run comprehensive quality checks before commit
-bun run check-all                       # Format + typecheck + lint + test
+### Role Prompt Lookup (Required)
 
-# Individual quality gates
-bun run typecheck                       # TypeScript compilation
-bun run lint                            # Linter validation
-bun run test                            # Test execution (vitest - NEVER bun test)
-bun run format:code                     # Code formatting
-```
+**You MUST read your role's full prompt YAML before starting work.** The inline descriptions above are summaries only.
 
-## Role-Based Process Discipline
+**Lookup order** (try each in sequence until found):
 
-### Integration Lead Responsibilities (Paris Brooklyn)
+1. **Installed package**: `node_modules/@fulmenhq/tsfulmen/config/crucible-ts/agentic/roles/<slug>.yaml`
+2. **Fallback (dev)**: `../tsfulmen/config/crucible-ts/agentic/roles/<slug>.yaml`
 
-- **Process Guardian**: Enforce quality processes without compromise - NO EXCEPTIONS
-- **Quality Advocate**: Prioritize code quality over speed in every decision
-- **Process Modeling**: Demonstrate best practices consistently in all work
-- **Discipline Balance**: Combine creativity with rigorous process adherence
-- **Failure Recovery**: When quality processes fail, STOP immediately and fix
-
-### Process Failure Recovery Protocol
-
-1. **Immediate Stop**: Halt all work when quality checks fail
-2. **Fix First**: Address all lint/format/type errors before proceeding
-3. **Validate**: Re-run quality checks to confirm fixes
-4. **Learn**: Document what went wrong to prevent recurrence
-
-## Project Overview
-
-Brooklyn is a multi-team MCP server for browser automation using Bun, TypeScript, and Playwright.
-
-Release Process
-
-- Refer to `docs/ops/release/RELEASE_CHECKLIST.md` for pre‑release gates and execution steps.
-- Organization-wide policies: https://github.com/3leaps/oss-policies/
-
-## 🚨 MANDATORY READING FOR AI AGENTS
-
-**ALL AI AGENTS must read these foundational documents BEFORE any work:**
-
-### Core Identity & Role Definition
-
-1. **MAINTAINERS.md** - Your specific role, responsibilities, and supervision model
-2. **BROOKLYN-SAFETY-PROTOCOLS.md** - Non-negotiable safety requirements
-
-### Technical Standards
-
-3. **docs/development/standards/coding-standards.md** - The Non-Negotiables
-4. **package.json** - Available commands and dependencies (ALWAYS read scripts section)
-5. **docs/development/standards/git-squash-rebase-sop.md** - Git history management
-
-**FAILURE TO READ FOUNDATIONAL DOCS = IMMEDIATE SESSION RESET**
-
-## Leadership Accountability Standards
-
-**ALL AI AGENTS ARE TECHNICAL LEADS - ACT ACCORDINGLY**
-
-### When Asked to Add Test Coverage
-
-1. ✅ **Measure existing coverage** - Run `bun run test --coverage` and report actual numbers
-2. ✅ **Test the actual new code** - Import and test real implementations, not mock functions
-3. ✅ **Report what you actually achieved** - Specific coverage percentages, not vague claims
-4. ✅ **Identify gaps honestly** - What still needs testing, what failed, what's incomplete
-
-### When Asked to Assess Code Quality
-
-1. ✅ **Run actual quality checks** - Execute `bun run check-all` and report real results
-2. ✅ **Fix failing tests before claiming success** - No handwaving broken tests
-3. ✅ **Report specific metrics** - File coverage %, test pass rates, lint errors
-4. ✅ **Be precise with language** - "working" vs "tested" vs "has issues"
-
-### FORBIDDEN Leadership Failures
-
-❌ **Overstating results** - Never claim "bulletproof" or "enterprise-ready" without evidence  
-❌ **Testing mock code instead of real code** - Tests must import actual implementations  
-❌ **Ignoring test failures** - Fix or explicitly acknowledge what's broken  
-❌ **Bypassing quality processes** - No shortcuts on lint/format/type checks  
-❌ **Vague progress reports** - Give specific numbers and concrete deliverables
-
-### Language Precision Requirements
-
-- "Added unit tests" = Tests import real code and achieve measurable coverage
-- "Fixed issues" = Tests pass, no error output, quality gates pass
-- "Ready for production" = All tests pass, coverage meets standards, quality gates pass
-- "Working" = Functional with passing tests, not just "doesn't crash"
-
-## Test Coverage Standards
-
-### Coverage Requirements
-
-- **New feature areas**: Minimum 70% line coverage
-- **Critical paths**: Minimum 85% line coverage
-- **Core utilities**: Minimum 90% line coverage
-- **All new public functions**: 100% coverage required
-
-### Test Implementation Standards
-
-```typescript
-// ✅ CORRECT - Import and test actual implementation
-import { downloadAssets, validateManifest } from "../scripts/download-assets.js";
-
-describe("Asset Manager", () => {
-  it("should download assets with proper validation", async () => {
-    const result = await downloadAssets(false, "pdfjs");
-    expect(result.success).toBe(true);
-  });
-});
-
-// ❌ INCORRECT - Testing mock implementation
-describe("Asset Manager", () => {
-  it("should validate version format", () => {
-    // This is testing a function defined in the test, not real code
-    function mockValidateVersion(version) {
-      return /pattern/.test(version);
-    }
-    expect(mockValidateVersion("1.0.0")).toBe(true);
-  });
-});
-```
-
-### Coverage Reporting Standards
-
-When reporting coverage results, provide:
-
-1. **Overall project coverage %**
-2. **Coverage for files you modified**
-3. **Specific uncovered lines** (if any)
-4. **Coverage gaps** that still need tests
-5. **Test pass/fail counts** with specifics
-
-Example proper coverage report:
-
-```
-Coverage Results:
-- Overall project: 78.5% lines covered
-- New transport files: 85.2% lines covered
-- tests/unit/http-transport-core.test.ts: 32 tests passing
-- Tests: 113 passed, 0 failed
-- Gaps: Error handling in FIFO transport needs 3 more tests
-```
-
-## Code Style Guidelines (Quick Reference)
-
-### 🚨 CRITICAL - Will Break Production
-
-- **NEVER** initialize loggers at module level - use lazy initialization pattern
-- **ALWAYS** use `InValue[]` for database parameters (not `any[]` or `unknown[]`)
-- **ALWAYS** use bracket notation for database results: `row["field"]` not `row.field`
-
-### 🎯 MANDATORY - Will Fail Linting
-
-- **Strings**: `"double quotes"` for simple, `` `backticks` `` ONLY for templates with `${vars}`
-- **Environment**: `process.env["VAR"]` never `process.env.VAR`
-- **Imports**: Node → Third-party → Local (with blank lines); use `import type`
-- **Types**: NO `any` (use `unknown`); NO `!` in tests (use `?.`)
-- **Promises**: `Promise<T | undefined>` not `Promise<T | void>`
-- **Testing**: `bun run test` (vitest) NEVER `bun test`
-
-## Build Commands Reference
+**Example for devlead role:**
 
 ```bash
-# Quality gates (run these BEFORE staging files)
-bun run check-all                       # Comprehensive check
-bun run check:file:fix path/to/file.ts  # Fix single file
-bun run check:file path/to/file.ts      # Validate single file
+# Primary - from installed tsfulmen package (after bun install)
+node_modules/@fulmenhq/tsfulmen/config/crucible-ts/agentic/roles/devlead.yaml
 
-# Individual commands
-bun run build                           # Build project
-bun run typecheck                       # TypeScript check
-bun run lint                            # Linter check
-bun run test                            # Test execution (vitest only)
-bun run format:code                     # Format code
-
-# Testing
-bun run test --coverage                 # Coverage report
-bun run test path/to/test.ts            # Single test file
-bun run test -t "test name"             # Specific test
-
-# Version management
-bun run version:bump:patch              # NEVER edit VERSION/package.json manually
+# Fallback - if node_modules not available (dev environment)
+../tsfulmen/config/crucible-ts/agentic/roles/devlead.yaml
 ```
 
-## AI Agent Communication Standards
+**If you cannot locate your role YAML:**
 
-### Commit Message Syntax and Attribution Format
+1. **STOP** - Do not proceed without role context
+2. **ASK** the human maintainer for assistance
+3. **WAIT** for guidance before taking action
 
-**MANDATORY**: All agent commits must use proper attribution. See [Agentic Attribution Standard](docs/standards/agentic-attribution.md#standard-pattern) for the exact format.
+The role YAML contains critical information: scope boundaries, mindset principles, escalation rules, and commit examples. Operating without it risks scope violations.
 
-#### Standard Commit Message Format
+**Note**: Role YAMLs are provided by the `@fulmenhq/tsfulmen` package (library-first consumption pattern). No local sync required.
+
+**Clarification on dependencies**: The devlead role principle "prefer standard library over dependencies" applies to arbitrary external packages. FulmenHQ ecosystem libraries (`tsfulmen`, `gofulmen`, `pyfulmen`) are infrastructure, not discretionary dependencies - they provide standardized patterns, observability, and Crucible SSOT access that would otherwise require duplication.
+
+### devlead - Development Lead
+
+- **Scope**: Core implementation, MCP tools, browser automation, CLI commands
+- **Responsibilities**: Feature implementation, code review, integration testing
+- **Escalates to**: Maintainers for releases, breaking changes
+
+### devrev - Development Reviewer
+
+- **Scope**: Code review, security audit, correctness validation
+- **Responsibilities**: Four-eyes review, identify issues before commit
+- **Escalates to**: Maintainers for security concerns, architectural disagreements
+
+**Four-Eyes Protocol:**
+
+1. `devlead` implements feature per brief
+2. `devrev` reviews implementation before commit
+3. Both roles sign off before maintainer review
+
+### uxdev - UX Developer
+
+- **Scope**: CLI interface, help text, user-facing messages
+- **Responsibilities**: Command ergonomics, error messages, documentation
+- **Escalates to**: devlead for API requirements
+
+### qa - Quality Assurance
+
+- **Scope**: Testing strategy, coverage, validation
+- **Responsibilities**: Test suites, integration tests, MCP protocol compliance
+- **Escalates to**: devlead for test infrastructure decisions
+
+### prodmktg - Product Marketing
+
+- **Scope**: README, feature descriptions, positioning
+- **Responsibilities**: User-facing documentation, release notes
+- **Escalates to**: Maintainers for messaging approval
+
+### secrev - Security Review
+
+- **Scope**: Security analysis, vulnerability assessment, auth/crypto review
+- **Responsibilities**: Security audit, threat modeling, compliance validation
+- **Escalates to**: Maintainers for security incidents, disclosure decisions
+
+## Session Protocol
+
+### Startup
+
+1. Read `AGENTS.local.md` if exists (tactical overrides)
+2. Identify your role from context or request assignment
+3. **Read your role YAML** (see Role Prompt Lookup above) - do not proceed without it
+4. Read `BROOKLYN-SAFETY-PROTOCOLS.md`
+5. Scan relevant code before making changes
+6. Check `.plans/active/` for current work context
+
+### Before Committing
+
+1. Run quality gates: `bun run check-all`
+2. Verify tests pass: `bun run test`
+3. Stage all modified files
+4. Use proper attribution format (see below)
+
+### Escalation
+
+Escalate to maintainers (see `MAINTAINERS.md`) for:
+
+- Releases and version tags
+- Breaking changes
+- Security concerns
+- Architectural decisions
+
+## Commit Attribution
+
+Follow the FulmenHQ [Agentic Attribution Standard](https://github.com/fulmenhq/crucible/blob/main/docs/standards/agentic-attribution.md):
 
 ```
-<type>(<scope>): <description>
+<type>(<scope>): <subject>
 
-<body with bullet points describing changes>
+<body>
 
-<footer with issue references or breaking changes>
+Changes:
+- Specific change 1
+- Specific change 2
 
-Generated by [AI Agent Name with agentic identifier] under supervision of @3leapsdave
+Generated by <Model> via <Interface> under supervision of @<maintainer>
 
-Co-Authored-By: [AI Agent Name] <noreply@fulmenhq.dev>
-Authored-By: [Supervisor Name] [Supervisor github handle] <supervisor email>
+Co-Authored-By: <Model> <noreply@3leaps.net>
+Role: <role>
+Committer-of-Record: <Human Name> <email> [@handle]
 ```
 
-#### Commit Type Categories
-
-- **feat**: New feature or functionality
-- **fix**: Bug fix
-- **docs**: Documentation changes
-- **style**: Code style/formatting changes (no functional impact)
-- **refactor**: Code restructuring without functional changes
-- **test**: Adding or modifying tests
-- **chore**: Maintenance tasks, build changes, dependency updates
-- **perf**: Performance improvements
-- **ci**: CI/CD pipeline changes
-- **build**: Build system or dependency changes
-
-#### Scope Guidelines
-
-- Use lowercase, no spaces
-- Common scopes: `core`, `browser`, `docs`, `test`, `config`, `cli`
-- For multi-component changes: use most relevant scope or omit if global
-
-#### Description Rules
-
-- Start with imperative mood: "add", "fix", "update", "remove"
-- Keep under 72 characters for first line
-- No period at end of subject line
-- Be specific and actionable
-
-#### Examples
-
-```
-
-```
+**Example:**
 
 ```
 feat(browser): add PDF content extraction tool
 
-- Implement word span analysis for accurate text positioning
-- Add table detection using layout analysis
-- Support multiple page ranges for targeted extraction
+Implements PDF text extraction with word span analysis.
 
-Fixes #123
-Closes BROOK-456
+Changes:
+- Add pdf-extractor.ts with pdfjs integration
+- Wire MCP tool definition with input schema
+- Add integration tests for multi-page PDFs
 
-Generated by Architect Brooklyn ([Cursor](https://cursor.com)) under supervision of[@3leapsdave](https://github.com/3leapsdave)
+Generated by Claude Opus 4.5 via Claude Code under supervision of @3leapsdave
 
-Co-Authored-By: Architect Brooklyn <noreply@fulmenhq.dev>
-Authored-By: Dave Thompson <dave.thompson@3leaps.net> [@3leapsdave](https://github.com/3leapsdave)
+Co-Authored-By: Claude Opus 4.5 <noreply@3leaps.net>
+Role: devlead
+Committer-of-Record: Dave Thompson <dave.thompson@3leaps.net> [@3leapsdave]
 ```
 
+## DO / DO NOT
+
+### DO
+
+- Run `bun run check-all` before commits
+- Read files before editing them
+- Keep changes minimal and focused
+- Test MCP tools with actual browser operations
+- Follow existing code patterns
+- Use `bun run test` (vitest) for tests
+
+### DO NOT
+
+- Push without maintainer approval
+- Skip quality gates
+- Commit secrets or credentials
+- Use `bun test` (wrong test runner)
+- **NEVER commit `.plans/` contents** - This directory is gitignored BY DESIGN. It contains session-specific planning, feature briefs, and work-in-progress notes that are intentionally ephemeral. Do not attempt to track, stage, or commit anything under `.plans/`. If you believe content should be preserved, discuss with maintainer first.
+- **NEVER use `git add -f` or `--force`** without per-occurrence approval
+- **NEVER use `biome check --unsafe`** (can delete working code)
+- Chain browser operations with `&&` or `;`
+- Create unnecessary files
+
+## Brooklyn-Specific Guidelines
+
+### MCP Protocol Compliance
+
+- All tools must follow MCP specification
+- Tool definitions in `src/core/tool-definitions.ts`
+- Handler implementations in `src/core/brooklyn-engine.ts`
+- Strict JSON-RPC compliance required
+
+### Browser Automation Safety
+
+- See `BROOKLYN-SAFETY-PROTOCOLS.md` for full requirements
+- Never chain browser operations
+- Validate domains before navigation
+- Clean up browser resources on failure
+- Use `--dev-mode` for testing
+
+### Stdout Purity (Critical for MCP stdio)
+
+- MCP stdio transport requires zero stdout contamination
+- All logging must go to stderr in stdio mode
+- Run `bun run test:integration:process` to verify
+
+## AGENTS.local.md Pattern
+
+Create `AGENTS.local.md` (gitignored) for tactical session guidance:
+
+```markdown
+# AGENTS.local.md
+
+## Current Focus
+
+Implementing HTTP transport improvements for v0.3.0
+
+## Parallel Streams
+
+| Stream | Role    | Focus             |
+| ------ | ------- | ----------------- |
+| A      | devlead | HTTP transport    |
+| B      | qa      | Integration tests |
+
+## Avoid
+
+- src/core/browser/\* - Stable, no changes needed
 ```
-fix(core): resolve browser pool memory leak
 
-- Add proper cleanup in BrowserPoolManager.dispose()
-- Implement connection timeout handling
-- Fix resource tracking in browser instances
+## References
 
-Generated by Paris Brooklyn ([Claude Code](https://claude.ai/code)) under supervision of[@3leapsdave](https://github.com/3leapsdave)
-
-Co-Authored-By: [Agent Name] <noreply@fulmenhq.dev>
-Authored-By: Dave Thompson <dave.thompson@3leaps.net> [@3leapsdave](https://github.com/3leapsdave)
-```
-
-```
-docs(standards): update lifecycle phase criteria
-
-- Adapt acceptance criteria for Brooklyn MCP context
-- Update build commands from make to bun run
-- Replace Go-specific references with TypeScript/Bun
-
-Generated by Architect Brooklyn ([Cursor](https://cursor.com)) under supervision of[@3leapsdave](https://github.com/3leapsdave)
-
-Co-Authored-By: Architect Brooklyn <noreply@fulmenhq.dev>
-Authored-By: Dave Thompson <dave.thompson@3leaps.net> [@3leapsdave](https://github.com/3leapsdave)
-```
-
-### Communication Signatures
-
-#### Email Format
-
-```
----
-[AI Agent Name]
-AI Co-Maintainer, Fulmen Brooklyn MCP
-Supervised by @3leapsdave
-[agent-name]@fulmenhq.com
-```
-
-#### GitHub Communication Format
-
-```
----
-*[AI Agent Name] - AI Co-Maintainer supervised by @3leapsdave*
-```
-
-### Communication Requirements
-
-- **Always identify as AI agent** in first contact with new team members
-- **Include supervision attribution** in all formal communications
-- **Use consistent signatures** across all platforms
-- **Maintain transparency** about AI nature while being professional
-- **Defer to human supervisor** for policy decisions and governance matters
-
-## Development Standards
-
-- **Source-first**: Review existing code before changes
-- **Pattern consistency**: Follow codebase patterns
-- **Quality gates**: All checks must pass; no bypassing
-- **MCP Compliance**: Strict protocol adherence
-- **Resource Management**: Browser pooling, cleanup
-- **Planning docs**: .plans/ directory is gitignored - use for team coordination
-
-**Full technical details**: See `docs/development/standards/coding-standards.md`
+- `MAINTAINERS.md` - Human maintainers and governance
+- `BROOKLYN-SAFETY-PROTOCOLS.md` - Browser automation safety
+- `README.md` - Project overview
+- `.plans/active/` - Current work context
+- `.plans/active/v0.3.0/` - Current release briefs
+- `.plans/initiatives/tsfulmen-migration/` - tsfulmen adoption plan
+- [FulmenHQ Crucible](https://github.com/fulmenhq/crucible) - Ecosystem standards
+- [@fulmenhq/tsfulmen](https://github.com/fulmenhq/tsfulmen) - TypeScript helper library (role catalog source)
