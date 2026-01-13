@@ -65,6 +65,12 @@ The HTTP transport enforces one of three auth modes. Choose them via `--auth-mod
 - Set `BROOKLYN_HTTP_TRUSTED_PROXIES=10.0.0.5,10.0.0.6` to allow Brooklyn to honor `X-Forwarded-For` from those hops when evaluating `authMode=localhost`.
 - See `docs/deployment/mcp-configuration.md#property-file-examples-mcpjson-opencodejson` for `.mcp.json` and `opencode.json` entries that point IDEs at your chosen HTTP URL.
 
+### Streamable HTTP sessions (`Mcp-Session-Id`)
+
+Brooklyn supports MCP Streamable HTTP session correlation via `Mcp-Session-Id` (server-generated if missing).
+
+SSOT: `docs/architecture/adr/ADR-0001-mcp-session-id.md`
+
 Examples:
 
 ```bash

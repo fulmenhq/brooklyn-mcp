@@ -140,6 +140,12 @@ Both `brooklyn web start` and `brooklyn mcp dev-http` accept `--auth-mode <requi
 
 Use `--auth-mode localhost` for single-machine debugging, and reserve `--auth-mode disabled` for ephemeral CI jobs. For reverse proxies, supply a comma-separated allowlist via `BROOKLYN_HTTP_TRUSTED_PROXIES` so the guard honors `X-Forwarded-For` headers.
 
+#### Streamable HTTP sessions (`Mcp-Session-Id`)
+
+Brooklyn supports MCP Streamable HTTP session correlation via `Mcp-Session-Id` (server-generated if missing), but does not require it in v0.3.x.
+
+SSOT: `docs/architecture/adr/ADR-0001-mcp-session-id.md`
+
 ```bash
 # Local loopback bypass
 brooklyn web start --port 3000 --auth-mode localhost

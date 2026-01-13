@@ -110,6 +110,12 @@ brooklyn mcp dev-http --port 8080 --team-id qa --auth-mode required
 
 Use `--auth-mode localhost` sparingly for loopback-only machines, and keep `BROOKLYN_HTTP_AUTH_MODE=required` anywhere the port is reachable over the network.
 
+## Streamable HTTP sessions (`Mcp-Session-Id`)
+
+Brooklyn supports MCP Streamable HTTP session correlation via `Mcp-Session-Id`, but it is not required in v0.3.x.
+
+SSOT: `docs/architecture/adr/ADR-0001-mcp-session-id.md`
+
 ## Dual-Mode Operation
 
 ### Understanding the Modes
