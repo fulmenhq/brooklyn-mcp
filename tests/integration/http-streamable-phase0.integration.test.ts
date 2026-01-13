@@ -337,4 +337,42 @@ describe("MCP HTTP Streamable Phase 0 (team routing + batch + SSE correlation)",
     abort1.abort();
     abort2.abort();
   });
+
+  it("supports POST returning SSE (one-shot) with progress notifications", async () => {
+    const response = await fetch(`${baseUrl}/mcp`, {
+      method: "POST",
+      headers: {
+        Accept: "text/event-stream",
+        "Content-Type": "application/json",
+        "Mcp-Session-Id": "sess-post",
+        "X-Team-Id": "team-post",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 20,
+        method: "tools/call",
+        params: {
+          name: "any_tool",
+          arguments: {},
+          _meta: { progressToken: "p2" },
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/event-stream");
+    expect(response.headers.get("mcp-session-id")).toBe("sess-post");
+
+    const collector = createSseCollector(response);
+    const events = await collector.waitFor((data) => (data as any)?.id === 20, 1500);
+
+    expect(
+      events.some(
+        (e) =>
+          (e as any)?.method === "notifications/progress" &&
+          (e as any)?.params?.progressToken === "p2",
+      ),
+    ).toBe(true);
+    expect(events.some((e) => (e as any)?.id === 20 && (e as any)?.jsonrpc === "2.0")).toBe(true);
+  });
 });

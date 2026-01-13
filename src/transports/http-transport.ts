@@ -835,6 +835,12 @@ export class MCPHTTPTransport implements Transport {
     res: ServerResponse,
     sessionId: string | undefined,
   ): Promise<void> {
+    const sseRequested = isEventStreamRequest(req);
+    const shouldStreamResponseOverSse = req.method === "POST" && sseRequested;
+    const progressTargets = shouldStreamResponseOverSse
+      ? this.prepareOneShotSse(res, sessionId)
+      : undefined;
+
     if (!(msg["jsonrpc"] && msg["method"])) {
       // JSON-RPC 2.0: Invalid Request
       res.statusCode = 400;
@@ -857,14 +863,20 @@ export class MCPHTTPTransport implements Transport {
 
     let response: Record<string, unknown>;
     try {
-      response = await this.processRequest(msg, req, sessionId);
+      response = await this.processRequest(msg, req, sessionId, progressTargets);
     } catch (e) {
       response = this.createErrorResponse(msg["id"], e);
     }
 
     response = this.transformToolsListResponse(msg, response);
 
-    if (req.headers.accept === "text/event-stream") {
+    if (shouldStreamResponseOverSse) {
+      this.writeSseEvent(res, response);
+      res.end();
+      return;
+    }
+
+    if (sseRequested) {
       this.handleSSE(res, response);
       return;
     }
@@ -898,7 +910,7 @@ export class MCPHTTPTransport implements Transport {
       }
 
       try {
-        let response = await this.processRequest(msg, req, sessionId);
+        let response = await this.processRequest(msg, req, sessionId, undefined);
         response = this.transformToolsListResponse(msg, response);
         responses.push(response);
       } catch (e) {
@@ -912,6 +924,13 @@ export class MCPHTTPTransport implements Transport {
       return;
     }
 
+    if (req.method === "POST" && isEventStreamRequest(req)) {
+      this.prepareOneShotSse(res, sessionId);
+      this.writeSseEvent(res, responses);
+      res.end();
+      return;
+    }
+
     res.statusCode = 200;
     res.setHeader("Content-Type", "application/json");
     res.end(JSON.stringify(responses));
@@ -921,6 +940,7 @@ export class MCPHTTPTransport implements Transport {
     msg: Record<string, unknown>,
     req: MCPHTTPRequest,
     sessionId: string | undefined,
+    progressTargets: Set<ServerResponse> | undefined,
   ): Promise<Record<string, unknown>> {
     const method = msg["method"] as string;
     const params = msg["params"] as Record<string, unknown> | undefined;
@@ -987,7 +1007,7 @@ export class MCPHTTPTransport implements Transport {
               "progressToken"
             ];
             if (progressToken !== undefined) {
-              this.emitProgress(sessionId, {
+              this.emitProgress(sessionId, progressTargets, {
                 progressToken: String(progressToken),
                 progress: 0,
                 message: "started",
@@ -1008,7 +1028,7 @@ export class MCPHTTPTransport implements Transport {
             };
 
             if (progressToken !== undefined) {
-              this.emitProgress(sessionId, {
+              this.emitProgress(sessionId, progressTargets, {
                 progressToken: String(progressToken),
                 progress: 1,
                 message: "completed",
@@ -1114,16 +1134,14 @@ export class MCPHTTPTransport implements Transport {
 
   private emitProgress(
     sessionId: string | undefined,
+    overrideTargets: Set<ServerResponse> | undefined,
     params: {
       progressToken: string;
       progress: number;
       message?: string;
     },
   ): void {
-    const targets =
-      sessionId && this.sseSessions.has(sessionId)
-        ? this.sseSessions.get(sessionId)
-        : this.sseClients;
+    const targets = overrideTargets ?? this.getProgressTargets(sessionId);
 
     if (!targets || targets.size === 0) {
       return;
@@ -1298,7 +1316,7 @@ export class MCPHTTPTransport implements Transport {
       sessionId: resolvedSessionId,
       teamId: req.context?.teamId,
     };
-    res.write(`data: ${JSON.stringify(initialEvent)}\n\n`);
+    this.writeSseEvent(res, initialEvent);
   }
 
   private unregisterSseClient(sessionId: string, res: ServerResponse): void {
@@ -1314,6 +1332,39 @@ export class MCPHTTPTransport implements Transport {
 
   private generateSessionId(): string {
     return `mcp_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  }
+
+  private getProgressTargets(sessionId: string | undefined): Set<ServerResponse> | undefined {
+    if (sessionId) {
+      const sessionTargets = this.sseSessions.get(sessionId);
+      if (sessionTargets) {
+        return sessionTargets;
+      }
+    }
+    return this.sseClients;
+  }
+
+  private prepareOneShotSse(
+    res: ServerResponse,
+    sessionId: string | undefined,
+  ): Set<ServerResponse> {
+    res.statusCode = 200;
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    if (sessionId) {
+      res.setHeader("Mcp-Session-Id", sessionId);
+    }
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Accept, Authorization, Mcp-Session-Id, MCP-Protocol-Version, X-Team-Id",
+    );
+    res.flushHeaders();
+    return new Set([res]);
+  }
+
+  private writeSseEvent(res: ServerResponse, payload: unknown): void {
+    res.write(`data: ${JSON.stringify(payload)}\n\n`);
   }
 }
 
