@@ -332,6 +332,7 @@ describe.sequential("Architecture Committee: MCP Stdout Purity Tests", () => {
           params: {
             name: "brooklyn_status",
             arguments: {},
+            _meta: { progressToken: "test-progress-token" },
           },
         },
       ];

@@ -12,6 +12,7 @@ import { MCPDebugMiddleware } from "../core/mcp-debug-middleware.js";
 import type { ToolCallHandler, ToolListHandler, Transport } from "../core/transport.js";
 import { TransportType } from "../core/transport.js";
 import { negotiateHandshakeWithMeta } from "../shared/mcp-handshake.js";
+import { attachProgressMetadata } from "../shared/mcp-progress.js";
 import { createCallToolRequestFromMessage } from "../shared/mcp-request.js";
 import { normalizeCallToolResult } from "../shared/mcp-response.js";
 import { getLogger } from "../shared/pino-logger.js";
@@ -297,10 +298,16 @@ export class MCPStdioTransport implements Transport {
           const payload =
             normalizedEnvelope?.result?.result ?? normalizedEnvelope?.result ?? normalizedEnvelope;
 
+          const normalizedResult = normalizeCallToolResult(payload);
+          const enrichedResult =
+            progressToken !== undefined
+              ? attachProgressMetadata(normalizedResult, { progressToken: String(progressToken) })
+              : normalizedResult;
+
           response = {
             jsonrpc: "2.0",
             id: msg.id,
-            result: normalizeCallToolResult(payload),
+            result: enrichedResult,
           };
 
           if (progressToken !== undefined) {
