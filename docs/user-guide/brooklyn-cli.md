@@ -263,8 +263,8 @@ brooklyn config agent --client kilocode --scope project --transport stdio --appl
 
 # Cline (user scope)
 # Writes cline_mcp_settings.json under VS Code/VSCodium global storage
-# Note: Cline requires stdio; remote HTTP requires SSE and is not supported by
-# the current Brooklyn dev-http endpoint. Use stdio for Cline.
+# Note: Cline requires Streamable HTTP (SSE). Do not use legacy dev-http for Cline.
+# Use `brooklyn web start` for HTTP, or configure stdio for now.
 brooklyn config agent --client cline --scope user --transport stdio --apply
 
 # HTTP transport (e.g., 127.0.0.1:3000)

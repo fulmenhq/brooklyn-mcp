@@ -75,6 +75,9 @@ export class HttpAuthGuard {
     if (path === "/health") {
       return false;
     }
+    if (path === "/metrics") {
+      return false;
+    }
     if (req.method === "OPTIONS") {
       return false;
     }

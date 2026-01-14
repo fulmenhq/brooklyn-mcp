@@ -1,5 +1,14 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
+
+function withTeamQuery(url: string, teamId?: string): string {
+  if (!teamId) {
+    return url;
+  }
+  const encoded = encodeURIComponent(teamId);
+  return url.includes("?") ? `${url}&team=${encoded}` : `${url}?team=${encoded}`;
+}
+
 import {
   type AgentClientKey,
   agentDrivers,
@@ -159,7 +168,7 @@ export async function runConfigAgent(options: AgentConfigOptions): Promise<void>
     const cmdsOut = Array.isArray(cmdsForRun) ? [...cmdsForRun] : undefined;
     if (transport === "http" && scope === "user") {
       const webStart = `brooklyn web start --host ${host} --port ${port} --daemon`;
-      if (cmdsOut) cmdsOut.push(`# Start backend:", "${webStart}`.replace('", "', " "));
+      if (cmdsOut) cmdsOut.push(`# Start backend: ${webStart}`);
     }
     printPlan(driver.displayName, scope, targetPath, contentObj, cmdsOut);
   }
@@ -200,7 +209,7 @@ export async function runConfigAgent(options: AgentConfigOptions): Promise<void>
       // Codex uses TOML at ~/.codex/config.toml
       const value =
         transport === "http"
-          ? { type: "http", url: `http://${host}:${port}${teamId ? `/team/${teamId}` : ""}` }
+          ? { type: "http", url: withTeamQuery(`http://${host}:${port}`, teamId) }
           : { command: "brooklyn", args: ["mcp", "start"] };
       const result = patchTomlBrooklyn(targetPath, value, { backup: true, dryRun: false });
       console.log("\n✅ Updated:", targetPath);
@@ -210,7 +219,7 @@ export async function runConfigAgent(options: AgentConfigOptions): Promise<void>
         transport === "http"
           ? {
               type: "remote" as const,
-              url: `http://${host}:${port}${teamId ? `/team/${teamId}` : ""}`,
+              url: withTeamQuery(`http://${host}:${port}`, teamId),
             }
           : { type: "local" as const, command: ["brooklyn", "mcp", "start"] };
       const result = patchOpencodeBrooklyn(targetPath, value, { backup: true, dryRun: false });
@@ -227,7 +236,8 @@ export async function runConfigAgent(options: AgentConfigOptions): Promise<void>
           transport === "http"
             ? {
                 type: "http",
-                url: `http://${host}:${port}${teamId ? `/team/${teamId}` : ""}`,
+                url: withTeamQuery(`http://${host}:${port}`, teamId),
+
                 enabled: true,
               }
             : {

@@ -24,8 +24,8 @@ Server modes overview:
     - Connectivity: GET / and GET /health
     - MCP JSON-RPC: POST /
     - SSE (optional): GET / with Accept: text/event-stream
-- brooklyn mcp dev-http (developer REST API mode)
-  - Runs a REST API server for tools and MCP testing
+- brooklyn mcp dev-http (legacy developer REST API mode)
+  - Runs a separate REST API server for tools and MCP testing (legacy; prefer brooklyn web start for HTTP transport)
   - Endpoints:
     - Tools: GET /tools, POST /tools/{name}
     - MCP JSON-RPC: POST /mcp

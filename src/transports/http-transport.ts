@@ -740,6 +740,14 @@ export class MCPHTTPTransport implements Transport {
       return;
     }
 
+    // Metrics endpoint (placeholder)
+    if (req.url === "/metrics" && req.method === "GET") {
+      res.statusCode = 200;
+      res.setHeader("Content-Type", "text/plain; version=0.0.4");
+      res.end("# Brooklyn MCP metrics endpoint (TODO)\n");
+      return;
+    }
+
     const requiresAuth = this.authGuard.isProtectedEndpoint(req);
     if (requiresAuth) {
       try {
@@ -782,7 +790,9 @@ export class MCPHTTPTransport implements Transport {
     const isWellKnown = !!req.url?.includes(".well-known");
     const isRootEndpoint = req.url === "/";
     const isHealthEndpoint = req.url === "/health";
-    const isSpecialEndpoint = isOAuthEndpoint || isWellKnown || isRootEndpoint || isHealthEndpoint;
+    const isMetricsEndpoint = req.url === "/metrics";
+    const isSpecialEndpoint =
+      isOAuthEndpoint || isWellKnown || isRootEndpoint || isHealthEndpoint || isMetricsEndpoint;
 
     if (!isSpecialEndpoint) {
       // For non-special endpoints, enforce MCP rules
