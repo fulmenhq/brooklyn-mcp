@@ -1,13 +1,13 @@
 # Brooklyn MCP Release Checklist
 
 > **📋 Reference Copy** - This is a reference copy of the release checklist.  
-> **🔗 Authority**: See `RELEASE-CHECKLIST.md` in the project root for the authoritative version.
+> **🔗 Authority**: See `RELEASE_CHECKLIST.md` in the project root for the authoritative version.
 
 This checklist ensures all requirements are met before releasing Brooklyn MCP to the public. Based on the goneat release template and adapted for Brooklyn's specific needs.
 
 ---
 
-**⚠️ IMPORTANT**: Always refer to the top-level `RELEASE-CHECKLIST.md` for the most current version. This file may be embedded in documentation or binaries and should not be edited directly.
+**⚠️ IMPORTANT**: Always refer to the top-level `RELEASE_CHECKLIST.md` for the most current version. This file may be embedded in documentation or binaries and should not be edited directly.
 
 ## Pre-Release Preparation
 

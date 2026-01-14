@@ -1,0 +1,91 @@
+# goneat Tools Configuration for Brooklyn MCP
+# Bun/TypeScript project - minimal foundation tools
+#
+# Note: bun, biome, and tsc are managed via package.json, not goneat.
+# This file defines system-level tools used by goneat and CI/CD.
+#
+# Validate changes with: goneat doctor tools --validate-config
+scopes:
+  all:
+    description: All tools from all scopes
+    tools:
+      - ripgrep
+      - jq
+      - yq
+      - prettier
+  format:
+    description: Code formatting tools (system-level only)
+    tools:
+      - prettier
+  foundation:
+    description: Core foundation tools required for goneat and basic AI agent operation
+    tools:
+      - ripgrep
+      - jq
+      - yq
+      - prettier
+tools:
+  jq:
+    name: jq
+    description: JSON processor - used in CI/CD scripts
+    kind: system
+    detect_command: jq --version
+    platforms:
+      - darwin
+      - linux
+      - windows
+    installer_priority:
+      darwin:
+        - brew
+      linux:
+        - brew
+      windows:
+        - scoop
+        - winget
+  prettier:
+    name: prettier
+    description: Opinionated code formatter
+    kind: node
+    detect_command: prettier --version
+    installer_priority:
+      darwin:
+        - brew
+      linux:
+        - brew
+      windows:
+        - bun
+        - npm
+  ripgrep:
+    name: ripgrep
+    description: Fast text search - used by goneat for license auditing
+    kind: system
+    detect_command: rg --version
+    platforms:
+      - darwin
+      - linux
+      - windows
+    installer_priority:
+      darwin:
+        - brew
+      linux:
+        - brew
+      windows:
+        - scoop
+        - winget
+  yq:
+    name: yq
+    description: YAML processor
+    kind: system
+    detect_command: yq --version
+    platforms:
+      - darwin
+      - linux
+      - windows
+    installer_priority:
+      darwin:
+        - brew
+      linux:
+        - brew
+      windows:
+        - scoop
+        - winget

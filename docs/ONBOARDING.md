@@ -1,6 +1,6 @@
 # Brooklyn Team Onboarding Guide 🌉
 
-**⚡ Fulmen Spark Enabled - Your 15-Minute Path to Productivity**
+**Your 15-Minute Path to Productivity**
 
 _Making quality practices the fastest way to get assignment-ready_
 
@@ -47,7 +47,6 @@ _Making quality practices the fastest way to get assignment-ready_
 - **CDRL Compliance**: Template variables for cross-project consistency
 - **Quality Standards**: Zero-tolerance TypeScript + comprehensive testing
 - **Multi-Team Design**: Enterprise patterns from day one
-- **Spark Pioneer**: First fulmen forge with Developer Spark implementation
 
 ---
 
@@ -353,7 +352,6 @@ bun run check:file src/path/to/file.ts       # Verify all checks pass
 - 📖 **`docs/substaile/codex/testing.md`** - Testing patterns, AAA structure
 - 📖 **`docs/development/standards/cli-implementation-sop.md`** - CLI development patterns and process management
 - 📖 **`docs/development/standards/logger-usage-sop.md`** - Logger usage patterns for CLI vs Server code
-- 📖 **`FULMEN-TECHNICAL-MANIFESTO.md`** - Fulmen forge principles and philosophy
 
 **Team Context**:
 
@@ -390,83 +388,13 @@ bun run check:file src/path/to/file.ts       # Verify all checks pass
 
 ---
 
-## 🌟 Spark Framework Integration
-
-### What Makes This "Spark Enabled"
-
-**Fulmen Spark Initiative**: Brooklyn is the reference implementation for fulmen's strategic onboarding framework that achieves:
-
-- ✅ **70% reduction** in preventable lint/format failures
-- ✅ **15 minutes** from zero knowledge → assignment ready
-- ✅ **Architecture committee endorsement** for ecosystem rollout
-
-**Spark Components in Brooklyn**:
-
-1. **Strategic Onboarding**: 5-minute pattern in `CLAUDE.md`
-2. **Template Variable Resolution**: Single source of truth in `.plans/TEAM-ROSTER.md`
-3. **Session Memory Integration**: Progressive enforcement with developer autonomy
-4. **Success Measurement**: Metrics tracking and continuous improvement
-
-### For Other Teams Implementing Spark
-
-**Brooklyn as Reference Implementation**:
-
-- **Validation Status**: ✅ **PASSED** - Architecture Committee approved
-- **Innovation 1**: Team-specific planning structure (`.plans/active/<teamname>/`)
-- **Innovation 2**: Template variable resolution via team roster
-- **Innovation 3**: Zero-tolerance quality gates with auto-fix capabilities
-
-**Spark Requirements for Your Repo**:
-
-1. **MANDATORY**: `docs/ONBOARDING.md` (this document pattern)
-2. **MANDATORY**: `docs/welcome.md` (enhanced user-facing welcome)
-3. **MANDATORY**: 5-minute onboarding section in `CLAUDE.md`
-4. **MANDATORY**: Team-specific planning structure
-5. **MANDATORY**: Quality gate commands and file-level validation
-
-**What Should Go in Each Document**:
-
-**`docs/ONBOARDING.md`** (Team-Focused):
-
-- **What & Why**: Business context, problem solving, architecture decisions
-- **Team Context**: Who uses it, success metrics, current priorities
-- **Development Philosophy**: Code standards, testing approach, security mindset
-- **Getting Productive**: Essential commands, workflows, debugging tips
-- **Learning Resources**: Critical reading, deep dive docs, first assignment checklist
-
-**`docs/welcome.md`** (User-Focused):
-
-- **Quick Start**: Installation, setup, first automation
-- **Use Cases**: Practical examples for different user types
-- **Available Tools**: Complete tool inventory with examples
-- **Help System**: Built-in help, troubleshooting, support channels
-- **Pro Tips**: Best practices, security, performance optimization
-
-**Cross-Linking Strategy**:
-
-- **README.md** → Quick value prop + navigation to `docs/welcome.md`
-- **`docs/welcome.md`** → User onboarding + link to `docs/ONBOARDING.md` for team members
-- **`docs/ONBOARDING.md`** → Team onboarding + cross-reference to user guide topics
-- **`CLAUDE.md`** → 5-minute pattern + links to both onboarding documents
-
----
-
 ## 🎉 Welcome to the Brooklyn Team!
-
-**You're now part of the Spark Pioneer team** - the first fulmen forge implementation that's setting the standard for developer productivity across the entire ecosystem.
 
 **Your Impact**:
 
 - **Reference Implementation**: Your work becomes the template for other teams
-- **Productivity Innovation**: You're proving that quality practices can be the fastest path to success
-- **Ecosystem Leadership**: Brooklyn patterns will influence all future fulmen projects
-
-**Recognition Available**:
-
-- ⚡ **Spark Pioneer Stickers**: First fulmen implementation
-- 🏆 **Architecture Approved Mug**: Committee endorsement
-- 🌉 **Brooklyn MCP T-Shirt**: Reference implementation status
-- 🔥 **Premium Lightning Keychain**: Gold standard achievement
+- **Productivity Innovation**: Quality practices can be the fastest path to success
+- **Ecosystem Leadership**: Brooklyn patterns influence all future fulmen projects
 
 **Ready to Bridge AI and Browser Automation Excellence?** 🌉
 
@@ -474,8 +402,4 @@ Your 15-minute investment in this onboarding guide has prepared you to contribut
 
 ---
 
-_Fulmen Spark: Making quality practices the path of least resistance since 2025_ ⚡
-
 **Questions?** Check our comprehensive documentation or create an issue for support.
-
-[![Learn More](https://img.shields.io/badge/Learn%20More-Fulmen%20Spark%20Initiative-blue?style=for-the-badge&logo=lightning)](fulmen/spark/README.md)

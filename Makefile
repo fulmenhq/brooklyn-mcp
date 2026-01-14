@@ -11,11 +11,58 @@
 VERSION := $(shell cat VERSION 2>/dev/null || echo "0.0.0")
 BINARY_NAME := brooklyn
 
-.PHONY: all help bootstrap bootstrap-force tools sync lint fmt test build build-all clean
+# DX Tooling (trust anchor pattern)
+# Minimum versions - not pinned, but can specify floor
+GONEAT_VERSION := v0.3.21
+
+# User-space bin dir (overridable with BINDIR=...)
+# Defaults: macOS/Linux: $HOME/.local/bin, Windows: $USERPROFILE/bin
+BINDIR ?=
+BINDIR_RESOLVE = \
+	BINDIR="$(BINDIR)"; \
+	if [ -z "$$BINDIR" ]; then \
+		OS_RAW="$$(uname -s 2>/dev/null || echo unknown)"; \
+		case "$$OS_RAW" in \
+			MINGW*|MSYS*|CYGWIN*) \
+				if [ -n "$$USERPROFILE" ]; then \
+					if command -v cygpath >/dev/null 2>&1; then \
+						BINDIR="$$(cygpath -u "$$USERPROFILE")/bin"; \
+					else \
+						BINDIR="$$USERPROFILE/bin"; \
+					fi; \
+				elif [ -n "$$HOME" ]; then \
+					BINDIR="$$HOME/bin"; \
+				else \
+					BINDIR="./bin"; \
+				fi ;; \
+			*) \
+				if [ -n "$$HOME" ]; then \
+					BINDIR="$$HOME/.local/bin"; \
+				else \
+					BINDIR="./bin"; \
+				fi ;; \
+		esac; \
+	fi
+
+# sfetch resolution (trust anchor)
+SFETCH_RESOLVE = \
+	$(BINDIR_RESOLVE); \
+	SFETCH=""; \
+	if [ -x "$$BINDIR/sfetch" ]; then SFETCH="$$BINDIR/sfetch"; fi; \
+	if [ -z "$$SFETCH" ]; then SFETCH="$$(command -v sfetch 2>/dev/null || true)"; fi
+
+# goneat resolution
+GONEAT_RESOLVE = \
+	$(BINDIR_RESOLVE); \
+	GONEAT=""; \
+	if [ -x "$$BINDIR/goneat" ]; then GONEAT="$$BINDIR/goneat"; fi; \
+	if [ -z "$$GONEAT" ]; then GONEAT="$$(command -v goneat 2>/dev/null || true)"; fi
+
+.PHONY: all help bootstrap bootstrap-force bootstrap-dx tools sync lint fmt test build build-all clean
 .PHONY: version version-set version-sync version-bump-major version-bump-minor version-bump-patch
 .PHONY: typecheck check-all quality precommit prepush
 .PHONY: release-check release-prepare release-build
-.PHONY: server-start-% server-stop-% server-status-% server-restart-% server-logs-%
+.PHONY: server-start-dev server-start-prod server-stop server-status server-restart server-logs
 
 # Default target
 all: check-all
@@ -33,6 +80,7 @@ help: ## Show this help message
 	@echo "  help              Show this help message"
 	@echo "  bootstrap         Install dependencies and browsers"
 	@echo "  bootstrap-force   Force reinstall all dependencies"
+	@echo "  bootstrap-dx      Install DX tools (sfetch, goneat)"
 	@echo "  tools             Verify external tools are available"
 	@echo "  sync              Sync SSOT assets (placeholder)"
 	@echo "  lint              Run linting checks"
@@ -53,11 +101,12 @@ help: ## Show this help message
 	@echo "  release-build     Build release artifacts"
 	@echo ""
 	@echo "Server orchestration targets:"
-	@echo "  server-start-%    Start server (dev, test, prod)"
-	@echo "  server-stop-%     Stop server"
-	@echo "  server-status-%   Check server status"
-	@echo "  server-restart-%  Restart server"
-	@echo "  server-logs-%     View server logs"
+	@echo "  server-start-dev  Start development server"
+	@echo "  server-start-prod Start production server"
+	@echo "  server-stop       Stop server"
+	@echo "  server-status     Check server status"
+	@echo "  server-restart    Restart production server"
+	@echo "  server-logs       View server logs"
 	@echo ""
 	@echo "Brooklyn-specific targets:"
 	@echo "  test-unit         Run unit tests only"
@@ -70,7 +119,7 @@ help: ## Show this help message
 # === BOOTSTRAP ===
 #
 
-bootstrap: ## Install dependencies and browsers
+bootstrap: bootstrap-dx ## Install dependencies and browsers
 	@echo "Installing dependencies..."
 	@bun install
 	@echo "Installing browsers..."
@@ -87,11 +136,50 @@ bootstrap-force: ## Force reinstall all dependencies
 	@bun run setup:test-infra
 	@echo "✅ Force bootstrap complete"
 
+bootstrap-dx: ## Install DX tools via trust anchor (sfetch -> goneat)
+	@echo "🔧 Installing DX tools via trust anchor pattern..."
+	@$(SFETCH_RESOLVE); \
+	if [ -z "$$SFETCH" ]; then \
+		echo "❌ sfetch not found (required trust anchor)."; \
+		echo ""; \
+		echo "Install sfetch, verify it, then re-run bootstrap-dx:"; \
+		echo "  curl -sSfL https://github.com/3leaps/sfetch/releases/latest/download/install-sfetch.sh | bash"; \
+		echo "  sfetch --self-verify"; \
+		echo ""; \
+		exit 1; \
+	fi
+	@$(BINDIR_RESOLVE); mkdir -p "$$BINDIR"
+	@echo "→ sfetch self-verify (trust anchor):"
+	@$(SFETCH_RESOLVE); $$SFETCH --self-verify
+	@echo "→ Installing goneat $(GONEAT_VERSION) to user bin dir..."
+	@$(SFETCH_RESOLVE); $(BINDIR_RESOLVE); \
+	if [ "$(FORCE)" = "1" ] || [ "$(FORCE)" = "true" ]; then \
+		rm -f "$$BINDIR/goneat" "$$BINDIR/goneat.exe"; \
+	fi; \
+	$$SFETCH --repo fulmenhq/goneat --tag $(GONEAT_VERSION) --dest-dir "$$BINDIR"; \
+	OS_RAW="$$(uname -s 2>/dev/null || echo unknown)"; \
+	case "$$OS_RAW" in \
+		MINGW*|MSYS*|CYGWIN*) \
+			if [ -f "$$BINDIR/goneat.exe" ] && [ ! -f "$$BINDIR/goneat" ]; then \
+				mv "$$BINDIR/goneat.exe" "$$BINDIR/goneat"; \
+			fi ;; \
+	esac
+	@$(GONEAT_RESOLVE); \
+	if [ -n "$$GONEAT" ]; then \
+		echo "→ goneat: $$($$GONEAT --version 2>&1 | head -n1 || true)"; \
+		echo "→ Installing foundation tools via goneat doctor..."; \
+		$$GONEAT doctor tools --scope foundation --install --install-package-managers --yes --no-cooling || true; \
+	else \
+		echo "⚠️  goneat not found after install, skipping tool installation"; \
+	fi
+	@$(BINDIR_RESOLVE); echo "✅ DX tools installed. Ensure $$BINDIR is on PATH"
+
 tools: ## Verify external tools are available
 	@echo "Verifying external tools..."
 	@command -v bun >/dev/null 2>&1 && echo "✅ bun: $$(bun --version)" || (echo "❌ bun not found" && exit 1)
 	@command -v tsc >/dev/null 2>&1 && echo "✅ tsc: $$(bunx tsc --version)" || echo "⚠️  tsc not in PATH (using node_modules)"
-	@command -v goneat >/dev/null 2>&1 && echo "✅ goneat: $$(goneat --version 2>&1 | head -n1)" || echo "⚠️  goneat not found (optional)"
+	@$(SFETCH_RESOLVE); if [ -n "$$SFETCH" ]; then echo "✅ sfetch: $$($$SFETCH --version 2>&1 | head -n1)"; else echo "⚠️  sfetch not found (run: make bootstrap-dx)"; fi
+	@$(GONEAT_RESOLVE); if [ -n "$$GONEAT" ]; then echo "✅ goneat: $$($$GONEAT --version 2>&1 | head -n1)"; else echo "⚠️  goneat not found (run: make bootstrap-dx)"; fi
 	@echo "✅ Required tools verified"
 
 sync: ## Sync SSOT assets (placeholder - tsfulmen provides role catalog)
@@ -250,21 +338,25 @@ release-build: build-all ## Build release artifacts
 # === SERVER ORCHESTRATION ===
 #
 
-server-start-%: ## Start server in specified mode (dev, test, prod)
-	@echo "Starting Brooklyn server in $* mode..."
-	@bun run server:start -- --mode $*
+server-start-dev: ## Start development server (bun run dev)
+	@echo "Starting Brooklyn development server..."
+	@bun run dev
 
-server-stop-%: ## Stop server in specified mode
-	@echo "Stopping Brooklyn server in $* mode..."
-	@bun run server:stop -- --mode $*
+server-start-prod: ## Start production server (brooklyn mcp start)
+	@echo "Starting Brooklyn production server..."
+	@bun run server:start
 
-server-status-%: ## Check server status in specified mode
-	@echo "Checking Brooklyn server status ($* mode)..."
-	@bun run server:status -- --mode $*
+server-stop: ## Stop Brooklyn server
+	@echo "Stopping Brooklyn server..."
+	@bun run server:stop
 
-server-restart-%: server-stop-% server-start-% ## Restart server
-	@echo "✅ Server restarted in $* mode"
+server-status: ## Check server status
+	@echo "Checking Brooklyn server status..."
+	@bun run server:status
 
-server-logs-%: ## View server logs for specified mode
-	@echo "Viewing Brooklyn server logs ($* mode)..."
-	@bun run server:logs -- --mode $*
+server-restart: server-stop server-start-prod ## Restart production server
+	@echo "✅ Server restarted"
+
+server-logs: ## View server logs
+	@echo "Viewing Brooklyn server logs..."
+	@bun run server:logs

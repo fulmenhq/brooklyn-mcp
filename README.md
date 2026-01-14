@@ -2,10 +2,9 @@
 
 ## Accelerate AI UX: Empower Developers with Intelligent Browser Automation
 
-[![Developer Spark Enabled](https://img.shields.io/badge/Developer%20Spark-Enabled%20⚡-brightgreen?style=for-the-badge&logo=lightning&logoColor=white)](docs/fulmen/spark/README.md)
 [![Brooklyn MCP](https://img.shields.io/badge/Brooklyn-MCP%20🌉-blue?style=for-the-badge&logo=bridge&logoColor=white)](docs/fulmen/forges/fulmen-brooklyn-forge-principles.md)
-[![TypeScript Spark](https://img.shields.io/badge/TypeScript%20Spark-Enabled%20⚡-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](docs/fulmen/spark/README.md)
-[![Architecture Approved](https://img.shields.io/badge/Architecture-Committee%20Approved%20🏆-gold?style=for-the-badge&logo=award&logoColor=white)](docs/fulmen/spark/README.md)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Bun](https://img.shields.io/badge/Bun-1.2+-FBF0DF?style=for-the-badge&logo=bun&logoColor=black)](https://bun.sh/)
 
 <div align="center">
   <img src="assets/logos/brooklyn-mcp-logo.svg" alt="Brooklyn MCP - Enterprise Browser Automation" width="150" height="150">
