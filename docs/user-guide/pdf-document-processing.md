@@ -78,7 +78,7 @@ const textContent = await callTool("execute_script", {
     const textElements = window.brooklynPdfHelpers.getTextElements();
     const page1Elements = Array.from(textElements)
       .filter(el => el.getAttribute('data-page') === '1');
-    
+  
     // Extract character positioning data
     return page1Elements.map(el => ({
       text: el.textContent,
@@ -122,7 +122,7 @@ const fullDocument = await callTool("execute_script", {
   script: `
     const allText = [];
     const pageCount = window.pdfMetadata?.pageCount || 1;
-    
+  
     for (let page = 1; page <= pageCount; page++) {
       const pageElements = document.querySelectorAll(\`[data-page="\${page}"]\`);
       const pageText = Array.from(pageElements)
@@ -130,12 +130,12 @@ const fullDocument = await callTool("execute_script", {
         .join(' ')
         .replace(/\\s+/g, ' ')
         .trim();
-      
+  
       if (pageText) {
         allText.push({ page, content: pageText });
       }
     }
-    
+  
     return {
       pages: allText,
       totalPages: pageCount,
@@ -163,7 +163,7 @@ const documentStructure = await callTool("execute_script", {
       paragraphs: [],
       metadata: {}
     };
-    
+  
     // Group elements by vertical position to detect lines
     const lineGroups = {};
     textElements.forEach(el => {
@@ -174,7 +174,7 @@ const documentStructure = await callTool("execute_script", {
         left: parseFloat(el.style.left)
       });
     });
-    
+  
     // Sort and combine into readable lines
     const lines = Object.keys(lineGroups)
       .sort((a, b) => parseFloat(a) - parseFloat(b))
@@ -183,19 +183,19 @@ const documentStructure = await callTool("execute_script", {
         return chars.map(c => c.text).join('');
       })
       .filter(line => line.trim());
-    
+  
     // Basic structure detection
     analysis.paragraphs = lines.filter(line => line.length > 50); // Likely paragraphs
-    analysis.headers = lines.filter(line => 
-      line.length < 50 && 
+    analysis.headers = lines.filter(line =>
+      line.length < 50 &&
       /^[A-Z][^.!?]*$/.test(line.trim()) // Capitalized, no sentence endings
     );
-    
+  
     analysis.metadata = {
       totalLines: lines.length,
       avgLineLength: lines.reduce((sum, line) => sum + line.length, 0) / lines.length
     };
-    
+  
     return analysis;
   `,
   browserId: browserId,
@@ -215,7 +215,7 @@ console.log(`- Average line length: ${structure.metadata.avgLineLength.toFixed(1
 const tableData = await callTool("execute_script", {
   script: `
     const textElements = window.brooklynPdfHelpers.getTextElements();
-    
+  
     // Group elements by vertical position (rows)
     const rows = {};
     textElements.forEach(el => {
@@ -226,7 +226,7 @@ const tableData = await callTool("execute_script", {
         left: parseFloat(el.style.left)
       });
     });
-    
+  
     // Identify table-like structures (rows with similar column patterns)
     const tableRows = [];
     Object.keys(rows)
@@ -235,13 +235,13 @@ const tableData = await callTool("execute_script", {
         const rowElements = rows[top]
           .sort((a, b) => a.left - b.left)
           .filter(el => el.text.length > 0);
-        
+  
         // Consider it a potential table row if it has multiple spaced elements
         if (rowElements.length >= 2) {
           const columns = [];
           let currentColumn = '';
           let lastLeft = -1;
-          
+  
           rowElements.forEach(el => {
             // If significant gap, start new column
             if (lastLeft >= 0 && (el.left - lastLeft) > 5) {
@@ -252,19 +252,19 @@ const tableData = await callTool("execute_script", {
             }
             lastLeft = el.left;
           });
-          
+  
           if (currentColumn.trim()) columns.push(currentColumn.trim());
-          
+  
           if (columns.length >= 2) {
             tableRows.push(columns);
           }
         }
       });
-    
+  
     return {
       detectedRows: tableRows,
       rowCount: tableRows.length,
-      avgColumnsPerRow: tableRows.length > 0 ? 
+      avgColumnsPerRow: tableRows.length > 0 ?
         tableRows.reduce((sum, row) => sum + row.length, 0) / tableRows.length : 0
     };
   `,

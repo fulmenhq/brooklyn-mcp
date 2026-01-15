@@ -436,7 +436,7 @@ export class BackgroundSyncService {
     const stats = await ScreenshotRepository.getStats(instanceId);
 
     await db.execute(
-      `UPDATE instances 
+      `UPDATE instances
        SET config = json_set(
          COALESCE(config, '{}'),
          '$.screenshot_stats',

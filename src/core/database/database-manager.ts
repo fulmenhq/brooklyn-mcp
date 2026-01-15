@@ -264,7 +264,7 @@ export class DatabaseManager {
         INSERT INTO instances (
           id, display_name, type, scope, install_path, project_path,
           pid, started_at, last_heartbeat, first_seen, last_seen, total_runs, active
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
                   CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, 1)
         ON CONFLICT(id) DO UPDATE SET
           pid = excluded.pid,
@@ -323,9 +323,9 @@ export class DatabaseManager {
 
     try {
       const result = await this.client.execute(`
-        UPDATE instances 
-        SET active = 0 
-        WHERE last_heartbeat < datetime('now', '-5 minutes') 
+        UPDATE instances
+        SET active = 0
+        WHERE last_heartbeat < datetime('now', '-5 minutes')
         AND active = 1
         RETURNING id, display_name
       `);

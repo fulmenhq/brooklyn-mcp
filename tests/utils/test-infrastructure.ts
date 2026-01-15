@@ -179,8 +179,8 @@ export function setupTestAssets(assetsDir: string): void {
 export const pdfjsLib = {
   version: "4.8.69",
   GlobalWorkerOptions: { workerSrc: null },
-  getDocument: () => ({ 
-    promise: Promise.resolve({ 
+  getDocument: () => ({
+    promise: Promise.resolve({
       numPages: 3,
       getPage: (n) => Promise.resolve({
         pageNumber: n,
@@ -207,8 +207,8 @@ export default pdfjsLib;
 self.addEventListener("message", (e) => {
   if (e.data.type === "getDocument") {
     setTimeout(() => {
-      self.postMessage({ 
-        type: "documentLoaded", 
+      self.postMessage({
+        type: "documentLoaded",
         data: { numPages: 3, fingerprint: "test-pdf" }
       });
     }, 10);

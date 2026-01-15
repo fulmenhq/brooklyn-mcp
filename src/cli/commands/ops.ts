@@ -203,9 +203,9 @@ export function registerOpsCommand(program: Command): void {
 
         // Clean stale instances
         const staleResult = await dbManager.execute(`
-          UPDATE instances 
-          SET active = 0 
-          WHERE last_heartbeat < datetime('now', '-5 minutes') 
+          UPDATE instances
+          SET active = 0
+          WHERE last_heartbeat < datetime('now', '-5 minutes')
           AND active = 1
           RETURNING id, display_name
         `);
@@ -352,7 +352,7 @@ export function registerOpsCommand(program: Command): void {
         const limit = Number.parseInt(options.limit, 10);
 
         const sql = `
-          SELECT 
+          SELECT
             id,
             filename,
             session_id,
@@ -463,7 +463,7 @@ export function registerOpsCommand(program: Command): void {
       try {
         const dbManager = await getDatabaseManager();
         await dbManager.execute(`
-          UPDATE instances SET active = 0 
+          UPDATE instances SET active = 0
           WHERE last_heartbeat < datetime('now', '-5 minutes')
         `);
         await dbManager.close();

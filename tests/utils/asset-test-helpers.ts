@@ -224,22 +224,22 @@ export function generateMockPdfViewerHtml(pdfUrl: string, port: number): string 
     <div id="pdf-container">
         <div class="text-layer"></div>
     </div>
-    
+  
     <script type="module">
         import { pdfjsLib } from "/assets/pdf.js/pdf.min.mjs";
-        
+  
         // Configure worker
         pdfjsLib.GlobalWorkerOptions.workerSrc = "http://127.0.0.1:${port}/assets/pdf.js/pdf.worker.min.mjs";
-        
+  
         // PDF URL injected by server
         window.pdfUrl = "${pdfUrl}";
-        
+  
         // Mock PDF.js helpers for character-level extraction
         window.brooklynPdfHelpers = {
             getTextElements: () => document.querySelectorAll('.text-layer div'),
             getTextLines: (page) => Array.from(document.querySelectorAll(\`[data-page="\${page}"]\`))
         };
-        
+  
         console.log("Brooklyn PDF Viewer initialized");
     </script>
 </body>

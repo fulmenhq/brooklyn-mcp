@@ -3,7 +3,7 @@
 
     🏗️  BROOKLYN MCP  🏗️
     ╭─────────────────────╮
-   ╱│  ⚡ MCP PROTOCOL ⚡  │╲ 
+   ╱│  ⚡ MCP PROTOCOL ⚡  │╲
   ╱ │                     │ ╲
  ╱  │   AI ←──────→ WEB   │  ╲
 ╱   │                     │   ╲

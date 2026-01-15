@@ -11,13 +11,13 @@
   <rect width="500" height="400" fill="#ffffff" stroke="#e0e0e0" stroke-width="1"/>
   
   <!-- Title with custom font styling -->
-  <text x="250" y="40" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" 
+  <text x="250" y="40" text-anchor="middle" font-family="Arial, Helvetica, sans-serif"
         font-size="24" font-weight="bold" fill="#1a1a1a">
     Brooklyn MCP Text Test
   </text>
   
   <!-- Subtitle -->
-  <text x="250" y="65" text-anchor="middle" font-family="Georgia, Times, serif" 
+  <text x="250" y="65" text-anchor="middle" font-family="Georgia, Times, serif"
         font-size="16" font-style="italic" fill="#666666">
     Image Processing Font Analysis
   </text>
@@ -36,7 +36,7 @@
   </text>
   
   <!-- Text with transforms -->
-  <text x="50" y="220" font-family="Verdana, sans-serif" font-size="16" fill="#666666" 
+  <text x="50" y="220" font-family="Verdana, sans-serif" font-size="16" fill="#666666"
         transform="rotate(-5 50 220)">
     Rotated Text Element
   </text>
@@ -63,7 +63,7 @@
   
   <!-- Text with background for contrast testing -->
   <rect x="250" y="320" width="200" height="30" fill="#f39c12" rx="5"/>
-  <text x="350" y="340" text-anchor="middle" font-family="Arial, sans-serif" 
+  <text x="350" y="340" text-anchor="middle" font-family="Arial, sans-serif"
         font-size="14" font-weight="bold" fill="#ffffff">
     White Text on Background
   </text>

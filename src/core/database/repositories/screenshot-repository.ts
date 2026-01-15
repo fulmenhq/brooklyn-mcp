@@ -147,11 +147,11 @@ export class ScreenshotRepository {
     const offset = query.offset || 0;
 
     const dataQuery = `
-      SELECT 
+      SELECT
         id, instance_id, file_path, filename, session_id, browser_id,
         team_id, user_id, tag, format, file_size, width, height,
         full_page, quality, hash, created_at, accessed_at, metadata
-      FROM screenshots 
+      FROM screenshots
       ${whereClause}
       ORDER BY ${orderBy} ${orderDirection}
       LIMIT ? OFFSET ?
@@ -250,7 +250,7 @@ export class ScreenshotRepository {
     const db = await getDatabaseManager();
 
     const result = await db.execute(
-      `DELETE FROM screenshots 
+      `DELETE FROM screenshots
        WHERE created_at < datetime('now', '-' || ? || ' days')
        RETURNING id`,
       [days],
@@ -281,7 +281,7 @@ export class ScreenshotRepository {
 
     const result = await db.execute(
       `
-      SELECT 
+      SELECT
         COUNT(*) as total_count,
         SUM(file_size) as total_size,
         AVG(file_size) as avg_size,

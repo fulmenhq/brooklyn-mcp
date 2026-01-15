@@ -452,7 +452,7 @@ export class LocalHttpServer {
   <title>PDF Viewer - Brooklyn MCP</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { 
+    body {
       font-family: system-ui, -apple-system, sans-serif;
       overflow: hidden;
       background: #525659;
@@ -520,39 +520,39 @@ export class LocalHttpServer {
   <script type="module">
     // Import PDF.js library
     import * as pdfjsLib from '/assets/pdf.js/pdf.min.mjs';
-    
+  
     // Make it globally available
     window.pdfjsLib = pdfjsLib;
-    
+  
     // Configure PDF.js worker
     pdfjsLib.GlobalWorkerOptions.workerSrc = '/assets/pdf.js/pdf.worker.min.mjs';
-    
+  
     // Load and render PDF
     const pdfUrl = '/serve/${pdfFileId}';
     const container = document.getElementById('pdf-container');
     const loading = document.getElementById('loading');
-    
+  
     // Store page dimensions for region detection
     window.pdfPageInfo = [];
-    
+  
     async function renderPdf() {
       try {
         const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
         const numPages = pdf.numPages;
-        
+  
         // Store PDF metadata
         window.pdfMetadata = {
           numPages,
           pages: []
         };
-        
+  
         // Render all pages
         for (let pageNum = 1; pageNum <= numPages; pageNum++) {
           await renderPage(pdf, pageNum);
         }
-        
+  
         loading.style.display = 'none';
-        
+  
         // Expose helper functions for Brooklyn
         window.brooklynPdfHelpers = {
           // Get all text elements (divs or spans)
@@ -603,7 +603,7 @@ export class LocalHttpServer {
             const pageSelector = pageNum ? \`.pdf-page[data-page-num="\${pageNum}"] .textLayer\` : '.textLayer';
             const elements = document.querySelectorAll(\`\${pageSelector} > div, \${pageSelector} > span\`);
             const lineMap = new Map();
-            
+  
             Array.from(elements).forEach(el => {
               const top = Math.round(parseFloat(el.style.top || el.offsetTop) * 10) / 10;
               if (!lineMap.has(top)) lineMap.set(top, []);
@@ -612,21 +612,21 @@ export class LocalHttpServer {
                 left: parseFloat(el.style.left || el.offsetLeft)
               });
             });
-            
+  
             // Sort and concatenate to form lines
             const lines = [];
             lineMap.forEach((items, top) => {
               items.sort((a, b) => a.left - b.left);
-              lines.push({ 
-                top, 
+              lines.push({
+                top,
                 text: items.map(s => s.text).join('').trim(),
                 elements: items.length
               });
             });
-            
+  
             return lines.sort((a, b) => a.top - b.top).map(l => l.text).filter(t => t.length > 0);
           },
-          
+  
           // === PHASE 1: WORD & LINE SPANS ===
           spans: {
             // Generate unique IDs for spans
@@ -634,16 +634,16 @@ export class LocalHttpServer {
             _generateId: function(prefix) {
               return \`\${prefix}_\${++this._spanIdCounter}\`;
             },
-            
+  
             // Build word spans from character elements
             buildWords: function(pageNum) {
               const elements = window.brooklynPdfHelpers.getTextElements();
-              const pageElements = pageNum ? 
+              const pageElements = pageNum ?
                 elements.filter(el => el.closest('.pdf-page').getAttribute('data-page-number') == pageNum) :
                 elements;
-              
+  
               if (pageElements.length === 0) return [];
-              
+  
               // Convert DOM elements to character data
               const chars = [];
               pageElements.forEach(el => {
@@ -651,13 +651,13 @@ export class LocalHttpServer {
                 const style = window.getComputedStyle(el);
                 const pageContainer = el.closest('.pdf-page');
                 const pageRect = pageContainer.getBoundingClientRect();
-                
+  
                 // Convert to page-relative coordinates
                 const x = rect.left - pageRect.left;
                 const y = rect.top - pageRect.top;
                 const width = rect.width;
                 const height = rect.height;
-                
+  
                 chars.push({
                   id: window.brooklynPdfHelpers.spans._generateId('c'),
                   element: el,
@@ -668,24 +668,24 @@ export class LocalHttpServer {
                   page: pageNum || 1
                 });
               });
-              
+  
               // Group characters into words using proximity
               const words = [];
               if (chars.length === 0) return words;
-              
+  
               // Sort by Y position (lines) then X position (left to right)
               chars.sort((a, b) => (a.bbox[1] - b.bbox[1]) || (a.bbox[0] - b.bbox[0]));
-              
+  
               // Group into lines first (by Y proximity)
               const lines = [];
               let currentLine = [chars[0]];
-              
+  
               for (let i = 1; i < chars.length; i++) {
                 const char = chars[i];
                 const lastChar = currentLine[currentLine.length - 1];
                 const yDiff = Math.abs(char.bbox[1] - lastChar.bbox[1]);
                 const lineHeightTolerance = Math.max(lastChar.fontSize, char.fontSize) * 0.35;
-                
+  
                 if (yDiff <= lineHeightTolerance) {
                   currentLine.push(char);
                 } else {
@@ -694,25 +694,25 @@ export class LocalHttpServer {
                 }
               }
               lines.push(currentLine);
-              
+  
               // Within each line, group characters into words
               lines.forEach(line => {
                 if (line.length === 0) return;
-                
+  
                 // Sort line by X position
                 line.sort((a, b) => a.bbox[0] - b.bbox[0]);
-                
+  
                 // Calculate average character advance for gap detection
                 const avgFontSize = line.reduce((sum, c) => sum + c.fontSize, 0) / line.length;
                 const wordGapThreshold = avgFontSize * 0.45; // Tunable parameter
-                
+  
                 let currentWord = [line[0]];
-                
+  
                 for (let i = 1; i < line.length; i++) {
                   const char = line[i];
                   const lastChar = currentWord[currentWord.length - 1];
                   const gap = char.bbox[0] - lastChar.bbox[2]; // Gap between characters
-                  
+  
                   if (gap <= wordGapThreshold) {
                     currentWord.push(char);
                   } else {
@@ -726,13 +726,13 @@ export class LocalHttpServer {
                           Math.max(...currentWord.map(c => c.bbox[2])),
                           Math.max(...currentWord.map(c => c.bbox[3]))
                         ];
-                        
+  
                         // Calculate confidence based on character consistency
                         const fontSizes = currentWord.map(c => c.fontSize);
                         const avgFontSize = fontSizes.reduce((a, b) => a + b, 0) / fontSizes.length;
                         const fontVariance = fontSizes.reduce((sum, fs) => sum + Math.abs(fs - avgFontSize), 0) / fontSizes.length;
                         const conf = Math.max(0.6, Math.min(1.0, 1.0 - (fontVariance / avgFontSize)));
-                        
+  
                         words.push({
                           id: window.brooklynPdfHelpers.spans._generateId('w'),
                           text: wordText.trim(),
@@ -748,7 +748,7 @@ export class LocalHttpServer {
                     currentWord = [char];
                   }
                 }
-                
+  
                 // Handle final word in line
                 if (currentWord.length > 0) {
                   const wordText = currentWord.map(c => c.text).join('');
@@ -759,12 +759,12 @@ export class LocalHttpServer {
                       Math.max(...currentWord.map(c => c.bbox[2])),
                       Math.max(...currentWord.map(c => c.bbox[3]))
                     ];
-                    
+  
                     const fontSizes = currentWord.map(c => c.fontSize);
                     const avgFontSize = fontSizes.reduce((a, b) => a + b, 0) / fontSizes.length;
                     const fontVariance = fontSizes.reduce((sum, fs) => sum + Math.abs(fs - avgFontSize), 0) / fontSizes.length;
                     const conf = Math.max(0.6, Math.min(1.0, 1.0 - (fontVariance / avgFontSize)));
-                    
+  
                     words.push({
                       id: window.brooklynPdfHelpers.spans._generateId('w'),
                       text: wordText.trim(),
@@ -778,29 +778,29 @@ export class LocalHttpServer {
                   }
                 }
               });
-              
+  
               return words;
             },
-            
+  
             // Build line spans from word spans
             buildLines: function(pageNum) {
               const words = this.buildWords(pageNum);
               if (words.length === 0) return [];
-              
+  
               const lines = [];
-              
+  
               // Group words into lines by Y proximity
               words.sort((a, b) => (a.bbox[1] - b.bbox[1]) || (a.bbox[0] - b.bbox[0]));
-              
+  
               let currentLineWords = [words[0]];
               let readingOrderIndex = 0;
-              
+  
               for (let i = 1; i < words.length; i++) {
                 const word = words[i];
                 const lastWord = currentLineWords[currentLineWords.length - 1];
                 const yDiff = Math.abs(word.bbox[1] - lastWord.bbox[1]);
                 const lineHeightTolerance = Math.max(lastWord.fontSize, word.fontSize) * 0.5;
-                
+  
                 if (yDiff <= lineHeightTolerance) {
                   currentLineWords.push(word);
                 } else {
@@ -811,20 +811,20 @@ export class LocalHttpServer {
                   currentLineWords = [word];
                 }
               }
-              
+  
               // Handle final line
               if (currentLineWords.length > 0) {
                 lines.push(this._createLineFromWords(currentLineWords, readingOrderIndex, pageNum));
               }
-              
+  
               return lines;
             },
-            
+  
             // Helper function to create a line span from words
             _createLineFromWords: function(words, readingOrderIndex, pageNum) {
               // Sort words by X position (left to right)
               words.sort((a, b) => a.bbox[0] - b.bbox[0]);
-              
+  
               // Calculate line bounding box
               const lineBbox = [
                 Math.min(...words.map(w => w.bbox[0])),
@@ -832,31 +832,31 @@ export class LocalHttpServer {
                 Math.max(...words.map(w => w.bbox[2])),
                 Math.max(...words.map(w => w.bbox[3]))
               ];
-              
+  
               // Detect text alignment
               const pageWidth = document.querySelector('.pdf-page').clientWidth;
               const leftMargin = lineBbox[0];
               const rightMargin = pageWidth - lineBbox[2];
               const lineWidth = lineBbox[2] - lineBbox[0];
-              
+  
               let align = 'left';
               if (Math.abs(leftMargin - rightMargin) < 20) {
                 align = 'center';
               } else if (rightMargin < leftMargin && lineWidth > pageWidth * 0.7) {
                 align = 'right';
               }
-              
+  
               // Calculate confidence based on word alignment consistency
               const wordSpacings = [];
               for (let i = 1; i < words.length; i++) {
                 wordSpacings.push(words[i].bbox[0] - words[i-1].bbox[2]);
               }
-              const avgSpacing = wordSpacings.length > 0 ? 
+              const avgSpacing = wordSpacings.length > 0 ?
                 wordSpacings.reduce((a, b) => a + b, 0) / wordSpacings.length : 0;
               const spacingVariance = wordSpacings.length > 0 ?
                 wordSpacings.reduce((sum, s) => sum + Math.abs(s - avgSpacing), 0) / wordSpacings.length : 0;
               const conf = Math.max(0.6, Math.min(1.0, 1.0 - (spacingVariance / Math.max(avgSpacing, 1))));
-              
+  
               return {
                 id: window.brooklynPdfHelpers.spans._generateId('l'),
                 page: pageNum || 1,
@@ -868,22 +868,22 @@ export class LocalHttpServer {
                 text: words.map(w => w.text).join(' ')
               };
             },
-            
+  
             // Debug visualization overlay
             renderDebugOverlay: function(types = ['words', 'lines'], pageNum) {
               // Remove existing overlay
               const existing = document.querySelector('.brooklyn-spans-overlay');
               if (existing) existing.remove();
-              
-              const pageElement = pageNum ? 
+  
+              const pageElement = pageNum ?
                 document.querySelector(\`.pdf-page[data-page-number="\${pageNum}"]\`) :
                 document.querySelector('.pdf-page');
-              
+  
               if (!pageElement) {
                 console.warn('No page element found for debug overlay');
                 return;
               }
-              
+  
               const overlay = document.createElement('div');
               overlay.className = 'brooklyn-spans-overlay';
               overlay.style.cssText = \`
@@ -895,7 +895,7 @@ export class LocalHttpServer {
                 pointer-events: none;
                 z-index: 1000;
               \`;
-              
+  
               // Draw word spans
               if (types.includes('words')) {
                 const words = this.buildWords(pageNum);
@@ -914,7 +914,7 @@ export class LocalHttpServer {
                   overlay.appendChild(wordEl);
                 });
               }
-              
+  
               // Draw line spans
               if (types.includes('lines')) {
                 const lines = this.buildLines(pageNum);
@@ -933,10 +933,10 @@ export class LocalHttpServer {
                   overlay.appendChild(lineEl);
                 });
               }
-              
+  
               pageElement.style.position = 'relative';
               pageElement.appendChild(overlay);
-              
+  
               console.log('Brooklyn Debug Overlay Added:', {
                 types,
                 pageNum,
@@ -944,7 +944,7 @@ export class LocalHttpServer {
                 linesCount: types.includes('lines') ? this.buildLines(pageNum).length : 0
               });
             },
-            
+  
             // Get span by ID
             getSpanById: function(spanId, pageNum) {
               if (spanId.startsWith('w_')) {
@@ -954,29 +954,29 @@ export class LocalHttpServer {
               }
               return undefined;
             },
-            
+  
             // Get text organized by words
             getTextByWords: function(pageNum) {
               return this.buildWords(pageNum).map(w => w.text);
             },
-            
+  
             // Get text organized by lines (enhanced version)
             getTextByLines: function(pageNum) {
               return this.buildLines(pageNum).map(l => l.text);
             }
           }
         };
-        
+  
       } catch (error) {
         console.error('Failed to render PDF:', error);
         loading.textContent = 'Failed to load PDF';
       }
     }
-    
+  
     async function renderPage(pdf, pageNum) {
       const page = await pdf.getPage(pageNum);
       const viewport = page.getViewport({ scale: 1.5 });
-      
+  
       // Create page container
       const pageDiv = document.createElement('div');
       pageDiv.className = 'pdf-page';
@@ -984,19 +984,19 @@ export class LocalHttpServer {
       pageDiv.style.width = viewport.width + 'px';
       pageDiv.style.height = viewport.height + 'px';
       pageDiv.setAttribute('data-page-number', pageNum);
-      
+  
       // Create canvas for visual rendering
       const canvas = document.createElement('canvas');
       const context = canvas.getContext('2d');
       canvas.width = viewport.width;
       canvas.height = viewport.height;
-      
+  
       // Render PDF page to canvas
       await page.render({
         canvasContext: context,
         viewport: viewport
       }).promise;
-      
+  
       // Create text layer for DOM access
       const textLayerDiv = document.createElement('div');
       textLayerDiv.className = 'textLayer';
@@ -1004,12 +1004,12 @@ export class LocalHttpServer {
       textLayerDiv.style.height = viewport.height + 'px';
       // PDF.js 3.x requires --scale-factor CSS variable
       textLayerDiv.style.setProperty('--scale-factor', viewport.scale);
-      
+  
       // Get text content
       const textContent = await page.getTextContent();
-      
+  
       // PDF.js 4.x TextLayer class approach - more reliable than deprecated renderTextLayer
-      
+  
       // Render text layer with PDF.js 4.x TextLayer class API
       try {
         // Use PDF.js 4.x TextLayer class - more reliable and performant
@@ -1018,16 +1018,16 @@ export class LocalHttpServer {
           container: textLayerDiv,
           viewport: viewport
         });
-        
+  
         // Native-first approach: render directly without timeout
         await textLayer.render();
       } catch (error) {
         console.warn('Text layer rendering failed, using fallback:', error);
-        
+  
         // Improved fallback: group text items into lines and words
         const lineGroups = new Map();
         const lineHeight = 5; // Tolerance for grouping items on same line
-        
+  
         // Group items by vertical position (same line)
         textContent.items.forEach((item) => {
           if (item.str && item.str.trim()) {
@@ -1044,32 +1044,32 @@ export class LocalHttpServer {
             });
           }
         });
-        
+  
         // Create spans for each line, grouping adjacent items
         lineGroups.forEach((items, lineY) => {
           // Sort items by horizontal position
           items.sort((a, b) => a.x - b.x);
-          
+  
           // Group adjacent items into words/phrases
           let currentGroup = [];
           const wordGap = 8; // Pixels gap to determine word boundaries
-          
+  
           for (let i = 0; i < items.length; i++) {
             const item = items[i];
             const nextItem = items[i + 1];
-            
+  
             currentGroup.push(item);
-            
+  
             // Check if we should end the current group
             const shouldEndGroup = !nextItem || (nextItem.x - (item.x + (item.width || 0))) > wordGap;
-            
+  
             if (shouldEndGroup) {
               createGroupSpan(currentGroup, textLayerDiv);
               currentGroup = [];
             }
           }
         });
-        
+  
         function createGroupSpan(group, container) {
           const span = document.createElement('span');
           span.textContent = group.map(item => item.text).join('');
@@ -1080,7 +1080,7 @@ export class LocalHttpServer {
           container.appendChild(span);
         }
       }
-      
+  
       // Mark header/footer regions (works with both divs and spans)
       setTimeout(() => {
         const pageHeight = viewport.height;
@@ -1098,12 +1098,12 @@ export class LocalHttpServer {
           el.setAttribute('data-y', el.style.top || '0');
         });
       }, 100);
-      
+  
       // Assemble page
       pageDiv.appendChild(canvas);
       pageDiv.appendChild(textLayerDiv);
       container.appendChild(pageDiv);
-      
+  
       // Store page info
       window.pdfMetadata.pages.push({
         number: pageNum,
@@ -1112,7 +1112,7 @@ export class LocalHttpServer {
         scale: 1.5
       });
     }
-    
+  
     // Start rendering
     renderPdf();
   </script>

@@ -11,7 +11,7 @@ const outputPipe = process.argv[3] || '/tmp/brooklyn-mcp-dev-*-out';
 
 // Resolve glob patterns
 import { execSync } from 'child_process';
-const resolvedInput = inputPipe.includes('*') 
+const resolvedInput = inputPipe.includes('*')
   ? execSync(`ls ${inputPipe} 2>/dev/null | head -1`).toString().trim()
   : inputPipe;
 const resolvedOutput = outputPipe.includes('*')

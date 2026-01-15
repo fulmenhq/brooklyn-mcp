@@ -24,12 +24,12 @@ self.addEventListener("message", function(e) {
         });
       }, 10);
       break;
-      
+  
     case "getPage":
       // Mock page rendering
       setTimeout(() => {
         self.postMessage({
-          type: "pageReady", 
+          type: "pageReady",
           data: {
             pageNumber: data.pageNumber,
             viewport: { width: 612, height: 792 },
@@ -40,7 +40,7 @@ self.addEventListener("message", function(e) {
         });
       }, 5);
       break;
-      
+  
     default:
       console.log("Mock PDF Worker: Unknown message type", type);
   }

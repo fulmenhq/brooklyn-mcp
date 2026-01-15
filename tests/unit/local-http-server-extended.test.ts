@@ -211,7 +211,7 @@ describe("HTTP Server Content Type Logic", () => {
   <title>PDF Viewer - Brooklyn MCP</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { 
+    body {
       font-family: system-ui, -apple-system, sans-serif;
       overflow: hidden;
       background: #525659;
@@ -244,18 +244,18 @@ describe("HTTP Server Content Type Logic", () => {
   <script type="module">
     import * as pdfjsLib from './pdf.min.mjs';
     pdfjsLib.GlobalWorkerOptions.workerSrc = './pdf.worker.min.mjs';
-    
+  
     async function loadPDF() {
       try {
         const pdf = await pdfjsLib.getDocument('./file/${fileId}').promise;
         // PDF rendering logic would continue here...
       } catch (error) {
         console.error('PDF loading failed:', error);
-        document.getElementById('pdf-container').innerHTML = 
+        document.getElementById('pdf-container').innerHTML =
           '<p style="color: red; padding: 20px;">Error loading PDF</p>';
       }
     }
-    
+  
     loadPDF();
   </script>
 </body>

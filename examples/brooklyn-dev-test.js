@@ -17,7 +17,7 @@ if (!inputPipe || !outputPipe) {
     // Find the most recent Brooklyn dev pipes
     const inPipe = execSync('ls -t /tmp/brooklyn-mcp-dev-*-in 2>/dev/null | head -1').toString().trim();
     const outPipe = execSync('ls -t /tmp/brooklyn-mcp-dev-*-out 2>/dev/null | head -1').toString().trim();
-    
+  
     if (inPipe && outPipe) {
       inputPipe = inPipe;
       outputPipe = outPipe;
@@ -53,11 +53,11 @@ reader.stdout.on('data', (data) => {
       const response = JSON.parse(line);
       responseCount++;
       console.log(`\n✅ Response ${responseCount}:`, JSON.stringify(response, null, 2));
-      
+  
       // After getting tools list, try calling a tool
       if (response.id === 2 && response.result?.tools) {
         console.log(`\n📋 Found ${response.result.tools.length} tools`);
-        
+  
         // Try calling dev_echo tool
         setTimeout(() => {
           const echoCall = {

@@ -460,10 +460,10 @@ export class MCPHTTPTransport implements Transport {
             <meta charset="UTF-8">
             <title>Brooklyn MCP Authorization</title>
             <style>
-              body { 
-                font-family: system-ui, -apple-system, sans-serif; 
-                max-width: 600px; 
-                margin: 2rem auto; 
+              body {
+                font-family: system-ui, -apple-system, sans-serif;
+                max-width: 600px;
+                margin: 2rem auto;
                 padding: 2rem;
                 text-align: center;
                 background: #f8f9fa;
@@ -504,7 +504,7 @@ export class MCPHTTPTransport implements Transport {
               function approve() {
                 window.location.href = '${redirectUrl.toString()}';
               }
-              
+  
               // Auto-approve after 5 seconds if no interaction
               setTimeout(() => {
                 if (!document.hidden) approve();
@@ -527,10 +527,10 @@ export class MCPHTTPTransport implements Transport {
             <meta charset="UTF-8">
             <title>Brooklyn MCP - Manual Authorization</title>
             <style>
-              body { 
-                font-family: system-ui, -apple-system, sans-serif; 
-                max-width: 800px; 
-                margin: 2rem auto; 
+              body {
+                font-family: system-ui, -apple-system, sans-serif;
+                max-width: 800px;
+                margin: 2rem auto;
                 padding: 2rem;
                 background: #f8f9fa;
               }
@@ -566,18 +566,18 @@ export class MCPHTTPTransport implements Transport {
               <h2>OAuth Authorization Helper</h2>
               <h2>Browser didn't open automatically?</h2>
               <p>If Claude Code didn't open a browser window automatically, you can manually complete the authorization:</p>
-              
+  
               <h3>Option 1: Copy and paste this URL into your browser</h3>
               <div class="url-box" id="authUrl">
                 http://${req.headers.host}/oauth/authorize?response_type=code&client_id=brooklyn-client&redirect_uri=http://${req.headers.host}/oauth/callback&state=manual&code_challenge=manual-dev-pkce&code_challenge_method=plain
               </div>
               <button class="copy-btn" onclick="copyUrl()">&#x1f4cb;<!-- 📋 --> Copy URL</button>
-              
+  
               <h3>Option 2: Click this link</h3>
               <p><a href="http://${req.headers.host}/oauth/authorize?response_type=code&client_id=brooklyn-client&redirect_uri=http://${req.headers.host}/oauth/callback&state=manual&code_challenge=manual-dev-pkce&code_challenge_method=plain" target="_blank">
                 &#x1f517;<!-- 🔗 --> Open Authorization Page
               </a></p>
-              
+  
               <hr>
               <h3>How it works:</h3>
               <ol>
@@ -586,9 +586,9 @@ export class MCPHTTPTransport implements Transport {
                 <li>Click "Approve Access" (or wait 5 seconds for auto-approval)</li>
                 <li>Return to Claude Code - it should now be connected</li>
               </ol>
-              
+  
               <p><small>
-                <strong>Note:</strong> This is for local development. The authorization is automatically approved 
+                <strong>Note:</strong> This is for local development. The authorization is automatically approved
                 since you're running Brooklyn on your own machine.
               </small></p>
             </div>

@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
  * Non-blocking client for testing Brooklyn MCP dev mode
- * 
+ *
  * This demonstrates the correct way to communicate with Brooklyn's
  * development mode using named pipes without blocking.
- * 
+ *
  * Uses subprocess approach to avoid Node.js stream issues with named pipes.
  */
 

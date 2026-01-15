@@ -36,35 +36,35 @@ describe("CSS Specificity Analysis", () => {
         <head>
           <style>
             /* Low specificity */
-            button { 
-              color: blue; 
-              font-size: 14px; 
+            button {
+              color: blue;
+              font-size: 14px;
             }
-            
+  
             /* Medium specificity */
-            .btn { 
-              color: red; 
-              background: white; 
+            .btn {
+              color: red;
+              background: white;
             }
-            
+  
             /* High specificity */
-            #primary-btn { 
-              color: green; 
-              font-weight: bold; 
+            #primary-btn {
+              color: green;
+              font-weight: bold;
             }
-            
+  
             /* Very high specificity */
-            body #primary-btn.btn { 
-              color: purple; 
-              border: 1px solid black; 
+            body #primary-btn.btn {
+              color: purple;
+              border: 1px solid black;
             }
-            
+  
             /* Important rule */
-            .important { 
-              color: orange !important; 
-              margin: 10px; 
+            .important {
+              color: orange !important;
+              margin: 10px;
             }
-            
+  
             /* Multiple rules for same element */
             .test-element { color: yellow; padding: 5px; }
             div.test-element { color: pink; margin: 5px; }

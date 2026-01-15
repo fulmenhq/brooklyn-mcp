@@ -272,11 +272,11 @@ export class ScreenshotRepositoryOptimized {
 
       // Data query with optimized pagination
       db.execute(
-        `SELECT 
+        `SELECT
           id, instance_id, file_path, filename, session_id, browser_id,
           team_id, user_id, tag, format, file_size, width, height,
           full_page, quality, hash, created_at, accessed_at, metadata
-        FROM screenshots 
+        FROM screenshots
         ${whereClause}
         ORDER BY ${query.orderBy || "created_at"} ${query.orderDirection || "DESC"}
         LIMIT ? OFFSET ?`,
@@ -454,7 +454,7 @@ export class ScreenshotRepositoryOptimized {
 
     const result = await db.execute(
       `
-      SELECT 
+      SELECT
         COUNT(*) as total_count,
         SUM(file_size) as total_size,
         AVG(file_size) as avg_size,
