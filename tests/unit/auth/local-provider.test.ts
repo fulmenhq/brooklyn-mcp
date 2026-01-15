@@ -351,7 +351,7 @@ describe("LocalAuthProvider", () => {
       const users = await provider.listUsers();
       const user = users.find((u) => u.username === "testuser");
       expect(user?.lastLoginAt).toBeInstanceOf(Date);
-      expect(user?.lastLoginAt!.getTime()).toBeGreaterThan(Date.now() - 5000); // Within last 5 seconds
+      expect(user?.lastLoginAt?.getTime()).toBeGreaterThan(Date.now() - 5000); // Within last 5 seconds
     });
   });
 
@@ -397,7 +397,7 @@ describe("LocalAuthProvider", () => {
       const users = await provider.listUsers();
       const user = users.find((u) => u.username === "testuser");
       expect(user?.lockedUntil).toBeInstanceOf(Date);
-      expect(user?.lockedUntil!.getTime()).toBeGreaterThan(Date.now());
+      expect(user?.lockedUntil?.getTime()).toBeGreaterThan(Date.now());
 
       // Should reject even with correct password
       await expect(provider.authenticateCredentials("testuser", "password123")).rejects.toThrow(

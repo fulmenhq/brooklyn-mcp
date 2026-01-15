@@ -12,8 +12,8 @@ VERSION := $(shell cat VERSION 2>/dev/null || echo "0.0.0")
 BINARY_NAME := brooklyn
 
 # DX Tooling (trust anchor pattern)
-# Minimum versions - not pinned, but can specify floor
-GONEAT_VERSION := v0.3.21
+# goneat is installed via sfetch -latest if not already present
+# No version pinning - use whatever is installed on the system
 
 # User-space bin dir (overridable with BINDIR=...)
 # Defaults: macOS/Linux: $HOME/.local/bin, Windows: $USERPROFILE/bin
@@ -148,31 +148,27 @@ bootstrap-dx: ## Install DX tools via trust anchor (sfetch -> goneat)
 		echo ""; \
 		exit 1; \
 	fi
-	@$(BINDIR_RESOLVE); mkdir -p "$$BINDIR"
 	@echo "→ sfetch self-verify (trust anchor):"
 	@$(SFETCH_RESOLVE); $$SFETCH --self-verify
-	@echo "→ Installing goneat $(GONEAT_VERSION) to user bin dir..."
-	@$(SFETCH_RESOLVE); $(BINDIR_RESOLVE); \
+	@echo "→ Checking goneat installation..."
+	@$(SFETCH_RESOLVE); \
 	if [ "$(FORCE)" = "1" ] || [ "$(FORCE)" = "true" ]; then \
-		rm -f "$$BINDIR/goneat" "$$BINDIR/goneat.exe"; \
-	fi; \
-	$$SFETCH --repo fulmenhq/goneat --tag $(GONEAT_VERSION) --dest-dir "$$BINDIR"; \
-	OS_RAW="$$(uname -s 2>/dev/null || echo unknown)"; \
-	case "$$OS_RAW" in \
-		MINGW*|MSYS*|CYGWIN*) \
-			if [ -f "$$BINDIR/goneat.exe" ] && [ ! -f "$$BINDIR/goneat" ]; then \
-				mv "$$BINDIR/goneat.exe" "$$BINDIR/goneat"; \
-			fi ;; \
-	esac
+		echo "→ Force reinstall requested, installing goneat..."; \
+		$$SFETCH -repo fulmenhq/goneat -latest -install; \
+	elif ! command -v goneat >/dev/null 2>&1; then \
+		echo "→ goneat not found, installing latest..."; \
+		$$SFETCH -repo fulmenhq/goneat -latest -install; \
+	else \
+		echo "→ goneat already installed: $$(goneat --version 2>&1 | head -n1)"; \
+	fi
 	@$(GONEAT_RESOLVE); \
 	if [ -n "$$GONEAT" ]; then \
-		echo "→ goneat: $$($$GONEAT --version 2>&1 | head -n1 || true)"; \
 		echo "→ Installing foundation tools via goneat doctor..."; \
 		$$GONEAT doctor tools --scope foundation --install --install-package-managers --yes --no-cooling || true; \
 	else \
 		echo "⚠️  goneat not found after install, skipping tool installation"; \
 	fi
-	@$(BINDIR_RESOLVE); echo "✅ DX tools installed. Ensure $$BINDIR is on PATH"
+	@echo "✅ DX tools ready"
 
 tools: ## Verify external tools are available
 	@echo "Verifying external tools..."
@@ -191,14 +187,26 @@ sync: ## Sync SSOT assets (placeholder - tsfulmen provides role catalog)
 # === CODE QUALITY ===
 #
 
-lint: ## Run linting checks
+lint: ## Run linting checks (goneat assess)
 	@echo "Running linting checks..."
-	@bun run lint
+	@$(GONEAT_RESOLVE); \
+	if [ -n "$$GONEAT" ]; then \
+		$$GONEAT assess --categories format,lint --check --fail-on high; \
+	else \
+		echo "⚠️  goneat not found, falling back to bun run lint"; \
+		bun run lint; \
+	fi
 	@echo "✅ Linting passed"
 
-fmt: ## Format code
+fmt: ## Format code (goneat assess --fix)
 	@echo "Formatting code..."
-	@bun run format
+	@$(GONEAT_RESOLVE); \
+	if [ -n "$$GONEAT" ]; then \
+		$$GONEAT assess --categories format --fix; \
+	else \
+		echo "⚠️  goneat not found, falling back to bun run format"; \
+		bun run format; \
+	fi
 	@echo "✅ Code formatted"
 
 typecheck: ## Run TypeScript type checking
