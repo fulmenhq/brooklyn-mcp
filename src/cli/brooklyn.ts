@@ -2163,17 +2163,46 @@ async function setupBrowsers(browserType?: string): Promise<void> {
 
   try {
     const { execSync } = await import("node:child_process");
+    const { existsSync } = await import("node:fs");
 
-    // Use local node_modules playwright to match MCP server version
-    const playwrightBin = join(process.cwd(), "node_modules", ".bin", "playwright");
+    // Determine how to run playwright install
+    // Priority: 1) local node_modules (if in repo), 2) bunx, 3) npx
+    const localPlaywright = join(process.cwd(), "node_modules", ".bin", "playwright");
+    let playwrightCmd: string;
+
+    if (existsSync(localPlaywright)) {
+      logger.info("Using local node_modules playwright...");
+      playwrightCmd = `"${localPlaywright}"`;
+    } else {
+      // Detect available package runner (bunx or npx)
+      let useBunx = false;
+      try {
+        execSync("bunx --version", { stdio: "ignore" });
+        useBunx = true;
+      } catch {
+        // bunx not available, will try npx
+      }
+
+      if (useBunx) {
+        logger.info("Using bunx to run playwright...");
+        playwrightCmd = "bunx playwright";
+      } else {
+        logger.info("Using npx to run playwright...");
+        playwrightCmd = "npx playwright";
+      }
+    }
+
+    const installCmd = browserType
+      ? `${playwrightCmd} install ${browserType}`
+      : `${playwrightCmd} install`;
 
     if (browserType) {
       logger.info(`Installing ${browserType}...`);
-      execSync(`"${playwrightBin}" install ${browserType}`, { stdio: "inherit" });
     } else {
       logger.info("Installing all browsers (chromium, firefox, webkit)...");
-      execSync(`"${playwrightBin}" install`, { stdio: "inherit" });
     }
+
+    execSync(installCmd, { stdio: "inherit" });
 
     logger.info("\n✅ Browser installation completed!");
 

@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "brooklyn": {
+      "type": "stdio",
+      "command": "brooklyn",
+      "args": ["mcp", "start"],
+      "env": {
+        "BROOKLYN_TEAM_ID": "my-team",
+        "BROOKLYN_LOG_LEVEL": "info"
+      }
+    },
+    "brooklyn-http": {
+      "type": "http",
+      "url": "http://127.0.0.1:3000"
+    }
+  }
+}

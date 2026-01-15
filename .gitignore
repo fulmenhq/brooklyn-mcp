@@ -103,6 +103,7 @@ claude.json
 
 # OpenCode
 .opencode/
+opencode.json
 
 # Kilo Code
 .kilocode/
