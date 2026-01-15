@@ -1,0 +1,71 @@
+# Release Notes
+
+Latest releases for Brooklyn MCP. For full history, see [CHANGELOG.md](CHANGELOG.md).
+
+## [0.3.0] - In Progress
+
+**Release Type**: Feature Release - HTTP Transport Hardening
+
+### Highlights
+
+- **HTTP Auth Guard**: Streamable HTTP transport now enforces configurable auth modes (`required`, `localhost`, `disabled`) with bearer validation
+- **CLI Flags**: `brooklyn web start` and `brooklyn mcp dev-http` expose `--auth-mode` plus environment variables
+- **goneat DX Integration**: Migrated from husky to goneat hooks, integrated goneat assess for lint/format targets
+
+### Breaking Changes
+
+- `brooklyn web start` now defaults to `--auth-mode required`. Use `--auth-mode localhost` for local development or `--auth-mode disabled` for CI.
+
+[Full Release Notes](docs/releases/v0.3.0.md)
+
+---
+
+## [0.2.3] - 2025-01-19
+
+**Release Type**: Minor Release - Dependency Updates & Protocol Compliance
+
+### Highlights
+
+- **Logging Stack**: Upgraded pino v9 → v10.1.0 and pino-pretty v11 → v13.1.2
+- **CLI Tooling**: Upgraded inquirer v9 → v13.0.1
+- **Protocol Compliance**: Pinned dotenv to v16.6.1 (v17.x violates MCP stdout purity)
+
+### Quality Metrics
+
+- **Tests**: 768 total (755 passing)
+- **MCP Stdout Purity**: 4/4 passing
+
+[Full Release Notes](docs/releases/v0.2.3.md)
+
+---
+
+## [0.2.2] - 2025-01-17
+
+**Release Type**: Stable Release - Enterprise-ready Cross-Platform Browser Automation
+
+### Highlights
+
+- **Cross-Platform CI/CD**: Full stability across Ubuntu, macOS, and Windows
+- **Browser Automation Reliability**: Resolved critical headless browser issues in Windows CI
+- **Production Ready**: 875 tests passing across all three platforms
+
+### Quality Metrics
+
+- **Unit Tests**: 755 passed
+- **Integration Tests**: 104 passed
+- **E2E Tests**: 16 passed
+- **Platforms**: Ubuntu, macOS, Windows (all passing)
+
+[Full Release Notes](docs/releases/v0.2.2.md)
+
+---
+
+## Archive
+
+Full release notes for all versions are maintained in [docs/releases/](docs/releases/).
+
+## Links
+
+- [Changelog](CHANGELOG.md)
+- [Repository](https://github.com/fulmenhq/brooklyn-mcp)
+- [Documentation](./docs/)
