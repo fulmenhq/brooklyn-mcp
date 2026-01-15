@@ -17,9 +17,9 @@
 ### Project Status
 
 - Lifecycle Phase: alpha (see docs/standards/lifecycle-maturity.md)
-- Release Phase: rc (preparing 0.2.x public track)
+- Release Phase: rc (preparing 0.3.x public track)
 
-**Latest**: v0.2.2-rc.16 (public RC) includes **Windows compatibility**, comprehensive test suite, cross-platform utilities, resolved line ending issues, and critical CI pipeline hanging fixes for Windows development.
+**Latest**: v0.3.0 release candidate with goneat DX tooling integration.
 
 ---
 

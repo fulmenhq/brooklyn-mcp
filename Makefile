@@ -58,7 +58,7 @@ GONEAT_RESOLVE = \
 	if [ -x "$$BINDIR/goneat" ]; then GONEAT="$$BINDIR/goneat"; fi; \
 	if [ -z "$$GONEAT" ]; then GONEAT="$$(command -v goneat 2>/dev/null || true)"; fi
 
-.PHONY: all help bootstrap bootstrap-force bootstrap-dx tools sync lint fmt test build build-all clean
+.PHONY: all help bootstrap bootstrap-force bootstrap-dx hooks-ensure tools sync lint fmt test build build-all clean
 .PHONY: version version-set version-sync version-bump-major version-bump-minor version-bump-patch
 .PHONY: typecheck check-all quality precommit prepush
 .PHONY: release-check release-prepare release-build
@@ -126,7 +126,17 @@ bootstrap: bootstrap-dx ## Install dependencies and browsers
 	@bun run setup:browsers
 	@echo "Setting up test infrastructure..."
 	@bun run setup:test-infra
+	@$(MAKE) hooks-ensure
 	@echo "✅ Bootstrap complete"
+
+hooks-ensure: ## Ensure git hooks are installed (idempotent)
+	@$(GONEAT_RESOLVE); \
+	if [ -d ".git" ] && [ -n "$$GONEAT" ]; then \
+		if [ ! -x ".git/hooks/pre-commit" ] || ! grep -q "goneat" ".git/hooks/pre-commit" 2>/dev/null; then \
+			echo "🔗 Installing git hooks with goneat..."; \
+			$$GONEAT hooks install 2>/dev/null || true; \
+		fi; \
+	fi
 
 bootstrap-force: ## Force reinstall all dependencies
 	@echo "Force reinstalling dependencies..."
