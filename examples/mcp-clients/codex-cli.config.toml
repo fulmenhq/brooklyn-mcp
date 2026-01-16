@@ -1,6 +1,6 @@
 # Codex CLI MCP Configuration
-# STATUS: Not yet supported - rmcp transport issue (see README.md)
-# Place in ~/.codex/config.toml or merge with existing when upstream fix available
+# Place in ~/.codex/config.toml or merge with existing config
+# Note: Ensure HTTP_PROXY is unset when connecting to localhost
 
 # Brooklyn MCP Server (HTTP transport)
 [mcp_servers.brooklyn]

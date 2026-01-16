@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CLI Flags**: `brooklyn web start` and `brooklyn mcp dev-http` expose `--auth-mode` plus `BROOKLYN_HTTP_AUTH_MODE`/`BROOKLYN_HTTP_TRUSTED_PROXIES` env vars so deployments can toggle requirements without code changes.
 - **goneat DX Integration**: Migrated from husky to goneat hooks system, integrated goneat assess for lint and format targets.
 - **Testing**: Unit specs cover guard logic and transport metadata, and a new integration test verifies 401 vs 200 flows for the HTTP transport.
+- **Multi-Client Support**: Verified compatibility with Claude Code, OpenCode, Kilocode, and Codex CLI (rmcp) MCP clients.
+
+### Fixed
+
+- **MCP Session Management**: Fixed session ID generation to use proper UUID format for protocol compliance.
+- **HTTP Transport Notifications**: Changed notification responses from 204 to 202 Accepted per MCP Streamable HTTP spec.
+- **HTTP DELETE Handling**: Session termination DELETE requests now return 202 Accepted instead of 405.
+- **CLI Health Check**: Fixed `brooklyn web status` health check to use Node.js native `http` module instead of Bun's `fetch` for reliable compiled binary operation.
 
 ### Changed
 

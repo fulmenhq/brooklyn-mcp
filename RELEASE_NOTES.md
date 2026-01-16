@@ -11,6 +11,8 @@ Latest releases for Brooklyn MCP. For full history, see [CHANGELOG.md](CHANGELOG
 - **HTTP Auth Guard**: Streamable HTTP transport now enforces configurable auth modes (`required`, `localhost`, `disabled`) with bearer validation
 - **CLI Flags**: `brooklyn web start` and `brooklyn mcp dev-http` expose `--auth-mode` plus environment variables
 - **goneat DX Integration**: Migrated from husky to goneat hooks, integrated goneat assess for lint/format targets
+- **Multi-Client Support**: Verified compatibility with Claude Code, OpenCode, Kilocode, and Codex CLI (rmcp)
+- **HTTP Transport Fixes**: Session ID UUID format, 202 status for notifications/DELETE, reliable health checks
 
 ### Breaking Changes
 
