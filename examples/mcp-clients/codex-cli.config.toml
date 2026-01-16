@@ -1,0 +1,17 @@
+# Codex CLI MCP Configuration
+# STATUS: Not yet supported - rmcp transport issue (see README.md)
+# Place in ~/.codex/config.toml or merge with existing when upstream fix available
+
+# Brooklyn MCP Server (HTTP transport)
+[mcp_servers.brooklyn]
+url = "http://127.0.0.1:3000/mcp"
+
+# With auth token (if required)
+# [mcp_servers.brooklyn-auth]
+# url = "http://127.0.0.1:3000/mcp"
+# bearer_token_env_var = "BROOKLYN_TOKEN"
+
+# With custom headers
+# [mcp_servers.brooklyn-headers]
+# url = "http://127.0.0.1:3000/mcp"
+# http_headers = { "X-Team-Id" = "my-team" }

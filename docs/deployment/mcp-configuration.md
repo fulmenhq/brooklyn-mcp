@@ -248,14 +248,16 @@ Codex CLI uses TOML:
 
 ```toml
 [mcp_servers.brooklyn]
-type = "http"
-url = "http://127.0.0.1:3000"
+url = "http://127.0.0.1:3000/mcp"
 ```
 
 Populate it with:
 
 ```bash
 brooklyn config agent --client codex --scope user --transport http --host 127.0.0.1 --port 3000 --apply
+
+# Codex expects the MCP endpoint path:
+#   http://127.0.0.1:3000/mcp
 ```
 
 ## Validating Your Setup

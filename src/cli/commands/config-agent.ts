@@ -209,7 +209,7 @@ export async function runConfigAgent(options: AgentConfigOptions): Promise<void>
       // Codex uses TOML at ~/.codex/config.toml
       const value =
         transport === "http"
-          ? { type: "http", url: withTeamQuery(`http://${host}:${port}`, teamId) }
+          ? { url: withTeamQuery(`http://${host}:${port}`, teamId) }
           : { command: "brooklyn", args: ["mcp", "start"] };
       const result = patchTomlBrooklyn(targetPath, value, { backup: true, dryRun: false });
       console.log("\n✅ Updated:", targetPath);

@@ -357,7 +357,7 @@ describe("HTTP Transport Core Unit Tests", () => {
         jsonrpc: "2.0",
         method: "initialize",
         params: {
-          protocolVersion: "2025-06-18", // Match server protocol version
+          protocolVersion: "2025-11-25", // Match server protocol version
           capabilities: {},
         },
         id: 1,
@@ -369,7 +369,7 @@ describe("HTTP Transport Core Unit Tests", () => {
         jsonrpc: "2.0",
         id: 1,
         result: expect.objectContaining({
-          protocolVersion: "2025-06-18",
+          protocolVersion: "2025-11-25",
           capabilities: expect.any(Object),
         }),
       });
@@ -515,14 +515,11 @@ describe("HTTP Transport Core Unit Tests", () => {
 
       const response = await httpTransport.processRequest(request, createTransportRequest());
 
-      // Unknown method returns error with undefined id
+      // notifications/initialized is ignored by transport
       expect(response).toMatchObject({
         jsonrpc: "2.0",
         id: undefined,
-        error: {
-          code: -32601,
-          message: "Method not found",
-        },
+        result: null,
       });
     });
   });

@@ -1,7 +1,8 @@
 {
-  "brooklyn": {
-    "type": "http",
-    "url": "http://127.0.0.1:3000",
-    "enabled": true
+  "mcpServers": {
+    "brooklyn": {
+      "type": "streamable-http",
+      "url": "http://127.0.0.1:3000/mcp"
+    }
   }
 }

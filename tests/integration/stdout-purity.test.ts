@@ -125,7 +125,7 @@ describe.sequential("Architecture Committee: MCP Stdout Purity Tests", () => {
       const initializeRequest = {
         method: "initialize",
         params: {
-          protocolVersion: "2025-06-18",
+          protocolVersion: "2025-11-25",
           capabilities: { roots: {} },
           clientInfo: {
             name: "claude-code",
@@ -211,7 +211,7 @@ describe.sequential("Architecture Committee: MCP Stdout Purity Tests", () => {
         JSON.stringify({
           method: "initialize",
           params: {
-            protocolVersion: "2025-06-18",
+            protocolVersion: "2025-11-25",
             capabilities: { roots: {} },
             clientInfo: { name: "claude-code", version: "1.0.61" },
           },
@@ -265,7 +265,7 @@ describe.sequential("Architecture Committee: MCP Stdout Purity Tests", () => {
         {
           method: "initialize",
           params: {
-            protocolVersion: "2025-06-18",
+            protocolVersion: "2025-11-25",
             capabilities: { roots: {} },
             clientInfo: { name: "claude-code", version: "1.0.61" },
           },
@@ -318,7 +318,7 @@ describe.sequential("Architecture Committee: MCP Stdout Purity Tests", () => {
         {
           method: "initialize",
           params: {
-            protocolVersion: "2025-06-18",
+            protocolVersion: "2025-11-25",
             capabilities: { roots: {} },
             clientInfo: { name: "claude-code", version: "1.0.61" },
           },

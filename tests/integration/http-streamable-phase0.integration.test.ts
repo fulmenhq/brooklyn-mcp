@@ -220,7 +220,7 @@ describe("MCP HTTP Streamable Phase 0 (team routing + batch + SSE correlation)",
           jsonrpc: "2.0",
           id: 1,
           method: "initialize",
-          params: { protocolVersion: "2025-06-18" },
+          params: { protocolVersion: "2025-11-25" },
         },
         {
           jsonrpc: "2.0",

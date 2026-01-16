@@ -84,7 +84,7 @@ describe("MCP STDIO Transport Extended Tests", () => {
         jsonrpc: "2.0",
         id: 1,
         method: "initialize",
-        params: { protocolVersion: "2025-06-18" },
+        params: { protocolVersion: "2025-11-25" },
       };
 
       const dataCallback = mockStdinOn.mock.calls.find((call: any) => call[0] === "data")[1];
@@ -99,7 +99,7 @@ describe("MCP STDIO Transport Extended Tests", () => {
 
       expect(response.jsonrpc).toBe("2.0");
       expect(response.id).toBe(1);
-      expect(response.result.protocolVersion).toBe("2025-06-18");
+      expect(response.result.protocolVersion).toBe("2025-11-25");
       expect(response.result.serverInfo.name).toBe("brooklyn-mcp-server");
     });
 

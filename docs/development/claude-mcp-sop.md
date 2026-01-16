@@ -183,7 +183,7 @@ Claude sends:
 {
   "method": "initialize",
   "params": {
-    "protocolVersion": "2025-06-18",
+    "protocolVersion": "2025-11-25",
     "capabilities": { "roots": {} },
     "clientInfo": { "name": "claude-code", "version": "1.0.61" }
   },
@@ -210,7 +210,7 @@ Brooklyn responds:
   "jsonrpc": "2.0",
   "id": 0,
   "result": {
-    "protocolVersion": "2025-06-18",
+    "protocolVersion": "2025-11-25",
     "serverInfo": { "name": "brooklyn-mcp-server", "version": "1.2.22" },
     "capabilities": { "tools": { "listChanged": true }, "resources": {}, "roots": {} }
   }
@@ -793,7 +793,7 @@ Brooklyn now starts completely silent in MCP mode:
 bun scripts/flow-wrapper-stdio.ts "brooklyn mcp start" --pipe-log-base test-silent
 
 # Should see NO stderr output, only JSON-RPC on stdout
-echo '{"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{"roots":{}},"clientInfo":{"name":"claude-code","version":"1.0.61"}},"jsonrpc":"2.0","id":0}' | brooklyn mcp start
+echo '{"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{"roots":{}},"clientInfo":{"name":"claude-code","version":"1.0.61"}},"jsonrpc":"2.0","id":0}' | brooklyn mcp start
 
 # Historical Note: Earlier versions of our docs incorrectly showed
 # echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | brooklyn mcp start

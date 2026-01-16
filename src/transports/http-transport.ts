@@ -777,6 +777,16 @@ export class MCPHTTPTransport implements Transport {
     }
 
     const pathOnly = req.url ? req.url.split("?")[0] : "/";
+
+    // Streamable HTTP session termination (optional per MCP spec)
+    if (pathOnly === "/mcp" && req.method === "DELETE") {
+      // The spec allows responding 405, but some clients (Codex CLI) will send
+      // this on shutdown. Accepting it avoids noisy failures.
+      res.statusCode = 202;
+      res.end();
+      return;
+    }
+
     if (pathOnly === "/v1/chat/completions" && req.method === "POST") {
       await this.handleOpenAIChatCompletions(requestWithContext, res);
       return;
@@ -853,10 +863,6 @@ export class MCPHTTPTransport implements Transport {
     sessionId: string | undefined,
   ): Promise<void> {
     const sseRequested = isEventStreamRequest(req);
-    const shouldStreamResponseOverSse = req.method === "POST" && sseRequested;
-    const progressTargets = shouldStreamResponseOverSse
-      ? this.prepareOneShotSse(res, sessionId)
-      : undefined;
 
     if (!(msg["jsonrpc"] && msg["method"])) {
       // JSON-RPC 2.0: Invalid Request
@@ -872,11 +878,21 @@ export class MCPHTTPTransport implements Transport {
     }
 
     const id = msg["id"];
-    if (id == null) {
-      res.statusCode = 204;
+
+    // Treat known notification methods as notifications even if the client
+    // mistakenly includes an id.
+    const method = msg["method"];
+    if (method === "notifications/initialized" || id == null) {
+      // MCP Streamable HTTP spec: notifications return 202 Accepted with no body
+      res.statusCode = 202;
       res.end();
       return;
     }
+
+    const shouldStreamResponseOverSse = req.method === "POST" && sseRequested;
+    const progressTargets = shouldStreamResponseOverSse
+      ? this.prepareOneShotSse(res, sessionId)
+      : undefined;
 
     let response: Record<string, unknown>;
     try {
@@ -921,7 +937,9 @@ export class MCPHTTPTransport implements Transport {
 
       const msg = entry as JsonRpcPayload;
       const id = msg["id"];
-      const isNotification = id == null;
+
+      const method = msg["method"];
+      const isNotification = id == null || method === "notifications/initialized";
       if (isNotification) {
         continue;
       }
@@ -936,7 +954,8 @@ export class MCPHTTPTransport implements Transport {
     }
 
     if (responses.length === 0) {
-      res.statusCode = 204;
+      // MCP Streamable HTTP spec: batch of only notifications returns 202 Accepted
+      res.statusCode = 202;
       res.end();
       return;
     }
@@ -960,6 +979,11 @@ export class MCPHTTPTransport implements Transport {
     progressTargets: Set<ServerResponse> | undefined,
   ): Promise<Record<string, unknown>> {
     const method = msg["method"] as string;
+
+    // notifications/initialized is a lifecycle notification; ignore it.
+    if (method === "notifications/initialized") {
+      return { jsonrpc: "2.0", id: msg["id"], result: null };
+    }
     const params = msg["params"] as Record<string, unknown> | undefined;
     const id = msg["id"];
 
@@ -1365,13 +1389,12 @@ export class MCPHTTPTransport implements Transport {
     res: ServerResponse,
     sessionId: string | undefined,
   ): Set<ServerResponse> {
+    const resolvedSessionId = sessionId ?? this.generateSessionId();
     res.statusCode = 200;
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
-    if (sessionId) {
-      res.setHeader("Mcp-Session-Id", sessionId);
-    }
+    res.setHeader("Mcp-Session-Id", resolvedSessionId);
     res.setHeader(
       "Access-Control-Allow-Headers",
       "Content-Type, Accept, Authorization, Mcp-Session-Id, MCP-Protocol-Version, X-Team-Id",

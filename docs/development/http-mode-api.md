@@ -303,7 +303,7 @@ Standard MCP JSON-RPC protocol endpoint.
 Note:
 
 - Streamable HTTP wire format uses snake_case for the tool schema key: use input_schema on the wire. Internally (TypeScript), tools are defined with inputSchema and normalized by the transport.
-- Clients should include an Accept header listing application/json and text/event-stream and, after initialization, include MCP-Protocol-Version: 2025-06-18 on subsequent requests as per the MCP spec.
+- Clients should include an Accept header listing application/json and text/event-stream and, after initialization, include MCP-Protocol-Version: 2025-11-25 on subsequent requests as per the MCP spec.
 
 **Tool Call Request:**
 

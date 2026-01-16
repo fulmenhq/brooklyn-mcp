@@ -155,7 +155,7 @@ describe.skip("MCP Browser E2E Tests", () => {
             id: 0,
             method: "initialize",
             params: {
-              protocolVersion: "2025-06-18",
+              protocolVersion: "2025-11-25",
               capabilities: { roots: {} },
               clientInfo: {
                 name: "test-client",
@@ -190,7 +190,7 @@ describe.skip("MCP Browser E2E Tests", () => {
         // Find initialize response
         const initResponse = responses.find((r) => r.id === 0);
         expect(initResponse?.result).toBeDefined();
-        expect((initResponse?.result as any).protocolVersion).toBe("2025-06-18");
+        expect((initResponse?.result as any).protocolVersion).toBe("2025-11-25");
 
         // Find tools list response
         const toolsResponse = responses.find((r) => r.id === 1);
@@ -258,7 +258,7 @@ describe.skip("MCP Browser E2E Tests", () => {
             id: 0,
             method: "initialize",
             params: {
-              protocolVersion: "2025-06-18",
+              protocolVersion: "2025-11-25",
               capabilities: { roots: {} },
               clientInfo: { name: "test-client", version: "1.0.0" },
             },
@@ -271,7 +271,7 @@ describe.skip("MCP Browser E2E Tests", () => {
             id: 0,
             method: "initialize",
             params: {
-              protocolVersion: "2025-06-18",
+              protocolVersion: "2025-11-25",
               capabilities: { roots: {} },
               clientInfo: { name: "test-client", version: "1.0.0" },
             },
@@ -377,7 +377,7 @@ describe.skip("MCP Browser E2E Tests", () => {
             id: 0,
             method: "initialize",
             params: {
-              protocolVersion: "2025-06-18",
+              protocolVersion: "2025-11-25",
               capabilities: { roots: {} },
               clientInfo: {
                 name: "test-client",
@@ -429,7 +429,7 @@ describe.skip("MCP Browser E2E Tests", () => {
             id: 0,
             method: "initialize",
             params: {
-              protocolVersion: "2025-06-18",
+              protocolVersion: "2025-11-25",
               capabilities: {
                 roots: {},
                 // Future: team context could be passed here

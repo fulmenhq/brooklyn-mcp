@@ -1329,26 +1329,52 @@ Assisted Configuration:
           console.log(`Status: Unknown (no PID file). Checking HTTP endpoint on port ${port}...`);
         }
 
-        // Probe health endpoint over IPv4
-        const url = `http://127.0.0.1:${port}/health`;
-        try {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 2000);
-          const resp = await fetch(url, { signal: controller.signal });
-          clearTimeout(timeout);
+        // Probe health endpoint over IPv4 using native http (more reliable in compiled binaries)
+        const http = await import("node:http");
+        const healthCheck = (): Promise<{ ok: boolean; status?: number; body?: unknown }> => {
+          return new Promise((resolve) => {
+            const req = http.request(
+              {
+                hostname: "127.0.0.1",
+                port,
+                path: "/health",
+                method: "GET",
+                timeout: 2000,
+              },
+              (res) => {
+                let data = "";
+                res.on("data", (chunk) => (data += chunk));
+                res.on("end", () => {
+                  try {
+                    const body = JSON.parse(data);
+                    resolve({ ok: res.statusCode === 200, status: res.statusCode, body });
+                  } catch {
+                    resolve({ ok: res.statusCode === 200, status: res.statusCode });
+                  }
+                });
+              },
+            );
+            req.on("error", () => resolve({ ok: false }));
+            req.on("timeout", () => {
+              req.destroy();
+              resolve({ ok: false });
+            });
+            req.end();
+          });
+        };
 
-          if (resp.ok) {
-            const body = await resp.json();
-            console.log("Health: ✅ Responding");
-            console.log(JSON.stringify(body, null, 2));
-            process.exit(0);
-          } else {
-            console.log(`Health: ⚠️ HTTP ${resp.status}`);
-            process.exit(0);
+        const result = await healthCheck();
+        if (result.ok) {
+          console.log("Health: ✅ Responding");
+          if (result.body) {
+            console.log(JSON.stringify(result.body, null, 2));
           }
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          console.log(`Health: ❌ Not responding (${msg})`);
+          process.exit(0);
+        } else if (result.status) {
+          console.log(`Health: ⚠️ HTTP ${result.status}`);
+          process.exit(0);
+        } else {
+          console.log("Health: ❌ Not responding");
           console.log(
             "Tip: If you started brooklyn web start in a foreground shell, status may not have a PID file. You can also check listeners with:",
           );
