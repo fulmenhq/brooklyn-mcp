@@ -13,7 +13,9 @@ BINARY_NAME := brooklyn
 
 # DX Tooling (trust anchor pattern)
 # goneat is installed via sfetch -latest if not already present
-# No version pinning - use whatever is installed on the system
+# Minimum version for full feature support (typecheck requires v0.5.0+)
+# NOTE: This is documentation only - bootstrap-dx installs latest if missing
+MIN_GONEAT_VERSION := v0.5.0
 
 # User-space bin dir (overridable with BINDIR=...)
 # Defaults: macOS/Linux: $HOME/.local/bin, Windows: $USERPROFILE/bin

@@ -98,7 +98,19 @@ async function runCommand(command: string): Promise<[number, string, string]> {
 }
 
 /**
- * Run TypeScript type checking
+ * Check if goneat is available for typecheck
+ */
+async function isGoneatAvailable(): Promise<boolean> {
+  try {
+    const [exitCode] = await runCommand("goneat --version");
+    return exitCode === 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Run TypeScript type checking using goneat assess (preferred) or tsc fallback
  */
 async function runTypeCheck(): Promise<boolean> {
   if (!(isTypeScript || isJavaScript)) {
@@ -107,10 +119,32 @@ async function runTypeCheck(): Promise<boolean> {
 
   console.log(chalk.blue("\n🔍 Checking TypeScript types..."));
 
-  const tempConfigPath = path.resolve(process.cwd(), "tsconfig.temp-check.json");
   const projectRoot = process.cwd();
   const relativeFilePath = path.relative(projectRoot, filePath);
   const normalizedRelativeFilePath = relativeFilePath.split(path.sep).join(path.posix.sep);
+
+  // Try goneat assess first (preferred - uses assess.yaml configuration)
+  const goneatAvailable = await isGoneatAvailable();
+
+  if (goneatAvailable) {
+    console.log(chalk.dim("Using goneat assess for typecheck..."));
+    const command = `goneat assess --categories typecheck --include="${normalizedRelativeFilePath}"`;
+    const [exitCode, stdout, stderr] = await runCommand(command);
+
+    if (exitCode !== 0) {
+      console.error(chalk.red("❌ Type checking failed:"));
+      console.error(stdout || stderr);
+      return false;
+    }
+
+    console.log(chalk.green("✅ Type checking passed"));
+    return true;
+  }
+
+  // Fallback to tsc with temp config if goneat not available
+  console.log(chalk.dim("goneat not available, falling back to tsc..."));
+
+  const tempConfigPath = path.resolve(process.cwd(), "tsconfig.temp-check.json");
 
   // Create temporary TypeScript configuration for file-level checking
   // Inherits all settings from main tsconfig.json while targeting specific file
