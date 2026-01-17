@@ -2,12 +2,9 @@
 
 ## Overview
 
-Brooklyn operates as a unified binary that supports two distinct modes:
+Brooklyn is **HTTP-first**: run one long-lived Brooklyn HTTP server and connect multiple agent clients to it.
 
-- **MCP Mode**: For Claude Code integration (stdin/stdout communication)
-- **Web Mode**: For monitoring, APIs, and browser management (HTTP server)
-
-This guide covers how to configure Brooklyn after installation, with a focus on MCP integration for Claude Code.
+This guide covers how to configure Brooklyn after installation, with a focus on MCP integration for agent clients.
 
 ## Installation
 
@@ -43,7 +40,7 @@ Recommended: Start Brooklyn HTTP server for multi-agent workflows
    brooklyn_status  # Run in Claude Code - shows version and 50+ tools
    brooklyn doctor --json  # Run in terminal - comprehensive health check
 
-For detailed setup: docs/deployment/mcp-configuration.md
+For detailed setup: docs/deployment/unified-deployment.md
 
 Legacy single-agent only (stdio transport):
   claude mcp add -s user -t stdio brooklyn brooklyn mcp start
@@ -323,7 +320,7 @@ After rebuild (bun run build && bun run install):
   2. Test via HTTP: curl http://localhost:3000/tools/brooklyn_status
   3. Confirm in Claude Code: brooklyn_status (check version matches)
 
-For detailed troubleshooting: docs/deployment/mcp-configuration.md
+For detailed troubleshooting: docs/deployment/unified-deployment.md
 ```
 
 ### Binary Path Issues

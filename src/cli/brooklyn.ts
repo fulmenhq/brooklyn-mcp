@@ -1343,7 +1343,9 @@ Assisted Configuration:
               },
               (res) => {
                 let data = "";
-                res.on("data", (chunk) => (data += chunk));
+                res.on("data", (chunk) => {
+                  data += chunk;
+                });
                 res.on("end", () => {
                   try {
                     const body = JSON.parse(data);
@@ -2796,7 +2798,7 @@ Notes:
     .command("guide")
     .description("Show recommended setup patterns and troubleshooting tips")
     .action(() => {
-      const text = `\nRecommended Setup Patterns\n\n\n- Multi-instance (multiple Claude windows/editors): prefer HTTP user-wide.\n  Examples:\n    brooklyn client configure --client claude --scope user --transport http --apply\n    brooklyn client configure --client kilocode --scope user --transport http --apply\n\n- Where HTTP isn’t available (e.g., pending SSE): use project-scoped STDIO.\n  Examples:\n    brooklyn client configure --client cline --scope user --transport stdio --apply\n    brooklyn client configure --client opencode --scope user --transport stdio --apply\n\n- Reset and re-apply:\n    claude mcp remove brooklyn\n    brooklyn client configure --client claude --scope user --transport http --apply\n\nSmart Defaults\n\n\n- If you omit --transport, the helper prefers HTTP at user scope when supported,\n  and falls back to project-STDIO when not, to avoid multi-instance STDIO contention.\n- For non-writable targets (e.g., Claude Code user), the helper runs the official\n  client CLI (like 'claude mcp add …') under --apply.\n\nTroubleshooting\n\n\n- brooklyn doctor --json   # includes an MCP stdio handshake check\n- brooklyn mcp cleanup     # clears stale stdio processes for a project\n- brooklyn web start --host 127.0.0.1 --port 3000  # start HTTP backend\n`;
+      const text = `\nRecommended Setup Patterns\n\n\n- Default: HTTP (Streamable HTTP) for agent clients.\n  Examples:\n    brooklyn config agent --client claude --scope user --transport http --host 127.0.0.1 --port 3000 --apply\n    brooklyn config agent --client opencode --scope user --transport http --host 127.0.0.1 --port 3000 --apply\n    brooklyn config agent --client kilocode --scope user --transport http --host 127.0.0.1 --port 3000 --apply\n    brooklyn config agent --client codex --scope user --transport http --host 127.0.0.1 --port 3000 --apply\n\n- STDIO is for terminal-native workflows only (single-agent).\n  Example:\n    brooklyn config agent --client claude --scope user --transport stdio --apply\n\n- Reset and re-apply (Claude Code):\n    claude mcp remove brooklyn\n    brooklyn config agent --client claude --scope user --transport http --host 127.0.0.1 --port 3000 --apply\n\nSmart Defaults\n\n\n- If you omit --transport, the helper prefers HTTP at user scope when supported.\n- For non-writable targets (e.g., Claude Code user), the helper runs the official\n  client CLI (like 'claude mcp add …') under --apply.\n\nTroubleshooting\n\n\n- brooklyn doctor --json   # local health and diagnostics\n- brooklyn web status      # check HTTP daemon status\n- brooklyn web cleanup --port 3000\n- brooklyn web start --host 127.0.0.1 --port 3000 --auth-mode localhost --daemon\n\nDocs\n\n\n- docs/deployment/unified-deployment.md\n`;
       console.log(text);
       process.exit(0);
     });
