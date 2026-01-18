@@ -34,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Client Config Examples**: `docs/deployment/mcp-configuration.md` now includes concrete `.mcp.json`, `opencode.json`, and Codex TOML snippets for HTTP/STDIO setups.
 - **Release Notes**: Full release notes now maintained in `docs/releases/v<semver>.md`.
 
-## [0.2.3] - 2025-01-19
+## [0.2.3] - 2025-11-19
 
 ### Dependency Updates
 
@@ -58,7 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MCP stdout purity tests: 4/4 passing with dotenv v16.6.1
 - Full test suite execution time: ~87 seconds
 
-## [0.2.2] - 2025-01-17
+## [0.2.2] - 2025-11-17
 
 ### Major Improvements
 

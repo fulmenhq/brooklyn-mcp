@@ -22,7 +22,7 @@ Latest releases for Brooklyn MCP. For full history, see [CHANGELOG.md](CHANGELOG
 
 ---
 
-## [0.2.3] - 2025-01-19
+## [0.2.3] - 2025-11-19
 
 **Release Type**: Minor Release - Dependency Updates & Protocol Compliance
 
@@ -41,7 +41,7 @@ Latest releases for Brooklyn MCP. For full history, see [CHANGELOG.md](CHANGELOG
 
 ---
 
-## [0.2.2] - 2025-01-17
+## [0.2.2] - 2025-11-17
 
 **Release Type**: Stable Release - Enterprise-ready Cross-Platform Browser Automation
 
