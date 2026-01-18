@@ -2,7 +2,7 @@
 
 Latest releases for Brooklyn MCP. For full history, see [CHANGELOG.md](CHANGELOG.md).
 
-## [0.3.0] - In Progress
+## [0.3.0] - 2026-01-16
 
 **Release Type**: Feature Release - HTTP Transport Hardening
 
