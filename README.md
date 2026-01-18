@@ -16,10 +16,8 @@
 
 ### Project Status
 
-- Lifecycle Phase: alpha (see docs/standards/lifecycle-maturity.md)
-- Release Phase: rc (preparing 0.3.x public track)
-
-**Latest**: v0.3.0 release candidate with goneat DX tooling integration.
+- **Lifecycle**: Alpha ([maturity details](docs/standards/lifecycle-maturity.md))
+- **Current Release**: [v0.3.0](RELEASE_NOTES.md) - HTTP Transport Hardening & Multi-Client Support
 
 ---
 
@@ -38,7 +36,7 @@ Brooklyn MCP is the **"MCP Forge"** for the Fulmen ecosystem - the reference imp
 
 **2. 🤖 Enterprise Browser Automation Platform**
 
-- **Claude Code Integration**: Seamless MCP connection for AI-powered browser automation
+- **Multi-Client MCP Support**: Works with Claude Code, OpenCode, Kilocode, Codex CLI and more
 - **Multi-Team Architecture**: Team isolation, resource management, and enterprise deployment
 - **Production Infrastructure**: Monitoring, observability, containerization, and cloud-native patterns
 - **Intelligent Automation**: AI-friendly tools, semantic navigation, and adaptive testing
@@ -57,7 +55,12 @@ Brooklyn MCP is the **"MCP Forge"** for the Fulmen ecosystem - the reference imp
 ### Prerequisites
 
 - **Bun** (>= 1.2.0+) - [Install Bun](https://bun.sh)
-- **Claude Code** - [Install Claude Code](https://claude.ai/code)
+- **MCP Client** - Any of our verified clients:
+  - [Claude Code](https://claude.ai/code) (stdio & HTTP)
+  - [OpenCode](https://opencode.ai) (HTTP)
+  - [Kilocode](https://kilo.ai) (HTTP)
+  - [Codex CLI](https://github.com/openai/codex) (HTTP)
+  - See [examples/mcp-clients/](examples/mcp-clients/) for configuration guides
 
 #### For Local Development/Building
 
@@ -87,7 +90,7 @@ brooklyn web start --port 3000 --auth-mode required --daemon
 claude mcp add -s user -t http brooklyn http://127.0.0.1:3000
 
 # Verify installation
-brooklyn_status  # Run in Claude Code - shows version and 50+ tools
+brooklyn_status  # Run in your MCP client - shows version and 50+ tools
 brooklyn doctor --json  # Run in terminal - comprehensive health check
 
 # Alternative: Legacy single-agent only (stdio transport)
@@ -99,7 +102,7 @@ brooklyn doctor --json  # Run in terminal - comprehensive health check
 
 ### Test Your First Automation
 
-In Claude Code, try:
+In your MCP client, try:
 
 ```
 # Launch a browser and navigate
@@ -147,7 +150,7 @@ const teamConfig = {
 
 - **Dual Transport Support**: stdio (MCP standard) and HTTP (debugging friendly)
 - **Comprehensive Observability**: Metrics, tracing, and structured logging
-- **Zero-Downtime Deployment**: Backward compatible updates without Claude Code restarts
+- **Zero-Downtime Deployment**: Backward compatible updates without MCP client restarts
 - **Security First**: Domain allowlisting, audit trails, and team isolation
 
 ---
