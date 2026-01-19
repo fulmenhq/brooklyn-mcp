@@ -1,0 +1,121 @@
+# ============================================================================
+# Brooklyn MCP - Dependency Protection Configuration
+# ============================================================================
+# This file configures license compliance, vulnerability scanning, and
+# supply chain security for Brooklyn MCP.
+#
+# Documentation:
+#   - goneat docs show user-guide/commands/dependencies
+#   - goneat docs show user-guide/workflows/dependency-gating
+#
+# ============================================================================
+
+version: v1
+
+# ============================================================================
+# LICENSE COMPLIANCE POLICY
+# ============================================================================
+# Brooklyn is MIT licensed and requires permissive-only dependencies.
+#
+licenses:
+  forbidden:
+    - GPL-3.0
+    - AGPL-3.0
+    - GPL-2.0
+    - LGPL-3.0
+    - MPL-2.0
+  allowed:
+    - MIT
+    - Apache-2.0
+    - BSD-3-Clause
+    - BSD-2-Clause
+    - ISC
+    - 0BSD
+    - Unlicense
+    - CC0-1.0
+    - CC-BY-4.0
+    - BlueOak-1.0.0
+    - Python-2.0
+
+# ============================================================================
+# PACKAGE COOLING POLICY (Supply Chain Security)
+# ============================================================================
+# Enforce minimum package age to protect against supply chain attacks.
+#
+cooling:
+  enabled: true
+  min_age_days: 7
+  min_downloads: 100
+  alert_only: false
+  grace_period_days: 3
+  exceptions:
+    - pattern: "github.com/fulmenhq/*"
+      reason: "Fulmen ecosystem packages are pre-vetted"
+      approved_by: "@3leapsdave"
+      approved_date: "2026-01-19"
+    - pattern: "@anthropic-ai/*"
+      reason: "Anthropic official packages"
+      approved_by: "@3leapsdave"
+      approved_date: "2026-01-19"
+    - pattern: "@modelcontextprotocol/*"
+      reason: "Official MCP SDK packages"
+      approved_by: "@3leapsdave"
+      approved_date: "2026-01-19"
+
+# ============================================================================
+# VULNERABILITY SCANNING
+# ============================================================================
+# Scan dependencies for known vulnerabilities using grype.
+#
+# NOTE: For TypeScript/npm projects, prefer `bun audit` for accurate results.
+# The goneat vuln scanner (syft+grype) is optimized for Go projects and may
+# produce false positives for polyglot repos.
+#
+vulnerabilities:
+  enabled: true
+  tool: grype
+
+  # Report mode - set to 'high' or 'critical' to enforce gating
+  fail_on: none
+
+  # Don't report unfixed vulnerabilities (focus on actionable items)
+  ignore_unfixed: false
+
+  # Allowlist for false positives and accepted risks
+  # Each entry should reference an SDR with analysis
+  allow:
+    # Go stdlib false positives (this is a TypeScript project)
+    # syft detects Go binaries from dist/ or CI workflow references
+    - id: CVE-2023-24531
+      status: false_positive
+      reason: "Go stdlib - not applicable to TypeScript/Bun project"
+      verified_by: "@3leapsdave"
+      verified_date: "2026-01-19"
+    - id: CVE-2024-24790
+      status: false_positive
+      reason: "Go stdlib - not applicable to TypeScript/Bun project"
+      verified_by: "@3leapsdave"
+      verified_date: "2026-01-19"
+    - id: CVE-2025-22871
+      status: false_positive
+      reason: "Go stdlib - not applicable to TypeScript/Bun project"
+      verified_by: "@3leapsdave"
+      verified_date: "2026-01-19"
+
+# ============================================================================
+# POLICY ENGINE
+# ============================================================================
+policy_engine:
+  type: embedded
+
+# ============================================================================
+# LANGUAGE-SPECIFIC SETTINGS
+# ============================================================================
+# Brooklyn is a TypeScript project built with Bun.
+# npm/bun audit is the authoritative vulnerability source.
+#
+languages:
+  - language: typescript
+    paths:
+      - package.json
+      - bun.lockb
