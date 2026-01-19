@@ -25,6 +25,17 @@ jobs:
         with:
           bun-version: latest
 
+      - name: Install goneat via sfetch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -sSfL https://github.com/3leaps/sfetch/releases/latest/download/install-sfetch.sh | bash
+          ~/.local/bin/sfetch -repo fulmenhq/goneat -latest -install
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Verify goneat installation
+        run: goneat --version
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
