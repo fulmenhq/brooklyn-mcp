@@ -90,7 +90,7 @@ brooklyn web start --port 3000 --auth-mode required --daemon
 claude mcp add -s user -t http brooklyn http://127.0.0.1:3000
 
 # Verify installation
-brooklyn_status  # Run in your MCP client - shows version and 50+ tools
+brooklyn_status  # Run in your MCP client - shows version and 79 tools
 brooklyn doctor --json  # Run in terminal - comprehensive health check
 
 # Alternative: Legacy single-agent only (stdio transport)
@@ -244,6 +244,8 @@ export class SecurityScanningPlugin {
 ---
 
 ## 📋 **Available Commands**
+
+> **Full Tool Catalog**: See [docs/tools/tool-inventory.md](docs/tools/tool-inventory.md) for all 79 tools with descriptions, or [tool-inventory.json](docs/tools/tool-inventory.json) for machine-readable schemas.
 
 ### **Browser Automation**
 

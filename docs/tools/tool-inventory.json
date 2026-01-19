@@ -1,0 +1,5087 @@
+{
+  "$schema": "./tool-inventory.schema.json",
+  "categories": [
+    "browser-lifecycle",
+    "content-capture",
+    "discovery",
+    "documentation",
+    "image-processing",
+    "interaction",
+    "navigation",
+    "onboarding",
+    "pdf-analysis",
+    "rendering",
+    "styling"
+  ],
+  "generatedBy": "scripts/generate-tool-inventory.ts",
+  "tools": [
+    {
+      "category": "interaction",
+      "description": "Add script tag to inject utilities or libraries",
+      "examples": [
+        {
+          "description": "Inject utility library for UX development",
+          "expectedOutput": {
+            "elementHandle": "script-element",
+            "success": true
+          },
+          "input": {
+            "content": "window.uxUtils = { updateStyles: (selector, styles) => { /* utility code */ } };"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "description": "Browser instance ID (optional, defaults to latest)",
+            "type": "string"
+          },
+          "content": {
+            "description": "JavaScript content to inject",
+            "type": "string"
+          },
+          "type": {
+            "default": "text/javascript",
+            "description": "Script type attribute",
+            "type": "string"
+          },
+          "url": {
+            "description": "External script URL to load",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "add_script_tag"
+    },
+    {
+      "category": "pdf-analysis",
+      "description": "Analyze PDF content structure using word and line spans for semantic understanding",
+      "inputSchema": {
+        "properties": {
+          "analysisTypes": {
+            "default": [
+              "structure",
+              "content"
+            ],
+            "description": "Types of analysis to perform",
+            "items": {
+              "enum": [
+                "structure",
+                "layout",
+                "content",
+                "metadata"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "browserId": {
+            "description": "Browser instance ID (optional, defaults to latest)",
+            "type": "string"
+          },
+          "includeWordSpans": {
+            "default": false,
+            "description": "Include detailed word span data",
+            "type": "boolean"
+          },
+          "pageRange": {
+            "description": "Page range to analyze (optional, analyzes all if omitted)",
+            "properties": {
+              "end": {
+                "minimum": 1,
+                "type": "number"
+              },
+              "start": {
+                "minimum": 1,
+                "type": "number"
+              }
+            },
+            "type": "object"
+          },
+          "timeout": {
+            "default": 30000,
+            "description": "Timeout in milliseconds",
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "name": "analyze_pdf_content"
+    },
+    {
+      "category": "pdf-analysis",
+      "description": "Analyze PDF layout structure including columns, sections, and reading order",
+      "inputSchema": {
+        "properties": {
+          "analysisDepth": {
+            "default": "detailed",
+            "description": "Depth of layout analysis",
+            "enum": [
+              "basic",
+              "detailed",
+              "comprehensive"
+            ],
+            "type": "string"
+          },
+          "browserId": {
+            "description": "Browser instance ID (optional, defaults to latest)",
+            "type": "string"
+          },
+          "detectColumns": {
+            "default": true,
+            "description": "Detect multi-column layouts",
+            "type": "boolean"
+          },
+          "detectSections": {
+            "default": true,
+            "description": "Detect document sections and headings",
+            "type": "boolean"
+          },
+          "pageRange": {
+            "properties": {
+              "end": {
+                "minimum": 1,
+                "type": "number"
+              },
+              "start": {
+                "minimum": 1,
+                "type": "number"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "name": "analyze_pdf_layout"
+    },
+    {
+      "category": "content-capture",
+      "description": "Analyze CSS specificity with conflict detection and AI-friendly responses",
+      "examples": [
+        {
+          "description": "Find CSS conflicts for a button element",
+          "expectedOutput": {
+            "conflicts": [
+              {
+                "overriddenRules": [
+                  {
+                    "selector": ".button",
+                    "specificity": [
+                      0,
+                      0,
+                      1,
+                      0
+                    ],
+                    "value": "red"
+                  }
+                ],
+                "property": "background-color",
+                "reason": "Higher specificity",
+                "winningRule": {
+                  "selector": ".nav .button:hover",
+                  "specificity": [
+                    0,
+                    1,
+                    1,
+                    0
+                  ],
+                  "value": "blue"
+                }
+              }
+            ],
+            "recommendations": [
+              "Use .button:hover instead of .nav .button:hover to reduce specificity",
+              "Consider using CSS custom properties for theme consistency"
+            ],
+            "selector": ".button",
+            "success": true,
+            "summary": {
+              "appliedRule": ".nav .button:hover",
+              "conflicts": 2,
+              "highestSpecificity": [
+                0,
+                1,
+                1,
+                0
+              ],
+              "totalRules": 8
+            }
+          },
+          "input": {
+            "conflictsOnly": true,
+            "selector": ".button",
+            "summarize": true
+          }
+        },
+        {
+          "description": "Detailed analysis of color properties",
+          "expectedOutput": {
+            "rules": [
+              {
+                "properties": {
+                  "background-color": "white",
+                  "color": "black"
+                },
+                "selector": ".text",
+                "source": "stylesheet.css",
+                "specificity": [
+                  0,
+                  0,
+                  1,
+                  0
+                ]
+              }
+            ],
+            "selector": ".text",
+            "success": true,
+            "summary": {
+              "appliedRule": ".text",
+              "conflicts": 0,
+              "highestSpecificity": [
+                0,
+                0,
+                1,
+                0
+              ],
+              "totalRules": 3
+            }
+          },
+          "input": {
+            "conflictsOnly": false,
+            "maxRules": 5,
+            "properties": [
+              "color",
+              "background-color"
+            ],
+            "selector": ".text"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "description": "Browser instance ID (optional, defaults to latest)",
+            "type": "string"
+          },
+          "conflictsOnly": {
+            "default": true,
+            "description": "Only show conflicting rules (default: true)",
+            "type": "boolean"
+          },
+          "includeInherited": {
+            "default": false,
+            "description": "Include inherited rules (default: false)",
+            "type": "boolean"
+          },
+          "maxRules": {
+            "default": 10,
+            "description": "Limit rules returned (default: 10)",
+            "type": "number"
+          },
+          "properties": {
+            "description": "Filter to specific CSS properties",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "pseudoElements": {
+            "description": "Analyze pseudo-elements like :hover, :focus",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "selector": {
+            "description": "CSS selector to analyze",
+            "type": "string"
+          },
+          "summarize": {
+            "default": true,
+            "description": "Summary vs detailed analysis (default: true)",
+            "type": "boolean"
+          },
+          "timeout": {
+            "default": 30000,
+            "description": "Timeout in milliseconds",
+            "type": "number"
+          }
+        },
+        "required": [
+          "selector"
+        ],
+        "type": "object"
+      },
+      "name": "analyze_specificity"
+    },
+    {
+      "category": "image-processing",
+      "description": "Analyze SVG file complexity and get optimization recommendations. Useful for understanding SVG structure before compression. Requires SVGO library.",
+      "examples": [
+        {
+          "description": "Analyze a complex SVG file for optimization opportunities",
+          "expectedOutput": {
+            "complexityScore": 72,
+            "elementCount": 156,
+            "fileSize": 23450,
+            "hasComments": false,
+            "hasMetadata": true,
+            "pathCount": 89,
+            "recommendations": [
+              "Remove metadata to reduce file size",
+              "Consider simplifying complex paths",
+              "High element count - consider grouping or simplification"
+            ],
+            "success": true
+          },
+          "input": {
+            "filePath": "/path/to/design-system-icons.svg"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "filePath": {
+            "description": "Path to the SVG file to analyze",
+            "type": "string"
+          }
+        },
+        "required": [
+          "filePath"
+        ],
+        "type": "object"
+      },
+      "name": "analyze_svg",
+      "nativeDependencies": [
+        "svgo"
+      ]
+    },
+    {
+      "category": "styling",
+      "description": "Apply a temporary CSS override rule scoped to a selector",
+      "examples": [
+        {
+          "description": "Lift a shifted main frame temporarily",
+          "expectedOutput": {
+            "overrideId": "override-456",
+            "success": true
+          },
+          "input": {
+            "cssRules": {
+              "position": "relative",
+              "transform": "translateY(-596px)"
+            },
+            "important": true,
+            "selector": ".main-frame"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "type": "string"
+          },
+          "cssRules": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Map of CSS properties to values",
+            "type": "object"
+          },
+          "important": {
+            "default": false,
+            "description": "Append !important to each rule",
+            "type": "boolean"
+          },
+          "selector": {
+            "description": "CSS selector to target",
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "selector",
+          "cssRules"
+        ],
+        "type": "object"
+      },
+      "name": "apply_css_override"
+    },
+    {
+      "category": "onboarding",
+      "description": "List all available browser automation capabilities and tools",
+      "inputSchema": {
+        "properties": {
+          "category": {
+            "default": "all",
+            "description": "Category of capabilities to show",
+            "enum": [
+              "core",
+              "plugins",
+              "testing",
+              "all"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [],
+        "type": "object"
+      },
+      "name": "brooklyn_capabilities"
+    },
+    {
+      "category": "documentation",
+      "description": "Access Brooklyn documentation with smart retrieval, platform-aware guidance, and keyword search. Extensible framework for documentation access.",
+      "examples": [
+        {
+          "description": "Get native dependency installation guide for current platform",
+          "expectedOutput": {
+            "content": "# Native Dependencies Installation Guide...",
+            "platform": "darwin",
+            "relatedTopics": [
+              "installation",
+              "troubleshooting"
+            ],
+            "success": true,
+            "topic": "native-dependencies"
+          },
+          "input": {
+            "format": "markdown",
+            "platform": "auto",
+            "topic": "native-dependencies"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "format": {
+            "default": "markdown",
+            "description": "Output format for documentation content",
+            "enum": [
+              "markdown",
+              "summary",
+              "structured"
+            ],
+            "type": "string"
+          },
+          "platform": {
+            "default": "auto",
+            "description": "Filter content for specific platform (auto-detects if not specified)",
+            "enum": [
+              "darwin",
+              "linux",
+              "win32",
+              "auto"
+            ],
+            "type": "string"
+          },
+          "search": {
+            "description": "Keywords to search within documentation content",
+            "type": "string"
+          },
+          "topic": {
+            "description": "Specific documentation topic to retrieve",
+            "enum": [
+              "native-dependencies",
+              "getting-started",
+              "troubleshooting",
+              "installation",
+              "architecture",
+              "examples",
+              "all"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "brooklyn_docs"
+    },
+    {
+      "category": "onboarding",
+      "description": "Get practical examples and code snippets for common Brooklyn tasks",
+      "inputSchema": {
+        "properties": {
+          "format": {
+            "default": "claude_commands",
+            "description": "Format for the examples",
+            "enum": [
+              "claude_commands",
+              "api_calls",
+              "test_code"
+            ],
+            "type": "string"
+          },
+          "task": {
+            "default": "basic_navigation",
+            "description": "Type of example to show",
+            "enum": [
+              "basic_navigation",
+              "screenshot_comparison",
+              "form_filling",
+              "element_interaction",
+              "wait_strategies",
+              "error_handling",
+              "all"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [],
+        "type": "object"
+      },
+      "name": "brooklyn_examples"
+    },
+    {
+      "category": "onboarding",
+      "description": "Get a step-by-step guide for getting started with Brooklyn",
+      "inputSchema": {
+        "properties": {
+          "team_id": {
+            "description": "Your team identifier (optional)",
+            "type": "string"
+          },
+          "use_case": {
+            "default": "ai_development",
+            "description": "Your primary use case for Brooklyn",
+            "enum": [
+              "ai_development",
+              "e2e_testing",
+              "form_automation",
+              "monitoring"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [],
+        "type": "object"
+      },
+      "name": "brooklyn_getting_started"
+    },
+    {
+      "category": "discovery",
+      "description": "Retrieve all available Brooklyn tools organized by category",
+      "examples": [
+        {
+          "description": "List all browser lifecycle tools",
+          "expectedOutput": {
+            "category": "browser-lifecycle",
+            "count": 3,
+            "tools": [
+              "launch_browser",
+              "close_browser",
+              "list_active_browsers"
+            ]
+          },
+          "input": {
+            "category": "browser-lifecycle",
+            "includeExamples": true
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "category": {
+            "description": "Filter by specific category (optional)",
+            "type": "string"
+          },
+          "includeExamples": {
+            "default": true,
+            "description": "Include usage examples",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "name": "brooklyn_list_tools"
+    },
+    {
+      "category": "onboarding",
+      "description": "Access Brooklyn MCP server logs for debugging and monitoring",
+      "inputSchema": {
+        "properties": {
+          "level": {
+            "default": "all",
+            "description": "Filter logs by level",
+            "enum": [
+              "debug",
+              "info",
+              "warn",
+              "error",
+              "all"
+            ],
+            "type": "string"
+          },
+          "lines": {
+            "default": 50,
+            "description": "Number of recent log lines to return",
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "number"
+          },
+          "since": {
+            "description": "Return logs since this timestamp (ISO 8601 format)",
+            "type": "string"
+          }
+        },
+        "required": [],
+        "type": "object"
+      },
+      "name": "brooklyn_logs"
+    },
+    {
+      "category": "onboarding",
+      "description": "Get comprehensive status of Brooklyn MCP server including version, capabilities, and health",
+      "inputSchema": {
+        "properties": {
+          "detail": {
+            "default": "basic",
+            "description": "Level of detail in the status report",
+            "enum": [
+              "basic",
+              "full",
+              "teams"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [],
+        "type": "object"
+      },
+      "name": "brooklyn_status"
+    },
+    {
+      "category": "onboarding",
+      "description": "Help configure Brooklyn for your team's specific needs",
+      "inputSchema": {
+        "properties": {
+          "domains": {
+            "description": "Domains your team needs to access",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "team_id": {
+            "description": "Your team identifier",
+            "type": "string"
+          },
+          "use_cases": {
+            "description": "Your team's use cases",
+            "items": {
+              "enum": [
+                "e2e_testing",
+                "form_automation",
+                "monitoring",
+                "ux_development"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "team_id"
+        ],
+        "type": "object"
+      },
+      "name": "brooklyn_team_setup"
+    },
+    {
+      "category": "discovery",
+      "description": "Get detailed help and examples for a specific tool",
+      "examples": [
+        {
+          "description": "Get help for screenshot tool",
+          "expectedOutput": {
+            "category": "content-capture",
+            "description": "Capture a screenshot of the current page or specific element",
+            "errors": [
+              "..."
+            ],
+            "examples": [
+              "..."
+            ],
+            "name": "take_screenshot"
+          },
+          "input": {
+            "toolName": "take_screenshot"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "toolName": {
+            "description": "Name of the tool to get help for",
+            "type": "string"
+          }
+        },
+        "required": [
+          "toolName"
+        ],
+        "type": "object"
+      },
+      "name": "brooklyn_tool_help"
+    },
+    {
+      "category": "onboarding",
+      "description": "Get help with common Brooklyn issues and debugging",
+      "inputSchema": {
+        "properties": {
+          "error_message": {
+            "description": "Any error message you're seeing",
+            "type": "string"
+          },
+          "issue": {
+            "default": "general",
+            "description": "Type of issue you're experiencing",
+            "enum": [
+              "connection_failed",
+              "browser_wont_start",
+              "domain_blocked",
+              "timeout_errors",
+              "performance_slow",
+              "permissions_denied",
+              "general"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [],
+        "type": "object"
+      },
+      "name": "brooklyn_troubleshooting"
+    },
+    {
+      "category": "interaction",
+      "description": "Clear the content of an input field, textarea, or editable element",
+      "errors": [
+        {
+          "code": "ELEMENT_NOT_FOUND",
+          "message": "Element not found with specified selector",
+          "solution": "Verify the CSS selector and ensure element exists"
+        },
+        {
+          "code": "ELEMENT_NOT_CLEARABLE",
+          "message": "Element is not an input, textarea, or contenteditable",
+          "solution": "Use a selector that targets a clearable element type"
+        },
+        {
+          "code": "ELEMENT_NOT_ACTIONABLE",
+          "message": "Element is disabled or not visible",
+          "solution": "Ensure element is enabled and visible, or use force: true"
+        }
+      ],
+      "examples": [
+        {
+          "description": "Clear a search input field",
+          "expectedOutput": {
+            "cleared": true,
+            "previousValue": "previous search terms",
+            "selector": "#search-input",
+            "success": true
+          },
+          "input": {
+            "selector": "#search-input",
+            "timeout": 3000
+          }
+        },
+        {
+          "description": "Clear a textarea with force option",
+          "expectedOutput": {
+            "cleared": true,
+            "previousValue": "draft comment text",
+            "selector": "[data-testid='comment-textarea']",
+            "success": true
+          },
+          "input": {
+            "force": true,
+            "selector": "[data-testid='comment-textarea']"
+          }
+        },
+        {
+          "description": "Clear a contenteditable element",
+          "expectedOutput": {
+            "cleared": true,
+            "previousValue": "rich text content",
+            "selector": ".rich-text-editor[contenteditable='true']",
+            "success": true
+          },
+          "input": {
+            "selector": ".rich-text-editor[contenteditable='true']"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "description": "Optional. ID of the browser instance. If omitted or invalid, the server will resolve based on 'target'.",
+            "type": "string"
+          },
+          "force": {
+            "default": false,
+            "description": "Force clear even if element is not actionable",
+            "type": "boolean"
+          },
+          "selector": {
+            "description": "CSS selector for the element to clear",
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          },
+          "timeout": {
+            "default": 5000,
+            "description": "Timeout in milliseconds",
+            "maximum": 300000,
+            "minimum": 100,
+            "type": "number"
+          }
+        },
+        "required": [
+          "selector"
+        ],
+        "type": "object"
+      },
+      "name": "clear_element"
+    },
+    {
+      "category": "interaction",
+      "description": "Click an element on the page using CSS selector",
+      "errors": [
+        {
+          "code": "ELEMENT_NOT_FOUND",
+          "message": "Element not found with specified selector",
+          "solution": "Verify the CSS selector and ensure element exists"
+        },
+        {
+          "code": "ELEMENT_NOT_CLICKABLE",
+          "message": "Element is not clickable (disabled, hidden, or covered)",
+          "solution": "Wait for element to be enabled or use different selector"
+        }
+      ],
+      "examples": [
+        {
+          "description": "Click a navigation tab",
+          "expectedOutput": {
+            "message": "Element clicked successfully",
+            "selector": "[data-testid='products-tab']",
+            "success": true
+          },
+          "input": {
+            "browserId": "browser-123",
+            "selector": "[data-testid='products-tab']"
+          }
+        },
+        {
+          "description": "Click submit button with custom timeout",
+          "expectedOutput": {
+            "message": "Element clicked successfully",
+            "selector": "#submit-form-btn",
+            "success": true
+          },
+          "input": {
+            "browserId": "browser-123",
+            "selector": "#submit-form-btn",
+            "timeout": 10000
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "description": "Optional. ID of the browser instance. If omitted or invalid, the server will resolve based on 'target'.",
+            "type": "string"
+          },
+          "selector": {
+            "description": "CSS selector for element to click",
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          },
+          "timeout": {
+            "default": 5000,
+            "description": "Timeout in milliseconds",
+            "maximum": 300000,
+            "minimum": 100,
+            "type": "number"
+          },
+          "waitForClickable": {
+            "default": true,
+            "description": "Wait for element to be clickable before clicking",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "selector"
+        ],
+        "type": "object"
+      },
+      "name": "click_element"
+    },
+    {
+      "category": "browser-lifecycle",
+      "description": "Close a browser instance and release resources",
+      "examples": [
+        {
+          "description": "Close a browser after testing",
+          "expectedOutput": {
+            "browserId": "browser-123",
+            "status": "closed"
+          },
+          "input": {
+            "browserId": "browser-123"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "description": "Optional. ID of the browser to close. If omitted or invalid, the server will resolve based on 'target'.",
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "close_browser"
+    },
+    {
+      "category": "pdf-analysis",
+      "description": "Compare two PDF versions using word spans to identify changes",
+      "inputSchema": {
+        "properties": {
+          "browserId1": {
+            "description": "Browser instance ID for first PDF",
+            "type": "string"
+          },
+          "browserId2": {
+            "description": "Browser instance ID for second PDF",
+            "type": "string"
+          },
+          "comparisonType": {
+            "default": "text",
+            "description": "Type of comparison to perform",
+            "enum": [
+              "text",
+              "layout",
+              "structure"
+            ],
+            "type": "string"
+          },
+          "includeDetails": {
+            "default": true,
+            "description": "Include detailed change information",
+            "type": "boolean"
+          },
+          "pageRange": {
+            "properties": {
+              "end": {
+                "minimum": 1,
+                "type": "number"
+              },
+              "start": {
+                "minimum": 1,
+                "type": "number"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "browserId1",
+          "browserId2"
+        ],
+        "type": "object"
+      },
+      "name": "compare_pdf_versions"
+    },
+    {
+      "category": "image-processing",
+      "description": "Compress SVG files to reduce size while preserving visual quality. Essential for optimizing documentation diagrams and design assets. Requires SVGO library.",
+      "examples": [
+        {
+          "description": "Compress a Mermaid diagram SVG with standard settings",
+          "expectedOutput": {
+            "compressedSize": 8934,
+            "compressionRatio": 42.1,
+            "originalSize": 15420,
+            "outputPath": "/path/to/architecture-diagram-compressed.svg",
+            "success": true
+          },
+          "input": {
+            "compressionLevel": 5,
+            "filePath": "/path/to/architecture-diagram.svg"
+          }
+        },
+        {
+          "description": "Aggressive compression for maximum size reduction",
+          "expectedOutput": {
+            "compressionRatio": 67.3,
+            "success": true
+          },
+          "input": {
+            "compressionLevel": 9,
+            "filePath": "/path/to/complex-logo.svg",
+            "preserveIds": false,
+            "removeMetadata": true,
+            "simplifyPaths": true
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "compressionLevel": {
+            "default": 5,
+            "description": "Compression intensity: 1 (light) to 10 (aggressive)",
+            "maximum": 10,
+            "minimum": 1,
+            "type": "number"
+          },
+          "filePath": {
+            "description": "Path to the SVG file to compress",
+            "type": "string"
+          },
+          "outputPath": {
+            "description": "Optional output path for compressed SVG. If not provided, adds '-compressed' suffix to original filename",
+            "type": "string"
+          },
+          "preserveIds": {
+            "default": true,
+            "description": "Preserve element IDs for JavaScript/CSS targeting",
+            "type": "boolean"
+          },
+          "removeMetadata": {
+            "default": true,
+            "description": "Remove metadata to reduce file size",
+            "type": "boolean"
+          },
+          "simplifyPaths": {
+            "default": true,
+            "description": "Simplify path data for smaller file size",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "filePath"
+        ],
+        "type": "object"
+      },
+      "name": "compress_svg",
+      "nativeDependencies": [
+        "svgo"
+      ]
+    },
+    {
+      "category": "image-processing",
+      "description": "Convert SVG to multiple PNG sizes in a single task-based operation using headless rendering. Perfect for generating website assets at different resolutions for responsive design and progressive loading.",
+      "examples": [
+        {
+          "description": "Generate responsive website icons",
+          "expectedOutput": {
+            "processingTime": 450,
+            "results": [
+              {
+                "dimensions": {
+                  "height": 16,
+                  "width": 16
+                },
+                "outputPath": "team-id/website-icons/logo-16.png",
+                "outputSize": 1234,
+                "size": 16
+              }
+            ],
+            "success": true,
+            "taskId": "website-icons",
+            "totalOutputSize": 25678
+          },
+          "input": {
+            "outputNamePattern": "logo-{size}.png",
+            "sizes": [
+              16,
+              32,
+              64,
+              128,
+              256
+            ],
+            "svgPath": "/path/to/logo.svg",
+            "taskId": "website-icons"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "options": {
+            "properties": {
+              "backgroundColor": {
+                "description": "Background color for transparent SVGs (e.g., '#ffffff')",
+                "type": "string"
+              },
+              "dpi": {
+                "default": 96,
+                "description": "Target DPI for output images",
+                "type": "number"
+              },
+              "maintainAspectRatio": {
+                "default": true,
+                "description": "Maintain original aspect ratio when resizing",
+                "type": "boolean"
+              },
+              "quality": {
+                "default": 90,
+                "description": "PNG quality",
+                "maximum": 100,
+                "minimum": 1,
+                "type": "number"
+              }
+            },
+            "type": "object"
+          },
+          "outputNamePattern": {
+            "default": "png-{size}.png",
+            "description": "Name pattern for output files, use {size} placeholder",
+            "type": "string"
+          },
+          "sizes": {
+            "default": [
+              150,
+              300,
+              512
+            ],
+            "description": "Array of sizes to generate (width=height for square images)",
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "svgPath": {
+            "description": "Path to the SVG file to convert",
+            "type": "string"
+          },
+          "taskId": {
+            "description": "Optional task ID for grouping related assets",
+            "type": "string"
+          }
+        },
+        "required": [
+          "svgPath",
+          "sizes"
+        ],
+        "type": "object"
+      },
+      "name": "convert_svg_to_multi_png"
+    },
+    {
+      "category": "image-processing",
+      "description": "Convert SVG files to high-quality PNG images with configurable dimensions and quality. Uses headless browser rendering for accurate results.",
+      "examples": [
+        {
+          "description": "Convert SVG logo to high-resolution PNG",
+          "expectedOutput": {
+            "dimensions": {
+              "height": 512,
+              "width": 512
+            },
+            "outputPath": "/path/to/company-logo.png",
+            "outputSize": 89234,
+            "success": true
+          },
+          "input": {
+            "backgroundColor": "white",
+            "height": 512,
+            "quality": 95,
+            "svgPath": "/path/to/company-logo.svg",
+            "width": 512
+          }
+        },
+        {
+          "description": "Batch convert at multiple sizes",
+          "expectedOutput": {
+            "dimensions": {
+              "height": 150,
+              "width": 150
+            },
+            "outputPath": "/path/to/icon.png",
+            "success": true
+          },
+          "input": {
+            "svgPath": "/path/to/icon.svg",
+            "width": 150
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "backgroundColor": {
+            "description": "Background color for transparent SVGs (e.g., '#ffffff', 'white')",
+            "type": "string"
+          },
+          "dpi": {
+            "default": 96,
+            "description": "Target DPI for output image",
+            "type": "number"
+          },
+          "height": {
+            "description": "Output height in pixels",
+            "maximum": 8192,
+            "minimum": 1,
+            "type": "number"
+          },
+          "maintainAspectRatio": {
+            "default": true,
+            "description": "Maintain original aspect ratio when resizing",
+            "type": "boolean"
+          },
+          "outputPath": {
+            "description": "Optional output path for PNG file. If not provided, replaces SVG extension with .png",
+            "type": "string"
+          },
+          "quality": {
+            "default": 90,
+            "description": "PNG quality (1-100)",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "number"
+          },
+          "svgPath": {
+            "description": "Path to the SVG file to convert",
+            "type": "string"
+          },
+          "width": {
+            "description": "Output width in pixels",
+            "maximum": 8192,
+            "minimum": 1,
+            "type": "number"
+          }
+        },
+        "required": [
+          "svgPath"
+        ],
+        "type": "object"
+      },
+      "name": "convert_svg_to_png"
+    },
+    {
+      "category": "content-capture",
+      "description": "Analyze page structure and provide actionable insights without token overflow",
+      "errors": [
+        {
+          "code": "PAGE_ANALYSIS_FAILED",
+          "message": "Failed to analyze page structure",
+          "solution": "Ensure page is fully loaded and retry"
+        }
+      ],
+      "examples": [
+        {
+          "description": "Analyze complex page structure before extraction",
+          "expectedOutput": {
+            "interactiveElements": {
+              "buttons": 67,
+              "inputs": 8,
+              "links": 234,
+              "selects": 0,
+              "textareas": 2
+            },
+            "pageStats": {
+              "domDepth": 15,
+              "tokenEstimate": 830127,
+              "totalElements": 4521,
+              "totalSize": "2.3MB"
+            },
+            "recommendations": [
+              "Page too large (830,127 tokens). Use get_html with specific selectors.",
+              "Try extracting: 'main' (1.8MB), 'header' (45KB), 'footer' (120KB)",
+              "1 forms found. Use find_elements to locate form inputs.",
+              "67 buttons found. Use click_element for interaction."
+            ],
+            "structure": {
+              "forms": [
+                {
+                  "description": "Form: search-form",
+                  "hasPassword": false,
+                  "hasSubmit": true,
+                  "inputs": 3,
+                  "selector": "#search-form"
+                }
+              ],
+              "media": {
+                "iframes": 12,
+                "images": 145,
+                "videos": 8
+              },
+              "sections": [
+                {
+                  "description": "Main content area",
+                  "elements": 3102,
+                  "selector": "main",
+                  "size": "1.8MB",
+                  "tokenEstimate": 650000
+                }
+              ]
+            },
+            "success": true
+          },
+          "input": {}
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "description": "Optional. ID of the browser instance. If omitted or invalid, the server will resolve based on 'target'.",
+            "type": "string"
+          },
+          "maxDepth": {
+            "default": 20,
+            "description": "Maximum DOM depth to analyze (optional)",
+            "type": "number"
+          },
+          "target": {
+            "default": "latest",
+            "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          },
+          "timeout": {
+            "default": 10000,
+            "description": "Timeout in milliseconds",
+            "maximum": 300000,
+            "minimum": 100,
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "name": "describe_html"
+    },
+    {
+      "category": "content-capture",
+      "description": "Compare CSS styles to track changes after modifications",
+      "inputSchema": {
+        "properties": {
+          "baseline": {
+            "type": "object"
+          },
+          "browserId": {
+            "type": "string"
+          },
+          "selector": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "selector",
+          "baseline"
+        ],
+        "type": "object"
+      },
+      "name": "diff_css"
+    },
+    {
+      "category": "interaction",
+      "description": "Drag an element from a source location to a target location",
+      "errors": [
+        {
+          "code": "SOURCE_NOT_FOUND",
+          "message": "Source element not found with specified selector",
+          "solution": "Verify the source CSS selector and ensure element exists"
+        },
+        {
+          "code": "TARGET_NOT_FOUND",
+          "message": "Target element not found with specified selector",
+          "solution": "Verify the target CSS selector and ensure element exists"
+        },
+        {
+          "code": "DRAG_NOT_ACTIONABLE",
+          "message": "Source or target element is not actionable for drag operations",
+          "solution": "Ensure elements are visible and enabled, or use force: true"
+        },
+        {
+          "code": "DRAG_OPERATION_FAILED",
+          "message": "Drag and drop operation failed to complete",
+          "solution": "Check if elements support drag/drop events or adjust positioning"
+        }
+      ],
+      "examples": [
+        {
+          "description": "Drag a file from list to upload area",
+          "expectedOutput": {
+            "dragCompleted": true,
+            "sourceSelector": "[data-file-id='document.pdf']",
+            "success": true,
+            "targetSelector": "#upload-dropzone"
+          },
+          "input": {
+            "sourceSelector": "[data-file-id='document.pdf']",
+            "targetSelector": "#upload-dropzone",
+            "timeout": 3000
+          }
+        },
+        {
+          "description": "Drag task card to different column in kanban board",
+          "expectedOutput": {
+            "dragCompleted": true,
+            "sourceSelector": "[data-task-id='TASK-123']",
+            "success": true,
+            "targetSelector": "[data-column='in-progress']"
+          },
+          "input": {
+            "sourcePosition": {
+              "x": 10,
+              "y": 10
+            },
+            "sourceSelector": "[data-task-id='TASK-123']",
+            "targetPosition": {
+              "x": 50,
+              "y": 20
+            },
+            "targetSelector": "[data-column='in-progress']"
+          }
+        },
+        {
+          "description": "Drag slider handle to adjust value",
+          "expectedOutput": {
+            "dragCompleted": true,
+            "sourceSelector": ".slider-handle",
+            "success": true,
+            "targetSelector": ".slider-track"
+          },
+          "input": {
+            "force": true,
+            "sourceSelector": ".slider-handle",
+            "targetPosition": {
+              "x": 75,
+              "y": 0
+            },
+            "targetSelector": ".slider-track"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "description": "Optional. ID of the browser instance. If omitted or invalid, the server will resolve based on 'target'.",
+            "type": "string"
+          },
+          "force": {
+            "default": false,
+            "description": "Force drag even if elements are not actionable",
+            "type": "boolean"
+          },
+          "sourcePosition": {
+            "description": "Specific position within source element to start drag (optional)",
+            "properties": {
+              "x": {
+                "type": "number"
+              },
+              "y": {
+                "type": "number"
+              }
+            },
+            "type": "object"
+          },
+          "sourceSelector": {
+            "description": "CSS selector for the element to drag",
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          },
+          "targetPosition": {
+            "description": "Specific position within target element to drop (optional)",
+            "properties": {
+              "x": {
+                "type": "number"
+              },
+              "y": {
+                "type": "number"
+              }
+            },
+            "type": "object"
+          },
+          "targetSelector": {
+            "description": "CSS selector for the drop target element",
+            "type": "string"
+          },
+          "timeout": {
+            "default": 5000,
+            "description": "Timeout in milliseconds",
+            "maximum": 300000,
+            "minimum": 100,
+            "type": "number"
+          }
+        },
+        "required": [
+          "sourceSelector",
+          "targetSelector"
+        ],
+        "type": "object"
+      },
+      "name": "drag_and_drop"
+    },
+    {
+      "category": "interaction",
+      "description": "Evaluate JavaScript expression and return its value",
+      "examples": [
+        {
+          "description": "Get computed style value for UX analysis",
+          "expectedOutput": {
+            "serializable": true,
+            "success": true,
+            "type": "string",
+            "value": "rgb(255, 0, 0)"
+          },
+          "input": {
+            "expression": "getComputedStyle(document.querySelector('.btn')).backgroundColor"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "awaitPromise": {
+            "default": false,
+            "description": "Whether to await Promise results",
+            "type": "boolean"
+          },
+          "browserId": {
+            "description": "Browser instance ID (optional, defaults to latest)",
+            "type": "string"
+          },
+          "expression": {
+            "description": "JavaScript expression to evaluate",
+            "type": "string"
+          },
+          "timeout": {
+            "default": 30000,
+            "description": "Timeout in milliseconds",
+            "type": "number"
+          }
+        },
+        "required": [
+          "expression"
+        ],
+        "type": "object"
+      },
+      "name": "evaluate_expression"
+    },
+    {
+      "category": "interaction",
+      "description": "Execute JavaScript in browser context for instant UX modifications",
+      "examples": [
+        {
+          "description": "Instantly change button color for UX iteration",
+          "expectedOutput": {
+            "executionTime": 45,
+            "result": "Style updated",
+            "success": true
+          },
+          "input": {
+            "script": "document.querySelector('.btn').style.background = 'blue'; return 'Style updated';"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "args": {
+            "description": "Arguments to pass to the script",
+            "items": {},
+            "type": "array"
+          },
+          "awaitPromise": {
+            "default": false,
+            "description": "Whether to await Promise results",
+            "type": "boolean"
+          },
+          "browserId": {
+            "description": "Browser instance ID (optional, defaults to latest)",
+            "type": "string"
+          },
+          "script": {
+            "description": "JavaScript code to execute",
+            "type": "string"
+          },
+          "timeout": {
+            "default": 30000,
+            "description": "Timeout in milliseconds",
+            "type": "number"
+          }
+        },
+        "required": [
+          "script"
+        ],
+        "type": "object"
+      },
+      "name": "execute_script"
+    },
+    {
+      "category": "content-capture",
+      "description": "Extract CSS styles for an element with token limits to prevent overflow",
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "type": "string"
+          },
+          "includeComputed": {
+            "default": true,
+            "description": "Include computed styles (default: true)",
+            "type": "boolean"
+          },
+          "includeInherited": {
+            "default": false,
+            "description": "Include inherited styles (default: false)",
+            "type": "boolean"
+          },
+          "maxTokens": {
+            "default": 10000,
+            "description": "Maximum tokens to return (default: 10000)",
+            "maximum": 50000,
+            "minimum": 100,
+            "type": "number"
+          },
+          "properties": {
+            "description": "Specific CSS properties to extract (default: all)",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "selector": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "selector"
+        ],
+        "type": "object"
+      },
+      "name": "extract_css"
+    },
+    {
+      "category": "pdf-analysis",
+      "description": "Extract and analyze form fields and interactive elements from PDF",
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "description": "Browser instance ID (optional, defaults to latest)",
+            "type": "string"
+          },
+          "extractValues": {
+            "default": false,
+            "description": "Attempt to extract current form values",
+            "type": "boolean"
+          },
+          "includeLayout": {
+            "default": true,
+            "description": "Include form layout information",
+            "type": "boolean"
+          },
+          "pageRange": {
+            "properties": {
+              "end": {
+                "minimum": 1,
+                "type": "number"
+              },
+              "start": {
+                "minimum": 1,
+                "type": "number"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "name": "extract_pdf_forms"
+    },
+    {
+      "category": "pdf-analysis",
+      "description": "Extract tabular data from PDF using layout analysis and word spans",
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "description": "Browser instance ID (optional, defaults to latest)",
+            "type": "string"
+          },
+          "includeHeaders": {
+            "default": true,
+            "description": "Attempt to identify and include table headers",
+            "type": "boolean"
+          },
+          "outputFormat": {
+            "default": "json",
+            "description": "Output format for extracted tables",
+            "enum": [
+              "json",
+              "csv",
+              "markdown"
+            ],
+            "type": "string"
+          },
+          "pageRange": {
+            "properties": {
+              "end": {
+                "minimum": 1,
+                "type": "number"
+              },
+              "start": {
+                "minimum": 1,
+                "type": "number"
+              }
+            },
+            "type": "object"
+          },
+          "tableDetection": {
+            "default": "auto",
+            "description": "Table detection method",
+            "enum": [
+              "auto",
+              "manual"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "extract_pdf_tables"
+    },
+    {
+      "category": "pdf-analysis",
+      "description": "Extract structured text content from PDF using word/line spans",
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "description": "Browser instance ID (optional, defaults to latest)",
+            "type": "string"
+          },
+          "format": {
+            "default": "structured",
+            "description": "Output format",
+            "enum": [
+              "structured",
+              "plain",
+              "markdown"
+            ],
+            "type": "string"
+          },
+          "includeMetadata": {
+            "default": false,
+            "description": "Include font and style metadata",
+            "type": "boolean"
+          },
+          "pageRange": {
+            "properties": {
+              "end": {
+                "minimum": 1,
+                "type": "number"
+              },
+              "start": {
+                "minimum": 1,
+                "type": "number"
+              }
+            },
+            "type": "object"
+          },
+          "preserveLayout": {
+            "default": true,
+            "description": "Preserve spatial layout in output",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "name": "extract_pdf_text"
+    },
+    {
+      "category": "interaction",
+      "description": "Populate multiple form fields using a field mapping object",
+      "errors": [
+        {
+          "code": "PARTIAL_FORM_FILL_FAILURE",
+          "message": "Some form fields could not be filled",
+          "solution": "Check individual field results and verify selectors"
+        }
+      ],
+      "examples": [
+        {
+          "description": "Fill user login form",
+          "expectedOutput": {
+            "fieldsProcessed": 2,
+            "message": "Form filled successfully",
+            "results": [
+              {
+                "selector": "#operatorId",
+                "success": true,
+                "textLength": 9
+              },
+              {
+                "selector": "#password",
+                "success": true,
+                "textLength": 11
+              }
+            ],
+            "success": true
+          },
+          "input": {
+            "browserId": "browser-123",
+            "fieldMapping": {
+              "#operatorId": "driver001",
+              "#password": "testpass123"
+            }
+          }
+        },
+        {
+          "description": "Fill order creation form",
+          "expectedOutput": {
+            "fieldsProcessed": 3,
+            "message": "Form filled successfully",
+            "results": [
+              {
+                "selector": "#customerId",
+                "success": true,
+                "textLength": 8
+              },
+              {
+                "selector": "#amount",
+                "success": true,
+                "textLength": 6
+              },
+              {
+                "selector": "#invoiceId",
+                "success": true,
+                "textLength": 7
+              }
+            ],
+            "success": true
+          },
+          "input": {
+            "browserId": "browser-123",
+            "fieldMapping": {
+              "#amount": "150.00",
+              "#customerId": "CUST-123",
+              "#invoiceId": "INV-456"
+            }
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "description": "Optional. ID of the browser instance. If omitted or invalid, the server will resolve based on 'target'.",
+            "type": "string"
+          },
+          "fieldMapping": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Object mapping CSS selectors to their text values",
+            "type": "object"
+          },
+          "target": {
+            "default": "latest",
+            "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          },
+          "timeout": {
+            "default": 5000,
+            "description": "Timeout in milliseconds for each field",
+            "maximum": 300000,
+            "minimum": 100,
+            "type": "number"
+          }
+        },
+        "required": [
+          "fieldMapping"
+        ],
+        "type": "object"
+      },
+      "name": "fill_form"
+    },
+    {
+      "category": "interaction",
+      "description": "Enter text into an input field using CSS selector",
+      "errors": [
+        {
+          "code": "ELEMENT_NOT_FOUND",
+          "message": "Input element not found with specified selector",
+          "solution": "Verify the CSS selector and ensure input element exists"
+        },
+        {
+          "code": "ELEMENT_NOT_EDITABLE",
+          "message": "Element is not editable (disabled or readonly)",
+          "solution": "Ensure element is enabled and not readonly"
+        }
+      ],
+      "examples": [
+        {
+          "description": "Fill operator ID in login form",
+          "expectedOutput": {
+            "message": "Text filled successfully",
+            "selector": "#operatorId",
+            "success": true,
+            "textLength": 9
+          },
+          "input": {
+            "browserId": "browser-123",
+            "selector": "#operatorId",
+            "text": "driver001"
+          }
+        },
+        {
+          "description": "Fill card number in Collect.js iframe",
+          "expectedOutput": {
+            "message": "Text filled successfully",
+            "selector": "input[name='ccnumber']",
+            "success": true,
+            "textLength": 16
+          },
+          "input": {
+            "browserId": "browser-123",
+            "clearFirst": true,
+            "selector": "input[name='ccnumber']",
+            "text": "4111111111111111"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "description": "Optional. ID of the browser instance. If omitted or invalid, the server will resolve based on 'target'.",
+            "type": "string"
+          },
+          "clearFirst": {
+            "default": true,
+            "description": "Clear existing text before filling",
+            "type": "boolean"
+          },
+          "selector": {
+            "description": "CSS selector for input element",
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          },
+          "text": {
+            "description": "Text to enter into the field",
+            "type": "string"
+          },
+          "timeout": {
+            "default": 5000,
+            "description": "Timeout in milliseconds",
+            "maximum": 300000,
+            "minimum": 100,
+            "type": "number"
+          }
+        },
+        "required": [
+          "selector",
+          "text"
+        ],
+        "type": "object"
+      },
+      "name": "fill_text"
+    },
+    {
+      "category": "interaction",
+      "description": "Locate all elements matching a CSS selector",
+      "examples": [
+        {
+          "description": "Find all navigation tabs",
+          "expectedOutput": {
+            "count": 3,
+            "elements": [
+              {
+                "selector": "[data-testid='home-nav-tab']",
+                "text": "Home"
+              },
+              {
+                "selector": "[data-testid='products-nav-tab']",
+                "text": "Products"
+              },
+              {
+                "selector": "[data-testid='contact-nav-tab']",
+                "text": "Contact"
+              }
+            ],
+            "success": true
+          },
+          "input": {
+            "browserId": "browser-123",
+            "selector": "[data-testid*='nav-tab']"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "description": "Optional. ID of the browser instance. If omitted or invalid, the server will resolve based on 'target'.",
+            "type": "string"
+          },
+          "selector": {
+            "description": "CSS selector for elements",
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          },
+          "timeout": {
+            "default": 5000,
+            "description": "Timeout in milliseconds",
+            "maximum": 300000,
+            "minimum": 100,
+            "type": "number"
+          }
+        },
+        "required": [
+          "selector"
+        ],
+        "type": "object"
+      },
+      "name": "find_elements"
+    },
+    {
+      "category": "content-capture",
+      "description": "Identify flex, grid, and positioned layout containers with key properties",
+      "examples": [
+        {
+          "description": "List layout containers",
+          "expectedOutput": {
+            "containers": [
+              {
+                "selector": "main",
+                "type": "flex"
+              }
+            ]
+          },
+          "input": {}
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "find_layout_containers"
+    },
+    {
+      "category": "interaction",
+      "description": "Focus an element on the page for accessibility and keyboard navigation",
+      "errors": [
+        {
+          "code": "ELEMENT_NOT_FOUND",
+          "message": "Element not found with specified selector",
+          "solution": "Verify the CSS selector and ensure element exists"
+        },
+        {
+          "code": "ELEMENT_NOT_FOCUSABLE",
+          "message": "Element is not focusable (disabled or hidden)",
+          "solution": "Ensure element is visible and focusable"
+        }
+      ],
+      "examples": [
+        {
+          "description": "Focus on an input field for keyboard entry",
+          "expectedOutput": {
+            "focused": true,
+            "selector": "#username",
+            "success": true
+          },
+          "input": {
+            "browserId": "browser-123",
+            "selector": "#username"
+          }
+        },
+        {
+          "description": "Focus on a button for keyboard navigation",
+          "expectedOutput": {
+            "focused": true,
+            "selector": ".submit-btn",
+            "success": true
+          },
+          "input": {
+            "browserId": "browser-123",
+            "selector": ".submit-btn",
+            "timeout": 3000
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "description": "Optional. ID of the browser instance. If omitted or invalid, the server will resolve based on 'target'.",
+            "type": "string"
+          },
+          "selector": {
+            "description": "CSS selector for element to focus",
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          },
+          "timeout": {
+            "default": 5000,
+            "description": "Timeout in milliseconds",
+            "maximum": 300000,
+            "minimum": 100,
+            "type": "number"
+          }
+        },
+        "required": [
+          "selector"
+        ],
+        "type": "object"
+      },
+      "name": "focus_element"
+    },
+    {
+      "category": "interaction",
+      "description": "Generate robust CSS selectors from natural language descriptions",
+      "examples": [
+        {
+          "description": "Find a blue submit button",
+          "expectedOutput": {
+            "description": "the blue submit button",
+            "recommendations": [],
+            "selectors": [
+              {
+                "confidence": 0.9,
+                "description": "Matches 1 element",
+                "matches": 1,
+                "reasoning": "Selected based on stable data attributes with high confidence match",
+                "selector": "[data-action=\"submit\"]",
+                "stability": "high"
+              },
+              {
+                "confidence": 0.8,
+                "description": "Matches 1 element",
+                "matches": 1,
+                "reasoning": "Selected based on semantic HTML element with good confidence match",
+                "selector": "button[type=\"submit\"]",
+                "stability": "medium"
+              }
+            ],
+            "success": true
+          },
+          "input": {
+            "description": "the blue submit button",
+            "preferStable": true
+          }
+        },
+        {
+          "description": "Find navigation menu with context",
+          "expectedOutput": {
+            "description": "main navigation menu",
+            "recommendations": [
+              "Consider adding data-testid attributes for better stability"
+            ],
+            "selectors": [
+              {
+                "confidence": 0.95,
+                "description": "Matches 1 element",
+                "matches": 1,
+                "reasoning": "Selected based on accessibility attributes with high confidence match",
+                "selector": "header nav[role=\"navigation\"]",
+                "stability": "high"
+              },
+              {
+                "confidence": 0.7,
+                "description": "Matches 1 element",
+                "matches": 1,
+                "reasoning": "Selected based on CSS class matching description",
+                "selector": "header .navbar",
+                "stability": "low"
+              }
+            ],
+            "success": true
+          },
+          "input": {
+            "context": "header",
+            "description": "main navigation menu",
+            "maxSelectors": 3
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "description": "Browser instance ID (optional, defaults to latest)",
+            "type": "string"
+          },
+          "context": {
+            "description": "Parent element context for scoping",
+            "type": "string"
+          },
+          "description": {
+            "description": "Natural language description of element to find",
+            "type": "string"
+          },
+          "maxSelectors": {
+            "default": 5,
+            "description": "Maximum number of selectors to return (default: 5)",
+            "type": "number"
+          },
+          "preferStable": {
+            "default": true,
+            "description": "Prefer data-* attributes over classes (default: true)",
+            "type": "boolean"
+          },
+          "timeout": {
+            "default": 30000,
+            "description": "Timeout in milliseconds",
+            "type": "number"
+          }
+        },
+        "required": [
+          "description"
+        ],
+        "type": "object"
+      },
+      "name": "generate_selector"
+    },
+    {
+      "category": "styling",
+      "description": "List author rules that match the element, with specificity and properties",
+      "examples": [
+        {
+          "description": "List rules that affect .card",
+          "expectedOutput": {
+            "rules": [
+              {
+                "order": 123,
+                "properties": [
+                  {
+                    "important": false,
+                    "name": "margin-top",
+                    "value": "16px"
+                  }
+                ],
+                "selector": ".grid .card",
+                "source": {
+                  "href": "/styles/site.css",
+                  "origin": "author"
+                },
+                "specificity": [
+                  0,
+                  1,
+                  1
+                ]
+              }
+            ],
+            "success": true
+          },
+          "input": {
+            "limit": 10,
+            "selector": ".card"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "type": "string"
+          },
+          "limit": {
+            "default": 50,
+            "type": "number"
+          },
+          "properties": {
+            "description": "Filter to these CSS properties",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "selector": {
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "selector"
+        ],
+        "type": "object"
+      },
+      "name": "get_applicable_rules"
+    },
+    {
+      "category": "content-capture",
+      "description": "Get attribute value(s) from an element for inspection and validation",
+      "errors": [
+        {
+          "code": "ELEMENT_NOT_FOUND",
+          "message": "Element not found with specified selector",
+          "solution": "Verify the CSS selector and ensure element exists"
+        }
+      ],
+      "examples": [
+        {
+          "description": "Get specific attribute value",
+          "expectedOutput": {
+            "attribute": "disabled",
+            "exists": false,
+            "selector": "#submit-button",
+            "success": true,
+            "value": null
+          },
+          "input": {
+            "attribute": "disabled",
+            "selector": "#submit-button"
+          }
+        },
+        {
+          "description": "Get all attributes for element analysis",
+          "expectedOutput": {
+            "attributes": {
+              "alt": "User Profile Picture",
+              "class": "avatar rounded-full",
+              "data-testid": "user-avatar",
+              "height": "64",
+              "src": "https://example.com/avatar.jpg",
+              "width": "64"
+            },
+            "selector": "[data-testid='user-avatar']",
+            "success": true
+          },
+          "input": {
+            "selector": "[data-testid='user-avatar']"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "attribute": {
+            "description": "Specific attribute name to get (optional, returns all if omitted)",
+            "type": "string"
+          },
+          "browserId": {
+            "description": "Optional. ID of the browser instance. If omitted or invalid, the server will resolve based on 'target'.",
+            "type": "string"
+          },
+          "selector": {
+            "description": "CSS selector for the element",
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          },
+          "timeout": {
+            "default": 5000,
+            "description": "Timeout in milliseconds",
+            "maximum": 300000,
+            "minimum": 100,
+            "type": "number"
+          }
+        },
+        "required": [
+          "selector"
+        ],
+        "type": "object"
+      },
+      "name": "get_attribute"
+    },
+    {
+      "category": "content-capture",
+      "description": "Get element geometry and positioning information for layout analysis",
+      "errors": [
+        {
+          "code": "ELEMENT_NOT_FOUND",
+          "message": "Element not found with specified selector",
+          "solution": "Verify the CSS selector and ensure element exists"
+        }
+      ],
+      "examples": [
+        {
+          "description": "Get element positioning for layout analysis",
+          "expectedOutput": {
+            "boundingBox": {
+              "height": 60,
+              "width": 1200,
+              "x": 0,
+              "y": 0
+            },
+            "center": {
+              "x": 600,
+              "y": 30
+            },
+            "selector": ".main-navigation",
+            "success": true,
+            "viewport": {
+              "visible": true,
+              "x": 0,
+              "y": 0
+            }
+          },
+          "input": {
+            "includeViewport": true,
+            "selector": ".main-navigation"
+          }
+        },
+        {
+          "description": "Check if element is within viewport",
+          "expectedOutput": {
+            "boundingBox": {
+              "height": 200,
+              "width": 1200,
+              "x": 0,
+              "y": 2400
+            },
+            "selector": ".footer-content",
+            "success": true,
+            "viewport": {
+              "visible": false,
+              "x": 0,
+              "y": 1680
+            }
+          },
+          "input": {
+            "selector": ".footer-content"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "description": "Optional. ID of the browser instance. If omitted or invalid, the server will resolve based on 'target'.",
+            "type": "string"
+          },
+          "includeViewport": {
+            "default": true,
+            "description": "Include viewport-relative positioning",
+            "type": "boolean"
+          },
+          "selector": {
+            "description": "CSS selector for the element",
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          },
+          "timeout": {
+            "default": 5000,
+            "description": "Timeout in milliseconds",
+            "maximum": 300000,
+            "minimum": 100,
+            "type": "number"
+          }
+        },
+        "required": [
+          "selector"
+        ],
+        "type": "object"
+      },
+      "name": "get_bounding_box"
+    },
+    {
+      "category": "content-capture",
+      "description": "Get computed styles with inheritance information",
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "type": "string"
+          },
+          "selector": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "selector"
+        ],
+        "type": "object"
+      },
+      "name": "get_computed_styles"
+    },
+    {
+      "category": "interaction",
+      "description": "Get console messages for debugging UX modifications",
+      "examples": [
+        {
+          "description": "Check for JavaScript errors after UX modification",
+          "expectedOutput": {
+            "hasMore": false,
+            "messages": [
+              {
+                "text": "TypeError: Cannot read property 'style' of null",
+                "timestamp": "2025-01-13T10:30:00.000Z",
+                "type": "error"
+              }
+            ]
+          },
+          "input": {
+            "level": "error",
+            "limit": 10
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "description": "Browser instance ID (optional, defaults to latest)",
+            "type": "string"
+          },
+          "level": {
+            "description": "Filter by console message level",
+            "enum": [
+              "log",
+              "info",
+              "warn",
+              "error",
+              "debug"
+            ],
+            "type": "string"
+          },
+          "limit": {
+            "default": 100,
+            "description": "Maximum number of messages to return",
+            "type": "number"
+          },
+          "since": {
+            "description": "ISO timestamp to filter messages since",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "get_console_messages"
+    },
+    {
+      "category": "styling",
+      "description": "Return the final computed value for a property and the winning rule metadata",
+      "examples": [
+        {
+          "description": "Find the winning rule for margin-top",
+          "expectedOutput": {
+            "important": false,
+            "source": {
+              "href": "/styles/site.css",
+              "selector": ".grid .card",
+              "type": "author"
+            },
+            "specificity": [
+              0,
+              1,
+              1
+            ],
+            "success": true,
+            "value": "16px"
+          },
+          "input": {
+            "property": "margin-top",
+            "selector": ".card"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "type": "string"
+          },
+          "property": {
+            "type": "string"
+          },
+          "selector": {
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "selector",
+          "property"
+        ],
+        "type": "object"
+      },
+      "name": "get_effective_computed"
+    },
+    {
+      "category": "content-capture",
+      "description": "Extract HTML content from page or specific element for AI analysis",
+      "errors": [
+        {
+          "code": "ELEMENT_NOT_FOUND",
+          "message": "Element not found with specified selector",
+          "solution": "Verify the CSS selector and ensure element exists"
+        },
+        {
+          "code": "HTML_EXTRACTION_FAILED",
+          "message": "Failed to extract HTML content",
+          "solution": "Check page state and retry operation"
+        }
+      ],
+      "examples": [
+        {
+          "description": "Get entire page HTML for content analysis",
+          "expectedOutput": {
+            "html": "<!DOCTYPE html><html>...</html>",
+            "length": 15432,
+            "source": "full-page",
+            "success": true
+          },
+          "input": {
+            "prettify": true
+          }
+        },
+        {
+          "description": "Extract specific component HTML",
+          "expectedOutput": {
+            "computedStyles": {
+              "display": "flex",
+              "flexDirection": "column"
+            },
+            "html": "<div data-testid='product-card'>...</div>",
+            "length": 892,
+            "source": "[data-testid='product-card']",
+            "success": true
+          },
+          "input": {
+            "includeStyles": true,
+            "selector": "[data-testid='product-card']"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "description": "Optional. ID of the browser instance. If omitted or invalid, the server will resolve based on 'target'.",
+            "type": "string"
+          },
+          "clientModel": {
+            "default": "default",
+            "description": "Client model for accurate token counting (default uses conservative limits)",
+            "enum": [
+              "claude",
+              "gpt-4",
+              "gpt-3.5",
+              "default"
+            ],
+            "type": "string"
+          },
+          "includeStyles": {
+            "default": false,
+            "description": "Include computed styles in the output",
+            "type": "boolean"
+          },
+          "maxTokens": {
+            "description": "Maximum tokens to allow (uses appropriate tokenizer based on clientModel)",
+            "maximum": 200000,
+            "minimum": 1000,
+            "type": "number"
+          },
+          "prettify": {
+            "default": true,
+            "description": "Format HTML for readability",
+            "type": "boolean"
+          },
+          "selector": {
+            "description": "CSS selector for specific element (optional, defaults to entire page)",
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          },
+          "timeout": {
+            "default": 5000,
+            "description": "Timeout in milliseconds",
+            "maximum": 300000,
+            "minimum": 100,
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "name": "get_html"
+    },
+    {
+      "category": "content-capture",
+      "description": "Return a bounded layout tree with tag, classes, position, and bounds",
+      "examples": [
+        {
+          "description": "Get layout tree for main content",
+          "expectedOutput": {
+            "tree": {
+              "tag": "main"
+            }
+          },
+          "input": {
+            "maxDepth": 3,
+            "rootSelector": "main"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "type": "string"
+          },
+          "maxChildren": {
+            "default": 20,
+            "maximum": 200,
+            "minimum": 1,
+            "type": "number"
+          },
+          "maxDepth": {
+            "default": 3,
+            "maximum": 6,
+            "minimum": 1,
+            "type": "number"
+          },
+          "rootSelector": {
+            "description": "Optional root to start from",
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "get_layout_tree"
+    },
+    {
+      "category": "image-processing",
+      "description": "Retrieve a specific processed asset from a task. Returns the asset file content and metadata for download or further processing.",
+      "examples": [
+        {
+          "description": "Get compressed SVG from a task",
+          "expectedOutput": {
+            "assetPath": "team-id/logo-batch-2024-08-18/compressed.svg",
+            "success": true
+          },
+          "input": {
+            "assetName": "compressed.svg",
+            "taskId": "logo-batch-2024-08-18"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "assetName": {
+            "description": "Name of the asset file (e.g., 'compressed.svg', 'png-300.png')",
+            "type": "string"
+          },
+          "returnFormat": {
+            "default": "file",
+            "description": "How to return the asset data",
+            "enum": [
+              "file",
+              "base64"
+            ],
+            "type": "string"
+          },
+          "taskId": {
+            "description": "Task ID containing the asset",
+            "type": "string"
+          }
+        },
+        "required": [
+          "taskId",
+          "assetName"
+        ],
+        "type": "object"
+      },
+      "name": "get_processed_asset"
+    },
+    {
+      "category": "content-capture",
+      "description": "Fetch a specific screenshot by file path or audit ID with metadata. Either 'path' or 'auditId' must be provided.",
+      "errors": [
+        {
+          "code": "INVALID_PARAMETERS",
+          "message": "Either 'path' or 'auditId' must be provided",
+          "solution": "Provide either a file path or audit ID to retrieve the screenshot"
+        },
+        {
+          "code": "FILE_NOT_FOUND",
+          "message": "Screenshot file not found at specified path",
+          "solution": "Check the file path or use list_screenshots to find available screenshots"
+        }
+      ],
+      "examples": [
+        {
+          "description": "Get screenshot by file path",
+          "expectedOutput": {
+            "createdAt": "2025-01-26T10:30:00Z",
+            "exists": true,
+            "filePath": "/Users/user/.brooklyn/screenshots/team-ux/sessions/session-123/screenshot-2025-01-26T10-30-00-abc123.png",
+            "fileSize": 245678,
+            "metadataPath": "/Users/user/.brooklyn/screenshots/team-ux/sessions/session-123/screenshot-2025-01-26T10-30-00-abc123.metadata.json"
+          },
+          "input": {
+            "path": "/Users/user/.brooklyn/screenshots/team-ux/sessions/session-123/screenshot-2025-01-26T10-30-00-abc123.png"
+          }
+        },
+        {
+          "description": "Get screenshot by audit ID",
+          "expectedOutput": {
+            "createdAt": "2025-01-26T11:15:00Z",
+            "exists": true,
+            "filePath": "/Users/user/.brooklyn/screenshots/team-ux/sessions/session-456/screenshot-2025-01-26T11-15-00-def456.png",
+            "fileSize": 312456,
+            "metadataPath": "/Users/user/.brooklyn/screenshots/team-ux/sessions/session-456/screenshot-2025-01-26T11-15-00-def456.metadata.json"
+          },
+          "input": {
+            "auditId": "audit-uuid-abc123"
+          }
+        },
+        {
+          "description": "Screenshot not found",
+          "expectedOutput": {
+            "exists": false
+          },
+          "input": {
+            "auditId": "non-existent-audit-id"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "auditId": {
+            "description": "Unique audit ID of the screenshot to retrieve (optional if path provided)",
+            "type": "string"
+          },
+          "path": {
+            "description": "File path to the screenshot (optional if auditId provided)",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "get_screenshot"
+    },
+    {
+      "category": "interaction",
+      "description": "Extract text content from an element",
+      "errors": [
+        {
+          "code": "ELEMENT_NOT_FOUND",
+          "message": "Element not found with specified selector",
+          "solution": "Verify the CSS selector and ensure element exists"
+        }
+      ],
+      "examples": [
+        {
+          "description": "Get success message text",
+          "expectedOutput": {
+            "selector": "[data-testid='success-message']",
+            "success": true,
+            "textContent": "Form submitted successfully"
+          },
+          "input": {
+            "browserId": "browser-123",
+            "selector": "[data-testid='success-message']"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "description": "Optional. ID of the browser instance. If omitted or invalid, the server will resolve based on 'target'.",
+            "type": "string"
+          },
+          "selector": {
+            "description": "CSS selector for element",
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          },
+          "timeout": {
+            "default": 5000,
+            "description": "Timeout in milliseconds",
+            "maximum": 300000,
+            "minimum": 100,
+            "type": "number"
+          }
+        },
+        "required": [
+          "selector"
+        ],
+        "type": "object"
+      },
+      "name": "get_text_content"
+    },
+    {
+      "category": "navigation",
+      "description": "Navigate to the previous page in browser history",
+      "examples": [
+        {
+          "description": "Go back to previous page",
+          "expectedOutput": {
+            "status": "navigated_back",
+            "url": "https://previous.com"
+          },
+          "input": {
+            "browserId": "browser-123"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "description": "Optional. ID of the browser. If omitted or invalid, the server will resolve based on 'target'.",
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "go_back"
+    },
+    {
+      "category": "interaction",
+      "description": "Overlay a visual highlight around the element bounds for layout debugging",
+      "examples": [
+        {
+          "description": "Highlight main frame bounds",
+          "expectedOutput": {
+            "bounds": {
+              "height": 11482,
+              "width": 1280,
+              "x": 0,
+              "y": 592
+            },
+            "highlightId": "overlay-123",
+            "success": true
+          },
+          "input": {
+            "selector": ".main-frame"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "type": "string"
+          },
+          "options": {
+            "properties": {
+              "color": {
+                "default": "rgba(255,0,0,0.35)",
+                "type": "string"
+              },
+              "outline": {
+                "default": "2px solid rgba(255,0,0,0.9)",
+                "type": "string"
+              },
+              "showMargin": {
+                "default": false,
+                "type": "boolean"
+              },
+              "showPadding": {
+                "default": false,
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          },
+          "selector": {
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          },
+          "timeout": {
+            "default": 5000,
+            "type": "number"
+          }
+        },
+        "required": [
+          "selector"
+        ],
+        "type": "object"
+      },
+      "name": "highlight_element_bounds"
+    },
+    {
+      "category": "interaction",
+      "description": "Hover over an element to trigger hover states and CSS transitions",
+      "errors": [
+        {
+          "code": "ELEMENT_NOT_FOUND",
+          "message": "Element not found with specified selector",
+          "solution": "Verify the CSS selector and ensure element exists"
+        },
+        {
+          "code": "ELEMENT_NOT_ACTIONABLE",
+          "message": "Element is not actionable (hidden or covered)",
+          "solution": "Ensure element is visible or use force: true"
+        }
+      ],
+      "examples": [
+        {
+          "description": "Hover over a navigation menu item to reveal dropdown",
+          "expectedOutput": {
+            "boundingBox": {
+              "height": 30,
+              "width": 120,
+              "x": 100,
+              "y": 50
+            },
+            "selector": "[data-testid='nav-menu-item']",
+            "success": true
+          },
+          "input": {
+            "selector": "[data-testid='nav-menu-item']",
+            "timeout": 3000
+          }
+        },
+        {
+          "description": "Hover at specific position on a large element",
+          "expectedOutput": {
+            "position": {
+              "x": 50,
+              "y": 100
+            },
+            "selector": ".interactive-canvas",
+            "success": true
+          },
+          "input": {
+            "position": {
+              "x": 50,
+              "y": 100
+            },
+            "selector": ".interactive-canvas"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "description": "Optional. ID of the browser instance. If omitted or invalid, the server will resolve based on 'target'.",
+            "type": "string"
+          },
+          "force": {
+            "default": false,
+            "description": "Force hover even if element is not actionable",
+            "type": "boolean"
+          },
+          "index": {
+            "default": 0,
+            "description": "Zero-based index of element to hover when selector matches multiple (default: 0)",
+            "minimum": 0,
+            "type": "number"
+          },
+          "position": {
+            "description": "Hover at specific position relative to element (optional)",
+            "properties": {
+              "x": {
+                "type": "number"
+              },
+              "y": {
+                "type": "number"
+              }
+            },
+            "type": "object"
+          },
+          "selector": {
+            "description": "CSS selector for element to hover over",
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          },
+          "timeout": {
+            "default": 5000,
+            "description": "Timeout in milliseconds",
+            "maximum": 300000,
+            "minimum": 100,
+            "type": "number"
+          }
+        },
+        "required": [
+          "selector"
+        ],
+        "type": "object"
+      },
+      "name": "hover_element"
+    },
+    {
+      "category": "content-capture",
+      "description": "Check if an element is enabled and interactive for form validation",
+      "errors": [
+        {
+          "code": "ELEMENT_NOT_FOUND",
+          "message": "Element not found with specified selector",
+          "solution": "Verify the CSS selector and ensure element exists"
+        }
+      ],
+      "examples": [
+        {
+          "description": "Check if form submit button is enabled",
+          "expectedOutput": {
+            "disabled": true,
+            "enabled": false,
+            "interactive": false,
+            "readonly": false,
+            "selector": "#submit-form",
+            "success": true
+          },
+          "input": {
+            "selector": "#submit-form"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "description": "Optional. ID of the browser instance. If omitted or invalid, the server will resolve based on 'target'.",
+            "type": "string"
+          },
+          "selector": {
+            "description": "CSS selector for the element",
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          },
+          "timeout": {
+            "default": 5000,
+            "description": "Timeout in milliseconds",
+            "maximum": 300000,
+            "minimum": 100,
+            "type": "number"
+          }
+        },
+        "required": [
+          "selector"
+        ],
+        "type": "object"
+      },
+      "name": "is_enabled"
+    },
+    {
+      "category": "content-capture",
+      "description": "Check if an element is visible in the viewport for UX validation",
+      "errors": [
+        {
+          "code": "ELEMENT_NOT_FOUND",
+          "message": "Element not found with specified selector",
+          "solution": "Verify the CSS selector and ensure element exists"
+        }
+      ],
+      "examples": [
+        {
+          "description": "Check if call-to-action button is visible",
+          "expectedOutput": {
+            "display": "block",
+            "inViewport": true,
+            "opacity": 1,
+            "selector": "#cta-button",
+            "success": true,
+            "visible": true
+          },
+          "input": {
+            "selector": "#cta-button"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "description": "Optional. ID of the browser instance. If omitted or invalid, the server will resolve based on 'target'.",
+            "type": "string"
+          },
+          "selector": {
+            "description": "CSS selector for the element",
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          },
+          "timeout": {
+            "default": 5000,
+            "description": "Timeout in milliseconds",
+            "maximum": 300000,
+            "minimum": 100,
+            "type": "number"
+          }
+        },
+        "required": [
+          "selector"
+        ],
+        "type": "object"
+      },
+      "name": "is_visible"
+    },
+    {
+      "category": "browser-lifecycle",
+      "description": "Launch a new browser instance (Chromium, Firefox, or WebKit) with optional configuration",
+      "errors": [
+        {
+          "code": "BROWSER_LAUNCH_FAILED",
+          "message": "Failed to launch browser",
+          "solution": "Ensure browsers are installed via 'brooklyn setup'"
+        },
+        {
+          "code": "BROWSER_LIMIT_REACHED",
+          "message": "Maximum browser limit reached",
+          "solution": "Close unused browsers or increase BROOKLYN_MAX_BROWSERS"
+        }
+      ],
+      "examples": [
+        {
+          "description": "Launch headless Chrome for testing",
+          "expectedOutput": {
+            "browserId": "browser-123",
+            "browserType": "chromium",
+            "status": "launched"
+          },
+          "input": {
+            "browserType": "chromium",
+            "headless": true,
+            "viewport": {
+              "height": 1080,
+              "width": 1920
+            }
+          }
+        },
+        {
+          "description": "Launch visible Firefox for debugging",
+          "expectedOutput": {
+            "browserId": "browser-456",
+            "browserType": "firefox",
+            "status": "launched"
+          },
+          "input": {
+            "browserType": "firefox",
+            "headless": false
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserType": {
+            "default": "chromium",
+            "description": "Browser engine to launch",
+            "enum": [
+              "chromium",
+              "firefox",
+              "webkit"
+            ],
+            "type": "string"
+          },
+          "headless": {
+            "default": true,
+            "description": "Run browser in headless mode",
+            "type": "boolean"
+          },
+          "viewport": {
+            "description": "Browser viewport dimensions",
+            "properties": {
+              "height": {
+                "default": 720,
+                "type": "number"
+              },
+              "width": {
+                "default": 1280,
+                "type": "number"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "name": "launch_browser"
+    },
+    {
+      "category": "browser-lifecycle",
+      "description": "Retrieve a list of all currently active browser instances",
+      "examples": [
+        {
+          "description": "Get all active browsers",
+          "expectedOutput": {
+            "browsers": [
+              {
+                "browserId": "browser-123",
+                "browserType": "chromium",
+                "currentUrl": "https://example.com",
+                "headless": true,
+                "launchedAt": "2024-01-19T10:30:00Z"
+              }
+            ]
+          },
+          "input": {}
+        }
+      ],
+      "inputSchema": {
+        "properties": {},
+        "type": "object"
+      },
+      "name": "list_active_browsers"
+    },
+    {
+      "category": "image-processing",
+      "description": "List processed assets with filtering options. Shows task-based asset organization and supports pattern matching for efficient asset discovery.",
+      "examples": [
+        {
+          "description": "List recent processing tasks",
+          "expectedOutput": {
+            "success": true,
+            "tasks": [
+              {
+                "assets": [
+                  {
+                    "name": "compressed.svg",
+                    "size": 1234,
+                    "type": "svg"
+                  },
+                  {
+                    "name": "png-150.png",
+                    "size": 2345,
+                    "type": "png"
+                  }
+                ],
+                "createdAt": "2024-08-18T10:30:00Z",
+                "taskId": "logo-batch-2024-08-18",
+                "totalSize": 3579
+              }
+            ],
+            "totalTasks": 1
+          },
+          "input": {
+            "limit": 10,
+            "sortBy": "modified"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "limit": {
+            "default": 20,
+            "description": "Maximum number of tasks to return",
+            "type": "number"
+          },
+          "pattern": {
+            "description": "Glob pattern for task matching (e.g., 'logo-*', 'website-*')",
+            "type": "string"
+          },
+          "sortBy": {
+            "default": "modified",
+            "description": "Sort criteria",
+            "enum": [
+              "created",
+              "modified",
+              "size"
+            ],
+            "type": "string"
+          },
+          "sortDirection": {
+            "default": "desc",
+            "description": "Sort direction",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "type": "string"
+          },
+          "taskId": {
+            "description": "Filter by specific task ID",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "list_processed_assets"
+    },
+    {
+      "category": "content-capture",
+      "description": "Retrieve stored screenshots from the inventory database with filtering and pagination support",
+      "errors": [
+        {
+          "code": "DATABASE_ERROR",
+          "message": "Failed to query screenshot database",
+          "solution": "Check database status with 'brooklyn ops db status'"
+        },
+        {
+          "code": "INVALID_DATE_FORMAT",
+          "message": "Invalid date format provided",
+          "solution": "Use ISO 8601 format: YYYY-MM-DDTHH:mm:ssZ"
+        }
+      ],
+      "examples": [
+        {
+          "description": "List recent screenshots for current session",
+          "expectedOutput": {
+            "hasMore": true,
+            "items": [
+              {
+                "browserId": "browser-456",
+                "createdAt": "2025-01-26T10:30:00Z",
+                "filePath": "/path/to/screenshot.png",
+                "fileSize": 245678,
+                "filename": "screenshot-2025-01-26T10-30-00-abc123.png",
+                "format": "png",
+                "height": 1080,
+                "id": "screenshot-id-1",
+                "sessionId": "session-123",
+                "tag": "happy-blue-fox",
+                "width": 1920
+              }
+            ],
+            "nextOffset": 5,
+            "total": 15
+          },
+          "input": {
+            "limit": 5,
+            "sessionId": "session-123"
+          }
+        },
+        {
+          "description": "List screenshots by tag from last hour",
+          "expectedOutput": {
+            "hasMore": false,
+            "items": [
+              "..."
+            ],
+            "total": 3
+          },
+          "input": {
+            "maxAge": 3600,
+            "orderBy": "file_size",
+            "orderDirection": "DESC",
+            "tag": "login-test"
+          }
+        },
+        {
+          "description": "List team screenshots with pagination",
+          "expectedOutput": {
+            "hasMore": true,
+            "items": [
+              "..."
+            ],
+            "nextOffset": 60,
+            "total": 150
+          },
+          "input": {
+            "limit": 20,
+            "offset": 40,
+            "teamId": "team-ux"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "endDate": {
+            "description": "Filter screenshots created before this date (ISO 8601)",
+            "format": "date-time",
+            "type": "string"
+          },
+          "format": {
+            "description": "Filter by screenshot format",
+            "enum": [
+              "png",
+              "jpeg"
+            ],
+            "type": "string"
+          },
+          "instanceId": {
+            "description": "Filter by Brooklyn instance ID (defaults to current instance)",
+            "type": "string"
+          },
+          "limit": {
+            "default": 10,
+            "description": "Maximum number of results (1-100)",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "number"
+          },
+          "maxAge": {
+            "description": "Maximum age in seconds (e.g., 3600 for last hour)",
+            "maximum": 31536000,
+            "minimum": 1,
+            "type": "number"
+          },
+          "offset": {
+            "default": 0,
+            "description": "Number of results to skip for pagination",
+            "minimum": 0,
+            "type": "number"
+          },
+          "orderBy": {
+            "default": "created_at",
+            "description": "Field to order results by",
+            "enum": [
+              "created_at",
+              "file_size",
+              "filename"
+            ],
+            "type": "string"
+          },
+          "orderDirection": {
+            "default": "DESC",
+            "description": "Sort direction",
+            "enum": [
+              "ASC",
+              "DESC"
+            ],
+            "type": "string"
+          },
+          "sessionId": {
+            "description": "Filter by browser session ID",
+            "type": "string"
+          },
+          "startDate": {
+            "description": "Filter screenshots created after this date (ISO 8601)",
+            "format": "date-time",
+            "type": "string"
+          },
+          "tag": {
+            "description": "Filter by user-provided tag (prefix match)",
+            "type": "string"
+          },
+          "teamId": {
+            "description": "Filter by team ID",
+            "type": "string"
+          },
+          "userId": {
+            "description": "Filter by user ID",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "list_screenshots"
+    },
+    {
+      "category": "content-capture",
+      "description": "Measure vertical whitespace gaps between stacked children in a container",
+      "examples": [
+        {
+          "description": "Measure whitespace in content wrapper",
+          "expectedOutput": {
+            "gaps": [],
+            "totalWhitespace": 0
+          },
+          "input": {
+            "containerSelector": ".content-wrapper",
+            "minGap": 10
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "type": "string"
+          },
+          "containerSelector": {
+            "description": "Container whose children to analyze",
+            "type": "string"
+          },
+          "minGap": {
+            "default": 1,
+            "type": "number"
+          },
+          "target": {
+            "default": "latest",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "containerSelector"
+        ],
+        "type": "object"
+      },
+      "name": "measure_whitespace"
+    },
+    {
+      "category": "navigation",
+      "description": "Navigate browser to a specific URL and wait for page load. If browserId is omitted, the most recently launched active browser for your team is used (target=latest).",
+      "errors": [
+        {
+          "code": "DOMAIN_NOT_ALLOWED",
+          "message": "URL domain is not in allowlist",
+          "solution": "Add domain to BROOKLYN_ALLOWED_DOMAINS or team config"
+        },
+        {
+          "code": "NAVIGATION_TIMEOUT",
+          "message": "Page load timed out",
+          "solution": "Increase timeout or check network connectivity"
+        },
+        {
+          "code": "NO_ACTIVE_BROWSER",
+          "message": "No active browser session found to navigate",
+          "solution": "Run launch_browser first or provide a valid browserId."
+        }
+      ],
+      "examples": [
+        {
+          "description": "Navigate using defaults (no browserId) to latest active browser",
+          "expectedOutput": {
+            "browserId": "resolved-latest",
+            "loadTime": 1234,
+            "status": "navigated",
+            "url": "https://example.com"
+          },
+          "input": {
+            "url": "https://example.com",
+            "waitUntil": "networkidle"
+          }
+        },
+        {
+          "description": "Navigate by explicit browserId",
+          "expectedOutput": {
+            "browserId": "browser-123",
+            "status": "navigated",
+            "url": "https://example.com/docs"
+          },
+          "input": {
+            "browserId": "browser-123",
+            "url": "https://example.com/docs"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "description": "Optional. ID of the browser to navigate. If omitted or invalid, the server will resolve based on 'target'.",
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          },
+          "url": {
+            "description": "URL to navigate to (must be in allowed domains)",
+            "type": "string"
+          },
+          "waitUntil": {
+            "default": "load",
+            "description": "Wait condition for navigation",
+            "enum": [
+              "load",
+              "domcontentloaded",
+              "networkidle"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "type": "object"
+      },
+      "name": "navigate_to_url"
+    },
+    {
+      "category": "image-processing",
+      "description": "Delete processed assets using flexible filtering. Supports glob patterns, age-based cleanup, and partial retention strategies. Always use dryRun first.",
+      "examples": [
+        {
+          "description": "Preview cleanup of temporary tasks",
+          "expectedOutput": {
+            "bytesFreed": 150000,
+            "dryRun": true,
+            "errors": [],
+            "filesDeleted": 8,
+            "success": true,
+            "tasksAffected": [
+              "temp-12345",
+              "temp-67890"
+            ]
+          },
+          "input": {
+            "dryRun": true,
+            "pattern": "temp-*",
+            "strategy": "complete"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "confirm": {
+            "default": false,
+            "description": "Explicit confirmation for destructive operations",
+            "type": "boolean"
+          },
+          "dryRun": {
+            "default": true,
+            "description": "Preview what would be deleted without actually deleting",
+            "type": "boolean"
+          },
+          "keepLast": {
+            "description": "Keep last N tasks (for partial strategy)",
+            "type": "number"
+          },
+          "olderThan": {
+            "description": "Delete tasks older than this (e.g., '7d', '24h', '30m')",
+            "type": "string"
+          },
+          "pattern": {
+            "description": "Glob pattern for tasks to purge (e.g., 'temp-*', 'old-*', '*' for all)",
+            "type": "string"
+          },
+          "strategy": {
+            "description": "Purging strategy",
+            "enum": [
+              "complete",
+              "partial",
+              "age-based"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "pattern",
+          "strategy"
+        ],
+        "type": "object"
+      },
+      "name": "purge_processed_assets"
+    },
+    {
+      "category": "interaction",
+      "description": "Remove a previously added visual overlay by ID",
+      "examples": [
+        {
+          "description": "Remove a highlight overlay",
+          "expectedOutput": {
+            "removed": true,
+            "success": true
+          },
+          "input": {
+            "overlayId": "overlay-123"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "type": "string"
+          },
+          "overlayId": {
+            "description": "ID returned by overlay tools",
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "overlayId"
+        ],
+        "type": "object"
+      },
+      "name": "remove_overlay"
+    },
+    {
+      "category": "rendering",
+      "description": "Render a PDF file in the browser for visual analysis, interaction, and layout debugging",
+      "examples": [
+        {
+          "description": "Render a PDF for visual analysis",
+          "expectedOutput": {
+            "currentPage": 1,
+            "message": "PDF rendered: report.pdf",
+            "pageCount": 10,
+            "success": true
+          },
+          "input": {
+            "pdfPath": "/Users/user/Documents/report.pdf"
+          }
+        },
+        {
+          "description": "Render specific page with zoom",
+          "expectedOutput": {
+            "currentPage": 3,
+            "message": "PDF rendered: report.pdf",
+            "pageCount": 10,
+            "success": true
+          },
+          "input": {
+            "page": 3,
+            "pdfPath": "/Users/user/Documents/report.pdf",
+            "zoom": 1.5
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "description": "Optional. ID of the browser. If omitted, uses the most recently launched browser.",
+            "type": "string"
+          },
+          "page": {
+            "default": 1,
+            "description": "Page number to navigate to (1-based)",
+            "minimum": 1,
+            "type": "number"
+          },
+          "pdfPath": {
+            "description": "Absolute path to the PDF file to render",
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "description": "Optional targeting strategy when browserId is omitted or invalid",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          },
+          "waitForRender": {
+            "default": 2000,
+            "description": "Milliseconds to wait for PDF to render",
+            "maximum": 10000,
+            "minimum": 500,
+            "type": "number"
+          },
+          "zoom": {
+            "default": 1,
+            "description": "Zoom level (1.0 = 100%)",
+            "maximum": 5,
+            "minimum": 0.5,
+            "type": "number"
+          }
+        },
+        "required": [
+          "pdfPath"
+        ],
+        "type": "object"
+      },
+      "name": "render_pdf"
+    },
+    {
+      "category": "styling",
+      "description": "Revert a previously applied CSS override by ID",
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "type": "string"
+          },
+          "overrideId": {
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "overrideId"
+        ],
+        "type": "object"
+      },
+      "name": "revert_css_changes"
+    },
+    {
+      "category": "interaction",
+      "description": "Scroll by a relative offset",
+      "inputSchema": {
+        "properties": {
+          "behavior": {
+            "default": "auto",
+            "enum": [
+              "auto",
+              "smooth"
+            ],
+            "type": "string"
+          },
+          "browserId": {
+            "type": "string"
+          },
+          "dx": {
+            "description": "Delta X",
+            "type": "number"
+          },
+          "dy": {
+            "description": "Delta Y",
+            "type": "number"
+          },
+          "target": {
+            "default": "latest",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "dx",
+          "dy"
+        ],
+        "type": "object"
+      },
+      "name": "scroll_by"
+    },
+    {
+      "category": "interaction",
+      "description": "Scroll the page so that the element is visible in the viewport",
+      "examples": [
+        {
+          "description": "Scroll a CTA button into view",
+          "expectedOutput": {
+            "selector": ".cta-button",
+            "success": true
+          },
+          "input": {
+            "selector": ".cta-button"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "type": "string"
+          },
+          "selector": {
+            "description": "CSS selector of the element",
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          },
+          "timeout": {
+            "default": 5000,
+            "maximum": 300000,
+            "minimum": 100,
+            "type": "number"
+          }
+        },
+        "required": [
+          "selector"
+        ],
+        "type": "object"
+      },
+      "name": "scroll_into_view"
+    },
+    {
+      "category": "interaction",
+      "description": "Scroll to an absolute page position",
+      "inputSchema": {
+        "properties": {
+          "behavior": {
+            "default": "auto",
+            "enum": [
+              "auto",
+              "smooth"
+            ],
+            "type": "string"
+          },
+          "browserId": {
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          },
+          "x": {
+            "description": "Horizontal scroll position",
+            "type": "number"
+          },
+          "y": {
+            "description": "Vertical scroll position",
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ],
+        "type": "object"
+      },
+      "name": "scroll_to"
+    },
+    {
+      "category": "pdf-analysis",
+      "description": "Search for text patterns in PDF using word spans for accurate matching",
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "description": "Browser instance ID (optional, defaults to latest)",
+            "type": "string"
+          },
+          "caseSensitive": {
+            "default": false,
+            "description": "Case sensitive search",
+            "type": "boolean"
+          },
+          "maxResults": {
+            "default": 50,
+            "description": "Maximum results to return",
+            "type": "number"
+          },
+          "pageRange": {
+            "properties": {
+              "end": {
+                "minimum": 1,
+                "type": "number"
+              },
+              "start": {
+                "minimum": 1,
+                "type": "number"
+              }
+            },
+            "type": "object"
+          },
+          "query": {
+            "description": "Search query (supports regex)",
+            "type": "string"
+          },
+          "wholeWords": {
+            "default": false,
+            "description": "Match whole words only",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object"
+      },
+      "name": "search_pdf_content"
+    },
+    {
+      "category": "interaction",
+      "description": "Select an option from a dropdown or select element",
+      "errors": [
+        {
+          "code": "SELECT_NOT_FOUND",
+          "message": "Select element not found with specified selector",
+          "solution": "Verify the CSS selector targets a <select> element"
+        },
+        {
+          "code": "OPTION_NOT_FOUND",
+          "message": "Option not found with specified value, label, or index",
+          "solution": "Check available options or use a different selection method"
+        },
+        {
+          "code": "SELECT_NOT_ACTIONABLE",
+          "message": "Select element is disabled or not visible",
+          "solution": "Ensure the select element is enabled and visible"
+        }
+      ],
+      "examples": [
+        {
+          "description": "Select option by value in a country dropdown",
+          "expectedOutput": {
+            "selectedLabel": "United States",
+            "selectedValue": "US",
+            "selector": "#country-select",
+            "success": true
+          },
+          "input": {
+            "selector": "#country-select",
+            "timeout": 3000,
+            "value": "US"
+          }
+        },
+        {
+          "description": "Select option by label text",
+          "expectedOutput": {
+            "selectedLabel": "English",
+            "selectedValue": "en",
+            "selector": "[data-testid='language-selector']",
+            "success": true
+          },
+          "input": {
+            "label": "English",
+            "selector": "[data-testid='language-selector']"
+          }
+        },
+        {
+          "description": "Select option by index (third option)",
+          "expectedOutput": {
+            "selectedLabel": "High Priority",
+            "selectedValue": "high",
+            "selector": ".priority-dropdown",
+            "success": true
+          },
+          "input": {
+            "index": 2,
+            "selector": ".priority-dropdown"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "description": "Optional. ID of the browser instance. If omitted or invalid, the server will resolve based on 'target'.",
+            "type": "string"
+          },
+          "index": {
+            "description": "Zero-based index of the option to select (alternative to value/label)",
+            "type": "number"
+          },
+          "label": {
+            "description": "Label text of the option to select (alternative to value)",
+            "type": "string"
+          },
+          "selector": {
+            "description": "CSS selector for the select element",
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          },
+          "timeout": {
+            "default": 5000,
+            "description": "Timeout in milliseconds",
+            "maximum": 300000,
+            "minimum": 100,
+            "type": "number"
+          },
+          "value": {
+            "description": "Value of the option to select",
+            "type": "string"
+          }
+        },
+        "required": [
+          "selector"
+        ],
+        "type": "object"
+      },
+      "name": "select_option"
+    },
+    {
+      "category": "interaction",
+      "description": "Overlay a page-wide grid to aid layout analysis",
+      "examples": [
+        {
+          "description": "Show a 20px layout grid",
+          "expectedOutput": {
+            "gridSize": 20,
+            "overlayId": "grid-xyz",
+            "success": true
+          },
+          "input": {
+            "gridSize": 20
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "type": "string"
+          },
+          "color": {
+            "default": "rgba(255,0,0,0.3)",
+            "type": "string"
+          },
+          "gridSize": {
+            "default": 20,
+            "type": "number"
+          },
+          "target": {
+            "default": "latest",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "show_layout_grid"
+    },
+    {
+      "category": "styling",
+      "description": "Simulate applying CSS rules to a selector and report computed style diffs (no persistence)",
+      "errors": [
+        {
+          "code": "INVALID_PARAMS",
+          "message": "simulate_css_change requires 'selector' and 'cssRules'",
+          "solution": "Provide a valid CSS selector and a rules object mapping properties to values"
+        },
+        {
+          "code": "ELEMENT_NOT_FOUND",
+          "message": "Target element not found for selector",
+          "solution": "Verify the selector is correct or wait for the element to render"
+        },
+        {
+          "code": "CSS_SIMULATION_FAILED",
+          "message": "An error occurred during CSS simulation",
+          "solution": "Check property names/values and retry; try important: true for precedence"
+        }
+      ],
+      "examples": [
+        {
+          "description": "Simulate transform and position changes",
+          "expectedOutput": {
+            "changes": [
+              {
+                "after": "matrix(...)",
+                "before": "none",
+                "property": "transform"
+              },
+              {
+                "after": "relative",
+                "before": "static",
+                "property": "position"
+              }
+            ],
+            "overallChanged": true,
+            "success": true
+          },
+          "input": {
+            "cssRules": {
+              "position": "relative",
+              "transform": "translateY(-64px)"
+            },
+            "selector": ".hero"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "type": "string"
+          },
+          "cssRules": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Map of CSS properties to values to simulate",
+            "type": "object"
+          },
+          "important": {
+            "default": false,
+            "description": "Attempt simulation with !important",
+            "type": "boolean"
+          },
+          "selector": {
+            "description": "CSS selector to target",
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "selector",
+          "cssRules"
+        ],
+        "type": "object"
+      },
+      "name": "simulate_css_change"
+    },
+    {
+      "category": "pdf-analysis",
+      "description": "Generate structured summary of PDF content using word/line spans",
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "description": "Browser instance ID (optional, defaults to latest)",
+            "type": "string"
+          },
+          "includeStructure": {
+            "default": true,
+            "description": "Include document structure in summary",
+            "type": "boolean"
+          },
+          "maxLength": {
+            "default": 500,
+            "description": "Maximum summary length in words",
+            "type": "number"
+          },
+          "pageRange": {
+            "properties": {
+              "end": {
+                "minimum": 1,
+                "type": "number"
+              },
+              "start": {
+                "minimum": 1,
+                "type": "number"
+              }
+            },
+            "type": "object"
+          },
+          "summaryType": {
+            "default": "overview",
+            "description": "Type of summary to generate",
+            "enum": [
+              "overview",
+              "detailed",
+              "executive"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "summarize_pdf_content"
+    },
+    {
+      "category": "content-capture",
+      "description": "Capture a screenshot and store as file to avoid MCP token limits (Architecture Committee approved). If browserId is omitted, the most recently launched active browser for your team is used (target=latest).",
+      "errors": [
+        {
+          "code": "BROWSER_NOT_FOUND",
+          "message": "Browser session not found",
+          "solution": "Check browserId or launch a new browser first"
+        },
+        {
+          "code": "STORAGE_QUOTA_EXCEEDED",
+          "message": "Screenshot storage quota exceeded",
+          "solution": "Clean up old screenshots or increase quota limits"
+        },
+        {
+          "code": "PATH_TRAVERSAL_DETECTED",
+          "message": "Security violation in output path",
+          "solution": "Use relative paths within allowed directories only"
+        }
+      ],
+      "examples": [
+        {
+          "description": "Capture full page screenshot with file storage (recommended, no browserId)",
+          "expectedOutput": {
+            "auditId": "audit-uuid-123",
+            "browserId": "resolved-latest",
+            "dimensions": {
+              "height": 3000,
+              "width": 1920
+            },
+            "filePath": "/Users/user/.brooklyn/screenshots/blossom-team/sessions/test-session-1/screenshot-2025-01-20T12-00-00-uuid.png",
+            "fileSize": 245760,
+            "filename": "screenshot-2025-01-20T12-00-00-uuid.png",
+            "format": "png",
+            "returnFormat": "file"
+          },
+          "input": {
+            "fullPage": true,
+            "returnFormat": "file",
+            "sessionId": "test-session-1",
+            "teamId": "blossom-team",
+            "type": "png"
+          }
+        },
+        {
+          "description": "Capture with base64 thumbnail for backward compatibility",
+          "expectedOutput": {
+            "auditId": "audit-uuid-456",
+            "data": "iVBORw0KGgoAAAANSUhEUgAA...",
+            "dimensions": {
+              "height": 720,
+              "width": 1280
+            },
+            "filePath": "/Users/user/.brooklyn/screenshots/example-team/sessions/browser-session-browser-123/screenshot-2025-01-20T12-01-00-uuid.png",
+            "fileSize": 98304,
+            "filename": "screenshot-2025-01-20T12-01-00-uuid.png",
+            "format": "png",
+            "returnFormat": "base64_thumbnail"
+          },
+          "input": {
+            "browserId": "browser-123",
+            "returnFormat": "base64_thumbnail",
+            "teamId": "example-team"
+          }
+        },
+        {
+          "description": "High quality JPEG for documentation",
+          "expectedOutput": {
+            "auditId": "audit-uuid-789",
+            "dimensions": {
+              "height": 4200,
+              "width": 1920
+            },
+            "filePath": "/Users/user/.brooklyn/screenshots/documentation-team/sessions/docs-capture-1/screenshot-2025-01-20T12-02-00-uuid.jpeg",
+            "fileSize": 512000,
+            "filename": "screenshot-2025-01-20T12-02-00-uuid.jpeg",
+            "format": "jpeg",
+            "returnFormat": "file"
+          },
+          "input": {
+            "browserId": "browser-123",
+            "fullPage": true,
+            "quality": 95,
+            "sessionId": "docs-capture-1",
+            "teamId": "documentation-team",
+            "type": "jpeg"
+          }
+        },
+        {
+          "description": "Organized screenshot with custom tag for multi-instance management",
+          "expectedOutput": {
+            "auditId": "audit-uuid-abc",
+            "dimensions": {
+              "height": 720,
+              "width": 1280
+            },
+            "filePath": "/Users/user/.brooklyn/screenshots/instances/abc123def456/ui-testing-sprint-3/screenshot-2025-01-20T12-03-00-uuid.png",
+            "fileSize": 156000,
+            "filename": "screenshot-2025-01-20T12-03-00-uuid.png",
+            "format": "png",
+            "instanceId": "abc123def456",
+            "returnFormat": "file",
+            "tag": "ui-testing-sprint-3"
+          },
+          "input": {
+            "browserId": "browser-456",
+            "sessionId": "automated-tests",
+            "tag": "ui-testing-sprint-3",
+            "teamId": "qa-team",
+            "type": "png"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "description": "Optional. ID of the browser. If omitted or invalid, the server will resolve based on 'target'.",
+            "type": "string"
+          },
+          "encryption": {
+            "default": true,
+            "description": "Encrypt screenshot at rest (enterprise mode)",
+            "type": "boolean"
+          },
+          "fullPage": {
+            "default": false,
+            "description": "Capture full page instead of viewport",
+            "type": "boolean"
+          },
+          "instanceId": {
+            "description": "Override instance detection (advanced usage)",
+            "type": "string"
+          },
+          "outputPath": {
+            "description": "Custom output path (advanced usage, validated for security)",
+            "type": "string"
+          },
+          "quality": {
+            "default": 90,
+            "description": "JPEG quality (1-100, ignored for PNG)",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "number"
+          },
+          "returnFormat": {
+            "default": "file",
+            "description": "How to return the screenshot data (file=path, url=HTTP endpoint, base64_thumbnail=small preview)",
+            "enum": [
+              "file",
+              "url",
+              "base64_thumbnail"
+            ],
+            "type": "string"
+          },
+          "selector": {
+            "description": "CSS selector of element to capture (optional)",
+            "type": "string"
+          },
+          "sessionId": {
+            "description": "Session identifier for organizing screenshots",
+            "type": "string"
+          },
+          "tag": {
+            "description": "User-provided tag for organizing screenshots (auto-generated if not provided)",
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          },
+          "teamId": {
+            "description": "Team identifier for directory isolation and quotas",
+            "type": "string"
+          },
+          "type": {
+            "default": "png",
+            "description": "Screenshot format",
+            "enum": [
+              "png",
+              "jpeg"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "take_screenshot"
+    },
+    {
+      "category": "interaction",
+      "description": "Verify if an element exists on the page",
+      "examples": [
+        {
+          "description": "Validate error message is not present",
+          "expectedOutput": {
+            "elementExists": false,
+            "message": "Element validation passed",
+            "selector": "[data-testid='form-error']",
+            "success": true
+          },
+          "input": {
+            "browserId": "browser-123",
+            "selector": "[data-testid='form-error']",
+            "shouldExist": false
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "description": "Optional. ID of the browser instance. If omitted or invalid, the server will resolve based on 'target'.",
+            "type": "string"
+          },
+          "selector": {
+            "description": "CSS selector for element",
+            "type": "string"
+          },
+          "shouldExist": {
+            "default": true,
+            "description": "Whether element should exist (true) or not exist (false)",
+            "type": "boolean"
+          },
+          "target": {
+            "default": "latest",
+            "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          },
+          "timeout": {
+            "default": 5000,
+            "description": "Timeout in milliseconds",
+            "maximum": 300000,
+            "minimum": 100,
+            "type": "number"
+          }
+        },
+        "required": [
+          "selector"
+        ],
+        "type": "object"
+      },
+      "name": "validate_element_presence"
+    },
+    {
+      "category": "interaction",
+      "description": "Wait for an element to appear on the page",
+      "errors": [
+        {
+          "code": "WAIT_TIMEOUT",
+          "message": "Element did not reach expected state within timeout",
+          "solution": "Increase timeout or verify element selector and expected state"
+        }
+      ],
+      "examples": [
+        {
+          "description": "Wait for success message",
+          "expectedOutput": {
+            "message": "Element found",
+            "selector": "[data-testid='form-success']",
+            "state": "visible",
+            "success": true,
+            "waitTime": 2340
+          },
+          "input": {
+            "browserId": "browser-123",
+            "selector": "[data-testid='form-success']",
+            "state": "visible",
+            "timeout": 10000
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "description": "Optional. ID of the browser instance. If omitted or invalid, the server will resolve based on 'target'.",
+            "type": "string"
+          },
+          "selector": {
+            "description": "CSS selector for element to wait for",
+            "type": "string"
+          },
+          "state": {
+            "default": "visible",
+            "description": "Element state to wait for",
+            "enum": [
+              "attached",
+              "detached",
+              "visible",
+              "hidden"
+            ],
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          },
+          "timeout": {
+            "default": 30000,
+            "description": "Timeout in milliseconds",
+            "maximum": 300000,
+            "minimum": 100,
+            "type": "number"
+          }
+        },
+        "required": [
+          "selector"
+        ],
+        "type": "object"
+      },
+      "name": "wait_for_element"
+    },
+    {
+      "category": "navigation",
+      "description": "Wait for a navigation event with a specified readiness state",
+      "examples": [
+        {
+          "description": "Wait for navigation network idle",
+          "expectedOutput": {
+            "state": "networkidle",
+            "success": true,
+            "url": "https://example.com/app"
+          },
+          "input": {
+            "waitUntil": "networkidle"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          },
+          "timeout": {
+            "default": 30000,
+            "maximum": 300000,
+            "minimum": 100,
+            "type": "number"
+          },
+          "waitUntil": {
+            "default": "load",
+            "enum": [
+              "load",
+              "domcontentloaded",
+              "networkidle"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "wait_for_navigation"
+    },
+    {
+      "category": "navigation",
+      "description": "Wait until the page reaches network idle state",
+      "examples": [
+        {
+          "description": "Wait for network idle after triggering data load",
+          "expectedOutput": {
+            "state": "networkidle",
+            "success": true
+          },
+          "input": {
+            "timeout": 20000
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          },
+          "timeout": {
+            "default": 30000,
+            "maximum": 300000,
+            "minimum": 100,
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "name": "wait_for_network_idle"
+    },
+    {
+      "category": "navigation",
+      "description": "Wait until the current URL matches an exact string or pattern",
+      "errors": [
+        {
+          "code": "INVALID_MATCH_CRITERIA",
+          "message": "Provide exactly one of 'exact' or 'pattern'",
+          "solution": "Remove the extra field or add the missing one"
+        },
+        {
+          "code": "NAVIGATION_TIMEOUT",
+          "message": "URL did not match within timeout",
+          "solution": "Increase timeout or verify navigation occurs"
+        }
+      ],
+      "examples": [
+        {
+          "description": "Wait for exact docs page URL",
+          "expectedOutput": {
+            "matched": "exact",
+            "success": true,
+            "url": "https://example.com/docs/intro"
+          },
+          "input": {
+            "exact": "https://example.com/docs/intro",
+            "timeout": 10000
+          }
+        },
+        {
+          "description": "Wait for URL containing '/dashboard'",
+          "expectedOutput": {
+            "matched": "pattern",
+            "success": true,
+            "url": "https://example.com/app/dashboard?tab=home"
+          },
+          "input": {
+            "pattern": "/dashboard",
+            "timeout": 15000
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "description": "Optional. ID of the browser. If omitted or invalid, the server will resolve based on 'target'.",
+            "type": "string"
+          },
+          "exact": {
+            "description": "Exact URL to wait for (mutually exclusive with 'pattern')",
+            "type": "string"
+          },
+          "pattern": {
+            "description": "Substring or regex pattern string to match against URL",
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          },
+          "timeout": {
+            "default": 30000,
+            "description": "Timeout in milliseconds",
+            "maximum": 300000,
+            "minimum": 100,
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "name": "wait_for_url"
+    },
+    {
+      "category": "styling",
+      "description": "Explain why a CSS property change may not take effect; tests desiredValue and reports likely causes",
+      "errors": [
+        {
+          "code": "INVALID_PARAMS",
+          "message": "why_style_not_applied requires 'selector' and 'property'",
+          "solution": "Provide the CSS selector and property you are diagnosing"
+        },
+        {
+          "code": "ELEMENT_NOT_FOUND",
+          "message": "Target element not found for selector",
+          "solution": "Verify the selector is correct or wait for the element to render"
+        }
+      ],
+      "examples": [
+        {
+          "description": "Explain why top doesn’t move the element",
+          "expectedOutput": {
+            "computed": {
+              "after": "-20px",
+              "before": "auto"
+            },
+            "reasons": [
+              "Position is static; offsets only apply when position != static"
+            ],
+            "success": true
+          },
+          "input": {
+            "desiredValue": "-20px",
+            "property": "top",
+            "selector": ".card"
+          }
+        }
+      ],
+      "inputSchema": {
+        "properties": {
+          "browserId": {
+            "type": "string"
+          },
+          "desiredValue": {
+            "description": "Optional desired value to test",
+            "type": "string"
+          },
+          "property": {
+            "type": "string"
+          },
+          "selector": {
+            "type": "string"
+          },
+          "target": {
+            "default": "latest",
+            "enum": [
+              "latest",
+              "current",
+              "byId"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "selector",
+          "property"
+        ],
+        "type": "object"
+      },
+      "name": "why_style_not_applied"
+    }
+  ],
+  "totalTools": 79,
+  "version": "0.3.0"
+}

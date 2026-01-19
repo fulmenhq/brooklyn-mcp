@@ -222,6 +222,27 @@ Committer-of-Record: Dave Thompson <dave.thompson@3leaps.net> [@3leapsdave]
 - Chain browser operations with `&&` or `;`
 - Create unnecessary files
 
+## Generated Files Policy
+
+Some files are auto-generated and committed for discoverability. **Do not edit these directly.**
+
+| File | Generator | Purpose |
+|------|-----------|---------|
+| `docs/tools/tool-inventory.json` | `scripts/generate-tool-inventory.ts` | Machine-readable tool catalog |
+| `docs/tools/tool-inventory.md` | `scripts/generate-tool-inventory.ts` | Human-readable tool documentation |
+
+**When tool definitions change:**
+
+```bash
+# Regenerate inventory after modifying tool-definitions.ts or onboarding-tools.ts
+bun scripts/generate-tool-inventory.ts
+
+# CI will fail if inventory is out of sync (use --check flag)
+bun scripts/generate-tool-inventory.ts --check
+```
+
+See [ADR: Tool Inventory Generation](docs/architecture/decisions/adr-tool-inventory-generation.md) for rationale.
+
 ## Brooklyn-Specific Guidelines
 
 ### MCP Protocol Compliance
@@ -247,25 +268,21 @@ Committer-of-Record: Dave Thompson <dave.thompson@3leaps.net> [@3leapsdave]
 
 ## AGENTS.local.md Pattern
 
-Create `AGENTS.local.md` (gitignored) for tactical session guidance:
+Create `AGENTS.local.md` (gitignored) for tactical session guidance. This file is for transient, session-specific notes that would otherwise cause churn in the main AGENTS.md.
+
+Example structure:
 
 ```markdown
 # AGENTS.local.md
 
-## Current Focus
-
-Implementing HTTP transport improvements for v0.3.0
-
-## Parallel Streams
-
-| Stream | Role    | Focus             |
-| ------ | ------- | ----------------- |
-| A      | devlead | HTTP transport    |
-| B      | qa      | Integration tests |
+## Session Context
+[Current sprint, active feature, or debugging focus]
 
 ## Avoid
+[Files or areas that are stable and should not be modified]
 
-- src/core/browser/\* - Stable, no changes needed
+## Notes
+[Any session-specific reminders or decisions]
 ```
 
 ## References
@@ -273,6 +290,7 @@ Implementing HTTP transport improvements for v0.3.0
 - `MAINTAINERS.md` - Human maintainers and governance
 - `BROOKLYN-SAFETY-PROTOCOLS.md` - Browser automation safety
 - `README.md` - Project overview
+- `docs/tools/tool-inventory.md` - Full tool catalog (79 tools)
 - `.plans/active/` - Current work context
 - `.plans/active/v0.3.0/` - Current release briefs
 - `.plans/initiatives/tsfulmen-migration/` - tsfulmen adoption plan
