@@ -18,19 +18,19 @@
 
 ## Categories
 
-| Category | Tools | Description |
-|----------|-------|-------------|
-| [browser-lifecycle](#browser-lifecycle) | 3 | Launch, close, and manage browser instances |
-| [content-capture](#content-capture) | 16 | Screenshots, HTML extraction, and content analysis |
-| [discovery](#discovery) | 2 | Element finding, selector generation, and DOM analysis |
-| [documentation](#documentation) | 1 | Help, docs, and tool discovery |
-| [image-processing](#image-processing) | 7 | SVG compression and PNG conversion |
-| [interaction](#interaction) | 23 | Click, type, hover, drag-drop, and form interactions |
-| [navigation](#navigation) | 5 | URL navigation and page loading |
-| [onboarding](#onboarding) | 7 | Getting started, status, examples, and troubleshooting |
-| [pdf-analysis](#pdf-analysis) | 8 | PDF text extraction, table detection, and layout analysis |
-| [rendering](#rendering) | 1 | PDF rendering and document display |
-| [styling](#styling) | 6 | CSS analysis, specificity debugging, and style inspection |
+| Category                                | Tools | Description                                               |
+| --------------------------------------- | ----- | --------------------------------------------------------- |
+| [browser-lifecycle](#browser-lifecycle) | 3     | Launch, close, and manage browser instances               |
+| [content-capture](#content-capture)     | 16    | Screenshots, HTML extraction, and content analysis        |
+| [discovery](#discovery)                 | 2     | Element finding, selector generation, and DOM analysis    |
+| [documentation](#documentation)         | 1     | Help, docs, and tool discovery                            |
+| [image-processing](#image-processing)   | 7     | SVG compression and PNG conversion                        |
+| [interaction](#interaction)             | 23    | Click, type, hover, drag-drop, and form interactions      |
+| [navigation](#navigation)               | 5     | URL navigation and page loading                           |
+| [onboarding](#onboarding)               | 7     | Getting started, status, examples, and troubleshooting    |
+| [pdf-analysis](#pdf-analysis)           | 8     | PDF text extraction, table detection, and layout analysis |
+| [rendering](#rendering)                 | 1     | PDF rendering and document display                        |
+| [styling](#styling)                     | 6     | CSS analysis, specificity debugging, and style inspection |
 
 ---
 
@@ -38,137 +38,137 @@
 
 ### browser-lifecycle
 
-| Tool | Description |
-|------|-------------|
-| `close_browser` | Close a browser instance and release resources |
-| `launch_browser` | Launch a new browser instance (Chromium, Firefox, or WebKit) with optional configuration |
-| `list_active_browsers` | Retrieve a list of all currently active browser instances |
+| Tool                   | Description                                                                              |
+| ---------------------- | ---------------------------------------------------------------------------------------- |
+| `close_browser`        | Close a browser instance and release resources                                           |
+| `launch_browser`       | Launch a new browser instance (Chromium, Firefox, or WebKit) with optional configuration |
+| `list_active_browsers` | Retrieve a list of all currently active browser instances                                |
 
 ### content-capture
 
-| Tool | Description |
-|------|-------------|
-| `analyze_specificity` | Analyze CSS specificity with conflict detection and AI-friendly responses |
-| `describe_html` | Analyze page structure and provide actionable insights without token overflow |
-| `diff_css` | Compare CSS styles to track changes after modifications |
-| `extract_css` | Extract CSS styles for an element with token limits to prevent overflow |
-| `find_layout_containers` | Identify flex, grid, and positioned layout containers with key properties |
-| `get_attribute` | Get attribute value(s) from an element for inspection and validation |
-| `get_bounding_box` | Get element geometry and positioning information for layout analysis |
-| `get_computed_styles` | Get computed styles with inheritance information |
-| `get_html` | Extract HTML content from page or specific element for AI analysis |
-| `get_layout_tree` | Return a bounded layout tree with tag, classes, position, and bounds |
-| `get_screenshot` | Fetch a specific screenshot by file path or audit ID with metadata. Either 'path' or 'auditId' must be provided. |
-| `is_enabled` | Check if an element is enabled and interactive for form validation |
-| `is_visible` | Check if an element is visible in the viewport for UX validation |
-| `list_screenshots` | Retrieve stored screenshots from the inventory database with filtering and pagination support |
-| `measure_whitespace` | Measure vertical whitespace gaps between stacked children in a container |
-| `take_screenshot` | Capture a screenshot and store as file to avoid MCP token limits (Architecture Committee approved). If browserId is omitted, the most recently launched active browser for your team is used (target=latest). |
+| Tool                     | Description                                                                                                                                                                                                   |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `analyze_specificity`    | Analyze CSS specificity with conflict detection and AI-friendly responses                                                                                                                                     |
+| `describe_html`          | Analyze page structure and provide actionable insights without token overflow                                                                                                                                 |
+| `diff_css`               | Compare CSS styles to track changes after modifications                                                                                                                                                       |
+| `extract_css`            | Extract CSS styles for an element with token limits to prevent overflow                                                                                                                                       |
+| `find_layout_containers` | Identify flex, grid, and positioned layout containers with key properties                                                                                                                                     |
+| `get_attribute`          | Get attribute value(s) from an element for inspection and validation                                                                                                                                          |
+| `get_bounding_box`       | Get element geometry and positioning information for layout analysis                                                                                                                                          |
+| `get_computed_styles`    | Get computed styles with inheritance information                                                                                                                                                              |
+| `get_html`               | Extract HTML content from page or specific element for AI analysis                                                                                                                                            |
+| `get_layout_tree`        | Return a bounded layout tree with tag, classes, position, and bounds                                                                                                                                          |
+| `get_screenshot`         | Fetch a specific screenshot by file path or audit ID with metadata. Either 'path' or 'auditId' must be provided.                                                                                              |
+| `is_enabled`             | Check if an element is enabled and interactive for form validation                                                                                                                                            |
+| `is_visible`             | Check if an element is visible in the viewport for UX validation                                                                                                                                              |
+| `list_screenshots`       | Retrieve stored screenshots from the inventory database with filtering and pagination support                                                                                                                 |
+| `measure_whitespace`     | Measure vertical whitespace gaps between stacked children in a container                                                                                                                                      |
+| `take_screenshot`        | Capture a screenshot and store as file to avoid MCP token limits (Architecture Committee approved). If browserId is omitted, the most recently launched active browser for your team is used (target=latest). |
 
 ### discovery
 
-| Tool | Description |
-|------|-------------|
+| Tool                  | Description                                                 |
+| --------------------- | ----------------------------------------------------------- |
 | `brooklyn_list_tools` | Retrieve all available Brooklyn tools organized by category |
-| `brooklyn_tool_help` | Get detailed help and examples for a specific tool |
+| `brooklyn_tool_help`  | Get detailed help and examples for a specific tool          |
 
 ### documentation
 
-| Tool | Description |
-|------|-------------|
+| Tool            | Description                                                                                                                                     |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | `brooklyn_docs` | Access Brooklyn documentation with smart retrieval, platform-aware guidance, and keyword search. Extensible framework for documentation access. |
 
 ### image-processing
 
-| Tool | Description |
-|------|-------------|
-| `analyze_svg` | Analyze SVG file complexity and get optimization recommendations. Useful for understanding SVG structure before compression. Requires SVGO library. |
-| `compress_svg` | Compress SVG files to reduce size while preserving visual quality. Essential for optimizing documentation diagrams and design assets. Requires SVGO library. |
+| Tool                       | Description                                                                                                                                                                                                |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `analyze_svg`              | Analyze SVG file complexity and get optimization recommendations. Useful for understanding SVG structure before compression. Requires SVGO library.                                                        |
+| `compress_svg`             | Compress SVG files to reduce size while preserving visual quality. Essential for optimizing documentation diagrams and design assets. Requires SVGO library.                                               |
 | `convert_svg_to_multi_png` | Convert SVG to multiple PNG sizes in a single task-based operation using headless rendering. Perfect for generating website assets at different resolutions for responsive design and progressive loading. |
-| `convert_svg_to_png` | Convert SVG files to high-quality PNG images with configurable dimensions and quality. Uses headless browser rendering for accurate results. |
-| `get_processed_asset` | Retrieve a specific processed asset from a task. Returns the asset file content and metadata for download or further processing. |
-| `list_processed_assets` | List processed assets with filtering options. Shows task-based asset organization and supports pattern matching for efficient asset discovery. |
-| `purge_processed_assets` | Delete processed assets using flexible filtering. Supports glob patterns, age-based cleanup, and partial retention strategies. Always use dryRun first. |
+| `convert_svg_to_png`       | Convert SVG files to high-quality PNG images with configurable dimensions and quality. Uses headless browser rendering for accurate results.                                                               |
+| `get_processed_asset`      | Retrieve a specific processed asset from a task. Returns the asset file content and metadata for download or further processing.                                                                           |
+| `list_processed_assets`    | List processed assets with filtering options. Shows task-based asset organization and supports pattern matching for efficient asset discovery.                                                             |
+| `purge_processed_assets`   | Delete processed assets using flexible filtering. Supports glob patterns, age-based cleanup, and partial retention strategies. Always use dryRun first.                                                    |
 
 ### interaction
 
-| Tool | Description |
-|------|-------------|
-| `add_script_tag` | Add script tag to inject utilities or libraries |
-| `clear_element` | Clear the content of an input field, textarea, or editable element |
-| `click_element` | Click an element on the page using CSS selector |
-| `drag_and_drop` | Drag an element from a source location to a target location |
-| `evaluate_expression` | Evaluate JavaScript expression and return its value |
-| `execute_script` | Execute JavaScript in browser context for instant UX modifications |
-| `fill_form` | Populate multiple form fields using a field mapping object |
-| `fill_text` | Enter text into an input field using CSS selector |
-| `find_elements` | Locate all elements matching a CSS selector |
-| `focus_element` | Focus an element on the page for accessibility and keyboard navigation |
-| `generate_selector` | Generate robust CSS selectors from natural language descriptions |
-| `get_console_messages` | Get console messages for debugging UX modifications |
-| `get_text_content` | Extract text content from an element |
-| `highlight_element_bounds` | Overlay a visual highlight around the element bounds for layout debugging |
-| `hover_element` | Hover over an element to trigger hover states and CSS transitions |
-| `remove_overlay` | Remove a previously added visual overlay by ID |
-| `scroll_by` | Scroll by a relative offset |
-| `scroll_into_view` | Scroll the page so that the element is visible in the viewport |
-| `scroll_to` | Scroll to an absolute page position |
-| `select_option` | Select an option from a dropdown or select element |
-| `show_layout_grid` | Overlay a page-wide grid to aid layout analysis |
-| `validate_element_presence` | Verify if an element exists on the page |
-| `wait_for_element` | Wait for an element to appear on the page |
+| Tool                        | Description                                                               |
+| --------------------------- | ------------------------------------------------------------------------- |
+| `add_script_tag`            | Add script tag to inject utilities or libraries                           |
+| `clear_element`             | Clear the content of an input field, textarea, or editable element        |
+| `click_element`             | Click an element on the page using CSS selector                           |
+| `drag_and_drop`             | Drag an element from a source location to a target location               |
+| `evaluate_expression`       | Evaluate JavaScript expression and return its value                       |
+| `execute_script`            | Execute JavaScript in browser context for instant UX modifications        |
+| `fill_form`                 | Populate multiple form fields using a field mapping object                |
+| `fill_text`                 | Enter text into an input field using CSS selector                         |
+| `find_elements`             | Locate all elements matching a CSS selector                               |
+| `focus_element`             | Focus an element on the page for accessibility and keyboard navigation    |
+| `generate_selector`         | Generate robust CSS selectors from natural language descriptions          |
+| `get_console_messages`      | Get console messages for debugging UX modifications                       |
+| `get_text_content`          | Extract text content from an element                                      |
+| `highlight_element_bounds`  | Overlay a visual highlight around the element bounds for layout debugging |
+| `hover_element`             | Hover over an element to trigger hover states and CSS transitions         |
+| `remove_overlay`            | Remove a previously added visual overlay by ID                            |
+| `scroll_by`                 | Scroll by a relative offset                                               |
+| `scroll_into_view`          | Scroll the page so that the element is visible in the viewport            |
+| `scroll_to`                 | Scroll to an absolute page position                                       |
+| `select_option`             | Select an option from a dropdown or select element                        |
+| `show_layout_grid`          | Overlay a page-wide grid to aid layout analysis                           |
+| `validate_element_presence` | Verify if an element exists on the page                                   |
+| `wait_for_element`          | Wait for an element to appear on the page                                 |
 
 ### navigation
 
-| Tool | Description |
-|------|-------------|
-| `go_back` | Navigate to the previous page in browser history |
-| `navigate_to_url` | Navigate browser to a specific URL and wait for page load. If browserId is omitted, the most recently launched active browser for your team is used (target=latest). |
-| `wait_for_navigation` | Wait for a navigation event with a specified readiness state |
-| `wait_for_network_idle` | Wait until the page reaches network idle state |
-| `wait_for_url` | Wait until the current URL matches an exact string or pattern |
+| Tool                    | Description                                                                                                                                                          |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `go_back`               | Navigate to the previous page in browser history                                                                                                                     |
+| `navigate_to_url`       | Navigate browser to a specific URL and wait for page load. If browserId is omitted, the most recently launched active browser for your team is used (target=latest). |
+| `wait_for_navigation`   | Wait for a navigation event with a specified readiness state                                                                                                         |
+| `wait_for_network_idle` | Wait until the page reaches network idle state                                                                                                                       |
+| `wait_for_url`          | Wait until the current URL matches an exact string or pattern                                                                                                        |
 
 ### onboarding
 
-| Tool | Description |
-|------|-------------|
-| `brooklyn_capabilities` | List all available browser automation capabilities and tools |
-| `brooklyn_examples` | Get practical examples and code snippets for common Brooklyn tasks |
-| `brooklyn_getting_started` | Get a step-by-step guide for getting started with Brooklyn |
-| `brooklyn_logs` | Access Brooklyn MCP server logs for debugging and monitoring |
-| `brooklyn_status` | Get comprehensive status of Brooklyn MCP server including version, capabilities, and health |
-| `brooklyn_team_setup` | Help configure Brooklyn for your team's specific needs |
-| `brooklyn_troubleshooting` | Get help with common Brooklyn issues and debugging |
+| Tool                       | Description                                                                                 |
+| -------------------------- | ------------------------------------------------------------------------------------------- |
+| `brooklyn_capabilities`    | List all available browser automation capabilities and tools                                |
+| `brooklyn_examples`        | Get practical examples and code snippets for common Brooklyn tasks                          |
+| `brooklyn_getting_started` | Get a step-by-step guide for getting started with Brooklyn                                  |
+| `brooklyn_logs`            | Access Brooklyn MCP server logs for debugging and monitoring                                |
+| `brooklyn_status`          | Get comprehensive status of Brooklyn MCP server including version, capabilities, and health |
+| `brooklyn_team_setup`      | Help configure Brooklyn for your team's specific needs                                      |
+| `brooklyn_troubleshooting` | Get help with common Brooklyn issues and debugging                                          |
 
 ### pdf-analysis
 
-| Tool | Description |
-|------|-------------|
-| `analyze_pdf_content` | Analyze PDF content structure using word and line spans for semantic understanding |
-| `analyze_pdf_layout` | Analyze PDF layout structure including columns, sections, and reading order |
-| `compare_pdf_versions` | Compare two PDF versions using word spans to identify changes |
-| `extract_pdf_forms` | Extract and analyze form fields and interactive elements from PDF |
-| `extract_pdf_tables` | Extract tabular data from PDF using layout analysis and word spans |
-| `extract_pdf_text` | Extract structured text content from PDF using word/line spans |
-| `search_pdf_content` | Search for text patterns in PDF using word spans for accurate matching |
-| `summarize_pdf_content` | Generate structured summary of PDF content using word/line spans |
+| Tool                    | Description                                                                        |
+| ----------------------- | ---------------------------------------------------------------------------------- |
+| `analyze_pdf_content`   | Analyze PDF content structure using word and line spans for semantic understanding |
+| `analyze_pdf_layout`    | Analyze PDF layout structure including columns, sections, and reading order        |
+| `compare_pdf_versions`  | Compare two PDF versions using word spans to identify changes                      |
+| `extract_pdf_forms`     | Extract and analyze form fields and interactive elements from PDF                  |
+| `extract_pdf_tables`    | Extract tabular data from PDF using layout analysis and word spans                 |
+| `extract_pdf_text`      | Extract structured text content from PDF using word/line spans                     |
+| `search_pdf_content`    | Search for text patterns in PDF using word spans for accurate matching             |
+| `summarize_pdf_content` | Generate structured summary of PDF content using word/line spans                   |
 
 ### rendering
 
-| Tool | Description |
-|------|-------------|
+| Tool         | Description                                                                             |
+| ------------ | --------------------------------------------------------------------------------------- |
 | `render_pdf` | Render a PDF file in the browser for visual analysis, interaction, and layout debugging |
 
 ### styling
 
-| Tool | Description |
-|------|-------------|
-| `apply_css_override` | Apply a temporary CSS override rule scoped to a selector |
-| `get_applicable_rules` | List author rules that match the element, with specificity and properties |
-| `get_effective_computed` | Return the final computed value for a property and the winning rule metadata |
-| `revert_css_changes` | Revert a previously applied CSS override by ID |
-| `simulate_css_change` | Simulate applying CSS rules to a selector and report computed style diffs (no persistence) |
-| `why_style_not_applied` | Explain why a CSS property change may not take effect; tests desiredValue and reports likely causes |
+| Tool                     | Description                                                                                         |
+| ------------------------ | --------------------------------------------------------------------------------------------------- |
+| `apply_css_override`     | Apply a temporary CSS override rule scoped to a selector                                            |
+| `get_applicable_rules`   | List author rules that match the element, with specificity and properties                           |
+| `get_effective_computed` | Return the final computed value for a property and the winning rule metadata                        |
+| `revert_css_changes`     | Revert a previously applied CSS override by ID                                                      |
+| `simulate_css_change`    | Simulate applying CSS rules to a selector and report computed style diffs (no persistence)          |
+| `why_style_not_applied`  | Explain why a CSS property change may not take effect; tests desiredValue and reports likely causes |
 
 ---
 

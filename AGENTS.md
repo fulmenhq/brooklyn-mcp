@@ -226,10 +226,10 @@ Committer-of-Record: Dave Thompson <dave.thompson@3leaps.net> [@3leapsdave]
 
 Some files are auto-generated and committed for discoverability. **Do not edit these directly.**
 
-| File | Generator | Purpose |
-|------|-----------|---------|
-| `docs/tools/tool-inventory.json` | `scripts/generate-tool-inventory.ts` | Machine-readable tool catalog |
-| `docs/tools/tool-inventory.md` | `scripts/generate-tool-inventory.ts` | Human-readable tool documentation |
+| File                             | Generator                            | Purpose                           |
+| -------------------------------- | ------------------------------------ | --------------------------------- |
+| `docs/tools/tool-inventory.json` | `scripts/generate-tool-inventory.ts` | Machine-readable tool catalog     |
+| `docs/tools/tool-inventory.md`   | `scripts/generate-tool-inventory.ts` | Human-readable tool documentation |
 
 **When tool definitions change:**
 
@@ -276,12 +276,15 @@ Example structure:
 # AGENTS.local.md
 
 ## Session Context
+
 [Current sprint, active feature, or debugging focus]
 
 ## Avoid
+
 [Files or areas that are stable and should not be modified]
 
 ## Notes
+
 [Any session-specific reminders or decisions]
 ```
 

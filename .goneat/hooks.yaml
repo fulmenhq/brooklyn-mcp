@@ -8,7 +8,13 @@ hooks:
       timeout: "90s"
   pre-push:
     - command: "assess"
-      args: ["--categories", "format,lint,security,dates,tools,maturity,repo-status", "--fail-on", "high"]
+      args:
+        [
+          "--categories",
+          "format,lint,security,dates,tools,maturity,repo-status",
+          "--fail-on",
+          "high",
+        ]
       priority: 10
       timeout: "2m"
 optimization:

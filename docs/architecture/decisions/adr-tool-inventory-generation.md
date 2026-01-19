@@ -7,11 +7,13 @@
 ## Context
 
 Brooklyn MCP exposes 79 tools across 11 categories. However, discovering these tools required:
+
 - Running a Brooklyn server and using MCP's `tools/list` method
 - Reading source code (`tool-definitions.ts`, `onboarding-tools.ts`)
 - Trusting documentation that may be out of date
 
 This created problems for:
+
 - **Human users** browsing the GitHub repository
 - **AI agents** trying to understand Brooklyn's capabilities without running it
 - **Documentation** that referenced "50+ tools" when the actual count was 79
@@ -25,15 +27,16 @@ We generate and **commit** tool inventory files as part of the release process:
 
 ### Why Commit Rather Than Build Artifacts
 
-| Consideration | Build Artifact | Committed File |
-|---------------|----------------|----------------|
-| GitHub search indexing | No | Yes |
-| Visible without cloning/building | No | Yes |
-| Can link from README | Via raw URL only | Relative links |
-| AI agent discoverability | Requires fetch | Direct read |
-| Potential commit churn | N/A | Mitigated (see below) |
+| Consideration                    | Build Artifact   | Committed File        |
+| -------------------------------- | ---------------- | --------------------- |
+| GitHub search indexing           | No               | Yes                   |
+| Visible without cloning/building | No               | Yes                   |
+| Can link from README             | Via raw URL only | Relative links        |
+| AI agent discoverability         | Requires fetch   | Direct read           |
+| Potential commit churn           | N/A              | Mitigated (see below) |
 
 The commit churn risk is acceptable because the generator is **deterministic**:
+
 - Tools sorted alphabetically by name
 - JSON keys sorted recursively
 - No timestamps or build IDs
