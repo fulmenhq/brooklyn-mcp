@@ -96,12 +96,6 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Install browsers for E2E tests
-        run: bun run setup:browsers
-
-      - name: Setup test infrastructure
-        run: bun run setup:test-infra
-
       - name: Build Local Binary (Required for Tests)
         run: |
           echo "🔨 Building local binary for test dependencies..."
