@@ -139,31 +139,58 @@ async function generateChecksums(results: PackageResult[]): Promise<void> {
   console.log(chalk.blue("\n🔐 Generating checksums..."));
 
   const releaseDir = path.join(rootDir, "dist", "release");
-  const checksumsPath = path.join(releaseDir, "SHA256SUMS.txt");
+  const sha256Path = path.join(releaseDir, "SHA256SUMS");
+  const sha512Path = path.join(releaseDir, "SHA512SUMS");
 
   const crypto = await import("node:crypto");
-  const checksums: string[] = [];
+  const sha256Checksums: string[] = [];
+  const sha512Checksums: string[] = [];
 
   for (const result of results) {
     if (result.success) {
-      // Add binary checksum
+      // Add checksums for ZIP
       if (result.zipPath) {
         const data = await fs.readFile(result.zipPath);
-        const hash = crypto.createHash("sha256").update(data).digest("hex");
-        checksums.push(`${hash}  ${path.basename(result.zipPath)}`);
+        const filename = path.basename(result.zipPath);
+        sha256Checksums.push(
+          `${crypto.createHash("sha256").update(data).digest("hex")}  ${filename}`,
+        );
+        sha512Checksums.push(
+          `${crypto.createHash("sha512").update(data).digest("hex")}  ${filename}`,
+        );
       }
 
+      // Add checksums for TAR.GZ
       if (result.tarPath) {
         const data = await fs.readFile(result.tarPath);
-        const hash = crypto.createHash("sha256").update(data).digest("hex");
-        checksums.push(`${hash}  ${path.basename(result.tarPath)}`);
+        const filename = path.basename(result.tarPath);
+        sha256Checksums.push(
+          `${crypto.createHash("sha256").update(data).digest("hex")}  ${filename}`,
+        );
+        sha512Checksums.push(
+          `${crypto.createHash("sha512").update(data).digest("hex")}  ${filename}`,
+        );
       }
     }
   }
 
-  await fs.writeFile(checksumsPath, `${checksums.join("\n")}\n`);
+  // Sort checksums alphabetically by filename for consistent output
+  sha256Checksums.sort((a, b) => {
+    const filenameA = a.split("  ")[1] ?? "";
+    const filenameB = b.split("  ")[1] ?? "";
+    return filenameA.localeCompare(filenameB);
+  });
+  sha512Checksums.sort((a, b) => {
+    const filenameA = a.split("  ")[1] ?? "";
+    const filenameB = b.split("  ")[1] ?? "";
+    return filenameA.localeCompare(filenameB);
+  });
 
-  console.log(chalk.green(`✅ Checksums saved to ${path.relative(rootDir, checksumsPath)}`));
+  await fs.writeFile(sha256Path, `${sha256Checksums.join("\n")}\n`);
+  await fs.writeFile(sha512Path, `${sha512Checksums.join("\n")}\n`);
+
+  console.log(chalk.green(`✅ SHA256SUMS saved to ${path.relative(rootDir, sha256Path)}`));
+  console.log(chalk.green(`✅ SHA512SUMS saved to ${path.relative(rootDir, sha512Path)}`));
 }
 
 async function copyLicenseFiles(): Promise<void> {
@@ -193,42 +220,61 @@ async function copyLicenseFiles(): Promise<void> {
   }
 }
 
-async function generateReleaseNotes(): Promise<void> {
-  console.log(chalk.blue("\n📝 Generating release notes..."));
+async function copyReleaseNotes(): Promise<void> {
+  console.log(chalk.blue("\n📝 Copying release notes..."));
 
   const releaseDir = path.join(rootDir, "dist", "release");
-  const changelogPath = path.join(rootDir, "CHANGELOG.md");
-  const releaseNotesPath = path.join(releaseDir, "RELEASE_NOTES.md");
 
   try {
-    const changelog = await fs.readFile(changelogPath, "utf-8");
+    // Read VERSION file to determine which release notes to copy
+    const versionPath = path.join(rootDir, "VERSION");
+    const version = (await fs.readFile(versionPath, "utf-8")).trim();
 
-    // Extract the latest version section
-    const lines = changelog.split("\n");
-    const versionStart = lines.findIndex(
-      (line) => line.startsWith("## [") && line.includes("0.2.2"),
-    );
+    // Try docs/releases/v<version>.md first (preferred location)
+    // Handle both with and without 'v' prefix in filename
+    const releaseDocsDir = path.join(rootDir, "docs", "releases");
+    const candidates = [
+      path.join(releaseDocsDir, `v${version}.md`),
+      path.join(releaseDocsDir, `${version}.md`),
+      // Strip any pre-release suffix for docs lookup (e.g., 0.3.0-rc.1 -> 0.3.0)
+      path.join(releaseDocsDir, `v${version.split("-")[0]}.md`),
+    ];
 
-    if (versionStart === -1) {
-      console.log(chalk.yellow("⚠️  Version 0.2.2 not found in CHANGELOG.md"));
-      return;
+    let sourceFile: string | undefined;
+    for (const candidate of candidates) {
+      try {
+        await fs.access(candidate);
+        sourceFile = candidate;
+        break;
+      } catch {
+        // Try next candidate
+      }
     }
 
-    const versionEnd = lines.findIndex(
-      (line, index) => index > versionStart && line.startsWith("## ["),
-    );
+    if (!sourceFile) {
+      // Fallback: try RELEASE_NOTES.md in root if docs/releases doesn't have it
+      const rootReleaseNotes = path.join(rootDir, "RELEASE_NOTES.md");
+      try {
+        await fs.access(rootReleaseNotes);
+        sourceFile = rootReleaseNotes;
+      } catch {
+        console.log(chalk.yellow(`⚠️  No release notes found for ${version}`));
+        console.log(
+          chalk.gray(`   Checked: ${candidates.map((c) => path.relative(rootDir, c)).join(", ")}`),
+        );
+        return;
+      }
+    }
 
-    const versionLines =
-      versionEnd === -1 ? lines.slice(versionStart) : lines.slice(versionStart, versionEnd);
+    // Copy to dist/release/RELEASE.md (matches goneat pattern)
+    const destPath = path.join(releaseDir, `RELEASE.md`);
+    await fs.copyFile(sourceFile, destPath);
 
-    const releaseNotes = versionLines.join("\n");
-    await fs.writeFile(releaseNotesPath, releaseNotes);
-
-    console.log(
-      chalk.green(`✅ Release notes saved to ${path.relative(rootDir, releaseNotesPath)}`),
-    );
-  } catch (_error) {
-    console.log(chalk.yellow("⚠️  Could not generate release notes from CHANGELOG.md"));
+    console.log(chalk.green(`✅ Release notes copied from ${path.relative(rootDir, sourceFile)}`));
+    console.log(chalk.green(`   → ${path.relative(rootDir, destPath)}`));
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.log(chalk.yellow(`⚠️  Could not copy release notes: ${errorMessage}`));
   }
 }
 
@@ -310,7 +356,7 @@ async function main(): Promise<void> {
     await verifyPackages(results);
     await generateChecksums(results);
     await copyLicenseFiles();
-    await generateReleaseNotes();
+    await copyReleaseNotes();
     await printSummary(results);
   } catch (error) {
     console.error(chalk.red("❌ Packaging failed:"), error);

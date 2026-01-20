@@ -51,42 +51,19 @@ jobs:
       - name: Run Release Validation
         id: validation
         run: |
-          echo "🔍 Running comprehensive release validation..."
+          echo "Running comprehensive release validation..."
           bun run release:validate
           echo "ready=true" >> "$GITHUB_OUTPUT"
 
-  # Cross-platform build job
+  # Build job - single runner, all platforms (Bun cross-compiles)
   build-and-release:
-    name: Build and Release (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+    name: Build and Release
+    runs-on: ubuntu-latest
     needs: validate-release
     if: needs.validate-release.result == 'success'
-    strategy:
-      fail-fast: false
-      matrix:
-        # Re-enabled Windows after fixing GPU headless browser issues
-        os: [windows-latest, ubuntu-latest, macos-latest]
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Install Windows build tools
-        if: runner.os == 'Windows'
-        run: |
-          Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-          Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
-          echo "$env:USERPROFILE\scoop\shims" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          scoop install zip shasum
-        shell: pwsh
-
-      - name: Verify Windows tools
-        if: runner.os == 'Windows'
-        run: |
-          zip --version
-          shasum --version
-          tar --version
-        shell: pwsh
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
@@ -96,25 +73,35 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Generate License Inventory
+        run: |
+          echo "Generating license inventory..."
+          bun run license:scan
+
       - name: Build Local Binary (Required for Tests)
         run: |
-          echo "🔨 Building local binary for test dependencies..."
+          echo "Building local binary for test dependencies..."
           bun run build:local
 
       - name: Build All Platforms
         run: |
-          echo "🔨 Building all platform binaries..."
+          echo "Building all platform binaries (cross-compilation)..."
           bun run build:all
 
       - name: Package All Artifacts
         run: |
-          echo "📦 Creating distribution artifacts..."
+          echo "Creating distribution artifacts..."
           bun run package:all
 
       - name: License Compliance Check
         run: |
-          echo "📄 Verifying license compliance..."
+          echo "Verifying license compliance..."
           bun run license:scan:strict
+
+      - name: List Release Artifacts
+        run: |
+          echo "Release artifacts:"
+          ls -la dist/release/
 
       - name: Upload artifacts to Release
         uses: softprops/action-gh-release@v2
@@ -122,9 +109,11 @@ jobs:
           files: |
             dist/release/*.zip
             dist/release/*.tar.gz
-            dist/release/SHA256SUMS_*.txt
+            dist/release/SHA256SUMS
+            dist/release/SHA512SUMS
             dist/release/licenses.json
             dist/release/THIRD_PARTY_NOTICES.md
+            dist/release/RELEASE.md
           fail_on_unmatched_files: false
           overwrite_files: true
           body: |
@@ -142,16 +131,24 @@ jobs:
             ./brooklyn-<platform>-<arch> --help
             ```
 
+            ### Verification
+
+            **Checksums** (unsigned - signing artifacts uploaded separately):
+            ```bash
+            # Verify file integrity
+            shasum -a 256 -c SHA256SUMS
+            ```
+
+            **Signed releases** include additional provenance files:
+            - `SHA256SUMS.minisig` / `SHA256SUMS.asc` - Signatures
+            - `fulmenhq-release-minisign.pub` - Minisign public key
+            - `fulmenhq-release-signing-key.asc` - GPG public key
+
+            See RELEASE_CHECKLIST.md in this repo for verification instructions.
+
             ### License Compliance
-            This release includes:
             - `licenses.json` - Complete dependency license inventory
             - `THIRD_PARTY_NOTICES.md` - Third-party license texts
-
-            ### Verification
-            Verify binary integrity using the provided checksums:
-            ```bash
-            shasum -a 256 -c SHA256SUMS_<platform>_<arch>.txt
-            ```
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -175,12 +172,18 @@ jobs:
 
       - name: Verify MCP Server
         run: |
-          echo "🔍 Verifying MCP server functionality..."
+          echo "Verifying MCP server functionality..."
           timeout 30s bun run start -- --help || true
-          echo "✅ MCP server verification completed"
+          echo "MCP server verification completed"
 
       - name: Check Release Assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "📦 Verifying release assets..."
-          # This would check that all expected files are present
-          echo "✅ Release asset verification completed"
+          echo "Verifying release assets..."
+          gh release view ${{ github.ref_name }} --repo fulmenhq/brooklyn-mcp --json assets --jq '.assets | length'
+          echo "Release asset verification completed"
+          echo ""
+          echo "NOTE: Signing artifacts will be uploaded separately."
+          echo "  RELEASE_TAG=${{ github.ref_name }}"
+          echo "  make release-download release-sign release-upload"

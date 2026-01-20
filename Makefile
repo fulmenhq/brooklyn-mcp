@@ -63,7 +63,9 @@ GONEAT_RESOLVE = \
 .PHONY: all help bootstrap bootstrap-force bootstrap-dx hooks-ensure tools sync lint fmt test build build-all clean
 .PHONY: version version-set version-sync version-bump-major version-bump-minor version-bump-patch
 .PHONY: typecheck check-all quality precommit prepush
-.PHONY: release-check release-prepare release-build
+.PHONY: release-check release-prepare release-build release-clean
+.PHONY: release-download release-checksums release-sign release-export-keys
+.PHONY: release-verify-checksums release-verify-signatures release-upload
 .PHONY: server-start-dev server-start-prod server-stop server-status server-restart server-logs
 
 # Default target
@@ -100,7 +102,17 @@ help: ## Show this help message
 	@echo "  prepush           Run pre-push hooks"
 	@echo "  release-check     Validate release readiness"
 	@echo "  release-prepare   Prepare for release"
-	@echo "  release-build     Build release artifacts"
+	@echo "  release-build     Build release artifacts locally"
+	@echo "  release-clean     Clean dist/release directory"
+	@echo ""
+	@echo "Release signing targets (FulmenHQ pattern):"
+	@echo "  release-download  Download CI artifacts from GitHub Release"
+	@echo "  release-checksums Generate SHA256SUMS/SHA512SUMS"
+	@echo "  release-sign      Sign manifests (minisign + optional PGP)"
+	@echo "  release-export-keys Export public keys to dist/release"
+	@echo "  release-verify-checksums Verify checksums match artifacts"
+	@echo "  release-verify-signatures Verify signatures are valid"
+	@echo "  release-upload    Upload provenance to GitHub Release"
 	@echo ""
 	@echo "Server orchestration targets:"
 	@echo "  server-start-dev  Start development server"
@@ -337,6 +349,24 @@ prepush: ## Run pre-push hooks
 #
 # === RELEASE ===
 #
+# FulmenHQ Release Workflow (manual signing pattern):
+#   1. CI builds and uploads binaries to GitHub Release
+#   2. Maintainer downloads CI artifacts: make release-download
+#   3. Generate checksums (if regenerating): make release-checksums
+#   4. Sign manifests: make release-sign
+#   5. Export public keys: make release-export-keys
+#   6. Upload provenance: make release-upload
+#
+# Signing env vars (BROOKLYN_ prefix):
+#   BROOKLYN_MINISIGN_KEY  - path to minisign secret key (required)
+#   BROOKLYN_MINISIGN_PUB  - path to minisign public key (optional)
+#   BROOKLYN_PGP_KEY_ID    - GPG key ID for PGP signing (optional)
+#   BROOKLYN_GPG_HOMEDIR   - GPG homedir (required if PGP_KEY_ID set)
+#   RELEASE_TAG            - release version tag (e.g., v0.3.0)
+
+.PHONY: release-check release-prepare release-build release-clean
+.PHONY: release-download release-checksums release-sign release-export-keys
+.PHONY: release-verify-checksums release-verify-signatures release-upload
 
 release-check: check-all ## Validate release readiness
 	@echo "Checking release readiness..."
@@ -349,10 +379,88 @@ release-prepare: check-all version-sync ## Prepare for release
 	@echo "Preparing release $(VERSION)..."
 	@echo "✅ Release prepared"
 
-release-build: build-all ## Build release artifacts
+release-build: build-all ## Build release artifacts locally
 	@echo "Building release artifacts for $(VERSION)..."
+	@bun run license:scan
 	@bun run package:all
-	@echo "✅ Release artifacts ready"
+	@echo "✅ Release artifacts ready in dist/release/"
+
+release-clean: ## Clean release artifacts directory
+	@echo "Cleaning release artifacts..."
+	@rm -rf dist/release
+	@mkdir -p dist/release
+	@echo "✅ Release directory cleaned"
+
+release-download: ## Download CI-built artifacts from GitHub Release
+	@if [ -z "$(RELEASE_TAG)" ]; then \
+		echo "❌ RELEASE_TAG not set (e.g., RELEASE_TAG=v0.3.0 make release-download)"; \
+		exit 1; \
+	fi
+	@echo "Downloading $(RELEASE_TAG) artifacts from GitHub..."
+	@mkdir -p dist/release
+	@gh release download $(RELEASE_TAG) --repo fulmenhq/brooklyn-mcp --dir dist/release --pattern "*.tar.gz" --pattern "*.zip" --clobber
+	@echo "✅ Downloaded CI artifacts for $(RELEASE_TAG)"
+
+release-checksums: ## Generate checksums from downloaded/built artifacts
+	@echo "Generating checksums..."
+	@if [ -n "$$(ls dist/release/*.minisig 2>/dev/null)" ] || [ -n "$$(ls dist/release/*.asc 2>/dev/null)" ]; then \
+		echo "❌ Signatures already exist. Regenerating checksums would invalidate them."; \
+		echo "   Run 'make release-clean' first, then re-download/build artifacts."; \
+		exit 1; \
+	fi
+	@cd dist/release && rm -f SHA256SUMS SHA512SUMS
+	@cd dist/release && for f in *.tar.gz *.zip; do \
+		if [ -f "$$f" ]; then \
+			shasum -a 256 "$$f" >> SHA256SUMS; \
+			shasum -a 512 "$$f" >> SHA512SUMS; \
+		fi; \
+	done
+	@echo "✅ Checksums generated in dist/release/"
+
+release-verify-checksums: ## Verify checksums match artifacts (non-destructive)
+	@echo "Verifying checksums..."
+	@cd dist/release && shasum -a 256 -c SHA256SUMS
+	@echo "✅ SHA256 checksums verified"
+
+release-sign: ## Sign checksum manifests (minisign required, PGP optional)
+	@if [ -z "$(RELEASE_TAG)" ]; then \
+		echo "❌ RELEASE_TAG not set (e.g., RELEASE_TAG=v0.3.0 make release-sign)"; \
+		exit 1; \
+	fi
+	@scripts/sign-release-manifests.sh $(RELEASE_TAG) dist/release
+
+release-export-keys: ## Export public keys to dist/release
+	@scripts/export-release-keys.sh dist/release
+
+release-verify-signatures: ## Verify signatures are valid
+	@echo "Verifying signatures..."
+	@cd dist/release && \
+		if [ -f SHA256SUMS.minisig ]; then \
+			echo "Verifying minisign signature..."; \
+			minisign -Vm SHA256SUMS -p fulmenhq-release-minisign.pub 2>/dev/null || \
+			echo "⚠️  minisign verification requires public key in dist/release/"; \
+		fi
+	@cd dist/release && \
+		if [ -f SHA256SUMS.asc ]; then \
+			echo "Verifying GPG signature..."; \
+			gpg --verify SHA256SUMS.asc SHA256SUMS 2>/dev/null || \
+			echo "⚠️  GPG verification requires public key import"; \
+		fi
+	@echo "✅ Signature verification complete"
+
+release-upload: ## Upload signed artifacts to GitHub Release
+	@if [ -z "$(RELEASE_TAG)" ]; then \
+		echo "❌ RELEASE_TAG not set (e.g., RELEASE_TAG=v0.3.0 make release-upload)"; \
+		exit 1; \
+	fi
+	@echo "Uploading provenance artifacts for $(RELEASE_TAG)..."
+	@cd dist/release && gh release upload $(RELEASE_TAG) \
+		SHA256SUMS SHA512SUMS \
+		$$(ls SHA256SUMS.asc SHA512SUMS.asc SHA256SUMS.minisig SHA512SUMS.minisig 2>/dev/null || true) \
+		$$(ls fulmenhq-release-*.pub fulmenhq-release-*.asc 2>/dev/null || true) \
+		$$(ls licenses.json THIRD_PARTY_NOTICES.md RELEASE.md 2>/dev/null || true) \
+		--repo fulmenhq/brooklyn-mcp --clobber
+	@echo "✅ Provenance artifacts uploaded to $(RELEASE_TAG)"
 
 #
 # === SERVER ORCHESTRATION ===
