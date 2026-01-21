@@ -2,6 +2,25 @@
 
 Latest releases for Brooklyn MCP. For full history, see [CHANGELOG.md](CHANGELOG.md).
 
+## [0.3.1] - 2026-01-21
+
+**Release Type**: Patch Release - Signing Workflow & Dependency Updates
+
+### Highlights
+
+- **Release Signing Workflow**: Finalized FulmenHQ signing process with new Makefile targets
+- **Dependency Updates**: 10 packages updated (patch/minor, no breaking changes)
+- **TypeScript Fix**: Compatibility with @types/bun 1.3.6
+
+### Quality Metrics
+
+- **Tests**: 776 passing, 13 skipped
+- **Vulnerabilities**: 0 findings (115 packages scanned)
+
+[Full Release Notes](docs/releases/v0.3.1.md)
+
+---
+
 ## [0.3.0] - 2026-01-16
 
 **Release Type**: Feature Release - HTTP Transport Hardening
@@ -38,27 +57,6 @@ Latest releases for Brooklyn MCP. For full history, see [CHANGELOG.md](CHANGELOG
 - **MCP Stdout Purity**: 4/4 passing
 
 [Full Release Notes](docs/releases/v0.2.3.md)
-
----
-
-## [0.2.2] - 2025-11-17
-
-**Release Type**: Stable Release - Enterprise-ready Cross-Platform Browser Automation
-
-### Highlights
-
-- **Cross-Platform CI/CD**: Full stability across Ubuntu, macOS, and Windows
-- **Browser Automation Reliability**: Resolved critical headless browser issues in Windows CI
-- **Production Ready**: 875 tests passing across all three platforms
-
-### Quality Metrics
-
-- **Unit Tests**: 755 passed
-- **Integration Tests**: 104 passed
-- **E2E Tests**: 16 passed
-- **Platforms**: Ubuntu, macOS, Windows (all passing)
-
-[Full Release Notes](docs/releases/v0.2.2.md)
 
 ---
 

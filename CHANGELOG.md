@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-01-21
+
+### Added
+
+- **Release Signing Workflow**: Finalized FulmenHQ signing process with `release-notes` and `release-verify-keys` Makefile targets
+- **Safety Scripts**: Added `scripts/verify-gpg-public-key.sh` and `scripts/verify-minisign-public-key.sh` to prevent accidental secret key exports
+
+### Changed
+
+- **Environment Variables**: Standardized on `BROOKLYN_RELEASE_TAG` prefix (was `RELEASE_TAG`)
+- **Documentation**: Added Ghostty terminal TERM workaround for macOS signing
+
+### Updated
+
+- `@modelcontextprotocol/sdk` 1.25.2 → 1.25.3
+- `pino` 10.1.0 → 10.2.1, `pino-pretty` 13.1.2 → 13.1.3
+- `playwright` 1.56.1 → 1.57.0
+- `yaml` 2.3.4 → 2.8.2
+- `@biomejs/biome` 2.3.10 → 2.3.11
+- `@types/bun` → 1.3.6, `@types/node` → 25.0.9
+- `inquirer` 13.0.1 → 13.2.1, `prettier` 3.0.0 → 3.8.0
+
+### Fixed
+
+- **TypeScript**: Fixed `Server<unknown>` type for `@types/bun` 1.3.6 compatibility
+
 ## [0.3.0] - 2026-01-16
 
 ### Added
