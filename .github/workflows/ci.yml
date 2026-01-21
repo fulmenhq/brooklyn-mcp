@@ -1,0 +1,144 @@
+# yamllint disable rule:document-start
+# yamllint disable rule:truthy
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality-fast:
+    name: Quality (fast)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: true
+      SKIP_BROWSER_CHECK: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Debug versions
+        run: |
+          set -euo pipefail
+          bun --version
+          node --version
+
+      - name: Install goneat via sfetch (trust anchor)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          curl -sSfL https://github.com/3leaps/sfetch/releases/latest/download/install-sfetch.sh | bash
+          ~/.local/bin/sfetch -repo fulmenhq/goneat -latest -install
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Verify goneat
+        run: goneat --version
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Format (must be clean)
+        run: |
+          set -euo pipefail
+          bun run format
+          git diff --exit-code
+
+      - name: Tool inventory up-to-date
+        run: bun scripts/generate-tool-inventory.ts --check
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Embed version
+        run: bun run version:embed
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Setup test infrastructure (dirs only)
+        run: bun run setup:test-infra
+
+      - name: Unit/precommit tests
+        run: bun run test:precommit
+
+  integration-build:
+    name: Integration + build (browsers)
+    needs: quality-fast
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CI: true
+      BROOKLYN_HEADLESS: "true"
+      PLAYWRIGHT_HEADLESS: "true"
+      BROOKLYN_CLEAN_BEFORE_TESTS: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install Chromium (Playwright + OS deps)
+        run: bunx playwright install --with-deps chromium
+
+      - name: Debug Playwright cache
+        run: |
+          set -euo pipefail
+          echo "Playwright cache:"; ls -la ~/.cache/ms-playwright || true
+
+      - name: Setup test infrastructure
+        run: bun run setup:test-infra
+
+      - name: Integration tests
+        run: bun run test:integration
+
+      - name: Build (local)
+        run: bun run build:local
+
+      - name: Verify binary
+        run: ./dist/brooklyn --version
+
+      - name: Upload test logs (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: brooklyn-test-logs
+          if-no-files-found: ignore
+          path: |
+            tmp/brooklyn-test/**
+            tests/fixtures/logs/**
+            /tmp/brooklyn-test-*.log
