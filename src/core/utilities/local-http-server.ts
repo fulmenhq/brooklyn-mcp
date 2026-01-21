@@ -34,7 +34,7 @@ export interface ServeResult {
 export class LocalHttpServer {
   private static instances: Map<string, LocalHttpServer> = new Map();
   private static assetsPath?: string;
-  private server?: Server;
+  private server?: Server<unknown>;
   private port?: number;
   private serverId: string;
   private fileRegistry: Map<string, string> = new Map(); // fileId -> path

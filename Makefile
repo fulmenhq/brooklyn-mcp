@@ -64,8 +64,8 @@ GONEAT_RESOLVE = \
 .PHONY: version version-set version-sync version-bump-major version-bump-minor version-bump-patch
 .PHONY: typecheck check-all quality precommit prepush
 .PHONY: release-check release-prepare release-build release-clean
-.PHONY: release-download release-checksums release-sign release-export-keys
-.PHONY: release-verify-checksums release-verify-signatures release-upload
+.PHONY: release-download release-checksums release-sign release-export-keys release-notes
+.PHONY: release-verify-checksums release-verify-keys release-verify-signatures release-upload
 .PHONY: server-start-dev server-start-prod server-stop server-status server-restart server-logs
 
 # Default target
@@ -110,8 +110,10 @@ help: ## Show this help message
 	@echo "  release-checksums Generate SHA256SUMS/SHA512SUMS"
 	@echo "  release-sign      Sign manifests (minisign + optional PGP)"
 	@echo "  release-export-keys Export public keys to dist/release"
+	@echo "  release-verify-keys Verify exported keys are public-only"
 	@echo "  release-verify-checksums Verify checksums match artifacts"
 	@echo "  release-verify-signatures Verify signatures are valid"
+	@echo "  release-notes     Copy release notes to dist/release"
 	@echo "  release-upload    Upload provenance to GitHub Release"
 	@echo ""
 	@echo "Server orchestration targets:"
@@ -362,11 +364,11 @@ prepush: ## Run pre-push hooks
 #   BROOKLYN_MINISIGN_PUB  - path to minisign public key (optional)
 #   BROOKLYN_PGP_KEY_ID    - GPG key ID for PGP signing (optional)
 #   BROOKLYN_GPG_HOMEDIR   - GPG homedir (required if PGP_KEY_ID set)
-#   RELEASE_TAG            - release version tag (e.g., v0.3.0)
+#   BROOKLYN_RELEASE_TAG   - release version tag (e.g., v0.3.0)
 
 .PHONY: release-check release-prepare release-build release-clean
-.PHONY: release-download release-checksums release-sign release-export-keys
-.PHONY: release-verify-checksums release-verify-signatures release-upload
+.PHONY: release-download release-checksums release-sign release-export-keys release-notes
+.PHONY: release-verify-checksums release-verify-keys release-verify-signatures release-upload
 
 release-check: check-all ## Validate release readiness
 	@echo "Checking release readiness..."
@@ -392,14 +394,14 @@ release-clean: ## Clean release artifacts directory
 	@echo "✅ Release directory cleaned"
 
 release-download: ## Download CI-built artifacts from GitHub Release
-	@if [ -z "$(RELEASE_TAG)" ]; then \
-		echo "❌ RELEASE_TAG not set (e.g., RELEASE_TAG=v0.3.0 make release-download)"; \
+	@if [ -z "$(BROOKLYN_RELEASE_TAG)" ]; then \
+		echo "❌ BROOKLYN_RELEASE_TAG not set (e.g., BROOKLYN_RELEASE_TAG=v0.3.0 make release-download)"; \
 		exit 1; \
 	fi
-	@echo "Downloading $(RELEASE_TAG) artifacts from GitHub..."
+	@echo "Downloading $(BROOKLYN_RELEASE_TAG) artifacts from GitHub..."
 	@mkdir -p dist/release
-	@gh release download $(RELEASE_TAG) --repo fulmenhq/brooklyn-mcp --dir dist/release --pattern "*.tar.gz" --pattern "*.zip" --clobber
-	@echo "✅ Downloaded CI artifacts for $(RELEASE_TAG)"
+	@gh release download $(BROOKLYN_RELEASE_TAG) --repo fulmenhq/brooklyn-mcp --dir dist/release --pattern "*.tar.gz" --pattern "*.zip" --clobber
+	@echo "✅ Downloaded CI artifacts for $(BROOKLYN_RELEASE_TAG)"
 
 release-checksums: ## Generate checksums from downloaded/built artifacts
 	@echo "Generating checksums..."
@@ -423,14 +425,41 @@ release-verify-checksums: ## Verify checksums match artifacts (non-destructive)
 	@echo "✅ SHA256 checksums verified"
 
 release-sign: ## Sign checksum manifests (minisign required, PGP optional)
-	@if [ -z "$(RELEASE_TAG)" ]; then \
-		echo "❌ RELEASE_TAG not set (e.g., RELEASE_TAG=v0.3.0 make release-sign)"; \
+	@if [ -z "$(BROOKLYN_RELEASE_TAG)" ]; then \
+		echo "❌ BROOKLYN_RELEASE_TAG not set (e.g., BROOKLYN_RELEASE_TAG=v0.3.0 make release-sign)"; \
 		exit 1; \
 	fi
-	@scripts/sign-release-manifests.sh $(RELEASE_TAG) dist/release
+	@scripts/sign-release-manifests.sh $(BROOKLYN_RELEASE_TAG) dist/release
 
 release-export-keys: ## Export public keys to dist/release
 	@scripts/export-release-keys.sh dist/release
+
+release-verify-keys: ## Verify exported public keys are public-only (no secrets)
+	@echo "Verifying exported keys are public-only..."
+	@if [ -f "dist/release/fulmenhq-release-minisign.pub" ]; then \
+		scripts/verify-minisign-public-key.sh "dist/release/fulmenhq-release-minisign.pub"; \
+	else \
+		echo "No minisign public key found (skipping)"; \
+	fi
+	@if [ -f "dist/release/fulmenhq-release-signing-key.asc" ]; then \
+		scripts/verify-gpg-public-key.sh "dist/release/fulmenhq-release-signing-key.asc"; \
+	else \
+		echo "No GPG public key found (skipping)"; \
+	fi
+
+release-notes: ## Copy release notes to dist/release
+	@if [ -z "$(BROOKLYN_RELEASE_TAG)" ]; then \
+		echo "❌ BROOKLYN_RELEASE_TAG not set (e.g., BROOKLYN_RELEASE_TAG=v0.3.0 make release-notes)"; \
+		exit 1; \
+	fi
+	@notes_src="docs/releases/$(BROOKLYN_RELEASE_TAG).md"; \
+	notes_dst="dist/release/release-notes-$(BROOKLYN_RELEASE_TAG).md"; \
+	if [ ! -f "$$notes_src" ]; then \
+		echo "❌ Missing $$notes_src"; \
+		exit 1; \
+	fi; \
+	cp "$$notes_src" "$$notes_dst"; \
+	echo "✅ Copied $$notes_src → $$notes_dst"
 
 release-verify-signatures: ## Verify signatures are valid
 	@echo "Verifying signatures..."
@@ -449,18 +478,18 @@ release-verify-signatures: ## Verify signatures are valid
 	@echo "✅ Signature verification complete"
 
 release-upload: ## Upload signed artifacts to GitHub Release
-	@if [ -z "$(RELEASE_TAG)" ]; then \
-		echo "❌ RELEASE_TAG not set (e.g., RELEASE_TAG=v0.3.0 make release-upload)"; \
+	@if [ -z "$(BROOKLYN_RELEASE_TAG)" ]; then \
+		echo "❌ BROOKLYN_RELEASE_TAG not set (e.g., BROOKLYN_RELEASE_TAG=v0.3.0 make release-upload)"; \
 		exit 1; \
 	fi
-	@echo "Uploading provenance artifacts for $(RELEASE_TAG)..."
-	@cd dist/release && gh release upload $(RELEASE_TAG) \
+	@echo "Uploading provenance artifacts for $(BROOKLYN_RELEASE_TAG)..."
+	@cd dist/release && gh release upload $(BROOKLYN_RELEASE_TAG) \
 		SHA256SUMS SHA512SUMS \
 		$$(ls SHA256SUMS.asc SHA512SUMS.asc SHA256SUMS.minisig SHA512SUMS.minisig 2>/dev/null || true) \
 		$$(ls fulmenhq-release-*.pub fulmenhq-release-*.asc 2>/dev/null || true) \
-		$$(ls licenses.json THIRD_PARTY_NOTICES.md RELEASE.md 2>/dev/null || true) \
+		$$(ls licenses.json THIRD_PARTY_NOTICES.md RELEASE.md release-notes-*.md 2>/dev/null || true) \
 		--repo fulmenhq/brooklyn-mcp --clobber
-	@echo "✅ Provenance artifacts uploaded to $(RELEASE_TAG)"
+	@echo "✅ Provenance artifacts uploaded to $(BROOKLYN_RELEASE_TAG)"
 
 #
 # === SERVER ORCHESTRATION ===

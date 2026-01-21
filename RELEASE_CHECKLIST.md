@@ -111,7 +111,7 @@ After pushing the tag, GitHub Actions will:
 ### 1. Set Environment Variables
 
 ```bash
-export RELEASE_TAG=v<version>
+export BROOKLYN_RELEASE_TAG=v<version>
 
 # Minisign (required)
 export BROOKLYN_MINISIGN_KEY=$HOME/.minisign/fulmenhq-release.key
@@ -126,40 +126,58 @@ export BROOKLYN_GPG_HOMEDIR=${GNUPGHOME:-$HOME/.gnupg}
 
 ```bash
 make release-clean
-RELEASE_TAG=$RELEASE_TAG make release-download
+BROOKLYN_RELEASE_TAG=$BROOKLYN_RELEASE_TAG make release-download
 ```
 
 ### 3. Verify and Sign
 
 ```bash
 # Verify checksums match downloaded artifacts
-RELEASE_TAG=$RELEASE_TAG make release-verify-checksums
+BROOKLYN_RELEASE_TAG=$BROOKLYN_RELEASE_TAG make release-verify-checksums
 
 # Sign manifests (minisign required, PGP optional)
-RELEASE_TAG=$RELEASE_TAG make release-sign
+# NOTE: On macOS with Ghostty terminal, you may need:
+#   TERM=xterm-256color make release-sign
+BROOKLYN_RELEASE_TAG=$BROOKLYN_RELEASE_TAG make release-sign
 
 # Export public keys
-RELEASE_TAG=$RELEASE_TAG make release-export-keys
+BROOKLYN_RELEASE_TAG=$BROOKLYN_RELEASE_TAG make release-export-keys
+
+# Verify exported keys are public-only (safety check before upload)
+make release-verify-keys
 
 # Verify signatures
-RELEASE_TAG=$RELEASE_TAG make release-verify-signatures
+BROOKLYN_RELEASE_TAG=$BROOKLYN_RELEASE_TAG make release-verify-signatures
 ```
 
-### 4. Upload Provenance
+### 4. Copy Release Notes
 
 ```bash
-RELEASE_TAG=$RELEASE_TAG make release-upload
+# Copy docs/releases/v<version>.md to dist/release (not signed, documentation only)
+BROOKLYN_RELEASE_TAG=$BROOKLYN_RELEASE_TAG make release-notes
+```
+
+### 5. Upload Provenance
+
+```bash
+BROOKLYN_RELEASE_TAG=$BROOKLYN_RELEASE_TAG make release-upload
 ```
 
 ### Signing Workflow One-Liner
 
 ```bash
-export RELEASE_TAG=v<version>
+export BROOKLYN_RELEASE_TAG=v<version>
 export BROOKLYN_MINISIGN_KEY=$HOME/.minisign/fulmenhq-release.key
 make release-clean && \
-  RELEASE_TAG=$RELEASE_TAG make release-download && \
-  RELEASE_TAG=$RELEASE_TAG make release-sign release-export-keys release-upload
+  BROOKLYN_RELEASE_TAG=$BROOKLYN_RELEASE_TAG make release-download && \
+  BROOKLYN_RELEASE_TAG=$BROOKLYN_RELEASE_TAG make release-sign && \
+  make release-export-keys release-verify-keys && \
+  BROOKLYN_RELEASE_TAG=$BROOKLYN_RELEASE_TAG make release-notes && \
+  BROOKLYN_RELEASE_TAG=$BROOKLYN_RELEASE_TAG make release-upload
 ```
+
+> **Ghostty Terminal Note**: If minisign prompts fail on macOS with Ghostty,
+> prefix the signing command with `TERM=xterm-256color`.
 
 ---
 
@@ -294,10 +312,11 @@ After a complete release (CI + signing), the GitHub Release should contain:
 - `licenses.json`
 - `THIRD_PARTY_NOTICES.md`
 
-**Release Notes** (1 file):
-- `RELEASE.md`
+**Release Notes** (2 files):
+- `RELEASE.md` (CI-generated)
+- `release-notes-v<version>.md` (copied from docs/releases/)
 
-**Total**: 23 files for a fully signed release
+**Total**: 24 files for a fully signed release
 
 ---
 
@@ -316,6 +335,6 @@ After a complete release (CI + signing), the GitHub Release should contain:
 
 ---
 
-**Document Version**: 3.0 (FulmenHQ Signing Pattern)
-**Last Updated**: 2026-01-19
+**Document Version**: 3.1 (FulmenHQ Signing Pattern)
+**Last Updated**: 2026-01-21
 **Next Review**: With each major release or significant process change
