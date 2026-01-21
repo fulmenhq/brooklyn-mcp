@@ -60,18 +60,10 @@
       "inputSchema": {
         "properties": {
           "analysisTypes": {
-            "default": [
-              "structure",
-              "content"
-            ],
+            "default": ["structure", "content"],
             "description": "Types of analysis to perform",
             "items": {
-              "enum": [
-                "structure",
-                "layout",
-                "content",
-                "metadata"
-              ],
+              "enum": ["structure", "layout", "content", "metadata"],
               "type": "string"
             },
             "type": "array"
@@ -117,11 +109,7 @@
           "analysisDepth": {
             "default": "detailed",
             "description": "Depth of layout analysis",
-            "enum": [
-              "basic",
-              "detailed",
-              "comprehensive"
-            ],
+            "enum": ["basic", "detailed", "comprehensive"],
             "type": "string"
           },
           "browserId": {
@@ -168,12 +156,7 @@
                 "overriddenRules": [
                   {
                     "selector": ".button",
-                    "specificity": [
-                      0,
-                      0,
-                      1,
-                      0
-                    ],
+                    "specificity": [0, 0, 1, 0],
                     "value": "red"
                   }
                 ],
@@ -181,12 +164,7 @@
                 "reason": "Higher specificity",
                 "winningRule": {
                   "selector": ".nav .button:hover",
-                  "specificity": [
-                    0,
-                    1,
-                    1,
-                    0
-                  ],
+                  "specificity": [0, 1, 1, 0],
                   "value": "blue"
                 }
               }
@@ -200,12 +178,7 @@
             "summary": {
               "appliedRule": ".nav .button:hover",
               "conflicts": 2,
-              "highestSpecificity": [
-                0,
-                1,
-                1,
-                0
-              ],
+              "highestSpecificity": [0, 1, 1, 0],
               "totalRules": 8
             }
           },
@@ -226,12 +199,7 @@
                 },
                 "selector": ".text",
                 "source": "stylesheet.css",
-                "specificity": [
-                  0,
-                  0,
-                  1,
-                  0
-                ]
+                "specificity": [0, 0, 1, 0]
               }
             ],
             "selector": ".text",
@@ -239,22 +207,14 @@
             "summary": {
               "appliedRule": ".text",
               "conflicts": 0,
-              "highestSpecificity": [
-                0,
-                0,
-                1,
-                0
-              ],
+              "highestSpecificity": [0, 0, 1, 0],
               "totalRules": 3
             }
           },
           "input": {
             "conflictsOnly": false,
             "maxRules": 5,
-            "properties": [
-              "color",
-              "background-color"
-            ],
+            "properties": ["color", "background-color"],
             "selector": ".text"
           }
         }
@@ -309,9 +269,7 @@
             "type": "number"
           }
         },
-        "required": [
-          "selector"
-        ],
+        "required": ["selector"],
         "type": "object"
       },
       "name": "analyze_specificity"
@@ -348,15 +306,11 @@
             "type": "string"
           }
         },
-        "required": [
-          "filePath"
-        ],
+        "required": ["filePath"],
         "type": "object"
       },
       "name": "analyze_svg",
-      "nativeDependencies": [
-        "svgo"
-      ]
+      "nativeDependencies": ["svgo"]
     },
     {
       "category": "styling",
@@ -401,18 +355,11 @@
           },
           "target": {
             "default": "latest",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           }
         },
-        "required": [
-          "selector",
-          "cssRules"
-        ],
+        "required": ["selector", "cssRules"],
         "type": "object"
       },
       "name": "apply_css_override"
@@ -425,12 +372,7 @@
           "category": {
             "default": "all",
             "description": "Category of capabilities to show",
-            "enum": [
-              "core",
-              "plugins",
-              "testing",
-              "all"
-            ],
+            "enum": ["core", "plugins", "testing", "all"],
             "type": "string"
           }
         },
@@ -448,10 +390,7 @@
           "expectedOutput": {
             "content": "# Native Dependencies Installation Guide...",
             "platform": "darwin",
-            "relatedTopics": [
-              "installation",
-              "troubleshooting"
-            ],
+            "relatedTopics": ["installation", "troubleshooting"],
             "success": true,
             "topic": "native-dependencies"
           },
@@ -467,22 +406,13 @@
           "format": {
             "default": "markdown",
             "description": "Output format for documentation content",
-            "enum": [
-              "markdown",
-              "summary",
-              "structured"
-            ],
+            "enum": ["markdown", "summary", "structured"],
             "type": "string"
           },
           "platform": {
             "default": "auto",
             "description": "Filter content for specific platform (auto-detects if not specified)",
-            "enum": [
-              "darwin",
-              "linux",
-              "win32",
-              "auto"
-            ],
+            "enum": ["darwin", "linux", "win32", "auto"],
             "type": "string"
           },
           "search": {
@@ -515,11 +445,7 @@
           "format": {
             "default": "claude_commands",
             "description": "Format for the examples",
-            "enum": [
-              "claude_commands",
-              "api_calls",
-              "test_code"
-            ],
+            "enum": ["claude_commands", "api_calls", "test_code"],
             "type": "string"
           },
           "task": {
@@ -554,12 +480,7 @@
           "use_case": {
             "default": "ai_development",
             "description": "Your primary use case for Brooklyn",
-            "enum": [
-              "ai_development",
-              "e2e_testing",
-              "form_automation",
-              "monitoring"
-            ],
+            "enum": ["ai_development", "e2e_testing", "form_automation", "monitoring"],
             "type": "string"
           }
         },
@@ -577,11 +498,7 @@
           "expectedOutput": {
             "category": "browser-lifecycle",
             "count": 3,
-            "tools": [
-              "launch_browser",
-              "close_browser",
-              "list_active_browsers"
-            ]
+            "tools": ["launch_browser", "close_browser", "list_active_browsers"]
           },
           "input": {
             "category": "browser-lifecycle",
@@ -613,13 +530,7 @@
           "level": {
             "default": "all",
             "description": "Filter logs by level",
-            "enum": [
-              "debug",
-              "info",
-              "warn",
-              "error",
-              "all"
-            ],
+            "enum": ["debug", "info", "warn", "error", "all"],
             "type": "string"
           },
           "lines": {
@@ -647,11 +558,7 @@
           "detail": {
             "default": "basic",
             "description": "Level of detail in the status report",
-            "enum": [
-              "basic",
-              "full",
-              "teams"
-            ],
+            "enum": ["basic", "full", "teams"],
             "type": "string"
           }
         },
@@ -679,20 +586,13 @@
           "use_cases": {
             "description": "Your team's use cases",
             "items": {
-              "enum": [
-                "e2e_testing",
-                "form_automation",
-                "monitoring",
-                "ux_development"
-              ],
+              "enum": ["e2e_testing", "form_automation", "monitoring", "ux_development"],
               "type": "string"
             },
             "type": "array"
           }
         },
-        "required": [
-          "team_id"
-        ],
+        "required": ["team_id"],
         "type": "object"
       },
       "name": "brooklyn_team_setup"
@@ -706,12 +606,8 @@
           "expectedOutput": {
             "category": "content-capture",
             "description": "Capture a screenshot of the current page or specific element",
-            "errors": [
-              "..."
-            ],
-            "examples": [
-              "..."
-            ],
+            "errors": ["..."],
+            "examples": ["..."],
             "name": "take_screenshot"
           },
           "input": {
@@ -726,9 +622,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "toolName"
-        ],
+        "required": ["toolName"],
         "type": "object"
       },
       "name": "brooklyn_tool_help"
@@ -840,11 +734,7 @@
           "target": {
             "default": "latest",
             "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           },
           "timeout": {
@@ -855,9 +745,7 @@
             "type": "number"
           }
         },
-        "required": [
-          "selector"
-        ],
+        "required": ["selector"],
         "type": "object"
       },
       "name": "clear_element"
@@ -917,11 +805,7 @@
           "target": {
             "default": "latest",
             "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           },
           "timeout": {
@@ -937,9 +821,7 @@
             "type": "boolean"
           }
         },
-        "required": [
-          "selector"
-        ],
+        "required": ["selector"],
         "type": "object"
       },
       "name": "click_element"
@@ -968,11 +850,7 @@
           "target": {
             "default": "latest",
             "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           }
         },
@@ -996,11 +874,7 @@
           "comparisonType": {
             "default": "text",
             "description": "Type of comparison to perform",
-            "enum": [
-              "text",
-              "layout",
-              "structure"
-            ],
+            "enum": ["text", "layout", "structure"],
             "type": "string"
           },
           "includeDetails": {
@@ -1022,10 +896,7 @@
             "type": "object"
           }
         },
-        "required": [
-          "browserId1",
-          "browserId2"
-        ],
+        "required": ["browserId1", "browserId2"],
         "type": "object"
       },
       "name": "compare_pdf_versions"
@@ -1096,15 +967,11 @@
             "type": "boolean"
           }
         },
-        "required": [
-          "filePath"
-        ],
+        "required": ["filePath"],
         "type": "object"
       },
       "name": "compress_svg",
-      "nativeDependencies": [
-        "svgo"
-      ]
+      "nativeDependencies": ["svgo"]
     },
     {
       "category": "image-processing",
@@ -1131,13 +998,7 @@
           },
           "input": {
             "outputNamePattern": "logo-{size}.png",
-            "sizes": [
-              16,
-              32,
-              64,
-              128,
-              256
-            ],
+            "sizes": [16, 32, 64, 128, 256],
             "svgPath": "/path/to/logo.svg",
             "taskId": "website-icons"
           }
@@ -1177,11 +1038,7 @@
             "type": "string"
           },
           "sizes": {
-            "default": [
-              150,
-              300,
-              512
-            ],
+            "default": [150, 300, 512],
             "description": "Array of sizes to generate (width=height for square images)",
             "items": {
               "type": "number"
@@ -1197,10 +1054,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "svgPath",
-          "sizes"
-        ],
+        "required": ["svgPath", "sizes"],
         "type": "object"
       },
       "name": "convert_svg_to_multi_png"
@@ -1288,9 +1142,7 @@
             "type": "number"
           }
         },
-        "required": [
-          "svgPath"
-        ],
+        "required": ["svgPath"],
         "type": "object"
       },
       "name": "convert_svg_to_png"
@@ -1372,11 +1224,7 @@
           "target": {
             "default": "latest",
             "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           },
           "timeout": {
@@ -1406,10 +1254,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "selector",
-          "baseline"
-        ],
+        "required": ["selector", "baseline"],
         "type": "object"
       },
       "name": "diff_css"
@@ -1524,11 +1369,7 @@
           "target": {
             "default": "latest",
             "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           },
           "targetPosition": {
@@ -1555,10 +1396,7 @@
             "type": "number"
           }
         },
-        "required": [
-          "sourceSelector",
-          "targetSelector"
-        ],
+        "required": ["sourceSelector", "targetSelector"],
         "type": "object"
       },
       "name": "drag_and_drop"
@@ -1601,9 +1439,7 @@
             "type": "number"
           }
         },
-        "required": [
-          "expression"
-        ],
+        "required": ["expression"],
         "type": "object"
       },
       "name": "evaluate_expression"
@@ -1650,9 +1486,7 @@
             "type": "number"
           }
         },
-        "required": [
-          "script"
-        ],
+        "required": ["script"],
         "type": "object"
       },
       "name": "execute_script"
@@ -1693,9 +1527,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "selector"
-        ],
+        "required": ["selector"],
         "type": "object"
       },
       "name": "extract_css"
@@ -1754,11 +1586,7 @@
           "outputFormat": {
             "default": "json",
             "description": "Output format for extracted tables",
-            "enum": [
-              "json",
-              "csv",
-              "markdown"
-            ],
+            "enum": ["json", "csv", "markdown"],
             "type": "string"
           },
           "pageRange": {
@@ -1777,10 +1605,7 @@
           "tableDetection": {
             "default": "auto",
             "description": "Table detection method",
-            "enum": [
-              "auto",
-              "manual"
-            ],
+            "enum": ["auto", "manual"],
             "type": "string"
           }
         },
@@ -1800,11 +1625,7 @@
           "format": {
             "default": "structured",
             "description": "Output format",
-            "enum": [
-              "structured",
-              "plain",
-              "markdown"
-            ],
+            "enum": ["structured", "plain", "markdown"],
             "type": "string"
           },
           "includeMetadata": {
@@ -1923,11 +1744,7 @@
           "target": {
             "default": "latest",
             "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           },
           "timeout": {
@@ -1938,9 +1755,7 @@
             "type": "number"
           }
         },
-        "required": [
-          "fieldMapping"
-        ],
+        "required": ["fieldMapping"],
         "type": "object"
       },
       "name": "fill_form"
@@ -2009,11 +1824,7 @@
           "target": {
             "default": "latest",
             "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           },
           "text": {
@@ -2028,10 +1839,7 @@
             "type": "number"
           }
         },
-        "required": [
-          "selector",
-          "text"
-        ],
+        "required": ["selector", "text"],
         "type": "object"
       },
       "name": "fill_text"
@@ -2079,11 +1887,7 @@
           "target": {
             "default": "latest",
             "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           },
           "timeout": {
@@ -2094,9 +1898,7 @@
             "type": "number"
           }
         },
-        "required": [
-          "selector"
-        ],
+        "required": ["selector"],
         "type": "object"
       },
       "name": "find_elements"
@@ -2125,11 +1927,7 @@
           },
           "target": {
             "default": "latest",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           }
         },
@@ -2192,11 +1990,7 @@
           "target": {
             "default": "latest",
             "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           },
           "timeout": {
@@ -2207,9 +2001,7 @@
             "type": "number"
           }
         },
-        "required": [
-          "selector"
-        ],
+        "required": ["selector"],
         "type": "object"
       },
       "name": "focus_element"
@@ -2252,9 +2044,7 @@
           "description": "Find navigation menu with context",
           "expectedOutput": {
             "description": "main navigation menu",
-            "recommendations": [
-              "Consider adding data-testid attributes for better stability"
-            ],
+            "recommendations": ["Consider adding data-testid attributes for better stability"],
             "selectors": [
               {
                 "confidence": 0.95,
@@ -2312,9 +2102,7 @@
             "type": "number"
           }
         },
-        "required": [
-          "description"
-        ],
+        "required": ["description"],
         "type": "object"
       },
       "name": "generate_selector"
@@ -2341,11 +2129,7 @@
                   "href": "/styles/site.css",
                   "origin": "author"
                 },
-                "specificity": [
-                  0,
-                  1,
-                  1
-                ]
+                "specificity": [0, 1, 1]
               }
             ],
             "success": true
@@ -2377,17 +2161,11 @@
           },
           "target": {
             "default": "latest",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           }
         },
-        "required": [
-          "selector"
-        ],
+        "required": ["selector"],
         "type": "object"
       },
       "name": "get_applicable_rules"
@@ -2453,11 +2231,7 @@
           "target": {
             "default": "latest",
             "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           },
           "timeout": {
@@ -2468,9 +2242,7 @@
             "type": "number"
           }
         },
-        "required": [
-          "selector"
-        ],
+        "required": ["selector"],
         "type": "object"
       },
       "name": "get_attribute"
@@ -2552,11 +2324,7 @@
           "target": {
             "default": "latest",
             "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           },
           "timeout": {
@@ -2567,9 +2335,7 @@
             "type": "number"
           }
         },
-        "required": [
-          "selector"
-        ],
+        "required": ["selector"],
         "type": "object"
       },
       "name": "get_bounding_box"
@@ -2586,9 +2352,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "selector"
-        ],
+        "required": ["selector"],
         "type": "object"
       },
       "name": "get_computed_styles"
@@ -2623,13 +2387,7 @@
           },
           "level": {
             "description": "Filter by console message level",
-            "enum": [
-              "log",
-              "info",
-              "warn",
-              "error",
-              "debug"
-            ],
+            "enum": ["log", "info", "warn", "error", "debug"],
             "type": "string"
           },
           "limit": {
@@ -2659,11 +2417,7 @@
               "selector": ".grid .card",
               "type": "author"
             },
-            "specificity": [
-              0,
-              1,
-              1
-            ],
+            "specificity": [0, 1, 1],
             "success": true,
             "value": "16px"
           },
@@ -2686,18 +2440,11 @@
           },
           "target": {
             "default": "latest",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           }
         },
-        "required": [
-          "selector",
-          "property"
-        ],
+        "required": ["selector", "property"],
         "type": "object"
       },
       "name": "get_effective_computed"
@@ -2757,12 +2504,7 @@
           "clientModel": {
             "default": "default",
             "description": "Client model for accurate token counting (default uses conservative limits)",
-            "enum": [
-              "claude",
-              "gpt-4",
-              "gpt-3.5",
-              "default"
-            ],
+            "enum": ["claude", "gpt-4", "gpt-3.5", "default"],
             "type": "string"
           },
           "includeStyles": {
@@ -2788,11 +2530,7 @@
           "target": {
             "default": "latest",
             "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           },
           "timeout": {
@@ -2847,11 +2585,7 @@
           },
           "target": {
             "default": "latest",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           }
         },
@@ -2884,10 +2618,7 @@
           "returnFormat": {
             "default": "file",
             "description": "How to return the asset data",
-            "enum": [
-              "file",
-              "base64"
-            ],
+            "enum": ["file", "base64"],
             "type": "string"
           },
           "taskId": {
@@ -2895,10 +2626,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "taskId",
-          "assetName"
-        ],
+        "required": ["taskId", "assetName"],
         "type": "object"
       },
       "name": "get_processed_asset"
@@ -3007,11 +2735,7 @@
           "target": {
             "default": "latest",
             "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           },
           "timeout": {
@@ -3022,9 +2746,7 @@
             "type": "number"
           }
         },
-        "required": [
-          "selector"
-        ],
+        "required": ["selector"],
         "type": "object"
       },
       "name": "get_text_content"
@@ -3053,11 +2775,7 @@
           "target": {
             "default": "latest",
             "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           }
         },
@@ -3117,11 +2835,7 @@
           },
           "target": {
             "default": "latest",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           },
           "timeout": {
@@ -3129,9 +2843,7 @@
             "type": "number"
           }
         },
-        "required": [
-          "selector"
-        ],
+        "required": ["selector"],
         "type": "object"
       },
       "name": "highlight_element_bounds"
@@ -3224,11 +2936,7 @@
           "target": {
             "default": "latest",
             "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           },
           "timeout": {
@@ -3239,9 +2947,7 @@
             "type": "number"
           }
         },
-        "required": [
-          "selector"
-        ],
+        "required": ["selector"],
         "type": "object"
       },
       "name": "hover_element"
@@ -3285,11 +2991,7 @@
           "target": {
             "default": "latest",
             "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           },
           "timeout": {
@@ -3300,9 +3002,7 @@
             "type": "number"
           }
         },
-        "required": [
-          "selector"
-        ],
+        "required": ["selector"],
         "type": "object"
       },
       "name": "is_enabled"
@@ -3346,11 +3046,7 @@
           "target": {
             "default": "latest",
             "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           },
           "timeout": {
@@ -3361,9 +3057,7 @@
             "type": "number"
           }
         },
-        "required": [
-          "selector"
-        ],
+        "required": ["selector"],
         "type": "object"
       },
       "name": "is_visible"
@@ -3418,11 +3112,7 @@
           "browserType": {
             "default": "chromium",
             "description": "Browser engine to launch",
-            "enum": [
-              "chromium",
-              "firefox",
-              "webkit"
-            ],
+            "enum": ["chromium", "firefox", "webkit"],
             "type": "string"
           },
           "headless": {
@@ -3524,20 +3214,13 @@
           "sortBy": {
             "default": "modified",
             "description": "Sort criteria",
-            "enum": [
-              "created",
-              "modified",
-              "size"
-            ],
+            "enum": ["created", "modified", "size"],
             "type": "string"
           },
           "sortDirection": {
             "default": "desc",
             "description": "Sort direction",
-            "enum": [
-              "asc",
-              "desc"
-            ],
+            "enum": ["asc", "desc"],
             "type": "string"
           },
           "taskId": {
@@ -3596,9 +3279,7 @@
           "description": "List screenshots by tag from last hour",
           "expectedOutput": {
             "hasMore": false,
-            "items": [
-              "..."
-            ],
+            "items": ["..."],
             "total": 3
           },
           "input": {
@@ -3612,9 +3293,7 @@
           "description": "List team screenshots with pagination",
           "expectedOutput": {
             "hasMore": true,
-            "items": [
-              "..."
-            ],
+            "items": ["..."],
             "nextOffset": 60,
             "total": 150
           },
@@ -3634,10 +3313,7 @@
           },
           "format": {
             "description": "Filter by screenshot format",
-            "enum": [
-              "png",
-              "jpeg"
-            ],
+            "enum": ["png", "jpeg"],
             "type": "string"
           },
           "instanceId": {
@@ -3666,20 +3342,13 @@
           "orderBy": {
             "default": "created_at",
             "description": "Field to order results by",
-            "enum": [
-              "created_at",
-              "file_size",
-              "filename"
-            ],
+            "enum": ["created_at", "file_size", "filename"],
             "type": "string"
           },
           "orderDirection": {
             "default": "DESC",
             "description": "Sort direction",
-            "enum": [
-              "ASC",
-              "DESC"
-            ],
+            "enum": ["ASC", "DESC"],
             "type": "string"
           },
           "sessionId": {
@@ -3739,17 +3408,11 @@
           },
           "target": {
             "default": "latest",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           }
         },
-        "required": [
-          "containerSelector"
-        ],
+        "required": ["containerSelector"],
         "type": "object"
       },
       "name": "measure_whitespace"
@@ -3810,11 +3473,7 @@
           "target": {
             "default": "latest",
             "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           },
           "url": {
@@ -3824,17 +3483,11 @@
           "waitUntil": {
             "default": "load",
             "description": "Wait condition for navigation",
-            "enum": [
-              "load",
-              "domcontentloaded",
-              "networkidle"
-            ],
+            "enum": ["load", "domcontentloaded", "networkidle"],
             "type": "string"
           }
         },
-        "required": [
-          "url"
-        ],
+        "required": ["url"],
         "type": "object"
       },
       "name": "navigate_to_url"
@@ -3851,10 +3504,7 @@
             "errors": [],
             "filesDeleted": 8,
             "success": true,
-            "tasksAffected": [
-              "temp-12345",
-              "temp-67890"
-            ]
+            "tasksAffected": ["temp-12345", "temp-67890"]
           },
           "input": {
             "dryRun": true,
@@ -3889,18 +3539,11 @@
           },
           "strategy": {
             "description": "Purging strategy",
-            "enum": [
-              "complete",
-              "partial",
-              "age-based"
-            ],
+            "enum": ["complete", "partial", "age-based"],
             "type": "string"
           }
         },
-        "required": [
-          "pattern",
-          "strategy"
-        ],
+        "required": ["pattern", "strategy"],
         "type": "object"
       },
       "name": "purge_processed_assets"
@@ -3931,17 +3574,11 @@
           },
           "target": {
             "default": "latest",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           }
         },
-        "required": [
-          "overlayId"
-        ],
+        "required": ["overlayId"],
         "type": "object"
       },
       "name": "remove_overlay"
@@ -3996,11 +3633,7 @@
           "target": {
             "default": "latest",
             "description": "Optional targeting strategy when browserId is omitted or invalid",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           },
           "waitForRender": {
@@ -4018,9 +3651,7 @@
             "type": "number"
           }
         },
-        "required": [
-          "pdfPath"
-        ],
+        "required": ["pdfPath"],
         "type": "object"
       },
       "name": "render_pdf"
@@ -4038,17 +3669,11 @@
           },
           "target": {
             "default": "latest",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           }
         },
-        "required": [
-          "overrideId"
-        ],
+        "required": ["overrideId"],
         "type": "object"
       },
       "name": "revert_css_changes"
@@ -4060,10 +3685,7 @@
         "properties": {
           "behavior": {
             "default": "auto",
-            "enum": [
-              "auto",
-              "smooth"
-            ],
+            "enum": ["auto", "smooth"],
             "type": "string"
           },
           "browserId": {
@@ -4079,18 +3701,11 @@
           },
           "target": {
             "default": "latest",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           }
         },
-        "required": [
-          "dx",
-          "dy"
-        ],
+        "required": ["dx", "dy"],
         "type": "object"
       },
       "name": "scroll_by"
@@ -4121,11 +3736,7 @@
           },
           "target": {
             "default": "latest",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           },
           "timeout": {
@@ -4135,9 +3746,7 @@
             "type": "number"
           }
         },
-        "required": [
-          "selector"
-        ],
+        "required": ["selector"],
         "type": "object"
       },
       "name": "scroll_into_view"
@@ -4149,10 +3758,7 @@
         "properties": {
           "behavior": {
             "default": "auto",
-            "enum": [
-              "auto",
-              "smooth"
-            ],
+            "enum": ["auto", "smooth"],
             "type": "string"
           },
           "browserId": {
@@ -4160,11 +3766,7 @@
           },
           "target": {
             "default": "latest",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           },
           "x": {
@@ -4176,10 +3778,7 @@
             "type": "number"
           }
         },
-        "required": [
-          "x",
-          "y"
-        ],
+        "required": ["x", "y"],
         "type": "object"
       },
       "name": "scroll_to"
@@ -4226,9 +3825,7 @@
             "type": "boolean"
           }
         },
-        "required": [
-          "query"
-        ],
+        "required": ["query"],
         "type": "object"
       },
       "name": "search_pdf_content"
@@ -4316,11 +3913,7 @@
           "target": {
             "default": "latest",
             "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           },
           "timeout": {
@@ -4335,9 +3928,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "selector"
-        ],
+        "required": ["selector"],
         "type": "object"
       },
       "name": "select_option"
@@ -4373,11 +3964,7 @@
           },
           "target": {
             "default": "latest",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           }
         },
@@ -4456,18 +4043,11 @@
           },
           "target": {
             "default": "latest",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           }
         },
-        "required": [
-          "selector",
-          "cssRules"
-        ],
+        "required": ["selector", "cssRules"],
         "type": "object"
       },
       "name": "simulate_css_change"
@@ -4507,11 +4087,7 @@
           "summaryType": {
             "default": "overview",
             "description": "Type of summary to generate",
-            "enum": [
-              "overview",
-              "detailed",
-              "executive"
-            ],
+            "enum": ["overview", "detailed", "executive"],
             "type": "string"
           }
         },
@@ -4666,11 +4242,7 @@
           "returnFormat": {
             "default": "file",
             "description": "How to return the screenshot data (file=path, url=HTTP endpoint, base64_thumbnail=small preview)",
-            "enum": [
-              "file",
-              "url",
-              "base64_thumbnail"
-            ],
+            "enum": ["file", "url", "base64_thumbnail"],
             "type": "string"
           },
           "selector": {
@@ -4688,11 +4260,7 @@
           "target": {
             "default": "latest",
             "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           },
           "teamId": {
@@ -4702,10 +4270,7 @@
           "type": {
             "default": "png",
             "description": "Screenshot format",
-            "enum": [
-              "png",
-              "jpeg"
-            ],
+            "enum": ["png", "jpeg"],
             "type": "string"
           }
         },
@@ -4750,11 +4315,7 @@
           "target": {
             "default": "latest",
             "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           },
           "timeout": {
@@ -4765,9 +4326,7 @@
             "type": "number"
           }
         },
-        "required": [
-          "selector"
-        ],
+        "required": ["selector"],
         "type": "object"
       },
       "name": "validate_element_presence"
@@ -4813,22 +4372,13 @@
           "state": {
             "default": "visible",
             "description": "Element state to wait for",
-            "enum": [
-              "attached",
-              "detached",
-              "visible",
-              "hidden"
-            ],
+            "enum": ["attached", "detached", "visible", "hidden"],
             "type": "string"
           },
           "target": {
             "default": "latest",
             "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           },
           "timeout": {
@@ -4839,9 +4389,7 @@
             "type": "number"
           }
         },
-        "required": [
-          "selector"
-        ],
+        "required": ["selector"],
         "type": "object"
       },
       "name": "wait_for_element"
@@ -4869,11 +4417,7 @@
           },
           "target": {
             "default": "latest",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           },
           "timeout": {
@@ -4884,11 +4428,7 @@
           },
           "waitUntil": {
             "default": "load",
-            "enum": [
-              "load",
-              "domcontentloaded",
-              "networkidle"
-            ],
+            "enum": ["load", "domcontentloaded", "networkidle"],
             "type": "string"
           }
         },
@@ -4918,11 +4458,7 @@
           },
           "target": {
             "default": "latest",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           },
           "timeout": {
@@ -4994,11 +4530,7 @@
           "target": {
             "default": "latest",
             "description": "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           },
           "timeout": {
@@ -5036,9 +4568,7 @@
               "after": "-20px",
               "before": "auto"
             },
-            "reasons": [
-              "Position is static; offsets only apply when position != static"
-            ],
+            "reasons": ["Position is static; offsets only apply when position != static"],
             "success": true
           },
           "input": {
@@ -5065,18 +4595,11 @@
           },
           "target": {
             "default": "latest",
-            "enum": [
-              "latest",
-              "current",
-              "byId"
-            ],
+            "enum": ["latest", "current", "byId"],
             "type": "string"
           }
         },
-        "required": [
-          "selector",
-          "property"
-        ],
+        "required": ["selector", "property"],
         "type": "object"
       },
       "name": "why_style_not_applied"
