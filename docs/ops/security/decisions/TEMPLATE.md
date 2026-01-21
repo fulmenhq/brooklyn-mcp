@@ -13,13 +13,13 @@ What is the security issue or decision that needs to be made?
 
 For vulnerability-related SDRs:
 
-| Field | Value |
-|-------|-------|
-| ID | GHSA-xxxx-xxxx-xxxx / CVE-YYYY-NNNNN |
-| Severity | Critical / High / Medium / Low |
-| Package | package@version |
-| Scanner | bun audit / npm audit / grype |
-| First Seen | YYYY-MM-DD |
+| Field      | Value                                |
+| ---------- | ------------------------------------ |
+| ID         | GHSA-xxxx-xxxx-xxxx / CVE-YYYY-NNNNN |
+| Severity   | Critical / High / Medium / Low       |
+| Package    | package@version                      |
+| Scanner    | bun audit / npm audit / grype        |
+| First Seen | YYYY-MM-DD                           |
 
 ## Analysis
 

@@ -10,21 +10,21 @@ This directory contains security documentation for Brooklyn MCP including vulner
 
 ## Quick Reference
 
-| Task | Command |
-|------|---------|
-| NPM vulnerability scan | `bun audit` |
-| Goneat vulnerability scan | `goneat dependencies --vuln .` |
-| License compliance | `bun run license:scan` |
-| Full dependency check | `goneat dependencies --licenses --cooling --vuln .` |
+| Task                      | Command                                             |
+| ------------------------- | --------------------------------------------------- |
+| NPM vulnerability scan    | `bun audit`                                         |
+| Goneat vulnerability scan | `goneat dependencies --vuln .`                      |
+| License compliance        | `bun run license:scan`                              |
+| Full dependency check     | `goneat dependencies --licenses --cooling --vuln .` |
 
 ## Security Decision Records (SDRs)
 
 Security-related decisions are documented in `decisions/`:
 
-| SDR | Title | Status |
-|-----|-------|--------|
+| SDR                                                                 | Title                               | Status   |
+| ------------------------------------------------------------------- | ----------------------------------- | -------- |
 | [SDR-001](decisions/SDR-001-npm-transitive-dependency-overrides.md) | NPM Transitive Dependency Overrides | Approved |
-| [SDR-002](decisions/SDR-002-go-stdlib-sbom-false-positives.md) | Go Stdlib SBOM False Positives | Approved |
+| [SDR-002](decisions/SDR-002-go-stdlib-sbom-false-positives.md)      | Go Stdlib SBOM False Positives      | Approved |
 
 ### When to Create an SDR
 
@@ -41,10 +41,10 @@ Use [decisions/TEMPLATE.md](decisions/TEMPLATE.md) as starting point.
 
 ### Authoritative Sources
 
-| Language | Scanner | Authority |
-|----------|---------|-----------|
-| TypeScript/npm | `bun audit` | Primary |
-| Go | `goneat dependencies --vuln` | Primary |
+| Language       | Scanner                      | Authority |
+| -------------- | ---------------------------- | --------- |
+| TypeScript/npm | `bun audit`                  | Primary   |
+| Go             | `goneat dependencies --vuln` | Primary   |
 | Multi-language | `goneat dependencies --vuln` | Secondary |
 
 For Brooklyn (TypeScript project), `bun audit` is the authoritative vulnerability source. Goneat's syft+grype scanner may produce false positives for non-Go projects.
@@ -56,7 +56,7 @@ Vulnerability scanning is configured in `.goneat/dependencies.yaml`:
 ```yaml
 vulnerabilities:
   enabled: true
-  fail_on: none  # or: low, medium, high, critical
+  fail_on: none # or: low, medium, high, critical
   allow:
     - id: CVE-YYYY-NNNNN
       status: false_positive

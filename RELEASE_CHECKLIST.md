@@ -188,6 +188,7 @@ make release-clean && \
 - [ ] **GitHub Downloads**: All binaries downloadable from release page
 - [ ] **Checksums Verify**: `shasum -a 256 -c SHA256SUMS`
 - [ ] **Signatures Verify**:
+
   ```bash
   # Minisign
   minisign -Vm SHA256SUMS -p fulmenhq-release-minisign.pub
@@ -294,25 +295,31 @@ echo "previous-version" > VERSION
 After a complete release (CI + signing), the GitHub Release should contain:
 
 **Binaries** (12 files):
+
 - `brooklyn-{darwin,linux,windows}-{amd64,arm64}.{tar.gz,zip}`
 
 **Checksums** (2 files):
+
 - `SHA256SUMS`
 - `SHA512SUMS`
 
 **Signatures** (4 files):
+
 - `SHA256SUMS.minisig`, `SHA256SUMS.asc`
 - `SHA512SUMS.minisig`, `SHA512SUMS.asc`
 
 **Public Keys** (2 files):
+
 - `fulmenhq-release-minisign.pub`
 - `fulmenhq-release-signing-key.asc`
 
 **Licenses** (2 files):
+
 - `licenses.json`
 - `THIRD_PARTY_NOTICES.md`
 
 **Release Notes** (2 files):
+
 - `RELEASE.md` (CI-generated)
 - `release-notes-v<version>.md` (copied from docs/releases/)
 

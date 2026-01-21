@@ -13,40 +13,40 @@ During v0.3.0 release preparation, `bun audit` identified 3 vulnerabilities in t
 
 ### Finding 1: qs DoS via Memory Exhaustion
 
-| Field | Value |
-|-------|-------|
-| ID | GHSA-6rw7-vpxm-498p |
-| Severity | High |
-| Package | qs@6.14.0 |
-| Scanner | bun audit |
-| First Seen | 2026-01-19 |
-| Fix Version | >=6.14.1 |
+| Field       | Value               |
+| ----------- | ------------------- |
+| ID          | GHSA-6rw7-vpxm-498p |
+| Severity    | High                |
+| Package     | qs@6.14.0           |
+| Scanner     | bun audit           |
+| First Seen  | 2026-01-19          |
+| Fix Version | >=6.14.1            |
 
 **Dependency Path:** `@modelcontextprotocol/sdk → express → body-parser → qs`
 
 ### Finding 2: body-parser DoS via URL Encoding
 
-| Field | Value |
-|-------|-------|
-| ID | GHSA-wqch-xfxh-vrr4 |
-| Severity | Moderate |
-| Package | body-parser@2.2.0 |
-| Scanner | bun audit |
-| First Seen | 2026-01-19 |
-| Fix Version | >=2.2.1 |
+| Field       | Value               |
+| ----------- | ------------------- |
+| ID          | GHSA-wqch-xfxh-vrr4 |
+| Severity    | Moderate            |
+| Package     | body-parser@2.2.0   |
+| Scanner     | bun audit           |
+| First Seen  | 2026-01-19          |
+| Fix Version | >=2.2.1             |
 
 **Dependency Path:** `@modelcontextprotocol/sdk → express → body-parser`
 
 ### Finding 3: esbuild Dev Server CORS Issue
 
-| Field | Value |
-|-------|-------|
-| ID | GHSA-67mh-4wv8-2f99 |
-| Severity | Moderate |
-| Package | esbuild@0.24.2 |
-| Scanner | bun audit |
-| First Seen | 2026-01-19 |
-| Fix Version | >0.24.2 |
+| Field       | Value               |
+| ----------- | ------------------- |
+| ID          | GHSA-67mh-4wv8-2f99 |
+| Severity    | Moderate            |
+| Package     | esbuild@0.24.2      |
+| Scanner     | bun audit           |
+| First Seen  | 2026-01-19          |
+| Fix Version | >0.24.2             |
 
 **Dependency Path:** `vitest → vite-node → vite → esbuild`
 
@@ -60,11 +60,11 @@ During v0.3.0 release preparation, `bun audit` identified 3 vulnerabilities in t
 
 ### Risk Assessment
 
-| Vulnerability | Production Impact | Development Impact | Risk |
-|--------------|-------------------|-------------------|------|
-| qs | HTTP endpoints exposed | N/A | High |
-| body-parser | HTTP endpoints exposed | N/A | Medium |
-| esbuild | None (dev only) | Dev server CORS | Low |
+| Vulnerability | Production Impact      | Development Impact | Risk   |
+| ------------- | ---------------------- | ------------------ | ------ |
+| qs            | HTTP endpoints exposed | N/A                | High   |
+| body-parser   | HTTP endpoints exposed | N/A                | Medium |
+| esbuild       | None (dev only)        | Dev server CORS    | Low    |
 
 The qs and body-parser vulnerabilities affect Brooklyn's HTTP transport which serves MCP requests. An attacker could craft malicious payloads to cause DoS.
 
@@ -132,11 +132,11 @@ $ make prepush
 
 When these dependencies are updated upstream, remove the corresponding override:
 
-| Override | Remove When |
-|----------|-------------|
-| qs | @modelcontextprotocol/sdk ships with qs>=6.14.1 |
+| Override    | Remove When                                             |
+| ----------- | ------------------------------------------------------- |
+| qs          | @modelcontextprotocol/sdk ships with qs>=6.14.1         |
 | body-parser | @modelcontextprotocol/sdk ships with body-parser>=2.2.1 |
-| esbuild | vitest ships with esbuild>0.24.2 |
+| esbuild     | vitest ships with esbuild>0.24.2                        |
 
 ## References
 

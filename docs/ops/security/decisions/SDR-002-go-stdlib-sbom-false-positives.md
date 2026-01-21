@@ -11,15 +11,16 @@ During v0.3.0 vulnerability scanning with `goneat dependencies --vuln`, grype fl
 
 ## Finding
 
-| Field | Value |
-|-------|-------|
-| ID | Multiple CVEs (CVE-2023-24531, CVE-2024-24790, CVE-2025-22871, etc.) |
-| Severity | Critical (6), High (24), Medium (40) |
-| Package | pkg:golang/stdlib@1.20.12 |
-| Scanner | grype via goneat dependencies --vuln |
-| First Seen | 2026-01-19 |
+| Field      | Value                                                                |
+| ---------- | -------------------------------------------------------------------- |
+| ID         | Multiple CVEs (CVE-2023-24531, CVE-2024-24790, CVE-2025-22871, etc.) |
+| Severity   | Critical (6), High (24), Medium (40)                                 |
+| Package    | pkg:golang/stdlib@1.20.12                                            |
+| Scanner    | grype via goneat dependencies --vuln                                 |
+| First Seen | 2026-01-19                                                           |
 
 **Sample from vulnerability report:**
+
 ```json
 {
   "id": "CVE-2023-24531",
