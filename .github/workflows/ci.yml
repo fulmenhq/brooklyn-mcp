@@ -40,6 +40,9 @@ jobs:
           bun --version
           node --version
 
+      - name: Install minisign for signature verification
+        run: sudo apt-get update && sudo apt-get install -y minisign
+
       - name: Install goneat via sfetch (trust anchor)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
