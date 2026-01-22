@@ -252,6 +252,33 @@ function generateMarkdown(inventory: ToolInventory): string {
 }
 
 /**
+ * Format content using prettier (global install)
+ * This ensures generated output matches what prettier would produce
+ */
+async function formatWithPrettier(content: string, parser: string): Promise<string> {
+  const proc = Bun.spawn(["prettier", "--parser", parser], {
+    stdin: "pipe",
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+
+  // Write content to stdin
+  proc.stdin.write(content);
+  proc.stdin.end();
+
+  // Read stdout
+  const output = await new Response(proc.stdout).text();
+  const exitCode = await proc.exited;
+
+  if (exitCode !== 0) {
+    const stderr = await new Response(proc.stderr).text();
+    throw new Error(`prettier failed (exit ${exitCode}): ${stderr}`);
+  }
+
+  return output;
+}
+
+/**
  * Main execution
  */
 async function main() {
@@ -269,10 +296,14 @@ async function main() {
   }
 
   // Generate JSON (sorted keys for determinism)
-  const jsonContent = `${JSON.stringify(sortObjectKeys(inventory), null, 2)}\n`;
+  const rawJsonContent = `${JSON.stringify(sortObjectKeys(inventory), null, 2)}\n`;
 
   // Generate Markdown
-  const mdContent = generateMarkdown(inventory);
+  const rawMdContent = generateMarkdown(inventory);
+
+  // Format with prettier to ensure output matches what prettier would produce
+  const jsonContent = await formatWithPrettier(rawJsonContent, "json");
+  const mdContent = await formatWithPrettier(rawMdContent, "markdown");
 
   if (checkMode) {
     // CI mode: check for drift
