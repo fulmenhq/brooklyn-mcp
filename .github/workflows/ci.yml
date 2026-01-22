@@ -58,6 +58,9 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Install prettier via goneat
+        run: goneat doctor tools --scope format --install
+
       - name: Format (must be clean)
         run: |
           set -euo pipefail

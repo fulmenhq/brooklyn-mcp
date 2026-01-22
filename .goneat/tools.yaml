@@ -46,6 +46,7 @@ tools:
     name: prettier
     description: Opinionated code formatter
     kind: node
+    min_version: "3.8.1"
     detect_command: prettier --version
     installer_priority:
       darwin:
