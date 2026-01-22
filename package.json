@@ -16,6 +16,7 @@
     "start": "bun run src/cli/brooklyn.ts mcp start",
     "setup": "bun install",
     "setup:browsers": "bunx playwright install",
+    "setup:browsers:force": "bunx playwright install chromium --force",
     "setup:assets": "bun scripts/download-assets.ts",
     "setup:test-infra": "bun scripts/setup-test-infrastructure.ts",
     "install": "bun run build && bun scripts/install-cli.ts",

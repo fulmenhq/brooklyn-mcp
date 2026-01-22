@@ -11,6 +11,7 @@ Latest releases for Brooklyn MCP. For full history, see [CHANGELOG.md](CHANGELOG
 - **Release Signing Workflow**: Finalized FulmenHQ signing process with new Makefile targets
 - **Dependency Updates**: 10 packages updated (patch/minor, no breaking changes)
 - **TypeScript Fix**: Compatibility with @types/bun 1.3.6
+- **Browser Detection Fix**: Fixed Playwright path detection for Apple Silicon and new Chromium naming (`Google Chrome for Testing.app`)
 
 ### Quality Metrics
 

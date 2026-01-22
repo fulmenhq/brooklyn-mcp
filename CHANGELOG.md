@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **TypeScript**: Fixed `Server<unknown>` type for `@types/bun` 1.3.6 compatibility
+- **Browser Detection**: Fixed Playwright browser path detection for Apple Silicon Macs (`chrome-mac-arm64`) and new Chromium naming convention (`Google Chrome for Testing.app` vs legacy `Chromium.app`)
+- **DX**: Added `setup:browsers:force` script to force reinstall corrupted browser installations; updated error messages to guide users to the correct recovery command
 
 ## [0.3.0] - 2026-01-16
 

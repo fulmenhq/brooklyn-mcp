@@ -95,14 +95,29 @@ async function verifyBrowsersInstalled(): Promise<void> {
     let browserExecutable: string;
 
     if (process.platform === "darwin") {
-      browserExecutable = join(
+      // Check for arm64 (Apple Silicon) first, then fall back to Intel
+      const chromeMacDir = existsSync(join(chromiumDir, "chrome-mac-arm64"))
+        ? "chrome-mac-arm64"
+        : "chrome-mac";
+
+      // Playwright 1.40+ uses "Google Chrome for Testing.app", older versions use "Chromium.app"
+      const newStyleApp = join(
         chromiumDir,
-        "chrome-mac",
+        chromeMacDir,
+        "Google Chrome for Testing.app",
+        "Contents",
+        "MacOS",
+        "Google Chrome for Testing",
+      );
+      const oldStyleApp = join(
+        chromiumDir,
+        chromeMacDir,
         "Chromium.app",
         "Contents",
         "MacOS",
         "Chromium",
       );
+      browserExecutable = existsSync(newStyleApp) ? newStyleApp : oldStyleApp;
     } else if (process.platform === "win32") {
       browserExecutable = join(chromiumDir, "chrome-win", "chrome.exe");
     } else {
@@ -113,8 +128,8 @@ async function verifyBrowsersInstalled(): Promise<void> {
       log("❌ Chromium executable not found");
       log(`   Expected at: ${browserExecutable}`);
       log("");
-      log("   Browser directory may be corrupted. Reinstall with:");
-      log("   • bun run setup:browsers");
+      log("   Browser directory may be corrupted. Force reinstall with:");
+      log("   • bun run setup:browsers:force");
       log("");
       process.exit(1);
     }
@@ -132,8 +147,8 @@ async function verifyBrowsersInstalled(): Promise<void> {
       log("");
       log("   Error:", execError instanceof Error ? execError.message : String(execError));
       log("");
-      log("   Try reinstalling browsers:");
-      log("   • bun run setup:browsers");
+      log("   Try force reinstalling browsers:");
+      log("   • bun run setup:browsers:force");
       log("");
       process.exit(1);
     }
