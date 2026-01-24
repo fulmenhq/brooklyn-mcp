@@ -176,8 +176,9 @@ bootstrap-dx: ## Install DX tools via trust anchor (sfetch -> goneat)
 	fi
 	@echo "→ sfetch self-verify (trust anchor):"
 	@$(SFETCH_RESOLVE); $$SFETCH --self-verify
-	@echo "→ Checking goneat installation..."
+	@echo "→ Checking goneat installation (minimum v0.5.2)..."
 	@$(SFETCH_RESOLVE); \
+	REQUIRED_VERSION="v0.5.2"; \
 	if [ "$(FORCE)" = "1" ] || [ "$(FORCE)" = "true" ]; then \
 		echo "→ Force reinstall requested, installing goneat..."; \
 		$$SFETCH -repo fulmenhq/goneat -latest -install; \
@@ -186,6 +187,15 @@ bootstrap-dx: ## Install DX tools via trust anchor (sfetch -> goneat)
 		$$SFETCH -repo fulmenhq/goneat -latest -install; \
 	else \
 		echo "→ goneat already installed: $$(goneat --version 2>&1 | head -n1)"; \
+	fi; \
+	if command -v goneat >/dev/null 2>&1; then \
+		GONEAT_VERSION=$$(goneat --version 2>&1 | head -n1 | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1); \
+		if [ "$$(printf '%s\n' "$$REQUIRED_VERSION" "$$GONEAT_VERSION" | sort -V | head -n1)" != "$$REQUIRED_VERSION" ]; then \
+			echo "❌ goneat $$GONEAT_VERSION is below minimum required $$REQUIRED_VERSION"; \
+			echo "   Run: make bootstrap-dx FORCE=1"; \
+			exit 1; \
+		fi; \
+		echo "✅ goneat $$GONEAT_VERSION meets minimum requirement ($$REQUIRED_VERSION)"; \
 	fi
 	@$(GONEAT_RESOLVE); \
 	if [ -n "$$GONEAT" ]; then \
