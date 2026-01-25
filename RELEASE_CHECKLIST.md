@@ -20,6 +20,22 @@ Standard release procedures for Brooklyn MCP, following FulmenHQ ecosystem patte
 
 ## Pre-Release Preparation
 
+### Decision Review
+
+Review decision records to ensure release aligns with documented decisions:
+
+- [ ] **ADRs Reviewed**: No outstanding architectural decisions blocking release
+- [ ] **SDRs Current**: All vulnerability decisions verified, suppressions still valid
+- [ ] **DDRs Implemented**: User-facing changes match approved designs
+
+Decision records location: [`docs/decisions/`](docs/decisions/README.md)
+
+| Type | Reviewer Roles |
+| ---- | -------------- |
+| ADR | devlead, cicd |
+| SDR | secrev, qa |
+| DDR | uxdev, qa |
+
 ### Code Quality
 
 - [ ] **Tests Passing**: `make test`

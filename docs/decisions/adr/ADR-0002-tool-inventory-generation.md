@@ -1,4 +1,4 @@
-# ADR: Tool Inventory Generation
+# ADR-0002: Tool Inventory Generation
 
 **Status**: Accepted
 **Date**: 2026-01-18

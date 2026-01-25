@@ -258,7 +258,7 @@ bun scripts/generate-tool-inventory.ts
 bun scripts/generate-tool-inventory.ts --check
 ```
 
-See [ADR: Tool Inventory Generation](docs/architecture/decisions/adr-tool-inventory-generation.md) for rationale.
+See [ADR-0002: Tool Inventory Generation](docs/decisions/adr/ADR-0002-tool-inventory-generation.md) for rationale.
 
 ## Brooklyn-Specific Guidelines
 
@@ -310,6 +310,7 @@ Example structure:
 - `MAINTAINERS.md` - Human maintainers and governance
 - `BROOKLYN-SAFETY-PROTOCOLS.md` - Browser automation safety
 - `README.md` - Project overview
+- `docs/decisions/` - Decision records (ADR, SDR, DDR)
 - `docs/tools/tool-inventory.md` - Full tool catalog (79 tools)
 - `.plans/active/` - Current work context
 - `.plans/active/v0.3.0/` - Current release briefs
