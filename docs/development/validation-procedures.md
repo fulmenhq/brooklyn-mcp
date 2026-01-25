@@ -2,6 +2,8 @@
 
 This document outlines the validation procedures for the Brooklyn MCP platform and documents justified exceptions to our quality standards.
 
+> **Required Reading**: [CI/CD Developer Experience Principles](cicd-developer-experience.md) - Our CI workflows serve as developer experience indicators. All validation procedures must reflect what real developers experience when cloning and building the project.
+
 ## Overview
 
 Brooklyn maintains zero-tolerance quality standards with specific justified exceptions for:

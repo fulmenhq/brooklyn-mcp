@@ -313,6 +313,8 @@ function getCacheDirectory(): string {
 
 ## CI/CD Platform Matrix
 
+> **Required Reading**: [CI/CD Developer Experience Principles](../development/cicd-developer-experience.md) - CI workflows must accurately reflect developer experience across all platforms. Do not add platform-specific workarounds that mask real DX issues.
+
 ### GitHub Actions Configuration
 
 ```yaml

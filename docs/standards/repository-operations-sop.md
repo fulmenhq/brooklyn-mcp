@@ -14,6 +14,8 @@ professional development practices. Lanyte v0.1.0 has achieved **76.2% test
 coverage** with zero security vulnerabilities, establishing a strong foundation
 for future development.
 
+> **Required Reading**: [CI/CD Developer Experience Principles](../development/cicd-developer-experience.md) - Quality gates must reflect what developers experience when cloning the repo. CI jobs validate DX, not just code correctness.
+
 ## Quality Gates Summary
 
 | Gate           | Target           | Coverage | Security | Time  |

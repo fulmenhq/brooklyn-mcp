@@ -242,8 +242,11 @@ Brooklyn follows a strict quality-first pipeline:
 - **Local quality pipeline**: `bun run check-all` (driven by `scripts/check-all.ts`) runs format → typecheck → lint → tests with Windows/headless-friendly settings.
 - **Release validation gate**: `bun run release:validate` runs code quality, tests, builds, license scans, and binary checks. It is invoked by the pre-push hook and the GitHub Release workflow (`.github/workflows/release.yml`).
 
+**CI/CD Philosophy**: Our CI workflows serve as developer experience indicators. See [CI/CD Developer Experience Principles](cicd-developer-experience.md) for the foundational principles governing all CI/CD work. This is required reading for QA, ProdMktg, and CICD roles.
+
 For full details, see:
 
+- [CI/CD Developer Experience Principles](cicd-developer-experience.md) – foundational principles for CI/CD and DX
 - `docs/testing/test-categorization-guide.md` – test categories, Vitest vs Bun runners, hooks, and CI usage
 - `docs/testing/integration-test-guide.md` – integration test setup and troubleshooting
 - `docs/development/validation-procedures.md` – validation commands, including `check-all` and `release:validate`
