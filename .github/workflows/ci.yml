@@ -40,14 +40,34 @@ jobs:
           bun --version
           node --version
 
-      - name: Install minisign for signature verification
-        run: sudo apt-get update && sudo apt-get install -y minisign
+      - name: Install Homebrew (Linux)
+        run: |
+          set -euo pipefail
+          if ! command -v brew &> /dev/null; then
+            echo "Installing Homebrew..."
+            BREW_INSTALL="https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh"
+            NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL $BREW_INSTALL)"
+            echo "/home/linuxbrew/.linuxbrew/bin" >> "$GITHUB_PATH"
+            eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          fi
+          brew --version
+
+      - name: Install minisign (brew - no sudo)
+        run: |
+          set -euo pipefail
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          if ! command -v minisign &> /dev/null; then
+            brew install minisign
+          fi
+          minisign -v
 
       - name: Install goneat via sfetch (trust anchor)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
+          # Ensure brew tools are in PATH for minisign
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" || true
           curl -sSfL https://github.com/3leaps/sfetch/releases/latest/download/install-sfetch.sh | bash
           ~/.local/bin/sfetch -repo fulmenhq/goneat -tag v0.5.2 -install
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
