@@ -11,15 +11,15 @@
 services:
   # Base CI service with shared configuration
   ci-base:
+    image: brooklyn-ci:latest
     build:
       context: ../..
       dockerfile: .docker/ci/Dockerfile
     volumes:
       # Mount workspace (writable for node_modules/dist)
       - ../..:/workspace:cached
-      # Only cache Playwright browsers - don't mount over tool directories
-      # (.bun and .local contain pre-installed tools from the image)
-      - ci-playwright-cache:/home/brooklyn/.cache/ms-playwright
+      # NOTE: Playwright browsers are pre-installed in the Docker image
+      # No volume needed - this matches GitHub Actions behavior
     environment:
       - CI=true
       - BROOKLYN_HEADLESS=true
@@ -74,11 +74,9 @@ services:
         bun --version && node --version &&
         echo '--- Installing dependencies ---' &&
         bun install --frozen-lockfile &&
-        echo '--- Installing Playwright browsers ---' &&
-        bunx playwright install --with-deps chromium --force &&
-        echo '--- Debug: Playwright cache ---' &&
-        ls -laR ~/.cache/ms-playwright/chromium-* | head -50 || true &&
-        find ~/.cache/ms-playwright -name 'chrome' -o -name 'chromium' 2>/dev/null | head -10 || true &&
+        echo '--- Verifying Playwright browsers (pre-installed in image) ---' &&
+        ls -la ~/.cache/ms-playwright/ &&
+        find ~/.cache/ms-playwright -name 'chrome' -type f 2>/dev/null | head -5 || true &&
         echo '--- Setup test infrastructure ---' &&
         bun run setup:test-infra &&
         echo '--- Integration tests ---' &&
@@ -110,7 +108,8 @@ services:
         bun run test:precommit &&
 
         echo '--- Phase 2: Integration + Build ---' &&
-        bunx playwright install --with-deps chromium --force &&
+        echo 'Playwright browsers pre-installed in image' &&
+        ls -la ~/.cache/ms-playwright/ &&
         bun run setup:test-infra &&
         bun run test:integration &&
         bun run build:local &&
@@ -127,5 +126,5 @@ services:
     stdin_open: true
     tty: true
 
-volumes:
-  ci-playwright-cache:
+# Volumes removed - Playwright browsers are baked into the Docker image
+# This ensures local CI matches GitHub Actions behavior exactly

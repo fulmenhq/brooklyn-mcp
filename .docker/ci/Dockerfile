@@ -82,6 +82,7 @@ ARG USER_GID=1001
 RUN groupadd --gid ${USER_GID} ${USERNAME} \
     && useradd --uid ${USER_UID} --gid ${USER_GID} -m ${USERNAME} \
     && mkdir -p /home/${USERNAME}/.local/bin \
+    && mkdir -p /home/${USERNAME}/.cache/ms-playwright \
     && chown -R ${USERNAME}:${USERNAME} /home/${USERNAME} \
     && mkdir -p /home/linuxbrew \
     && chown -R ${USERNAME}:${USERNAME} /home/linuxbrew
@@ -155,6 +156,12 @@ RUN eval "$(${HOMEBREW_PREFIX}/bin/brew shellenv)" \
     && node --version \
     && bun --version \
     && echo "=== All foundation tools verified ==="
+
+# Install Playwright Chromium at build time (OS deps already installed as root)
+# This ensures browsers are always available in the image, matching GitHub Actions
+RUN bunx playwright install chromium \
+    && echo "=== Playwright Chromium installed ===" \
+    && ls -la ~/.cache/ms-playwright/
 
 # Default command shows help
 CMD ["echo", "Brooklyn CI Runner. Use: make ci-local-quality or make ci-local-integration"]
