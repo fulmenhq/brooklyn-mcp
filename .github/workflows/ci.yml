@@ -70,8 +70,23 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Install prettier via goneat
-        run: goneat doctor tools --scope format --install
+      - name: Install foundation tools (goneat doctor)
+        run: |
+          set -euo pipefail
+          goneat doctor tools --scope foundation --install --install-package-managers --yes
+
+      - name: Debug tool resolution
+        run: |
+          set -euo pipefail
+          echo "PATH=$PATH"
+          command -v prettier
+          prettier --version
+          command -v jq
+          jq --version
+          command -v yq || true
+          yq --version || true
+          command -v rg
+          rg --version
 
       - name: Format (must be clean)
         run: |
