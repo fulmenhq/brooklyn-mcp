@@ -47,11 +47,15 @@ The CI image includes:
 - **goneat v0.5.2** (tool management)
 - **Playwright dependencies** (system libraries for browser testing)
 
-## Why Ubuntu Base (Not goneat-tools-glibc)?
+## Installation Method (Matches ci.yml)
 
-Currently uses vanilla Ubuntu to match GitHub Actions environment exactly. A future optimization could use `ghcr.io/fulmenhq/goneat-tools-glibc` for pre-installed foundation tools, but this would diverge from the frontline CI environment.
+The Dockerfile uses the **exact same installation method** as `ci.yml` and what we recommend for developers:
 
-See the TODO in `Dockerfile` for this consideration.
+1. **Homebrew** for minisign (no sudo required)
+2. **sfetch + goneat** trust anchor pattern
+3. **goneat doctor tools** for foundation tools (ripgrep, jq, yq, prettier)
+
+This ensures local CI validates the same DX path that developers follow.
 
 ## Services
 

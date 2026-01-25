@@ -1,11 +1,15 @@
 # Brooklyn MCP Local CI Runner
 # Emulates GitHub Actions ubuntu-latest environment for local CI debugging
 #
+# IMPORTANT: This Dockerfile uses the SAME installation method as ci.yml
+# and what we recommend for friction-free developer experience:
+#   1. Non-root user (no sudo required)
+#   2. Homebrew for minisign
+#   3. sfetch + goneat trust anchor pattern
+#   4. goneat doctor tools for foundation tools (ripgrep, jq, yq, prettier)
+#
 # Supports: linux/amd64, linux/arm64
 # Based on: Ubuntu 24.04 (noble) - matches GitHub Actions ubuntu-latest
-#
-# TODO: Consider basing on ghcr.io/fulmenhq/goneat-tools-glibc for pre-installed
-# goneat foundation tools. See fulmen-toolbox repo for curated images.
 #
 # Usage:
 #   docker build -t brooklyn-ci .docker/ci
@@ -33,26 +37,22 @@ ENV BROOKLYN_HEADLESS=true
 ENV PLAYWRIGHT_HEADLESS=true
 ENV BROOKLYN_CLEAN_BEFORE_TESTS=1
 
-# Bun installation directory
-ENV BUN_INSTALL=/usr/local/bun
-ENV PATH="${BUN_INSTALL}/bin:${PATH}"
-
-# Install base dependencies
+# Install ONLY essential system packages via apt (as root)
+# Foundation tools (ripgrep, jq, yq, prettier) installed via goneat doctor tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    # Essential build tools
+    # Essential build tools (required for Homebrew and native compilation)
     build-essential \
     curl \
     wget \
     git \
     ca-certificates \
     gnupg \
-    # For minisign signature verification
-    minisign \
-    # For sfetch/goneat
+    file \
+    procps \
+    sudo \
+    # For sfetch/goneat archive extraction
     unzip \
-    # goneat foundation tools (avoid needing brew in container)
-    ripgrep \
-    # Playwright system dependencies (subset - full deps installed by playwright)
+    # Playwright system dependencies (these are OS-level libs, not tools)
     libnss3 \
     libnspr4 \
     libatk1.0-0 \
@@ -71,33 +71,90 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Useful for debugging
     vim-tiny \
     less \
-    jq \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Bun (latest)
-RUN curl -fsSL https://bun.sh/install | bash \
-    && ln -s ${BUN_INSTALL}/bin/bun /usr/local/bin/bun \
-    && ln -s ${BUN_INSTALL}/bin/bunx /usr/local/bin/bunx
+# Create non-root user 'brooklyn' (matches DX principle: no sudo required)
+# This user will own Homebrew and all tool installations
+# Ubuntu 24.04 base may have existing users, so we use UID 1001 to avoid conflicts
+ARG USERNAME=brooklyn
+ARG USER_UID=1001
+ARG USER_GID=1001
+RUN groupadd --gid ${USER_GID} ${USERNAME} \
+    && useradd --uid ${USER_UID} --gid ${USER_GID} -m ${USERNAME} \
+    && mkdir -p /home/${USERNAME}/.local/bin \
+    && chown -R ${USERNAME}:${USERNAME} /home/${USERNAME} \
+    && mkdir -p /home/linuxbrew \
+    && chown -R ${USERNAME}:${USERNAME} /home/linuxbrew
+
+# Switch to non-root user for all subsequent operations
+USER ${USERNAME}
+WORKDIR /home/${USERNAME}
+
+# Homebrew environment (installed to linuxbrew home)
+ENV HOMEBREW_PREFIX=/home/linuxbrew/.linuxbrew
+
+# Bun installation directory
+ENV BUN_INSTALL=/home/brooklyn/.bun
+
+# Set PATH with all tool directories (ARGs don't expand in ENV, so use literals)
+ENV PATH="/home/linuxbrew/.linuxbrew/bin:/home/brooklyn/.local/bin:/home/brooklyn/.bun/bin:${PATH}"
+
+# Install Homebrew (as non-root user - matches ci.yml pattern)
+# This is what we recommend for developers on Linux
+RUN NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Install minisign via brew (matches ci.yml - no sudo pattern)
+RUN eval "$(${HOMEBREW_PREFIX}/bin/brew shellenv)" \
+    && brew install minisign \
+    && minisign -v
+
+# Install Bun (latest) - as non-root user
+RUN curl -fsSL https://bun.sh/install | bash
+
+# Install sfetch and goneat (trust anchor pattern - matches ci.yml)
+RUN eval "$(${HOMEBREW_PREFIX}/bin/brew shellenv)" \
+    && curl -sSfL https://github.com/3leaps/sfetch/releases/latest/download/install-sfetch.sh | bash \
+    && ~/.local/bin/sfetch -repo fulmenhq/goneat -tag v0.5.2 -install
+
+# Copy project's tools.yaml for foundation tools installation
+# Build context is project root, so use .goneat/ path directly
+COPY --chown=${USERNAME}:${USERNAME} .goneat/tools.yaml /tmp/goneat-config/.goneat/tools.yaml
+
+# Install foundation tools via goneat doctor tools (matches ci.yml)
+# This is the recommended DX pattern - goneat manages tool installation
+RUN eval "$(${HOMEBREW_PREFIX}/bin/brew shellenv)" \
+    && cd /tmp/goneat-config \
+    && ~/.local/bin/goneat doctor tools --scope foundation --install --install-package-managers --yes \
+    && cd ~ && rm -rf /tmp/goneat-config
+
+# Switch back to root to install Node.js (needs system-level install)
+USER root
 
 # Install Node.js (for compatibility - Bun includes Node APIs but some tools need node binary)
+# Note: prettier requires node even when installed via bun
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-# Install yq (YAML processor - not in apt)
-ARG YQ_VERSION=v4.44.1
-RUN ARCH=$(dpkg --print-architecture) && \
-    curl -sSL "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_${ARCH}" -o /usr/local/bin/yq && \
-    chmod +x /usr/local/bin/yq
+# Create workspace directory owned by brooklyn user
+RUN mkdir -p /workspace && chown ${USERNAME}:${USERNAME} /workspace
 
-# Install sfetch and goneat (trust anchor pattern)
-RUN curl -sSfL https://github.com/3leaps/sfetch/releases/latest/download/install-sfetch.sh | bash \
-    && ~/.local/bin/sfetch -repo fulmenhq/goneat -tag v0.5.2 -install \
-    && ln -s ~/.local/bin/goneat /usr/local/bin/goneat \
-    && ln -s ~/.local/bin/sfetch /usr/local/bin/sfetch
-
-# Create workspace directory
+# Switch back to non-root user
+USER ${USERNAME}
 WORKDIR /workspace
+
+# Verify all foundation tools are installed (after Node.js for prettier)
+RUN eval "$(${HOMEBREW_PREFIX}/bin/brew shellenv)" \
+    && echo "=== Verifying foundation tools ===" \
+    && rg --version \
+    && jq --version \
+    && yq --version \
+    && prettier --version \
+    && minisign -v \
+    && ~/.local/bin/goneat --version \
+    && node --version \
+    && bun --version \
+    && echo "=== All foundation tools verified ==="
 
 # Default command shows help
 CMD ["echo", "Brooklyn CI Runner. Use: make ci-local-quality or make ci-local-integration"]

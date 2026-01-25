@@ -184,14 +184,15 @@ Committer-of-Record: <Human Name> <email> [@handle]
 
 **Claude Code has a hardwired default attribution** that MUST be overridden:
 
-| Field | Claude Code Default (WRONG) | FulmenHQ Standard (CORRECT) |
-| ----- | --------------------------- | --------------------------- |
-| Email | `noreply@anthropic.com` | `noreply@3leaps.net` |
-| Role | (omitted) | **REQUIRED** - must include `Role: <role>` |
+| Field | Claude Code Default (WRONG) | FulmenHQ Standard (CORRECT)                |
+| ----- | --------------------------- | ------------------------------------------ |
+| Email | `noreply@anthropic.com`     | `noreply@3leaps.net`                       |
+| Role  | (omitted)                   | **REQUIRED** - must include `Role: <role>` |
 
 When Claude Code suggests `Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>`, you MUST change it to `Co-Authored-By: Claude Opus 4.5 <noreply@3leaps.net>` and add the `Role:` line.
 
 **Why this matters**: FulmenHQ attribution enables:
+
 - Role-based audit trails across the ecosystem
 - Consistent attribution in multi-repo workflows
 - Proper credit linking in Crucible SSOT

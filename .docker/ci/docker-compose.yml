@@ -15,12 +15,11 @@ services:
       context: ../..
       dockerfile: .docker/ci/Dockerfile
     volumes:
-      # Mount workspace (read-only source, writable for node_modules/dist)
+      # Mount workspace (writable for node_modules/dist)
       - ../..:/workspace:cached
-      # Cache directories to speed up repeated runs
-      - ci-bun-cache:/root/.bun
-      - ci-playwright-cache:/root/.cache/ms-playwright
-      - ci-goneat-cache:/root/.local
+      # Only cache Playwright browsers - don't mount over tool directories
+      # (.bun and .local contain pre-installed tools from the image)
+      - ci-playwright-cache:/home/brooklyn/.cache/ms-playwright
     environment:
       - CI=true
       - BROOKLYN_HEADLESS=true
@@ -129,6 +128,4 @@ services:
     tty: true
 
 volumes:
-  ci-bun-cache:
   ci-playwright-cache:
-  ci-goneat-cache:
