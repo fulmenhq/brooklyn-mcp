@@ -121,17 +121,19 @@ async function verifyBrowsersInstalled(): Promise<void> {
     } else if (process.platform === "win32") {
       browserExecutable = join(chromiumDir, "chrome-win", "chrome.exe");
     } else {
-      // Linux: Playwright 1.40+ may use different structures
-      // Check multiple possible paths
-      const defaultLinuxPath = join(chromiumDir, "chrome-linux", "chrome");
+      // Linux: Playwright versions use different directory structures
+      // - Older versions: chrome-linux/chrome
+      // - Newer versions (x64): chrome-linux64/chrome
+      // - Some versions: chrome/linux-x64/chrome
       const possibleLinuxPaths = [
-        defaultLinuxPath,
+        join(chromiumDir, "chrome-linux64", "chrome"), // GitHub Actions x64
+        join(chromiumDir, "chrome-linux", "chrome"), // Older Playwright / arm64
         join(chromiumDir, "chrome", "linux-x64", "chrome"),
         join(chromiumDir, "chrome", "chrome"),
         join(chromiumDir, "chrome"),
       ];
       const foundPath = possibleLinuxPaths.find((p) => existsSync(p));
-      browserExecutable = foundPath ?? defaultLinuxPath;
+      browserExecutable = foundPath ?? (possibleLinuxPaths[0] as string);
     }
 
     if (!existsSync(browserExecutable)) {
