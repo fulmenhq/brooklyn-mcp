@@ -121,7 +121,16 @@ async function verifyBrowsersInstalled(): Promise<void> {
     } else if (process.platform === "win32") {
       browserExecutable = join(chromiumDir, "chrome-win", "chrome.exe");
     } else {
-      browserExecutable = join(chromiumDir, "chrome-linux", "chrome");
+      // Linux: Playwright 1.40+ may use different structures
+      // Check multiple possible paths
+      const possibleLinuxPaths = [
+        join(chromiumDir, "chrome-linux", "chrome"),
+        join(chromiumDir, "chrome", "linux-x64", "chrome"),
+        join(chromiumDir, "chrome", "chrome"),
+        join(chromiumDir, "chrome"),
+      ];
+      const foundPath = possibleLinuxPaths.find((p) => existsSync(p));
+      browserExecutable = foundPath || possibleLinuxPaths[0];
     }
 
     if (!existsSync(browserExecutable)) {

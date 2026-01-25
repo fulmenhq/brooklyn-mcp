@@ -151,7 +151,12 @@ jobs:
       - name: Debug Playwright cache
         run: |
           set -euo pipefail
-          echo "Playwright cache:"; ls -la ~/.cache/ms-playwright || true
+          echo "Playwright cache:"
+          ls -la ~/.cache/ms-playwright || true
+          echo "Chromium-1200 contents:"
+          ls -laR ~/.cache/ms-playwright/chromium-1200 | head -50 || true
+          echo "Looking for chrome binary:"
+          find ~/.cache/ms-playwright -name "chrome" -o -name "chromium" 2>/dev/null | head -10 || true
 
       - name: Setup test infrastructure
         run: bun run setup:test-infra
