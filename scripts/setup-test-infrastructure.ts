@@ -123,14 +123,15 @@ async function verifyBrowsersInstalled(): Promise<void> {
     } else {
       // Linux: Playwright 1.40+ may use different structures
       // Check multiple possible paths
+      const defaultLinuxPath = join(chromiumDir, "chrome-linux", "chrome");
       const possibleLinuxPaths = [
-        join(chromiumDir, "chrome-linux", "chrome"),
+        defaultLinuxPath,
         join(chromiumDir, "chrome", "linux-x64", "chrome"),
         join(chromiumDir, "chrome", "chrome"),
         join(chromiumDir, "chrome"),
       ];
       const foundPath = possibleLinuxPaths.find((p) => existsSync(p));
-      browserExecutable = foundPath || possibleLinuxPaths[0];
+      browserExecutable = foundPath ?? defaultLinuxPath;
     }
 
     if (!existsSync(browserExecutable)) {

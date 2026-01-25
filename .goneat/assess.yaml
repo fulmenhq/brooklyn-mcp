@@ -40,7 +40,8 @@ lint:
     checkmake:
       enabled: true
       config:
-        max_body_length: 55
+        # Higher limit for Makefiles with complex help targets and shell commands
+        max_body_length: 70
     paths:
       - "**/Makefile"
     ignore: []

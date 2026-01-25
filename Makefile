@@ -67,6 +67,7 @@ GONEAT_RESOLVE = \
 .PHONY: release-download release-checksums release-sign release-export-keys release-notes
 .PHONY: release-verify-checksums release-verify-keys release-verify-signatures release-upload
 .PHONY: server-start-dev server-start-prod server-stop server-status server-restart server-logs
+.PHONY: ci-local-build ci-local-quality ci-local-integration ci-local-full ci-local-shell ci-local-clean ci-local-amd64
 
 # Default target
 all: check-all
@@ -129,6 +130,15 @@ help: ## Show this help message
 	@echo "  test-integration  Run integration tests"
 	@echo "  test-precommit    Run fast precommit tests"
 	@echo "  install           Build and install CLI globally"
+	@echo ""
+	@echo "Local CI (Docker-based GitHub Actions emulation):"
+	@echo "  ci-local-build       Build local CI Docker image"
+	@echo "  ci-local-quality     Run quality checks (fast, no browsers)"
+	@echo "  ci-local-integration Run integration tests (with browsers)"
+	@echo "  ci-local-full        Run full CI suite"
+	@echo "  ci-local-shell       Open interactive shell in CI environment"
+	@echo "  ci-local-clean       Clean up CI Docker resources"
+	@echo "  ci-local-amd64       Force amd64 emulation (for ARM Macs)"
 	@echo ""
 
 #
@@ -527,3 +537,38 @@ server-restart: server-stop server-start-prod ## Restart production server
 server-logs: ## View server logs
 	@echo "Viewing Brooklyn server logs..."
 	@bun run server:logs
+
+#
+# === LOCAL CI (Docker) ===
+#
+# Emulate GitHub Actions CI environment locally for debugging.
+# Supports both amd64 and arm64 architectures.
+#
+
+ci-local-build: ## Build local CI Docker image
+	@echo "Building local CI Docker image..."
+	@./scripts/local-ci.sh build
+
+ci-local-quality: ## Run quality checks in Docker (fast, no browsers)
+	@echo "Running local CI quality checks..."
+	@./scripts/local-ci.sh quality
+
+ci-local-integration: ## Run integration tests in Docker (with browsers)
+	@echo "Running local CI integration tests..."
+	@./scripts/local-ci.sh integration
+
+ci-local-full: ## Run full CI suite in Docker
+	@echo "Running full local CI suite..."
+	@./scripts/local-ci.sh full
+
+ci-local-shell: ## Open interactive shell in CI Docker environment
+	@echo "Opening CI Docker shell..."
+	@./scripts/local-ci.sh shell
+
+ci-local-clean: ## Clean up local CI Docker resources
+	@echo "Cleaning local CI Docker resources..."
+	@./scripts/local-ci.sh clean
+
+ci-local-amd64: ## Run integration tests forcing amd64 platform (for ARM Macs)
+	@echo "Running local CI integration (amd64 emulation)..."
+	@./scripts/local-ci.sh integration --platform linux/amd64

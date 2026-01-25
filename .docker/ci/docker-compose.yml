@@ -1,0 +1,134 @@
+# Brooklyn MCP Local CI Docker Compose
+#
+# Usage:
+#   docker compose -f .docker/ci/docker-compose.yml run --rm ci-quality
+#   docker compose -f .docker/ci/docker-compose.yml run --rm ci-integration
+#
+# Or via make:
+#   make ci-local-quality
+#   make ci-local-integration
+
+services:
+  # Base CI service with shared configuration
+  ci-base:
+    build:
+      context: ../..
+      dockerfile: .docker/ci/Dockerfile
+    volumes:
+      # Mount workspace (read-only source, writable for node_modules/dist)
+      - ../..:/workspace:cached
+      # Cache directories to speed up repeated runs
+      - ci-bun-cache:/root/.bun
+      - ci-playwright-cache:/root/.cache/ms-playwright
+      - ci-goneat-cache:/root/.local
+    environment:
+      - CI=true
+      - BROOKLYN_HEADLESS=true
+      - PLAYWRIGHT_HEADLESS=true
+      - BROOKLYN_CLEAN_BEFORE_TESTS=1
+      - SKIP_BROWSER_CHECK=${SKIP_BROWSER_CHECK:-false}
+    working_dir: /workspace
+    # Don't start this directly - use the specific services below
+    profiles:
+      - base-only
+
+  # Quality checks (fast) - no browsers needed
+  ci-quality:
+    extends:
+      service: ci-base
+    environment:
+      - SKIP_BROWSER_CHECK=true
+    command: >
+      bash -c "
+        echo '=== Brooklyn Local CI: Quality (fast) ===' &&
+        bun --version && node --version && goneat --version &&
+        echo '--- Verify foundation tools (pre-installed in image) ---' &&
+        rg --version && yq --version && jq --version &&
+        echo '--- Installing dependencies ---' &&
+        bun install --frozen-lockfile &&
+        echo '--- Format check ---' &&
+        bun run format &&
+        echo '--- Tool inventory check ---' &&
+        bun scripts/generate-tool-inventory.ts --check &&
+        echo '--- Typecheck ---' &&
+        bun run typecheck &&
+        echo '--- Embed version ---' &&
+        bun run version:embed &&
+        echo '--- Lint ---' &&
+        bun run lint &&
+        echo '--- Setup test infra (dirs only) ---' &&
+        bun run setup:test-infra &&
+        echo '--- Unit tests ---' &&
+        bun run test:precommit &&
+        echo '=== Quality checks PASSED ==='
+      "
+
+  # Integration + build (with browsers)
+  ci-integration:
+    extends:
+      service: ci-base
+    environment:
+      - SKIP_BROWSER_CHECK=false
+    command: >
+      bash -c "
+        echo '=== Brooklyn Local CI: Integration + Build ===' &&
+        bun --version && node --version &&
+        echo '--- Installing dependencies ---' &&
+        bun install --frozen-lockfile &&
+        echo '--- Installing Playwright browsers ---' &&
+        bunx playwright install --with-deps chromium --force &&
+        echo '--- Debug: Playwright cache ---' &&
+        ls -laR ~/.cache/ms-playwright/chromium-* | head -50 || true &&
+        find ~/.cache/ms-playwright -name 'chrome' -o -name 'chromium' 2>/dev/null | head -10 || true &&
+        echo '--- Setup test infrastructure ---' &&
+        bun run setup:test-infra &&
+        echo '--- Integration tests ---' &&
+        bun run test:integration &&
+        echo '--- Build (local) ---' &&
+        bun run build:local &&
+        echo '--- Verify binary ---' &&
+        ./dist/brooklyn --version &&
+        echo '=== Integration + Build PASSED ==='
+      "
+
+  # Full CI (both quality and integration)
+  ci-full:
+    extends:
+      service: ci-base
+    command: >
+      bash -c "
+        echo '=== Brooklyn Local CI: Full Suite ===' &&
+
+        echo '--- Phase 1: Quality (fast) ---' &&
+        SKIP_BROWSER_CHECK=true bun run setup:test-infra &&
+        bun install --frozen-lockfile &&
+        rg --version && yq --version && jq --version &&
+        bun run format &&
+        bun scripts/generate-tool-inventory.ts --check &&
+        bun run typecheck &&
+        bun run version:embed &&
+        bun run lint &&
+        bun run test:precommit &&
+
+        echo '--- Phase 2: Integration + Build ---' &&
+        bunx playwright install --with-deps chromium --force &&
+        bun run setup:test-infra &&
+        bun run test:integration &&
+        bun run build:local &&
+        ./dist/brooklyn --version &&
+
+        echo '=== Full CI Suite PASSED ==='
+      "
+
+  # Interactive shell for debugging
+  ci-shell:
+    extends:
+      service: ci-base
+    command: bash
+    stdin_open: true
+    tty: true
+
+volumes:
+  ci-bun-cache:
+  ci-playwright-cache:
+  ci-goneat-cache:
