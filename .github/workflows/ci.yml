@@ -146,7 +146,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Install Chromium (Playwright + OS deps)
-        run: bunx playwright install --with-deps chromium
+        run: bunx playwright install --with-deps chromium --force
 
       - name: Debug Playwright cache
         run: |

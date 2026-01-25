@@ -55,7 +55,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Install browsers for E2E tests
-        run: bun run setup:browsers
+        run: bunx playwright install --with-deps chromium --force
 
       - name: Setup test infrastructure
         run: bun run setup:test-infra
