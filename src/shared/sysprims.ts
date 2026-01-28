@@ -21,6 +21,10 @@ let _sysprimsPromise: Promise<SysprimsAvailability> | null = null;
 export async function getSysprims(): Promise<SysprimsAvailability> {
   if (_sysprimsPromise) return _sysprimsPromise;
 
+  if (process.env["BROOKLYN_DISABLE_SYSPRIMS"] === "1") {
+    return { available: false, reason: "sysprims disabled via BROOKLYN_DISABLE_SYSPRIMS=1" };
+  }
+
   _sysprimsPromise = (async () => {
     try {
       const sysprims = (await import("@3leaps/sysprims")) as SysprimsModule;

@@ -140,7 +140,9 @@ export class BrooklynProcessManager {
     try {
       const files = readdirSync(cwd);
       const pidFiles = files.filter(
-        (file) => file.startsWith(".brooklyn-http-") && file.endsWith(".pid"),
+        (file) =>
+          (file.startsWith(".brooklyn-http-") || file.startsWith(".brooklyn-web-")) &&
+          file.endsWith(".pid"),
       );
 
       for (const pidFile of pidFiles) {
@@ -194,8 +196,8 @@ export class BrooklynProcessManager {
   ): Promise<BrooklynProcess | null> {
     const processInfo = await BrooklynProcessManager.getProcessCommand(pidNum);
     if (processInfo?.includes("dev-http")) {
-      // Extract port from filename: .brooklyn-http-8080.pid -> 8080
-      const portMatch = pidFile.match(/\.brooklyn-http-(\d+)\.pid$/);
+      // Extract port from filename: .brooklyn-http-8080.pid or .brooklyn-web-8080.pid -> 8080
+      const portMatch = pidFile.match(/\.(?:brooklyn-http|brooklyn-web)-(\d+)\.pid$/);
       const port = portMatch?.[1] ? Number.parseInt(portMatch[1], 10) : undefined;
 
       return {

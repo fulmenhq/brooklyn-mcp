@@ -31,10 +31,12 @@ const originalKill = process.kill;
 describe("BrooklynProcessManager", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env["BROOKLYN_DISABLE_SYSPRIMS"] = "1";
   });
 
   afterEach(() => {
     process.kill = originalKill;
+    delete process.env["BROOKLYN_DISABLE_SYSPRIMS"];
   });
 
   describe("Process Detection", () => {
@@ -167,6 +169,33 @@ describe("BrooklynProcessManager", () => {
       const mockPid = "12345";
       const mockPidFile = ".brooklyn-http-8080.pid";
       const mockPidPath = "/test/path/.brooklyn-http-8080.pid";
+
+      // Mock file system operations
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readFileSync).mockReturnValue(mockPid);
+      vi.mocked(join).mockReturnValue(mockPidPath);
+
+      // Mock process running and command check
+      vi.spyOn(BrooklynProcessManager, "isProcessRunning").mockResolvedValue(true);
+      vi.spyOn(BrooklynProcessManager, "getProcessCommand").mockResolvedValue(
+        "brooklyn dev-http --port 8080",
+      );
+
+      const process = await (BrooklynProcessManager as any).processPidFile(
+        mockPidFile,
+        "/test/path",
+      );
+
+      expect(process).not.toBeNull();
+      expect(process?.pid).toBe(12345);
+      expect(process?.type).toBe("http-server");
+      expect(process?.port).toBe(8080);
+    });
+
+    it("should read .brooklyn-web- PID files and validate processes", async () => {
+      const mockPid = "12345";
+      const mockPidFile = ".brooklyn-web-8080.pid";
+      const mockPidPath = "/test/path/.brooklyn-web-8080.pid";
 
       // Mock file system operations
       vi.mocked(existsSync).mockReturnValue(true);

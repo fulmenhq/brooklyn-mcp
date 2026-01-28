@@ -758,9 +758,19 @@ function setupMCPDevCommands(mcpCmd: Command): void {
     const { readFileSync, existsSync, unlinkSync, readdirSync } = await import("node:fs");
     const cwd = process.cwd();
 
+    const pidFileForPort = (p: string) => {
+      // Prefer the canonical dev-http PID file name.
+      const canonical = `${cwd}/.brooklyn-http-${p}.pid`;
+      if (existsSync(canonical)) return canonical;
+      // Backward/forward compatibility if naming drifted.
+      const alt = `${cwd}/.brooklyn-web-${p}.pid`;
+      if (existsSync(alt)) return alt;
+      return canonical;
+    };
+
     if (port) {
       // Stop specific port
-      const pidFile = `${cwd}/.brooklyn-http-${port}.pid`;
+      const pidFile = pidFileForPort(port);
       if (!existsSync(pidFile)) {
         console.log(`❌ No dev-http server found on port ${port} (no PID file)`);
         process.exit(1);
@@ -782,7 +792,11 @@ function setupMCPDevCommands(mcpCmd: Command): void {
       // Stop all PID file servers in current directory
       try {
         const files = readdirSync(cwd);
-        const pidFiles = files.filter((f) => f.startsWith(".brooklyn-http-") && f.endsWith(".pid"));
+        const pidFiles = files.filter(
+          (f) =>
+            (f.startsWith(".brooklyn-http-") || f.startsWith(".brooklyn-web-")) &&
+            f.endsWith(".pid"),
+        );
 
         if (pidFiles.length === 0) {
           console.log("No dev-http servers running (no PID files found)");
@@ -793,7 +807,7 @@ function setupMCPDevCommands(mcpCmd: Command): void {
         let stopped = 0;
 
         for (const pidFile of pidFiles) {
-          const port = pidFile.match(/\.brooklyn-http-(\d+)\.pid$/)?.[1];
+          const port = pidFile.match(/\.(?:brooklyn-http|brooklyn-web)-(\d+)\.pid$/)?.[1];
           const pidPath = `${cwd}/${pidFile}`;
           const pid = Number.parseInt(readFileSync(pidPath, "utf8").trim(), 10);
 
@@ -1280,7 +1294,99 @@ Assisted Configuration:
   webCmd
     .command("stop")
     .description("Stop web server daemon")
-    .action(async () => {
+    .option("--port <port>", "HTTP port (default: 3000)", "3000")
+    .option("--force", "Force kill with SIGKILL if graceful stop fails")
+    .action(async (options) => {
+      const { existsSync, readFileSync, unlinkSync } = await import("node:fs");
+      const cwd = process.cwd();
+      const localPidFile = `${cwd}/.brooklyn-web-${options.port}.pid`;
+
+      const portNum = Number.parseInt(String(options.port), 10);
+
+      // First, check for local PID file (from `web start --daemon`)
+      if (existsSync(localPidFile)) {
+        try {
+          const pid = Number.parseInt(readFileSync(localPidFile, "utf8").trim(), 10);
+          if (Number.isFinite(pid) && pid > 0) {
+            // Prefer sysprims terminateTree + identity check
+            let usedSysprims = false;
+            try {
+              const { sysprimsTryProcGet, sysprimsTryTerminateTree } = await import(
+                "../shared/sysprims.js"
+              );
+              const info = await sysprimsTryProcGet(pid);
+              if (info) {
+                const cmd = info.cmdline.join(" ");
+                const looksLikeWeb = cmd.includes("web") && cmd.includes("start");
+                const matchesPort = Number.isFinite(portNum)
+                  ? cmd.includes(`--port ${portNum}`) || cmd.includes(`--port=${portNum}`)
+                  : true;
+
+                if (!(looksLikeWeb && matchesPort)) {
+                  console.log(
+                    `Refusing to stop PID ${pid}: PID file exists but command line does not match expected web server (port ${options.port})`,
+                  );
+                  process.exit(1);
+                }
+              }
+
+              const res = await sysprimsTryTerminateTree(pid, {
+                grace_timeout_ms: 2000,
+                kill_timeout_ms: 2000,
+              });
+
+              if (res) {
+                usedSysprims = true;
+                if (res.warnings.length > 0) {
+                  console.log(`sysprims warnings (pid ${pid}): ${res.warnings.join("; ")}`);
+                }
+                if (!res.exited && options.force) {
+                  await sysprimsTryTerminateTree(pid, {
+                    grace_timeout_ms: 0,
+                    kill_timeout_ms: 2000,
+                    signal: 9,
+                    kill_signal: 9,
+                  });
+                }
+              }
+            } catch {
+              // ignore; fall back to process.kill
+            }
+
+            if (!usedSysprims) {
+              process.kill(pid, "SIGTERM");
+              await new Promise((resolve) => setTimeout(resolve, 500));
+              try {
+                process.kill(pid, 0);
+                if (options.force) {
+                  process.kill(pid, "SIGKILL");
+                }
+              } catch {
+                // exited
+              }
+            }
+
+            try {
+              unlinkSync(localPidFile);
+            } catch {
+              // Ignore cleanup errors
+            }
+            console.log(`Stopped web server on port ${options.port} (PID: ${pid})`);
+            process.exit(0);
+          }
+        } catch {
+          // Process may already be dead, clean up PID file
+          try {
+            unlinkSync(localPidFile);
+          } catch {
+            // Ignore
+          }
+          console.log(`Cleaned up stale PID file for port ${options.port}`);
+          process.exit(0);
+        }
+      }
+
+      // Fall back to server-management.ts for managed servers
       try {
         const { stopServerProcess } = await import("../../scripts/server-management.js");
         await stopServerProcess();
