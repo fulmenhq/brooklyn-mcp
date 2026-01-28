@@ -168,14 +168,24 @@ jobs:
       - name: Install Chromium (Playwright + OS deps)
         run: bunx playwright install --with-deps chromium --force
 
-      - name: Debug Playwright cache
+      - name: Validate browser versions
         run: |
           set -euo pipefail
-          echo "Playwright cache structure:"
-          find ~/.cache/ms-playwright -maxdepth 3 -type d 2>/dev/null || true
-          echo "Looking for chrome binary:"
-          find ~/.cache/ms-playwright -name "chrome" -type f 2>/dev/null || true
-          find ~/.cache/ms-playwright -name "chromium" -type f 2>/dev/null || true
+          echo "📦 Playwright package expects:"
+          cat node_modules/playwright-core/browsers.json | jq -r '.browsers[] | select(.installByDefault) | "  \(.name): \(.revision)"'
+          echo ""
+          echo "💾 Installed browser revisions:"
+          ls -1 ~/.cache/ms-playwright/ 2>/dev/null | grep -E '^(chromium|firefox|webkit)' | sed 's/^/  /' || echo "  (none)"
+          echo ""
+          # Validate chromium revision matches
+          EXPECTED=$(cat node_modules/playwright-core/browsers.json | jq -r '.browsers[] | select(.name=="chromium") | .revision')
+          if ls ~/.cache/ms-playwright/ | grep -q "chromium-${EXPECTED}$"; then
+            echo "✅ Chromium revision ${EXPECTED} installed correctly"
+          else
+            echo "❌ Chromium revision mismatch! Expected: ${EXPECTED}"
+            echo "   Run: bunx playwright install --force"
+            exit 1
+          fi
 
       - name: Setup test infrastructure
         run: bun run setup:test-infra
