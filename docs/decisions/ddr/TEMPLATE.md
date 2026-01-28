@@ -13,11 +13,11 @@ What is the design decision that needs to be made?
 
 Who is affected and how?
 
-| User Type | Impact |
-| --------- | ------ |
-| CLI users | ... |
-| API consumers | ... |
-| AI agents | ... |
+| User Type     | Impact |
+| ------------- | ------ |
+| CLI users     | ...    |
+| API consumers | ...    |
+| AI agents     | ...    |
 
 ## Options Considered
 

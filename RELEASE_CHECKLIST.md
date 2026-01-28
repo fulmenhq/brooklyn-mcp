@@ -32,9 +32,9 @@ Decision records location: [`docs/decisions/`](docs/decisions/README.md)
 
 | Type | Reviewer Roles |
 | ---- | -------------- |
-| ADR | devlead, cicd |
-| SDR | secrev, qa |
-| DDR | uxdev, qa |
+| ADR  | devlead, cicd  |
+| SDR  | secrev, qa     |
+| DDR  | uxdev, qa      |
 
 ### Code Quality
 

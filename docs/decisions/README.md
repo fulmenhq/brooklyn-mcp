@@ -2,27 +2,27 @@
 
 This directory contains all decision records for Brooklyn MCP, organized by type:
 
-| Type | Directory | Purpose |
-| ---- | --------- | ------- |
-| **ADR** | `adr/` | Architecture Decision Records - technical architecture, API design, infrastructure |
-| **SDR** | `sdr/` | Security Decision Records - vulnerability management, security policies, compliance |
-| **DDR** | `ddr/` | Design Decision Records - UX/UI decisions, CLI ergonomics, frontend design |
+| Type    | Directory | Purpose                                                                             |
+| ------- | --------- | ----------------------------------------------------------------------------------- |
+| **ADR** | `adr/`    | Architecture Decision Records - technical architecture, API design, infrastructure  |
+| **SDR** | `sdr/`    | Security Decision Records - vulnerability management, security policies, compliance |
+| **DDR** | `ddr/`    | Design Decision Records - UX/UI decisions, CLI ergonomics, frontend design          |
 
 ## Index
 
 ### Architecture Decision Records (ADR)
 
-| ID | Title | Status | Date |
-| -- | ----- | ------ | ---- |
-| [ADR-0001](adr/ADR-0001-mcp-session-id.md) | MCP HTTP Session Correlation | Accepted | 2026-01-13 |
-| [ADR-0002](adr/ADR-0002-tool-inventory-generation.md) | Tool Inventory Generation | Accepted | 2026-01-18 |
+| ID                                                    | Title                        | Status   | Date       |
+| ----------------------------------------------------- | ---------------------------- | -------- | ---------- |
+| [ADR-0001](adr/ADR-0001-mcp-session-id.md)            | MCP HTTP Session Correlation | Accepted | 2026-01-13 |
+| [ADR-0002](adr/ADR-0002-tool-inventory-generation.md) | Tool Inventory Generation    | Accepted | 2026-01-18 |
 
 ### Security Decision Records (SDR)
 
-| ID | Title | Status | Date |
-| -- | ----- | ------ | ---- |
+| ID                                                            | Title                               | Status   | Date       |
+| ------------------------------------------------------------- | ----------------------------------- | -------- | ---------- |
 | [SDR-001](sdr/SDR-001-npm-transitive-dependency-overrides.md) | NPM Transitive Dependency Overrides | Approved | 2026-01-19 |
-| [SDR-002](sdr/SDR-002-go-stdlib-sbom-false-positives.md) | Go Stdlib SBOM False Positives | Approved | 2026-01-19 |
+| [SDR-002](sdr/SDR-002-go-stdlib-sbom-false-positives.md)      | Go Stdlib SBOM False Positives      | Approved | 2026-01-19 |
 
 ### Design Decision Records (DDR)
 
@@ -44,11 +44,11 @@ _No DDRs recorded yet._
 
 ### When to Create a Decision Record
 
-| Trigger | Record Type |
-| ------- | ----------- |
-| API design, protocol changes, infrastructure choices | ADR |
-| Vulnerability findings, security policy changes, compliance decisions | SDR |
-| CLI UX changes, frontend design choices, user-facing behavior | DDR |
+| Trigger                                                               | Record Type |
+| --------------------------------------------------------------------- | ----------- |
+| API design, protocol changes, infrastructure choices                  | ADR         |
+| Vulnerability findings, security policy changes, compliance decisions | SDR         |
+| CLI UX changes, frontend design choices, user-facing behavior         | DDR         |
 
 ## Role Responsibilities
 
