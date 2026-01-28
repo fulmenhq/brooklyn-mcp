@@ -7,6 +7,14 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { promisify } from "node:util";
 
+import type { ProcessInfo } from "@3leaps/sysprims";
+import {
+  sysprimsTryListeningPids,
+  sysprimsTryProcessList,
+  sysprimsTryProcGet,
+  sysprimsTryTerminateTree,
+} from "./sysprims.js";
+
 const execAsync = promisify(exec);
 
 export interface BrooklynProcess {
@@ -71,6 +79,25 @@ export class BrooklynProcessManager {
    */
   static async findAllProcesses(): Promise<BrooklynProcess[]> {
     const processes: BrooklynProcess[] = [];
+
+    // Prefer sysprims for discovery (structured, cross-platform)
+    try {
+      const snapshot = await sysprimsTryProcessList();
+      if (snapshot) {
+        for (const info of snapshot.processes) {
+          const parsed = BrooklynProcessManager.parseProcessInfo(info);
+          if (parsed) processes.push(parsed);
+        }
+
+        // Also check for PID files from background HTTP servers
+        const pidFileProcesses = await BrooklynProcessManager.findProcessesFromPidFiles();
+        processes.push(...pidFileProcesses);
+
+        return BrooklynProcessManager.deduplicateProcesses(processes);
+      }
+    } catch {
+      // sysprims path failed; fall back to ps below
+    }
 
     try {
       // Find running brooklyn processes via ps with timeout protection
@@ -214,6 +241,11 @@ export class BrooklynProcessManager {
    * Get command line for a specific PID
    */
   static async getProcessCommand(pid: number): Promise<string | null> {
+    const info = await sysprimsTryProcGet(pid);
+    if (info) {
+      return info.cmdline.join(" ").trim();
+    }
+
     try {
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => reject(new Error("PS command timeout")), 2000);
@@ -309,6 +341,71 @@ export class BrooklynProcessManager {
   }
 
   /**
+   * Parse sysprims ProcessInfo into BrooklynProcess.
+   */
+  private static parseProcessInfo(info: ProcessInfo): BrooklynProcess | null {
+    const pidNum = info.pid;
+    if (!Number.isFinite(pidNum)) return null;
+
+    const command = info.cmdline.join(" ");
+
+    // Mirror the same false-positive exclusions as the ps parser.
+    const lower = command.toLowerCase();
+    if (
+      lower.includes("biome") ||
+      lower.includes("lsp-proxy") ||
+      (lower.includes("brooklyn") && lower.includes("status"))
+    ) {
+      return null;
+    }
+
+    let type: BrooklynProcess["type"] | null = null;
+    let port: number | undefined;
+
+    const teamIdMatch = command.match(/--team-id\s+([^\s]+)/);
+    const teamId: string | undefined = teamIdMatch?.[1];
+
+    if (
+      command.includes("mcp dev-http") ||
+      command.includes("dev-http-daemon") ||
+      command.includes("brooklyn web start") ||
+      (command.includes("/brooklyn") && command.includes("web start")) ||
+      command.includes("web start")
+    ) {
+      type = "http-server";
+      const portMatch = command.match(/--port\s+(\d+)/);
+      port = portMatch?.[1] ? Number.parseInt(portMatch[1], 10) : undefined;
+    } else if (command.includes("dev-repl")) {
+      type = "repl-session";
+    } else if (command.includes("dev-start") || command.includes("dev-mode")) {
+      type = "dev-mode";
+    } else {
+      const isBrooklynStdio =
+        /bun\s+[^\n]*src\/cli\/brooklyn\.ts\s+mcp\s+start(\s|$)/.test(command) ||
+        /dist\/brooklyn(\.exe)?\s+mcp\s+start(\s|$)/.test(command) ||
+        /BROOKLYN_MCP_STDIO=1/.test(command);
+
+      if (isBrooklynStdio) {
+        type = "mcp-stdio";
+      }
+    }
+
+    if (!type) return null;
+
+    return {
+      pid: pidNum,
+      type,
+      port,
+      teamId,
+      startTime: info.start_time_unix_ms
+        ? new Date(info.start_time_unix_ms).toISOString()
+        : undefined,
+      command,
+      status: "running",
+    };
+  }
+
+  /**
    * Remove duplicate processes (same PID)
    */
   private static deduplicateProcesses(processes: BrooklynProcess[]): BrooklynProcess[] {
@@ -329,6 +426,18 @@ export class BrooklynProcessManager {
     pid: number,
     signal: "SIGTERM" | "SIGKILL" = "SIGTERM",
   ): Promise<boolean> {
+    // Prefer sysprims tree termination (reliable for daemons/process groups)
+    const treeResult = await sysprimsTryTerminateTree(pid, {
+      grace_timeout_ms: signal === "SIGKILL" ? 0 : 5000,
+      kill_timeout_ms: 2000,
+      signal: signal === "SIGKILL" ? 9 : 15,
+      kill_signal: 9,
+    });
+
+    if (treeResult) {
+      return treeResult.exited || !(await BrooklynProcessManager.isProcessRunning(pid));
+    }
+
     try {
       process.kill(pid, signal);
 
@@ -365,6 +474,16 @@ export class BrooklynProcessManager {
    * Stop HTTP server by port
    */
   static async stopHttpServerByPort(port: number): Promise<boolean> {
+    const listening = await sysprimsTryListeningPids(port);
+    if (listening && listening.pids.length > 0) {
+      // Prefer terminating the first pid we can see.
+      // Note: sysprims port attribution can be best-effort on some platforms.
+      const pid = listening.pids[0];
+      if (typeof pid === "number") {
+        return await BrooklynProcessManager.stopProcess(pid);
+      }
+    }
+
     const processes = await BrooklynProcessManager.findAllProcesses();
     const httpProcess = processes.find((p) => p.type === "http-server" && p.port === port);
 

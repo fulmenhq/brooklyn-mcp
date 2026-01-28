@@ -10,6 +10,8 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 
+import { sysprimsTryProcGet, sysprimsTryTerminateTree } from "../src/shared/sysprims.js";
+
 const execAsync = promisify(exec);
 
 // Configuration
@@ -24,16 +26,65 @@ import { mkdirSync } from "node:fs";
 mkdirSync(join(homedir(), ".local", "share", SERVER_NAME), { recursive: true });
 mkdirSync(join(homedir(), ".local", "share", SERVER_NAME, "logs"), { recursive: true });
 
+type PidFileMeta = {
+  pid: number;
+  startedAt?: string;
+  startTimeUnixMs?: number | null;
+  cmdlineContains?: string;
+};
+
+async function verifyPidMeta(meta: PidFileMeta): Promise<{ ok: boolean; reason?: string }> {
+  const procInfo = await sysprimsTryProcGet(meta.pid);
+  if (!procInfo) {
+    // If sysprims isn't available, fall back to signal-0 check only.
+    return { ok: true };
+  }
+
+  if (
+    typeof meta.startTimeUnixMs === "number" &&
+    typeof procInfo.start_time_unix_ms === "number" &&
+    meta.startTimeUnixMs !== procInfo.start_time_unix_ms
+  ) {
+    return { ok: false, reason: "PID start time mismatch (PID reuse suspected)" };
+  }
+
+  if (meta.cmdlineContains) {
+    const cmdline = procInfo.cmdline.join(" ");
+    if (!cmdline.includes(meta.cmdlineContains)) {
+      return { ok: false, reason: `cmdline did not include expected '${meta.cmdlineContains}'` };
+    }
+  }
+
+  return { ok: true };
+}
+
 /**
- * Get the process ID from the PID file
+ * Read PID metadata from PID file.
+ * Backwards-compatible with legacy "<pid>" plain-text PID files.
  */
-function getPid(): number | null {
+function readPidMeta(): PidFileMeta | null {
   try {
-    if (!existsSync(PID_FILE)) {
+    if (!existsSync(PID_FILE)) return null;
+    const raw = readFileSync(PID_FILE, "utf8").trim();
+    if (!raw) return null;
+
+    // Preferred: JSON metadata
+    if (raw.startsWith("{")) {
+      const parsed = JSON.parse(raw) as Partial<PidFileMeta>;
+      if (typeof parsed.pid === "number" && Number.isFinite(parsed.pid)) {
+        return {
+          pid: parsed.pid,
+          startedAt: parsed.startedAt,
+          startTimeUnixMs: parsed.startTimeUnixMs,
+        };
+      }
       return null;
     }
-    const pidStr = readFileSync(PID_FILE, "utf8").trim();
-    return Number.parseInt(pidStr, 10);
+
+    // Legacy: plain PID
+    const pid = Number.parseInt(raw, 10);
+    if (!Number.isFinite(pid)) return null;
+    return { pid };
   } catch {
     return null;
   }
@@ -53,10 +104,10 @@ function isProcessRunning(pid: number): boolean {
 }
 
 /**
- * Write PID to file
+ * Write PID metadata to file.
  */
-function writePid(pid: number): void {
-  writeFileSync(PID_FILE, pid.toString());
+function writePidMeta(meta: PidFileMeta): void {
+  writeFileSync(PID_FILE, JSON.stringify(meta), "utf8");
 }
 
 /**
@@ -76,7 +127,8 @@ function removePidFile(): void {
  * Start the server
  */
 async function startServer(): Promise<void> {
-  const existingPid = getPid();
+  const existingMeta = readPidMeta();
+  const existingPid = existingMeta?.pid ?? null;
 
   if (existingPid && isProcessRunning(existingPid)) {
     console.log(`Server is already running with PID ${existingPid}`);
@@ -109,7 +161,13 @@ async function startServer(): Promise<void> {
   }
 
   // Write PID file
-  writePid(serverProcess.pid);
+  const procInfo = await sysprimsTryProcGet(serverProcess.pid);
+  writePidMeta({
+    pid: serverProcess.pid,
+    startedAt: new Date().toISOString(),
+    startTimeUnixMs: procInfo?.start_time_unix_ms ?? null,
+    cmdlineContains: "dist/index.js",
+  });
 
   // Detach from parent process
   serverProcess.unref();
@@ -131,7 +189,8 @@ async function startServer(): Promise<void> {
  * Stop the server
  */
 export async function stopServerProcess(): Promise<void> {
-  const pid = getPid();
+  const meta = readPidMeta();
+  const pid = meta?.pid ?? null;
 
   if (!pid) {
     console.log("No server PID file found");
@@ -144,25 +203,50 @@ export async function stopServerProcess(): Promise<void> {
     return;
   }
 
+  if (meta) {
+    const verified = await verifyPidMeta(meta);
+    if (!verified.ok) {
+      console.log(`Refusing to stop PID ${pid}: ${verified.reason}`);
+      console.log("Cleaning up stale PID file");
+      removePidFile();
+      process.exit(1);
+    }
+  }
+
   console.log(`Stopping server with PID ${pid}...`);
 
   try {
-    // Send SIGTERM for graceful shutdown
-    process.kill(pid, "SIGTERM");
+    // Prefer sysprims tree termination (TERM -> wait -> KILL)
+    const treeResult = await sysprimsTryTerminateTree(pid, {
+      grace_timeout_ms: 3000,
+      kill_timeout_ms: 2000,
+    });
 
-    // Wait for graceful shutdown
-    let attempts = 0;
-    const maxAttempts = 30; // 3 seconds
+    if (treeResult) {
+      if (treeResult.warnings.length > 0) {
+        console.log(`sysprims warnings: ${treeResult.warnings.join("; ")}`);
+      }
+      if (treeResult.tree_kill_reliability === "best_effort") {
+        console.log("sysprims tree-kill reliability: best_effort");
+      }
+    } else {
+      // Fallback: Send SIGTERM for graceful shutdown
+      process.kill(pid, "SIGTERM");
 
-    while (attempts < maxAttempts && isProcessRunning(pid)) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      attempts++;
-    }
+      // Wait for graceful shutdown
+      let attempts = 0;
+      const maxAttempts = 30; // 3 seconds
 
-    if (isProcessRunning(pid)) {
-      console.log("Graceful shutdown failed, forcing kill...");
-      process.kill(pid, "SIGKILL");
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      while (attempts < maxAttempts && isProcessRunning(pid)) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        attempts++;
+      }
+
+      if (isProcessRunning(pid)) {
+        console.log("Graceful shutdown failed, forcing kill...");
+        process.kill(pid, "SIGKILL");
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
     }
 
     if (!isProcessRunning(pid)) {
@@ -193,7 +277,8 @@ async function restartServer(): Promise<void> {
  * Get server status
  */
 export async function getServerStatus(): Promise<void> {
-  const pid = getPid();
+  const meta = readPidMeta();
+  const pid = meta?.pid ?? null;
 
   if (!pid) {
     console.log("Status: Stopped (no PID file)");
@@ -202,22 +287,57 @@ export async function getServerStatus(): Promise<void> {
   }
 
   if (isProcessRunning(pid)) {
+    if (meta) {
+      const verified = await verifyPidMeta(meta);
+      if (!verified.ok) {
+        console.log(`Status: Stopped (stale PID file: ${pid})`);
+        console.log(`Reason: ${verified.reason}`);
+        removePidFile();
+        process.exit(0);
+        return;
+      }
+    }
     console.log(`Status: Running (PID: ${pid})`);
     console.log(`Log file: ${LOG_FILE}`);
 
-    // Try to get additional process info with timeout
-    try {
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error("Timeout")), 2000); // 2 second timeout
-      });
-
-      const psPromise = execAsync(`ps -p ${pid} -o pid,ppid,etime,cmd`);
-
-      const { stdout } = await Promise.race([psPromise, timeoutPromise]);
+    // Prefer sysprims for structured process info
+    const procInfo = await sysprimsTryProcGet(pid);
+    if (procInfo) {
+      const cmdline = procInfo.cmdline.join(" ");
       console.log("\nProcess info:");
-      console.log(stdout);
-    } catch {
-      // Process info not available or timed out, continue silently
+      console.log(
+        JSON.stringify(
+          {
+            pid: procInfo.pid,
+            ppid: procInfo.ppid,
+            name: procInfo.name,
+            state: procInfo.state,
+            cpu_percent: procInfo.cpu_percent,
+            memory_kb: procInfo.memory_kb,
+            elapsed_seconds: procInfo.elapsed_seconds,
+            start_time_unix_ms: procInfo.start_time_unix_ms ?? null,
+            exe_path: procInfo.exe_path ?? null,
+            cmdline,
+          },
+          null,
+          2,
+        ),
+      );
+    } else {
+      // Fallback to ps, best-effort
+      try {
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error("Timeout")), 2000); // 2 second timeout
+        });
+
+        const psPromise = execAsync(`ps -p ${pid} -o pid,ppid,etime,cmd`);
+
+        const { stdout } = await Promise.race([psPromise, timeoutPromise]);
+        console.log("\nProcess info:");
+        console.log(stdout);
+      } catch {
+        // Process info not available or timed out, continue silently
+      }
     }
     process.exit(0);
   } else {

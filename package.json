@@ -116,6 +116,7 @@
     "mcp-dev:test": "bun test --filter=mcp-dev"
   },
   "dependencies": {
+    "@3leaps/sysprims": "0.1.7",
     "@fulmenhq/tsfulmen": "^0.2.0",
     "@libsql/client": "^0.15.15",
     "@modelcontextprotocol/sdk": "^1.25.3",

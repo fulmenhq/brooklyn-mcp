@@ -5,6 +5,7 @@
     "": {
       "name": "webpilot",
       "dependencies": {
+        "@3leaps/sysprims": "0.1.7",
         "@fulmenhq/tsfulmen": "^0.2.0",
         "@libsql/client": "^0.15.15",
         "@modelcontextprotocol/sdk": "^1.25.3",
@@ -45,6 +46,22 @@
   },
   "packages": {
     "@3leaps/string-metrics-wasm": ["@3leaps/string-metrics-wasm@0.3.8", "", {}, "sha512-iOz4DtbIrioueluUsR/sMkO5i/o0UMhCX7GNUvZKOIweVA8nHGjbojfuFQCVQGKbckF/L4fvHJtakFMPe7YvWg=="],
+
+    "@3leaps/sysprims": ["@3leaps/sysprims@0.1.7", "", { "optionalDependencies": { "@3leaps/sysprims-darwin-arm64": "0.1.7", "@3leaps/sysprims-linux-arm64-gnu": "0.1.7", "@3leaps/sysprims-linux-arm64-musl": "0.1.7", "@3leaps/sysprims-linux-x64-gnu": "0.1.7", "@3leaps/sysprims-linux-x64-musl": "0.1.7", "@3leaps/sysprims-win32-arm64-msvc": "0.1.7", "@3leaps/sysprims-win32-x64-msvc": "0.1.7" } }, "sha512-6nG8ZYgwatCOMuv/pcdwmFVvU0YZ+kBIT034n7H8wFceghZfrz+b/hL6nES+z8YX6lvlXXlCWFkaeI/04127rA=="],
+
+    "@3leaps/sysprims-darwin-arm64": ["@3leaps/sysprims-darwin-arm64@0.1.7", "", { "os": "darwin", "cpu": "arm64" }, "sha512-hKlLom9y3/RDCL2OgvWvRq4GjkJmp5+129dtjvn+0cFzNFoyjTcVVE1yQdjQaQj2Tbgb/M8n790+8v1USeV39g=="],
+
+    "@3leaps/sysprims-linux-arm64-gnu": ["@3leaps/sysprims-linux-arm64-gnu@0.1.7", "", { "os": "linux", "cpu": "arm64" }, "sha512-KHz6K2V0MjSehYqcUFPpojwufBD5e1aOX4H1V5nzo/5vRiu8RKZT62oIOvuUCID+tDnZ5U7p+KC4VBJr/CU6Rw=="],
+
+    "@3leaps/sysprims-linux-arm64-musl": ["@3leaps/sysprims-linux-arm64-musl@0.1.7", "", { "os": "linux", "cpu": "arm64" }, "sha512-4XHU4gVxyD9FcLs0ltWoctB1BftGoAEx6uVaDhHaQqNIDu7SeVbNGyehzzpjUmG+2rC7WBXYWCfnz+2EDU7fFw=="],
+
+    "@3leaps/sysprims-linux-x64-gnu": ["@3leaps/sysprims-linux-x64-gnu@0.1.7", "", { "os": "linux", "cpu": "x64" }, "sha512-DALYNJlh51K8f3ih6CtjcMyXjV/k4u19cNtGy6eXYLoYtBXdFfcAXmfLja5uWFzv/nHUWPaIRDPGU5qkCjjJoA=="],
+
+    "@3leaps/sysprims-linux-x64-musl": ["@3leaps/sysprims-linux-x64-musl@0.1.7", "", { "os": "linux", "cpu": "x64" }, "sha512-sfH70H8ciZD+aoRC+zDbO4e6yk+K01DsAbnKz493As6ogMSkx8Kit5ZNOatUk4U2WI+0HjeMZLw0HlkDHB42vg=="],
+
+    "@3leaps/sysprims-win32-arm64-msvc": ["@3leaps/sysprims-win32-arm64-msvc@0.1.7", "", { "os": "win32", "cpu": "arm64" }, "sha512-7xnkHV1uG+SVfrnsAcsvK+MssBkg9CSi3ILfsbPW7QmwRIqEx95e9wScpKxUaM2LM8msqwAAh3F8Sg5AZjAL9A=="],
+
+    "@3leaps/sysprims-win32-x64-msvc": ["@3leaps/sysprims-win32-x64-msvc@0.1.7", "", { "os": "win32", "cpu": "x64" }, "sha512-8w0jPZy3bPGXnw6yIDx81IEOPrsmz6FBzoptcYoY2YR4J4ycGAZj9qXaFGJfSqL3ynr4Kn13RWOK4rfql96z0A=="],
 
     "@ampproject/remapping": ["@ampproject/remapping@2.3.0", "", { "dependencies": { "@jridgewell/gen-mapping": "^0.3.5", "@jridgewell/trace-mapping": "^0.3.24" } }, "sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw=="],
 

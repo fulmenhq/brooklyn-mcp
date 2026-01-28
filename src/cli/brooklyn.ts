@@ -12,7 +12,7 @@
  */
 
 // Version embedded at build time from VERSION file
-const VERSION = "0.3.1";
+const VERSION = "0.3.2";
 
 import { existsSync, readFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
@@ -1309,15 +1309,32 @@ Assisted Configuration:
         const execAsync = promisify(exec);
 
         let pids: number[] = [];
+
+        // Prefer sysprims when available (no lsof dependency)
         try {
-          const { stdout } = await execAsync(
-            `lsof -iTCP:${port} -sTCP:LISTEN -n -P | awk 'NR>1 {print $2}' | sort -u`,
-          );
-          pids = stdout
-            .trim()
-            .split("\n")
-            .map((s) => Number.parseInt(s.trim(), 10))
-            .filter((n) => Number.isFinite(n));
+          const { sysprimsTryListeningPids } = await import("../shared/sysprims.js");
+          const result = await sysprimsTryListeningPids(port);
+          if (result) {
+            pids = result.pids;
+            if (result.warnings.length > 0) {
+              console.log(`sysprims warnings: ${result.warnings.join("; ")}`);
+            }
+          }
+        } catch {
+          // ignore; fall back to lsof
+        }
+
+        try {
+          if (pids.length === 0) {
+            const { stdout } = await execAsync(
+              `lsof -iTCP:${port} -sTCP:LISTEN -n -P | awk 'NR>1 {print $2}' | sort -u`,
+            );
+            pids = stdout
+              .trim()
+              .split("\n")
+              .map((s) => Number.parseInt(s.trim(), 10))
+              .filter((n) => Number.isFinite(n));
+          }
         } catch {
           // lsof may not be present or permission issues; continue to HTTP probe.
         }
@@ -1407,15 +1424,33 @@ Assisted Configuration:
 
         const port = Number.parseInt(options.port, 10) || 3000;
 
-        // Find listeners (IPv4 and IPv6) on the port
-        const { stdout } = await execAsync(
-          `lsof -iTCP:${port} -sTCP:LISTEN -n -P | awk 'NR>1 {print $2}' | sort -u`,
-        );
-        const pids = stdout
-          .trim()
-          .split("\n")
-          .map((s) => s.trim())
-          .filter((s) => s.length > 0);
+        let pids: string[] = [];
+
+        // Prefer sysprims to resolve port -> pid
+        try {
+          const { sysprimsTryListeningPids } = await import("../shared/sysprims.js");
+          const result = await sysprimsTryListeningPids(port);
+          if (result) {
+            pids = result.pids.map(String);
+            if (result.warnings.length > 0) {
+              console.log(`sysprims warnings: ${result.warnings.join("; ")}`);
+            }
+          }
+        } catch {
+          // ignore
+        }
+
+        // Fallback: lsof
+        if (pids.length === 0) {
+          const { stdout } = await execAsync(
+            `lsof -iTCP:${port} -sTCP:LISTEN -n -P | awk 'NR>1 {print $2}' | sort -u`,
+          );
+          pids = stdout
+            .trim()
+            .split("\n")
+            .map((s) => s.trim())
+            .filter((s) => s.length > 0);
+        }
 
         if (pids.length === 0) {
           console.log(`No listeners found on port ${port}`);
@@ -1427,28 +1462,51 @@ Assisted Configuration:
           const pid = Number.parseInt(pidStr, 10);
           if (!Number.isFinite(pid)) continue;
 
+          // Prefer sysprims terminateTree (kills groups when possible)
+          let usedSysprims = false;
           try {
-            process.kill(pid, "SIGTERM");
+            const { sysprimsTryTerminateTree } = await import("../shared/sysprims.js");
+            const res = await sysprimsTryTerminateTree(pid, {
+              grace_timeout_ms: options.force ? 0 : 1000,
+              kill_timeout_ms: 2000,
+            });
+            if (res) {
+              usedSysprims = true;
+              if (res.warnings.length > 0) {
+                console.log(`sysprims warnings (pid ${pid}): ${res.warnings.join("; ")}`);
+              }
+              if (!res.exited && options.force) {
+                console.log(`Forcing kill for PID ${pid}...`);
+              }
+            }
           } catch {
             // ignore
           }
 
-          // Wait briefly for graceful stop
-          await new Promise((r) => setTimeout(r, 1000));
-
-          let stillRunning = true;
-          try {
-            process.kill(pid, 0);
-          } catch {
-            stillRunning = false;
-          }
-
-          if (stillRunning && options.force) {
-            console.log(`Forcing kill for PID ${pid}...`);
+          if (!usedSysprims) {
             try {
-              process.kill(pid, "SIGKILL");
+              process.kill(pid, "SIGTERM");
             } catch {
               // ignore
+            }
+
+            // Wait briefly for graceful stop
+            await new Promise((r) => setTimeout(r, 1000));
+
+            let stillRunning = true;
+            try {
+              process.kill(pid, 0);
+            } catch {
+              stillRunning = false;
+            }
+
+            if (stillRunning && options.force) {
+              console.log(`Forcing kill for PID ${pid}...`);
+              try {
+                process.kill(pid, "SIGKILL");
+              } catch {
+                // ignore
+              }
             }
           }
         }

@@ -8,13 +8,74 @@
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 
+import { sysprimsTryProcessList, sysprimsTryTerminateTree } from "../../shared/sysprims.js";
+
 const execAsync = promisify(exec);
+
+async function cleanupMCPServersWithSysprims(options: {
+  all?: boolean;
+  force?: boolean;
+}): Promise<boolean> {
+  const snapshot = await sysprimsTryProcessList();
+  if (!snapshot) return false;
+
+  const matches = snapshot.processes.filter((p) => {
+    const cmd = p.cmdline.join(" ");
+    // Focus on brooklyn mcp processes; avoid killing generic "web" servers.
+    return cmd.includes("brooklyn") && cmd.includes("mcp");
+  });
+
+  if (matches.length === 0) {
+    console.log("✅ No Brooklyn MCP processes found");
+    return true;
+  }
+
+  console.log(`Found ${matches.length} Brooklyn MCP process(es)`);
+
+  if (!options.all) {
+    console.log("Checking for orphaned processes...");
+    // TODO: refine with instance registry metadata; for now this is informational.
+  }
+
+  if (options.force || options.all) {
+    console.log("Terminating MCP processes...");
+
+    let terminated = 0;
+    for (const proc of matches) {
+      const res = await sysprimsTryTerminateTree(proc.pid, {
+        grace_timeout_ms: options.force ? 0 : 2000,
+        kill_timeout_ms: 2000,
+      });
+
+      if (res?.exited || res?.timed_out === false) {
+        console.log(`  Terminated PID ${proc.pid}`);
+        terminated++;
+      } else {
+        console.log(`  Failed to terminate PID ${proc.pid}`);
+      }
+    }
+
+    console.log(`✅ MCP cleanup complete (${terminated}/${matches.length})`);
+  } else {
+    console.log("Use --force or --all to terminate these processes");
+  }
+
+  return true;
+}
 
 export async function cleanupMCPServers(options: {
   all?: boolean;
   force?: boolean;
 }): Promise<void> {
   console.log("🧹 Cleaning up MCP server processes...");
+
+  // Prefer sysprims when available
+  try {
+    const handled = await cleanupMCPServersWithSysprims(options);
+    if (handled) return;
+  } catch {
+    // sysprims path failed; fall back to shell-based cleanup below.
+  }
 
   try {
     // Find Brooklyn MCP processes
