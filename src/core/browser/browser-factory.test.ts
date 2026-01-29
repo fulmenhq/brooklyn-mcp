@@ -48,18 +48,24 @@ vi.mock("../../shared/pino-logger.js", () => ({
 
 // Mock browser instance
 vi.mock("./browser-instance.js", () => ({
-  BrowserInstance: vi.fn().mockImplementation((config) => ({
-    id: config.id || "test-instance",
-    browserType: config.browserType,
-    initialize: vi.fn(),
-  })),
+  // biome-ignore lint/complexity/useArrowFunction: vitest 4.x requires function syntax for constructor mocks
+  BrowserInstance: vi.fn().mockImplementation(function (config) {
+    return {
+      id: config.id || "test-instance",
+      browserType: config.browserType,
+      initialize: vi.fn(),
+    };
+  }),
 }));
 
 // Mock MCPBrowserManager
 vi.mock("./mcp-browser-manager.js", () => ({
-  MCPBrowserManager: vi.fn().mockImplementation(() => ({
-    acquireBrowser: vi.fn(),
-  })),
+  // biome-ignore lint/complexity/useArrowFunction: vitest 4.x requires function syntax for constructor mocks
+  MCPBrowserManager: vi.fn().mockImplementation(function () {
+    return {
+      acquireBrowser: vi.fn(),
+    };
+  }),
 }));
 
 describe("BrowserFactory", () => {
@@ -554,7 +560,10 @@ describe("BrowserFactory", () => {
       });
 
       // Mock MCPBrowserManager constructor to return null
-      vi.mocked(MCPBrowserManager).mockImplementationOnce(() => null as any);
+      // biome-ignore lint/complexity/useArrowFunction: vitest 4.x requires function syntax for constructor mocks
+      vi.mocked(MCPBrowserManager).mockImplementationOnce(function () {
+        return null as any;
+      });
 
       await mcpFactory.createInstance({
         browserType: "chromium",
@@ -598,7 +607,8 @@ describe("BrowserFactory", () => {
       (chromium.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
 
       // Mock BrowserInstance constructor to throw
-      vi.mocked(BrowserInstance).mockImplementationOnce(() => {
+      // biome-ignore lint/complexity/useArrowFunction: vitest 4.x requires function syntax for constructor mocks
+      vi.mocked(BrowserInstance).mockImplementationOnce(function () {
         throw new Error("Instance creation failed");
       });
 
@@ -616,14 +626,14 @@ describe("BrowserFactory", () => {
       (chromium.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
 
       // Mock BrowserInstance to return instance with failing initialize
-      vi.mocked(BrowserInstance).mockImplementationOnce(
-        (config) =>
-          ({
-            id: config.id || "test-instance",
-            browserType: config.browserType,
-            initialize: vi.fn().mockRejectedValue(new Error("Initialization failed")),
-          }) as any,
-      );
+      // biome-ignore lint/complexity/useArrowFunction: vitest 4.x requires function syntax for constructor mocks
+      vi.mocked(BrowserInstance).mockImplementationOnce(function (config) {
+        return {
+          id: config.id || "test-instance",
+          browserType: config.browserType,
+          initialize: vi.fn().mockRejectedValue(new Error("Initialization failed")),
+        } as any;
+      });
 
       await expect(
         factory.createInstance({

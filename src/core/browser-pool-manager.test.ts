@@ -72,15 +72,18 @@ vi.mock("./browser/browser-pool.js");
 
 // Mock screenshot storage manager
 vi.mock("./screenshot-storage-manager.js", () => ({
-  ScreenshotStorageManager: vi.fn().mockImplementation(() => ({
-    saveScreenshot: vi.fn().mockResolvedValue({
-      filePath: "/tmp/screenshot.png",
-      filename: "screenshot.png",
-      format: "png",
-      fileSize: 1024,
-      auditId: "audit-123",
-    }),
-  })),
+  // biome-ignore lint/complexity/useArrowFunction: vitest 4.x requires function syntax for constructor mocks
+  ScreenshotStorageManager: vi.fn().mockImplementation(function () {
+    return {
+      saveScreenshot: vi.fn().mockResolvedValue({
+        filePath: "/tmp/screenshot.png",
+        filename: "screenshot.png",
+        format: "png",
+        fileSize: 1024,
+        auditId: "audit-123",
+      }),
+    };
+  }),
 }));
 
 describe("BrowserPoolManager", () => {

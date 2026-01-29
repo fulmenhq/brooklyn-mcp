@@ -3,6 +3,8 @@
  * Tests provider coordination, request validation, OAuth flows, and session management
  */
 
+// biome-ignore-all lint/complexity/useArrowFunction: vitest 4.x requires function syntax for constructor mocks
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { BrooklynAuthManager } from "../../../src/core/auth/auth-manager.js";
 import type { AuthProvider } from "../../../src/core/auth/auth-provider.js";
@@ -186,7 +188,9 @@ describe("BrooklynAuthManager", () => {
     it("should initialize with none provider", async () => {
       const mockProvider = createMockProvider("none", "none", false, false);
       const { NoneAuthProvider } = await import("../../../src/core/auth/none-provider.js");
-      vi.mocked(NoneAuthProvider).mockImplementation(() => mockProvider as any);
+      vi.mocked(NoneAuthProvider).mockImplementation(function () {
+        return mockProvider as any;
+      });
 
       mockConfig.authentication.mode = "none";
       await authManager.initialize(mockConfig);
@@ -219,7 +223,9 @@ describe("BrooklynAuthManager", () => {
     beforeEach(async () => {
       mockProvider = createMockProvider("local", "local", false, true);
       const { LocalAuthProvider } = await import("../../../src/core/auth/local-provider.js");
-      vi.mocked(LocalAuthProvider).mockImplementation(() => mockProvider as any);
+      vi.mocked(LocalAuthProvider).mockImplementation(function () {
+        return mockProvider as any;
+      });
       await authManager.initialize(mockConfig);
     });
 
@@ -357,7 +363,9 @@ describe("BrooklynAuthManager", () => {
       const localProvider = createMockProvider("local", "local", false, true);
       const localManager = new BrooklynAuthManager();
       const { LocalAuthProvider } = await import("../../../src/core/auth/local-provider.js");
-      vi.mocked(LocalAuthProvider).mockImplementation(() => localProvider as any);
+      vi.mocked(LocalAuthProvider).mockImplementation(function () {
+        return localProvider as any;
+      });
 
       mockConfig.authentication.mode = "local";
       await localManager.initialize(mockConfig);
@@ -416,7 +424,9 @@ describe("BrooklynAuthManager", () => {
     beforeEach(async () => {
       mockProvider = createMockProvider("local", "local", false, true);
       const { LocalAuthProvider } = await import("../../../src/core/auth/local-provider.js");
-      vi.mocked(LocalAuthProvider).mockImplementation(() => mockProvider as any);
+      vi.mocked(LocalAuthProvider).mockImplementation(function () {
+        return mockProvider as any;
+      });
       await authManager.initialize(mockConfig);
     });
 
@@ -468,7 +478,9 @@ describe("BrooklynAuthManager", () => {
       const githubProvider = createMockProvider("github", "github", true, false);
       const githubManager = new BrooklynAuthManager();
       const { GitHubAuthProvider } = await import("../../../src/core/auth/github-provider.js");
-      vi.mocked(GitHubAuthProvider).mockImplementation(() => githubProvider as any);
+      vi.mocked(GitHubAuthProvider).mockImplementation(function () {
+        return githubProvider as any;
+      });
 
       mockConfig.authentication.mode = "github";
       await githubManager.initialize(mockConfig);
@@ -488,7 +500,9 @@ describe("BrooklynAuthManager", () => {
     beforeEach(async () => {
       mockProvider = createMockProvider("local", "local", false, true);
       const { LocalAuthProvider } = await import("../../../src/core/auth/local-provider.js");
-      vi.mocked(LocalAuthProvider).mockImplementation(() => mockProvider as any);
+      vi.mocked(LocalAuthProvider).mockImplementation(function () {
+        return mockProvider as any;
+      });
       await authManager.initialize(mockConfig);
     });
 
@@ -536,7 +550,9 @@ describe("BrooklynAuthManager", () => {
     it("should allow development mode for none provider", async () => {
       const mockProvider = createMockProvider("none", "none", false, false);
       const { NoneAuthProvider } = await import("../../../src/core/auth/none-provider.js");
-      vi.mocked(NoneAuthProvider).mockImplementation(() => mockProvider as any);
+      vi.mocked(NoneAuthProvider).mockImplementation(function () {
+        return mockProvider as any;
+      });
 
       mockConfig.authentication.mode = "none";
       mockConfig.authentication.developmentOnly = true;
@@ -549,7 +565,9 @@ describe("BrooklynAuthManager", () => {
     it("should not allow development mode for other providers", async () => {
       const mockProvider = createMockProvider("local", "local", false, true);
       const { LocalAuthProvider } = await import("../../../src/core/auth/local-provider.js");
-      vi.mocked(LocalAuthProvider).mockImplementation(() => mockProvider as any);
+      vi.mocked(LocalAuthProvider).mockImplementation(function () {
+        return mockProvider as any;
+      });
 
       mockConfig.authentication.mode = "local";
       mockConfig.authentication.developmentOnly = true;
@@ -577,7 +595,9 @@ describe("BrooklynAuthManager", () => {
     it("should report healthy status when initialized", async () => {
       const mockProvider = createMockProvider("local", "local", false, true);
       const { LocalAuthProvider } = await import("../../../src/core/auth/local-provider.js");
-      vi.mocked(LocalAuthProvider).mockImplementation(() => mockProvider as any);
+      vi.mocked(LocalAuthProvider).mockImplementation(function () {
+        return mockProvider as any;
+      });
 
       await authManager.initialize(mockConfig);
 
@@ -593,7 +613,9 @@ describe("BrooklynAuthManager", () => {
       const mockProvider = createMockProvider("local", "local", false, true);
       vi.mocked(mockProvider.getStatus).mockReturnValue({ healthy: false });
       const { LocalAuthProvider } = await import("../../../src/core/auth/local-provider.js");
-      vi.mocked(LocalAuthProvider).mockImplementation(() => mockProvider as any);
+      vi.mocked(LocalAuthProvider).mockImplementation(function () {
+        return mockProvider as any;
+      });
 
       await authManager.initialize(mockConfig);
 
@@ -607,7 +629,9 @@ describe("BrooklynAuthManager", () => {
     it("should cleanup successfully", async () => {
       const mockProvider = createMockProvider("local", "local", false, true);
       const { LocalAuthProvider } = await import("../../../src/core/auth/local-provider.js");
-      vi.mocked(LocalAuthProvider).mockImplementation(() => mockProvider as any);
+      vi.mocked(LocalAuthProvider).mockImplementation(function () {
+        return mockProvider as any;
+      });
 
       await authManager.initialize(mockConfig);
 
@@ -625,7 +649,9 @@ describe("BrooklynAuthManager", () => {
       const mockProvider = createMockProvider("local", "local", false, true);
       vi.mocked(mockProvider.cleanup).mockRejectedValue(new Error("Cleanup failed"));
       const { LocalAuthProvider } = await import("../../../src/core/auth/local-provider.js");
-      vi.mocked(LocalAuthProvider).mockImplementation(() => mockProvider as any);
+      vi.mocked(LocalAuthProvider).mockImplementation(function () {
+        return mockProvider as any;
+      });
 
       await authManager.initialize(mockConfig);
 
@@ -640,7 +666,9 @@ describe("BrooklynAuthManager", () => {
     beforeEach(async () => {
       mockProvider = createMockProvider("local", "local", false, true);
       const { LocalAuthProvider } = await import("../../../src/core/auth/local-provider.js");
-      vi.mocked(LocalAuthProvider).mockImplementation(() => mockProvider as any);
+      vi.mocked(LocalAuthProvider).mockImplementation(function () {
+        return mockProvider as any;
+      });
       await authManager.initialize(mockConfig);
     });
 
