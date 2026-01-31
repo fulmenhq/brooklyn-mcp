@@ -54,30 +54,29 @@ describe.sequential("Architecture Committee: MCP Stdout Purity Tests", () => {
     process.env["BROOKLYN_LOG_LEVEL"] = "debug";
     process.env["BROOKLYN_TEST_MODE"] = "true";
 
-    // CRITICAL: Force cleanup of any lingering processes from other tests
+    // CRITICAL: Force cleanup of any lingering processes from other tests.
+    // Prefer Brooklyn's own process manager (sysprims-backed) to avoid brittle kill -9 shellouts.
     const instanceManager = new InstanceManager();
-
-    // Cleanup all Brooklyn processes first with timeout
     await Promise.race([
       instanceManager.cleanupAllProcesses(),
-      new Promise((resolve) => setTimeout(resolve, 5000)), // 5s timeout
+      new Promise((resolve) => setTimeout(resolve, 8000)), // bounded
     ]);
 
-    // Wait for processes to fully terminate (bounded)
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    // Force cleanup of common test ports that might be in use
-    const { execSync } = await import("node:child_process");
+    // Force cleanup of common test ports that might be in use (best-effort)
     try {
-      // Kill any processes using common MCP ports
-      execSync("lsof -ti:3000,3001,3002,8080,8081 | xargs kill -9 2>/dev/null || true", {
-        stdio: "ignore",
-      });
+      const { BrooklynProcessManager } = await import("../../src/shared/process-manager.js");
+      for (const port of [3000, 3001, 3002, 8080, 8081]) {
+        try {
+          await BrooklynProcessManager.stopHttpServerByPort(port);
+        } catch {
+          // ignore
+        }
+      }
     } catch {
-      // Ignore port cleanup errors
+      // ignore
     }
 
-    // Wait for port cleanup
+    // Small delay to let processes/ports settle
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // Check for existing Brooklyn processes after cleanup
@@ -439,9 +438,56 @@ async function runMCPTest(input: string): Promise<TestResult> {
       );
     }
 
+    // Track expected response IDs so we can keep stdin open until responses are emitted.
+    const expectedIds = new Set<number | string>();
+    for (const line of input
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean)) {
+      try {
+        const msg = JSON.parse(line) as MCP_Message;
+        if (typeof msg.id === "number" || typeof msg.id === "string") {
+          expectedIds.add(msg.id);
+        }
+      } catch {
+        // ignore
+      }
+    }
+    const receivedIds = new Set<number | string>();
+    let stdoutBuffer = "";
+
+    const maybeFinish = () => {
+      if (expectedIds.size === 0) return;
+      if (receivedIds.size < expectedIds.size) return;
+      // All expected IDs observed; allow a brief drain window, then end stdin.
+      setTimeout(() => {
+        if (!child.killed && child.stdin) {
+          child.stdin.end();
+        }
+      }, 150);
+    };
+
     child.stdout?.on("data", (data: Buffer) => {
       const chunk = data.toString();
       stdout += chunk;
+      stdoutBuffer += chunk;
+
+      const lines = stdoutBuffer.split("\n");
+      stdoutBuffer = lines.pop() ?? "";
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        try {
+          const msg = JSON.parse(trimmed) as MCP_Message;
+          if (typeof msg.id === "number" || typeof msg.id === "string") {
+            receivedIds.add(msg.id);
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      maybeFinish();
     });
 
     // CRITICAL: Listen for mcp-stdio-ready signal to eliminate timing races
@@ -527,12 +573,14 @@ async function runMCPTest(input: string): Promise<TestResult> {
 
       child.stdin.write(`${input}\n`);
 
-      // OPTIMIZED: Reduced from 3s to 1s drain delay
-      setTimeout(() => {
-        if (!child.killed && child.stdin) {
-          child.stdin.end();
-        }
-      }, 1000);
+      // If there are no request IDs (unlikely), keep the historical behavior but with a safer delay.
+      if (expectedIds.size === 0) {
+        setTimeout(() => {
+          if (!child.killed && child.stdin) {
+            child.stdin.end();
+          }
+        }, 3000);
+      }
     };
 
     // FALLBACK: If ready signal never arrives, send input after 3s anyway

@@ -8,6 +8,8 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { getLogger } from "../shared/pino-logger.js";
 
+import { BrooklynProcessManager } from "../shared/process-manager.js";
+
 const PID_FILE = join(homedir(), ".brooklyn", "brooklyn.pid");
 const _LOCK_FILE = join(homedir(), ".brooklyn", "brooklyn.lock");
 
@@ -176,6 +178,21 @@ export class InstanceManager {
    * Clean up all Brooklyn processes (emergency cleanup)
    */
   async cleanupAllProcesses(): Promise<number> {
+    // Prefer structured process discovery/termination when available.
+    try {
+      const processes = await BrooklynProcessManager.findAllProcesses();
+      let cleaned = 0;
+      for (const proc of processes) {
+        if (proc.pid !== process.pid) {
+          const stopped = await BrooklynProcessManager.stopProcess(proc.pid, "SIGTERM");
+          if (stopped) cleaned++;
+        }
+      }
+      return cleaned;
+    } catch {
+      // Fall back to legacy ps/grep patterns below.
+    }
+
     try {
       const lines = await InstanceManager.findBrooklynProcesses();
       let cleaned = 0;
