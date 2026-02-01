@@ -12,21 +12,21 @@ Executable doesn't exist at /path/to/ms-playwright/chromium_headless_shell-1208/
 
 ## Quick Reference
 
-| Task | Command |
-|------|---------|
-| Check installed versions | `brooklyn browser info` |
+| Task                         | Command                                                       |
+| ---------------------------- | ------------------------------------------------------------- |
+| Check installed versions     | `brooklyn browser info`                                       |
 | Validate version consistency | `bun run test tests/unit/browser-version-consistency.test.ts` |
-| Install/update browsers | `bunx playwright install --force` |
-| Update Playwright package | `bun update playwright playwright-core` |
+| Install/update browsers      | `bunx playwright install --force`                             |
+| Update Playwright package    | `bun update playwright playwright-core`                       |
 
 ## Version Components
 
-| Component | Location | Purpose |
-|-----------|----------|---------|
-| Playwright package | `package.json` | Defines expected browser revisions |
-| Lock file | `bun.lock` | Pins exact Playwright version |
-| browsers.json | `node_modules/playwright-core/browsers.json` | Maps Playwright version → browser revisions |
-| Browser cache | `~/.cache/ms-playwright/` (Linux) or `~/Library/Caches/ms-playwright/` (macOS) | Installed browser binaries |
+| Component          | Location                                                                       | Purpose                                     |
+| ------------------ | ------------------------------------------------------------------------------ | ------------------------------------------- |
+| Playwright package | `package.json`                                                                 | Defines expected browser revisions          |
+| Lock file          | `bun.lock`                                                                     | Pins exact Playwright version               |
+| browsers.json      | `node_modules/playwright-core/browsers.json`                                   | Maps Playwright version → browser revisions |
+| Browser cache      | `~/.cache/ms-playwright/` (Linux) or `~/Library/Caches/ms-playwright/` (macOS) | Installed browser binaries                  |
 
 ## Common Scenarios
 
@@ -42,21 +42,25 @@ The `--force` flag ensures browsers are downloaded even if a cache exists.
 ### Scenario 2: Upgrading Playwright
 
 1. **Update the package**:
+
    ```bash
    bun update playwright playwright-core
    ```
 
 2. **Check what changed**:
+
    ```bash
    cat node_modules/playwright-core/browsers.json | jq '.browsers[] | select(.installByDefault) | {name, revision}'
    ```
 
 3. **Install new browser versions**:
+
    ```bash
    bunx playwright install --force
    ```
 
 4. **Verify**:
+
    ```bash
    brooklyn browser info
    bun run test tests/unit/browser-version-consistency.test.ts
@@ -73,6 +77,7 @@ The `--force` flag ensures browsers are downloaded even if a cache exists.
 If you see an error about missing browser executable with a specific revision:
 
 1. **Check expected vs installed**:
+
    ```bash
    # Expected (from Playwright)
    cat node_modules/playwright-core/browsers.json | jq '.browsers[] | select(.name=="chromium") | .revision'
@@ -82,6 +87,7 @@ If you see an error about missing browser executable with a specific revision:
    ```
 
 2. **Reinstall browsers**:
+
    ```bash
    bunx playwright install --force
    ```
@@ -138,6 +144,7 @@ bun run test:integration:browser
 ```
 
 These tests:
+
 - Read expected revisions from `browsers.json`
 - Compare against installed revisions in the Playwright cache
 - Report mismatches with actionable fix commands
@@ -147,11 +154,13 @@ These tests:
 ### "Browser executable not found"
 
 **Symptoms**:
+
 ```
 Error: Failed to launch chromium: Executable doesn't exist at...
 ```
 
 **Fix**:
+
 ```bash
 bunx playwright install --force
 ```
@@ -163,6 +172,7 @@ bunx playwright install --force
 **Cause**: Playwright package was updated but browsers weren't reinstalled
 
 **Fix**:
+
 ```bash
 bun install --frozen-lockfile  # Ensure correct Playwright version
 bunx playwright install --force
@@ -175,6 +185,7 @@ bunx playwright install --force
 **Cause**: Stale CI cache with old browser revisions
 
 **Fix**:
+
 1. Clear GitHub Actions cache for `playwright-*` keys
 2. Or bump cache key version in workflow
 
@@ -183,6 +194,7 @@ bunx playwright install --force
 **Symptoms**: Different projects have different Playwright versions
 
 **Note**: Playwright cache is shared globally. If you work on multiple projects:
+
 - Each project should use `--force` when installing
 - Consider using `PLAYWRIGHT_BROWSERS_PATH` to isolate caches
 
