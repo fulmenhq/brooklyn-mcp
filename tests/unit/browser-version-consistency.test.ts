@@ -106,6 +106,7 @@ describe("Browser Version Consistency", () => {
     // Revisions should be numeric strings
     for (const [name, revision] of expected) {
       expect(revision).toMatch(/^\d+$/);
+      // biome-ignore lint/suspicious/noConsole: Diagnostic output for test visibility
       console.log(`Expected ${name}: revision ${revision}`);
     }
   });
@@ -118,6 +119,7 @@ describe("Browser Version Consistency", () => {
     const installedChromium = installed.get("chromium");
 
     if (!installedChromium) {
+      // biome-ignore lint/suspicious/noConsole: Diagnostic output for test visibility
       console.warn("⚠️ Chromium not installed. Run: bunx playwright install chromium");
       // Skip instead of fail - browser may not be installed in all environments
       return;
@@ -139,6 +141,7 @@ describe("Browser Version Consistency", () => {
     }
 
     if (!installedRevision) {
+      // biome-ignore lint/suspicious/noConsole: Diagnostic output for test visibility
       console.warn(
         "⚠️ chromium-headless-shell not installed. Run: bunx playwright install chromium",
       );
@@ -162,10 +165,13 @@ describe("Browser Version Consistency", () => {
     }
 
     if (mismatches.length > 0) {
+      // biome-ignore lint/suspicious/noConsole: Diagnostic output for test visibility
       console.error("🚨 Browser version mismatches detected:");
       for (const mismatch of mismatches) {
+        // biome-ignore lint/suspicious/noConsole: Diagnostic output for test visibility
         console.error(`   ${mismatch}`);
       }
+      // biome-ignore lint/suspicious/noConsole: Diagnostic output for test visibility
       console.error("\nTo fix: bunx playwright install --force");
     }
 
@@ -182,6 +188,7 @@ describe("Browser Update Procedure Validation", () => {
     const playwrightVersion = packageJson.dependencies?.playwright;
 
     expect(playwrightVersion).toBeDefined();
+    // biome-ignore lint/suspicious/noConsole: Diagnostic output for test visibility
     console.log(`📦 Playwright package version: ${playwrightVersion}`);
   });
 
