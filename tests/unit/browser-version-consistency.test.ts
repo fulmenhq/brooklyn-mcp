@@ -27,22 +27,13 @@ interface PlaywrightBrowsersJson {
  * Get the expected browser revisions from Playwright's browsers.json
  */
 function getExpectedBrowserRevisions(): Map<string, string> {
-  const browsersJsonPath = join(
-    process.cwd(),
-    "node_modules",
-    "playwright-core",
-    "browsers.json",
-  );
+  const browsersJsonPath = join(process.cwd(), "node_modules", "playwright-core", "browsers.json");
 
   if (!existsSync(browsersJsonPath)) {
-    throw new Error(
-      `browsers.json not found at ${browsersJsonPath}. Run 'bun install' first.`,
-    );
+    throw new Error(`browsers.json not found at ${browsersJsonPath}. Run 'bun install' first.`);
   }
 
-  const browsersJson: PlaywrightBrowsersJson = JSON.parse(
-    readFileSync(browsersJsonPath, "utf8"),
-  );
+  const browsersJson: PlaywrightBrowsersJson = JSON.parse(readFileSync(browsersJsonPath, "utf8"));
 
   const revisions = new Map<string, string>();
   for (const browser of browsersJson.browsers) {
@@ -127,9 +118,7 @@ describe("Browser Version Consistency", () => {
     const installedChromium = installed.get("chromium");
 
     if (!installedChromium) {
-      console.warn(
-        "⚠️ Chromium not installed. Run: bunx playwright install chromium",
-      );
+      console.warn("⚠️ Chromium not installed. Run: bunx playwright install chromium");
       // Skip instead of fail - browser may not be installed in all environments
       return;
     }
@@ -168,9 +157,7 @@ describe("Browser Version Consistency", () => {
     for (const [name, expectedRev] of expected) {
       const installedRev = installed.get(name);
       if (installedRev && installedRev !== expectedRev) {
-        mismatches.push(
-          `${name}: installed=${installedRev}, expected=${expectedRev}`,
-        );
+        mismatches.push(`${name}: installed=${installedRev}, expected=${expectedRev}`);
       }
     }
 
