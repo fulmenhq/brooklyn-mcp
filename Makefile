@@ -510,6 +510,9 @@ release-upload: ## Upload signed artifacts to GitHub Release
 		$$(ls licenses.json THIRD_PARTY_NOTICES.md RELEASE.md release-notes-*.md 2>/dev/null || true) \
 		--repo fulmenhq/brooklyn-mcp --clobber
 	@echo "✅ Provenance artifacts uploaded to $(BROOKLYN_RELEASE_TAG)"
+	@echo "Publishing release (removing draft status)..."
+	@gh release edit $(BROOKLYN_RELEASE_TAG) --draft=false --repo fulmenhq/brooklyn-mcp
+	@echo "✅ Release $(BROOKLYN_RELEASE_TAG) is now published"
 
 #
 # === SERVER ORCHESTRATION ===
