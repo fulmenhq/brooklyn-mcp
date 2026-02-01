@@ -115,9 +115,10 @@ jobs:
           echo "Release artifacts:"
           ls -la dist/release/
 
-      - name: Upload artifacts to Release
+      - name: Upload artifacts to Release (draft)
         uses: softprops/action-gh-release@v2
         with:
+          draft: true
           files: |
             dist/release/*.zip
             dist/release/*.tar.gz
