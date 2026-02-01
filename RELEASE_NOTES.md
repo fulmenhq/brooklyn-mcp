@@ -2,6 +2,27 @@
 
 Latest releases for Brooklyn MCP. For full history, see [CHANGELOG.md](CHANGELOG.md).
 
+## [0.3.2] - 2026-02-01
+
+**Release Type**: Patch Release - Security & Test Stability
+
+### Highlights
+
+- **Security**: Vitest 4.0.18 upgrade eliminates 94 Go stdlib CVEs from esbuild dependency chain
+- **Test Stability**: stdout-purity tests now pass reliably in full suite with sysprims-backed cleanup
+- **Process Management**: Tree-safe termination via sysprims integration for server operations
+- **CI Hardening**: Browser version validation prevents Playwright revision drift
+
+### Quality Metrics
+
+- **Tests**: 1241 passing, 103 skipped
+- **Vulnerabilities**: 0 findings (down from 94)
+- **Lint Health**: 100%
+
+[Full Release Notes](docs/releases/v0.3.2.md)
+
+---
+
 ## [0.3.1] - 2026-01-21
 
 **Release Type**: Patch Release - Signing Workflow & Dependency Updates

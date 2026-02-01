@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-02-01
+
+### Security
+
+- **Vitest 4.0.18 Upgrade**: Eliminated 94 Go stdlib CVEs from esbuild dependency chain (vite 7.x, esbuild compiled with Go 1.25.5)
+
+### Fixed
+
+- **stdout-purity Test Stability**: Fixed intermittent test failures with ID-based stdin closure and sysprims-backed cleanup
+- **Process Management**: Hardened stop flows and PID file handling with graceful shutdown
+- **CI Workflow**: Resolved yamllint long lines and shellcheck SC2010 warnings
+
+### Added
+
+- **sysprims Integration**: Tree-safe process termination (`terminateTree`), structured process discovery, port-to-PID attribution
+- **Browser Version Validation**: CI validation and unit tests for Playwright browser revision consistency
+- **Vitest Workspace**: Process-spawning tests isolated in dedicated project with `maxWorkers: 1`
+
+### Changed
+
+- **Vitest 4.x Migration**: `poolOptions.forks.singleFork` → top-level `maxWorkers: 1`; arrow function constructor mocks → function syntax
+- **Documentation**: Consolidated decision records into `docs/decisions/`
+
 ## [0.3.1] - 2026-01-21
 
 ### Added
