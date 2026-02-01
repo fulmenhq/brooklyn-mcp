@@ -1,6 +1,6 @@
 # Brooklyn MCP Tool Inventory
 
-**Version**: 0.3.1  
+**Version**: 0.3.2  
 **Total Tools**: 79  
 **Categories**: 11
 
