@@ -172,14 +172,20 @@ jobs:
         run: |
           set -euo pipefail
           echo "📦 Playwright package expects:"
-          cat node_modules/playwright-core/browsers.json | jq -r '.browsers[] | select(.installByDefault) | "  \(.name): \(.revision)"'
+          jq -r '.browsers[] | select(.installByDefault) | "  \(.name): \(.revision)"' \
+            node_modules/playwright-core/browsers.json
           echo ""
           echo "💾 Installed browser revisions:"
-          ls -1 ~/.cache/ms-playwright/ 2>/dev/null | grep -E '^(chromium|firefox|webkit)' | sed 's/^/  /' || echo "  (none)"
+          for dir in ~/.cache/ms-playwright/chromium-* \
+                     ~/.cache/ms-playwright/firefox-* \
+                     ~/.cache/ms-playwright/webkit-*; do
+            [ -d "$dir" ] && echo "  $(basename "$dir")"
+          done || echo "  (none)"
           echo ""
           # Validate chromium revision matches
-          EXPECTED=$(cat node_modules/playwright-core/browsers.json | jq -r '.browsers[] | select(.name=="chromium") | .revision')
-          if ls ~/.cache/ms-playwright/ | grep -q "chromium-${EXPECTED}$"; then
+          EXPECTED=$(jq -r '.browsers[] | select(.name=="chromium") | .revision' \
+            node_modules/playwright-core/browsers.json)
+          if [ -d ~/.cache/ms-playwright/chromium-"${EXPECTED}" ]; then
             echo "✅ Chromium revision ${EXPECTED} installed correctly"
           else
             echo "❌ Chromium revision mismatch! Expected: ${EXPECTED}"
