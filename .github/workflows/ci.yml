@@ -93,7 +93,8 @@ jobs:
       - name: Install foundation tools (goneat doctor)
         run: |
           set -euo pipefail
-          goneat doctor tools --scope foundation --install --install-package-managers --yes
+          # --no-cooling: bypass package download checks in CI (we trust our tool config)
+          goneat doctor tools --scope foundation --install --install-package-managers --yes --no-cooling
 
       - name: Debug tool resolution
         run: |
