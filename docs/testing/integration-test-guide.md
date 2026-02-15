@@ -413,6 +413,27 @@ pkill -f brooklyn
 brooklyn mcp cleanup
 ```
 
+#### Test Isolation with BROOKLYN_TEST_MODE
+
+The stdout-purity tests spawn child Brooklyn processes with `BROOKLYN_TEST_MODE=true`.
+This env var changes two behaviors in `brooklyn mcp start`:
+
+1. **PID file duplicate check is skipped** — Test children start regardless of an existing
+   Brooklyn server running for the same project. Without this, developers who have Brooklyn
+   running as their MCP server (e.g., for Claude Code) would see test failures because the
+   child process detects the PID file and exits with code 1.
+
+2. **PID file write is skipped** — Test children do not write to the PID registry, preventing
+   them from overwriting the developer's legitimate PID file.
+
+The tests also intentionally do **not** call `cleanupAllProcesses()` in `beforeAll` or
+`afterAll`. Killing all Brooklyn processes would terminate the developer's active MCP server,
+which is destructive and unnecessary — each test spawns isolated child processes with their
+own stdin/stdout pipes that do not conflict with external instances.
+
+Test-spawned children clean up naturally when stdin is closed, or via SIGTERM/SIGKILL in
+`runMCPTest`'s timeout handler.
+
 ### Performance Optimization
 
 #### Browser Preflight Verification

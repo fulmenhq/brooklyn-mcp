@@ -184,7 +184,9 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
         }
 
         // Fast-fail if an existing live PID is registered for same scope+project
-        if (existsSync(pidFile)) {
+        // Skip in test mode — test harness manages child process lifecycle directly
+        // and must not conflict with the developer's running MCP server.
+        if (process.env["BROOKLYN_TEST_MODE"] !== "true" && existsSync(pidFile)) {
           try {
             const txt = readFileSync(pidFile, "utf8");
             const meta = JSON.parse(txt) as {
@@ -252,21 +254,24 @@ For full documentation: https://github.com/fulmenhq/fulmen-mcp-brooklyn
           : await createMCPStdio();
 
         // Write PID registry entry (managed)
-        try {
-          const meta = {
-            pid: process.pid,
-            scope,
-            projectKey,
-            startedAt: new Date().toISOString(),
-            brooklynVersion: VERSION,
-          };
-          writeFileSync(pidFile, JSON.stringify(meta), "utf8");
-          // Tag the process for heuristic discovery as well
-          process.env["BROOKLYN_MCP_STDIO"] = "1";
-          process.env["BROOKLYN_MCP_STDIO_SCOPE"] = scope;
-          process.env["BROOKLYN_MCP_STDIO_PROJECT"] = projectKey;
-        } catch {
-          // If registry write fails, continue; cleanup can still kill unmanaged via env marker
+        // Skip in test mode to avoid overwriting the developer's legitimate PID file.
+        if (process.env["BROOKLYN_TEST_MODE"] !== "true") {
+          try {
+            const meta = {
+              pid: process.pid,
+              scope,
+              projectKey,
+              startedAt: new Date().toISOString(),
+              brooklynVersion: VERSION,
+            };
+            writeFileSync(pidFile, JSON.stringify(meta), "utf8");
+            // Tag the process for heuristic discovery as well
+            process.env["BROOKLYN_MCP_STDIO"] = "1";
+            process.env["BROOKLYN_MCP_STDIO_SCOPE"] = scope;
+            process.env["BROOKLYN_MCP_STDIO_PROJECT"] = projectKey;
+          } catch {
+            // If registry write fails, continue; cleanup can still kill unmanaged via env marker
+          }
         }
 
         // Initialize logging now that transport mode is set
