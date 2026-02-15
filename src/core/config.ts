@@ -721,3 +721,78 @@ export function getConfig(): BrooklynConfig {
 export async function loadConfig(cliOverrides?: Partial<BrooklynConfig>): Promise<BrooklynConfig> {
   return configManager.load(cliOverrides);
 }
+
+/**
+ * Header names whose values must be masked in log output.
+ */
+const SENSITIVE_HEADER_NAMES = new Set([
+  "authorization",
+  "cookie",
+  "set-cookie",
+  "proxy-authorization",
+  "x-api-key",
+  "x-auth-token",
+]);
+
+/**
+ * Resolve extra HTTP headers from MCP param + env var fallback.
+ *
+ * Resolution order (highest priority first):
+ *   1. `paramHeaders` — ad-hoc MCP param on launch_browser
+ *   2. `BROOKLYN_HTTP_HEADERS` env var — JSON string, process-local
+ *
+ * Returns `undefined` when no headers are configured.
+ */
+export function resolveExtraHttpHeaders(
+  paramHeaders?: Record<string, string>,
+): Record<string, string> | undefined {
+  // Validate param headers shape
+  if (paramHeaders) {
+    validateHeadersShape(paramHeaders);
+    return paramHeaders;
+  }
+
+  // Env var fallback
+  const envRaw = process.env["BROOKLYN_HTTP_HEADERS"];
+  if (!envRaw) return undefined;
+
+  try {
+    const parsed: unknown = JSON.parse(envRaw);
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      throw new TypeError("BROOKLYN_HTTP_HEADERS must be a JSON object of string key/value pairs");
+    }
+    const headers = parsed as Record<string, unknown>;
+    validateHeadersShape(headers);
+    return headers as Record<string, string>;
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new Error(
+        "BROOKLYN_HTTP_HEADERS env var contains invalid JSON. Expected a JSON object like: " +
+          '\'{"Authorization": "Bearer <token>"}\'',
+      );
+    }
+    throw error;
+  }
+}
+
+/**
+ * Validate that a headers object contains only string keys and string values.
+ */
+function validateHeadersShape(headers: Record<string, unknown>): void {
+  for (const [key, value] of Object.entries(headers)) {
+    if (typeof key !== "string" || typeof value !== "string") {
+      throw new TypeError(`Invalid header: "${key}" must have a string value, got ${typeof value}`);
+    }
+  }
+}
+
+/**
+ * Create a log-safe copy of headers with sensitive values redacted.
+ */
+export function redactHeaders(headers: Record<string, string>): Record<string, string> {
+  const redacted: Record<string, string> = {};
+  for (const [key, value] of Object.entries(headers)) {
+    redacted[key] = SENSITIVE_HEADER_NAMES.has(key.toLowerCase()) ? "[REDACTED]" : value;
+  }
+  return redacted;
+}

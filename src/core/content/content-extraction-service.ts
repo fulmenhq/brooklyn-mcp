@@ -97,6 +97,24 @@ export interface IsEnabledResult {
   interactive: boolean;
 }
 
+export interface ExtractTableDataArgs {
+  browserId: string;
+  selector: string;
+  format?: "json" | "csv";
+  timeout?: number;
+}
+
+export interface ExtractTableDataResult {
+  success: boolean;
+  headers: string[];
+  data: Record<string, string>[];
+  rows: number;
+  columns: number;
+  selector: string;
+  format: "json" | "csv";
+  csv?: string;
+}
+
 export interface DescribeHtmlArgs {
   browserId: string;
   maxDepth?: number;
@@ -670,4 +688,186 @@ export class ContentExtractionService {
       );
     }
   }
+
+  /**
+   * Extract structured data from an HTML table element.
+   * Handles rowspan/colspan by expanding spanned cells into the grid.
+   */
+  async extractTableData(page: Page, args: ExtractTableDataArgs): Promise<ExtractTableDataResult> {
+    const { selector, format = "json", timeout = 5000 } = args;
+
+    try {
+      await page.waitForSelector(selector, { timeout });
+
+      const tableData = await page.evaluate((sel: string) => {
+        const table = document.querySelector(sel);
+        if (!table) {
+          return { error: "Table element not found" };
+        }
+
+        const rows = table.querySelectorAll("tr");
+        if (rows.length === 0) {
+          return { headers: [] as string[], grid: [] as string[][], rowCount: 0, colCount: 0 };
+        }
+
+        const parsed = parseTableGrid(rows);
+        const detected = detectHeaders(table, parsed.grid, rows);
+
+        const colCount = Math.max(...parsed.grid.map((r) => r.length), 0);
+        const headers = normalizeHeaders(detected.headers, colCount);
+        const dataRows = parsed.grid.slice(detected.dataStartRow);
+
+        return { headers, grid: dataRows, rowCount: dataRows.length, colCount };
+
+        /* ----- helpers (scoped inside evaluate for serialization) ----- */
+
+        function ensureRow(arr: (string | boolean)[][], idx: number): void {
+          if (!arr[idx]) arr[idx] = [];
+        }
+
+        function parseTableGrid(allRows: NodeListOf<Element>) {
+          const grid: string[][] = [];
+          const occupied: boolean[][] = [];
+
+          for (let r = 0; r < allRows.length; r++) {
+            ensureRow(grid, r);
+            ensureRow(occupied, r);
+            processRow(r, allRows[r] as Element, grid, occupied);
+          }
+          return { grid };
+        }
+
+        function processRow(r: number, row: Element, grid: string[][], occupied: boolean[][]) {
+          const cells = row.querySelectorAll("th, td");
+          let cellIdx = 0;
+          for (let c = 0; cellIdx < cells.length; c++) {
+            while (occupied[r]?.[c]) {
+              if (!grid[r]?.[c]) (grid[r] as string[])[c] = "";
+              c++;
+            }
+            const cell = cells[cellIdx] as HTMLTableCellElement;
+            const text = (cell.textContent || "").trim();
+            (grid[r] as string[])[c] = text;
+            markSpans(r, c, cell.rowSpan || 1, cell.colSpan || 1, text, grid, occupied);
+            cellIdx++;
+          }
+        }
+
+        function markSpans(
+          r: number,
+          c: number,
+          rowSpan: number,
+          colSpan: number,
+          text: string,
+          grid: string[][],
+          occupied: boolean[][],
+        ) {
+          for (let rs = 0; rs < rowSpan; rs++) {
+            for (let cs = 0; cs < colSpan; cs++) {
+              if (rs === 0 && cs === 0) continue;
+              const tr = r + rs;
+              const tc = c + cs;
+              ensureRow(occupied, tr);
+              ensureRow(grid, tr);
+              (occupied[tr] as boolean[])[tc] = true;
+              (grid[tr] as string[])[tc] = text;
+            }
+          }
+        }
+
+        function detectHeaders(tbl: Element, grid: string[][], allRows: NodeListOf<Element>) {
+          const thead = tbl.querySelector("thead");
+          if (thead) {
+            const headerRow = thead.querySelector("tr");
+            if (headerRow) {
+              return {
+                headers: Array.from(headerRow.querySelectorAll("th, td")).map((c) =>
+                  (c.textContent || "").trim(),
+                ),
+                dataStartRow: thead.querySelectorAll("tr").length,
+              };
+            }
+          }
+          if (grid[0] && (allRows[0]?.querySelectorAll("th").length ?? 0) > 0) {
+            return { headers: grid[0], dataStartRow: 1 };
+          }
+          return { headers: [] as string[], dataStartRow: 0 };
+        }
+
+        function normalizeHeaders(hdrs: string[], colCount: number) {
+          let result = hdrs;
+          if (result.length === 0) {
+            result = Array.from({ length: colCount }, (_, i) => `Column ${i + 1}`);
+          }
+          while (result.length < colCount) {
+            result.push(`Column ${result.length + 1}`);
+          }
+          return result;
+        }
+      }, selector);
+
+      if ("error" in tableData) {
+        throw new Error(tableData.error as string);
+      }
+
+      const { headers, grid, rowCount, colCount } = tableData as {
+        headers: string[];
+        grid: string[][];
+        rowCount: number;
+        colCount: number;
+      };
+
+      // Convert grid rows to objects keyed by header
+      const data = gridToObjects(grid, headers);
+
+      const result: ExtractTableDataResult = {
+        success: true,
+        headers,
+        data,
+        rows: rowCount,
+        columns: colCount,
+        selector,
+        format,
+      };
+
+      if (format === "csv") {
+        result.csv = toCsv(headers, grid);
+      }
+
+      return result;
+    } catch (error) {
+      throw new Error(
+        `Failed to extract table data: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  }
+}
+
+/** Convert grid rows to array of objects keyed by header names. */
+function gridToObjects(grid: string[][], headers: string[]): Record<string, string>[] {
+  return grid.map((row) => {
+    const obj: Record<string, string> = {};
+    for (let i = 0; i < headers.length; i++) {
+      const key = headers[i] ?? `Column ${i + 1}`;
+      obj[key] = row[i] ?? "";
+    }
+    return obj;
+  });
+}
+
+/** Escape and format a value for CSV output. */
+function escapeCsv(val: string): string {
+  if (val.includes(",") || val.includes('"') || val.includes("\n")) {
+    return `"${val.replace(/"/g, '""')}"`;
+  }
+  return val;
+}
+
+/** Convert headers + grid into a CSV string. */
+function toCsv(headers: string[], grid: string[][]): string {
+  const lines = [headers.map(escapeCsv).join(",")];
+  for (const row of grid) {
+    lines.push(row.map((c) => escapeCsv(c ?? "")).join(","));
+  }
+  return lines.join("\n");
 }

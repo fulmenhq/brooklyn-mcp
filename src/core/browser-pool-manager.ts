@@ -15,6 +15,8 @@ import {
   ContentExtractionService,
   type DescribeHtmlArgs,
   type DescribeHtmlResult,
+  type ExtractTableDataArgs,
+  type ExtractTableDataResult,
   type GetAttributeArgs,
   type GetAttributeResult,
   type GetBoundingBoxArgs,
@@ -69,6 +71,7 @@ interface LaunchBrowserArgs {
   userAgent?: string;
   viewport?: { width: number; height: number };
   timeout?: number;
+  extraHttpHeaders?: Record<string, string>;
 }
 
 // Navigation arguments interface
@@ -100,6 +103,54 @@ interface CloseBrowserArgs {
   browserId: string;
   force?: boolean;
 }
+
+// inspect_network arguments and result
+export interface InspectNetworkArgs {
+  browserId: string;
+  filter?: { urlPattern?: string; method?: string };
+  redact?: string[];
+  includeRaw?: boolean;
+}
+
+export interface InspectNetworkResult {
+  success: boolean;
+  requests: {
+    url: string;
+    method: string;
+    requestHeaders: Record<string, string>;
+    status: number | null;
+    responseHeaders: Record<string, string>;
+    timestamp: string;
+  }[];
+  count: number;
+  redacted: boolean;
+}
+
+// paginate_table arguments and result
+export interface PaginateTableArgs {
+  browserId: string;
+  tableSelector: string;
+  nextButton: string;
+  maxPages?: number;
+}
+
+export interface PaginateTableResult {
+  success: boolean;
+  allData: Record<string, string>[];
+  headers: string[];
+  pages: number;
+  totalRows: number;
+  maxPagesReached?: boolean;
+}
+
+const DEFAULT_REDACT_HEADERS = [
+  "Authorization",
+  "Cookie",
+  "Set-Cookie",
+  "Proxy-Authorization",
+  "X-API-Key",
+  "X-Auth-Token",
+];
 
 // Element interaction arguments interfaces
 interface ClickElementArgs {
@@ -239,6 +290,7 @@ export class BrowserPoolManager {
         timeout?: number;
         viewport?: { width: number; height: number };
         userAgent?: string;
+        extraHttpHeaders?: Record<string, string>;
       }) => {
         const instance = await this.factory.createInstance({
           id: `browser-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
@@ -248,6 +300,7 @@ export class BrowserPoolManager {
           timeout: config.timeout ?? 30000,
           viewport: config.viewport ?? { width: 1920, height: 1080 },
           userAgent: config.userAgent,
+          extraHttpHeaders: config.extraHttpHeaders,
         });
         return instance;
       },
@@ -305,7 +358,12 @@ export class BrowserPoolManager {
       userAgent,
       viewport = { width: 1920, height: 1080 },
       timeout = 30000,
+      extraHttpHeaders: paramHeaders,
     } = args;
+
+    // Resolve headers: MCP param takes priority, then env var fallback
+    const { resolveExtraHttpHeaders, redactHeaders } = await import("./config.js");
+    const resolvedHeaders = resolveExtraHttpHeaders(paramHeaders);
 
     logger.info("Launching browser", {
       teamId,
@@ -313,6 +371,9 @@ export class BrowserPoolManager {
       headless,
       activeSessions: this.sessions.size,
       maxBrowsers: this.maxBrowsers,
+      hasExtraHeaders: !!resolvedHeaders,
+      extraHeaderKeys: resolvedHeaders ? Object.keys(resolvedHeaders) : undefined,
+      extraHeaders: resolvedHeaders ? redactHeaders(resolvedHeaders) : undefined,
     });
 
     try {
@@ -326,6 +387,7 @@ export class BrowserPoolManager {
           timeout,
           viewport,
           userAgent,
+          extraHttpHeaders: resolvedHeaders,
         },
       });
 
@@ -3009,6 +3071,170 @@ export class BrowserPoolManager {
 
     session.instance.touch();
     return await this.contentExtractor.describeHtml(session.page, args);
+  }
+
+  /**
+   * Extract structured data from an HTML table element
+   */
+  async extractTableData(args: ExtractTableDataArgs): Promise<ExtractTableDataResult> {
+    const session = this.sessions.get(args.browserId);
+    if (!session) {
+      throw new Error(`Browser session not found: ${args.browserId}`);
+    }
+
+    session.instance.touch();
+    return await this.contentExtractor.extractTableData(session.page, args);
+  }
+
+  /**
+   * Inspect recent network events from the browser session's ring buffer.
+   */
+  async inspectNetwork(args: InspectNetworkArgs): Promise<InspectNetworkResult> {
+    const session = this.sessions.get(args.browserId);
+    if (!session) {
+      throw new Error(`Browser session not found: ${args.browserId}`);
+    }
+
+    session.instance.touch();
+    let events = session.instance.getNetworkEvents();
+
+    // Apply filters
+    if (args.filter?.urlPattern) {
+      const pattern = args.filter.urlPattern;
+      events = events.filter((e) => e.url.includes(pattern));
+    }
+    if (args.filter?.method) {
+      const method = args.filter.method.toUpperCase();
+      events = events.filter((e) => e.method === method);
+    }
+
+    // Determine raw mode
+    const includeRaw = args.includeRaw === true;
+    const fullHeaderSupport = process.env["BROOKLYN_FULL_HEADER_SUPPORT"] === "true";
+
+    if (includeRaw && !fullHeaderSupport) {
+      const error = new Error(
+        "includeRaw requires BROOKLYN_FULL_HEADER_SUPPORT=true environment variable",
+      ) as Error & { code?: string };
+      error.code = "RAW_HEADERS_NOT_ALLOWED";
+      throw error;
+    }
+
+    // When raw mode, limit to 10 and log audit entry
+    if (includeRaw) {
+      events = events.slice(-10);
+      getLogger("inspect-network").warn("Raw header access granted", {
+        browserId: args.browserId,
+        eventCount: events.length,
+        audit: true,
+      });
+    }
+
+    // Redaction: baseline sensitive headers always enforced in non-raw mode,
+    // caller-specified headers are additive (union), never a replacement.
+    const baselineHeaders = DEFAULT_REDACT_HEADERS.map((h) => h.toLowerCase());
+    const userHeaders = (args.redact ?? []).map((h) => h.toLowerCase());
+    const redactSet = new Set([...baselineHeaders, ...userHeaders]);
+
+    const redactMap = (hdrs: Record<string, string>): Record<string, string> => {
+      if (includeRaw) return hdrs;
+      const out: Record<string, string> = {};
+      for (const [key, value] of Object.entries(hdrs)) {
+        out[key] = redactSet.has(key.toLowerCase()) ? "[REDACTED]" : value;
+      }
+      return out;
+    };
+
+    const requests = events.map((e) => ({
+      url: e.url,
+      method: e.method,
+      requestHeaders: redactMap(e.requestHeaders),
+      status: e.status,
+      responseHeaders: redactMap(e.responseHeaders),
+      timestamp: e.timestamp,
+    }));
+
+    return {
+      success: true,
+      requests,
+      count: requests.length,
+      redacted: !includeRaw,
+    };
+  }
+
+  /**
+   * Paginate through a multi-page table, extracting and merging data.
+   */
+  async paginateTable(args: PaginateTableArgs): Promise<PaginateTableResult> {
+    const session = this.sessions.get(args.browserId);
+    if (!session) {
+      throw new Error(`Browser session not found: ${args.browserId}`);
+    }
+
+    session.instance.touch();
+
+    const maxPages = args.maxPages ?? 10;
+    const allData: Record<string, string>[] = [];
+    const seenRows = new Set<string>();
+    let headers: string[] = [];
+    let pageCount = 0;
+    let maxPagesReached = false;
+
+    for (let page = 0; page < maxPages; page++) {
+      // Extract current page data
+      const extraction = await this.contentExtractor.extractTableData(session.page, {
+        browserId: args.browserId,
+        selector: args.tableSelector,
+      });
+
+      if (page === 0) {
+        headers = extraction.headers;
+      }
+
+      // Dedupe by serialized row content
+      for (const row of extraction.data) {
+        const key = JSON.stringify(row);
+        if (!seenRows.has(key)) {
+          seenRows.add(key);
+          allData.push(row);
+        }
+      }
+
+      pageCount++;
+
+      // Check if next button exists and is clickable
+      const nextBtn = session.page.locator(args.nextButton);
+      const isVisible = await nextBtn.isVisible().catch(() => false);
+      const isEnabled = await nextBtn.isEnabled().catch(() => false);
+
+      if (!(isVisible && isEnabled)) {
+        break; // No more pages
+      }
+
+      // If this is the last iteration and button is still active, flag limit hit
+      if (page === maxPages - 1) {
+        maxPagesReached = true;
+        break;
+      }
+
+      // Click next and wait for table to reload
+      await nextBtn.click();
+      await session.page.waitForLoadState("networkidle").catch(() => {
+        // Fallback: wait a short time for SPA-style pagination
+      });
+      await session.page.waitForSelector(args.tableSelector, { timeout: 5000 }).catch(() => {
+        // Table may already be visible
+      });
+    }
+
+    return {
+      success: true,
+      allData,
+      headers,
+      pages: pageCount,
+      totalRows: allData.length,
+      ...(maxPagesReached ? { maxPagesReached: true } : {}),
+    };
   }
 
   /**

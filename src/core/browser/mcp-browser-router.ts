@@ -269,6 +269,12 @@ export class MCPBrowserRouter {
         return await this.isVisible(params, context);
       case "is_enabled":
         return await this.isEnabled(params, context);
+      case "extract_table_data":
+        return await this.extractTableData(params, context);
+      case "inspect_network":
+        return await this.inspectNetwork(params, context);
+      case "paginate_table":
+        return await this.paginateTable(params, context);
       default:
         throw new Error(`Unknown browser tool: ${tool}`);
     }
@@ -558,11 +564,13 @@ export class MCPBrowserRouter {
       viewport = { width: 1280, height: 720 },
       userAgent,
       timeout = 30000,
+      extraHttpHeaders,
     } = params as {
       headless?: boolean;
       viewport?: { width: number; height: number };
       userAgent?: string;
       timeout?: number;
+      extraHttpHeaders?: Record<string, string>;
     };
 
     const result = await this.poolManager.launchBrowser({
@@ -574,6 +582,7 @@ export class MCPBrowserRouter {
       viewport: viewport as { width: number; height: number },
       userAgent: userAgent as string | undefined,
       timeout: timeout as number,
+      extraHttpHeaders: extraHttpHeaders as Record<string, string> | undefined,
     });
 
     // Track session for team isolation
@@ -2188,5 +2197,87 @@ export class MCPBrowserRouter {
     });
 
     return result;
+  }
+
+  private async extractTableData(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const {
+      browserId: _browserId,
+      selector,
+      format,
+      timeout,
+    } = params as {
+      browserId: string;
+      selector: string;
+      format?: "json" | "csv";
+      timeout?: number;
+    };
+
+    if (!selector) {
+      throw new Error("extract_table_data requires 'selector' parameter");
+    }
+
+    const resolvedBrowserId = this.resolveBrowserId(params, context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, context.teamId);
+
+    return await this.poolManager.extractTableData({
+      browserId: resolvedBrowserId,
+      selector,
+      format,
+      timeout,
+    });
+  }
+
+  private async inspectNetwork(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const { filter, redact, includeRaw } = params as {
+      browserId: string;
+      filter?: { urlPattern?: string; method?: string };
+      redact?: string[];
+      includeRaw?: boolean;
+    };
+
+    const resolvedBrowserId = this.resolveBrowserId(params, context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, context.teamId);
+
+    return await this.poolManager.inspectNetwork({
+      browserId: resolvedBrowserId,
+      filter,
+      redact,
+      includeRaw,
+    });
+  }
+
+  private async paginateTable(
+    params: Record<string, unknown>,
+    context: MCPRequestContext,
+  ): Promise<unknown> {
+    const { tableSelector, nextButton, maxPages } = params as {
+      browserId: string;
+      tableSelector: string;
+      nextButton: string;
+      maxPages?: number;
+    };
+
+    if (!tableSelector) {
+      throw new Error("paginate_table requires 'tableSelector' parameter");
+    }
+    if (!nextButton) {
+      throw new Error("paginate_table requires 'nextButton' parameter");
+    }
+
+    const resolvedBrowserId = this.resolveBrowserId(params, context.teamId);
+    this.validateBrowserAccess(resolvedBrowserId, context.teamId);
+
+    return await this.poolManager.paginateTable({
+      browserId: resolvedBrowserId,
+      tableSelector,
+      nextButton,
+      maxPages,
+    });
   }
 }

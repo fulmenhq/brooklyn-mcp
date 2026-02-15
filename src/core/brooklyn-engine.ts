@@ -1541,6 +1541,9 @@ export class BrooklynEngine {
         case "get_bounding_box":
         case "is_visible":
         case "is_enabled":
+        case "extract_table_data":
+        case "inspect_network":
+        case "paginate_table":
           // Route all content extraction tools through the browser router
           if (this.browserRouter) {
             const request = {

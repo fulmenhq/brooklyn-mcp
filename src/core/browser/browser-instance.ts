@@ -17,6 +17,7 @@ export interface BrowserInstanceConfig {
   timeout: number;
   userAgent?: string;
   viewport?: { width: number; height: number };
+  extraHttpHeaders?: Record<string, string>;
   resourceLimits?: {
     maxMemoryMB?: number;
     maxCpuPercent?: number;
@@ -33,6 +34,19 @@ export interface BrowserInstanceMetrics {
   healthStatus: "healthy" | "degraded" | "unhealthy";
 }
 
+/** Captured network request/response pair for inspect_network. */
+export interface NetworkEvent {
+  url: string;
+  method: string;
+  requestHeaders: Record<string, string>;
+  status: number | null;
+  responseHeaders: Record<string, string>;
+  timestamp: string;
+}
+
+const NETWORK_BUFFER_MAX = 50;
+const NETWORK_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
 export class BrowserInstance {
   public readonly id: string;
   public readonly teamId?: string;
@@ -47,6 +61,7 @@ export class BrowserInstance {
   private metrics: BrowserInstanceMetrics;
   private healthCheckInterval?: NodeJS.Timeout;
   private readonly config: BrowserInstanceConfig;
+  private networkBuffer: { event: NetworkEvent; addedAt: number }[] = [];
 
   constructor(config: BrowserInstanceConfig) {
     this.id = config.id || randomUUID();
@@ -94,6 +109,7 @@ export class BrowserInstance {
       viewport: this.config.viewport,
       userAgent: this.config.userAgent,
       ignoreHTTPSErrors: true,
+      extraHTTPHeaders: this.config.extraHttpHeaders,
     });
 
     // Start health monitoring
@@ -126,9 +142,13 @@ export class BrowserInstance {
     this.metrics.pageCount = this.pages.size;
     this._lastUsed = new Date();
 
-    // Monitor page events
+    // Monitor page events and capture network buffer
     page.on("request", () => {
       this.metrics.requestCount++;
+    });
+
+    page.on("response", (response) => {
+      this.pushNetworkEvent(response);
     });
 
     page.on("pageerror", () => {
@@ -372,6 +392,31 @@ export class BrowserInstance {
    */
   touch(): void {
     this._lastUsed = new Date();
+  }
+
+  /** Push a response into the ring buffer (last 50, TTL 5 min). */
+  private pushNetworkEvent(response: import("playwright").Response): void {
+    const request = response.request();
+    const event: NetworkEvent = {
+      url: request.url(),
+      method: request.method(),
+      requestHeaders: request.headers(),
+      status: response.status(),
+      responseHeaders: response.headers(),
+      timestamp: new Date().toISOString(),
+    };
+    this.networkBuffer.push({ event, addedAt: Date.now() });
+    // Enforce ring buffer size
+    if (this.networkBuffer.length > NETWORK_BUFFER_MAX) {
+      this.networkBuffer.shift();
+    }
+  }
+
+  /** Return buffered network events, pruning expired entries. */
+  getNetworkEvents(): NetworkEvent[] {
+    const cutoff = Date.now() - NETWORK_TTL_MS;
+    this.networkBuffer = this.networkBuffer.filter((e) => e.addedAt >= cutoff);
+    return this.networkBuffer.map((e) => e.event);
   }
 
   /**

@@ -51,6 +51,12 @@ export const browserLifecycleTools: EnhancedTool[] = [
           },
           description: "Browser viewport dimensions",
         },
+        extraHttpHeaders: {
+          type: "object",
+          additionalProperties: { type: "string" },
+          description:
+            "Optional HTTP headers to send with every request (e.g. Authorization, Cookie). Falls back to BROOKLYN_HTTP_HEADERS env var (JSON string) when not provided. Sensitive header values are masked in all log output.",
+        },
       },
     },
     examples: [
@@ -77,6 +83,22 @@ export const browserLifecycleTools: EnhancedTool[] = [
           browserId: "browser-456",
           status: "launched",
           browserType: "firefox",
+        },
+      },
+      {
+        description: "Launch with auth headers for SaaS dashboard access",
+        input: {
+          browserType: "chromium",
+          headless: true,
+          extraHttpHeaders: {
+            Authorization: "Bearer <token>",
+            "X-API-Key": "<key>",
+          },
+        },
+        expectedOutput: {
+          browserId: "browser-789",
+          status: "launched",
+          browserType: "chromium",
         },
       },
     ],
@@ -1514,6 +1536,264 @@ export const contentCaptureTools: EnhancedTool[] = [
         code: "ELEMENT_NOT_FOUND",
         message: "Element not found with specified selector",
         solution: "Verify the CSS selector and ensure element exists",
+      },
+    ],
+  },
+  {
+    name: "extract_table_data",
+    category: "content-capture",
+    description:
+      "Extract structured data from an HTML table element. Parses rows and columns including rowspan/colspan into a JSON array of objects (keyed by header) or CSV string. Ideal for analyst workflows extracting data from dashboards and reports.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        browserId: {
+          type: "string",
+          description:
+            "Optional. ID of the browser instance. If omitted or invalid, the server will resolve based on 'target'.",
+        },
+        target: {
+          type: "string",
+          enum: ["latest", "current", "byId"],
+          description:
+            "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+          default: "latest",
+        },
+        selector: {
+          type: "string",
+          description:
+            "CSS selector for the table element (e.g. 'table.dashboard-table', '#results-table')",
+        },
+        format: {
+          type: "string",
+          enum: ["json", "csv"],
+          description:
+            "Output format. 'json' returns array of objects keyed by header. 'csv' adds a csv string field.",
+          default: "json",
+        },
+        timeout: {
+          type: "number",
+          description: "Timeout in milliseconds for locating the table element",
+          default: 5000,
+          minimum: 100,
+          maximum: 300000,
+        },
+      },
+      required: ["selector"],
+    },
+    examples: [
+      {
+        description: "Extract dashboard table as JSON",
+        input: {
+          selector: "table.metrics-table",
+        },
+        expectedOutput: {
+          success: true,
+          headers: ["Metric", "Value", "Change"],
+          data: [
+            { Metric: "Revenue", Value: "$1.2M", Change: "+12%" },
+            { Metric: "Users", Value: "45,230", Change: "+5%" },
+          ],
+          rows: 2,
+          columns: 3,
+          selector: "table.metrics-table",
+          format: "json",
+        },
+      },
+      {
+        description: "Extract table as CSV for export",
+        input: {
+          selector: "#report-table",
+          format: "csv",
+        },
+        expectedOutput: {
+          success: true,
+          headers: ["Name", "Status", "Date"],
+          data: [{ Name: "Task 1", Status: "Done", Date: "2025-01-15" }],
+          rows: 1,
+          columns: 3,
+          selector: "#report-table",
+          format: "csv",
+          csv: "Name,Status,Date\nTask 1,Done,2025-01-15",
+        },
+      },
+    ],
+    errors: [
+      {
+        code: "ELEMENT_NOT_FOUND",
+        message: "Table element not found with specified selector",
+        solution:
+          "Verify the CSS selector targets a <table> element. Use browser DevTools to inspect the table.",
+      },
+      {
+        code: "BROWSER_NOT_FOUND",
+        message: "Browser session not found",
+        solution: "Check browserId or launch a new browser first",
+      },
+    ],
+  },
+  {
+    name: "inspect_network",
+    category: "content-capture",
+    description:
+      "Inspect recent network requests and responses for the browser session. Returns sanitized request/response pairs with sensitive headers redacted by default. Useful for debugging auth flows (e.g. verifying Bearer tokens are being sent). Captures last 50 requests with a 5-minute TTL.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        browserId: {
+          type: "string",
+          description:
+            "Optional. ID of the browser instance. If omitted or invalid, the server will resolve based on 'target'.",
+        },
+        target: {
+          type: "string",
+          enum: ["latest", "current", "byId"],
+          description:
+            "Optional targeting strategy when browserId is omitted or invalid. latest: most recently launched active browser (default). current: your last-used browser. byId: require valid browserId.",
+          default: "latest",
+        },
+        filter: {
+          type: "object",
+          description: "Optional filter to narrow results",
+          properties: {
+            urlPattern: {
+              type: "string",
+              description: "Filter requests by URL substring match (e.g. '/api/')",
+            },
+            method: {
+              type: "string",
+              description: "Filter by HTTP method (e.g. 'GET', 'POST')",
+            },
+          },
+        },
+        redact: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "Header names to redact. Defaults to ['Authorization', 'Cookie', 'Set-Cookie', 'Proxy-Authorization', 'X-API-Key', 'X-Auth-Token'].",
+        },
+        includeRaw: {
+          type: "boolean",
+          description:
+            "Include unredacted header values. Requires BROOKLYN_FULL_HEADER_SUPPORT=true env var. Limited to 10 requests when enabled. An audit log entry is generated.",
+          default: false,
+        },
+      },
+    },
+    examples: [
+      {
+        description: "Inspect all recent requests for auth debugging",
+        input: {},
+        expectedOutput: {
+          success: true,
+          requests: [
+            {
+              url: "https://app.example.com/api/data",
+              method: "GET",
+              requestHeaders: { Authorization: "[REDACTED]", Accept: "application/json" },
+              status: 200,
+              responseHeaders: { "Content-Type": "application/json" },
+              timestamp: "2025-01-20T12:00:00.000Z",
+            },
+          ],
+          count: 1,
+          redacted: true,
+        },
+      },
+      {
+        description: "Filter requests by URL pattern and method",
+        input: {
+          filter: { urlPattern: "/api/", method: "POST" },
+        },
+        expectedOutput: {
+          success: true,
+          requests: [],
+          count: 0,
+          redacted: true,
+        },
+      },
+    ],
+    errors: [
+      {
+        code: "BROWSER_NOT_FOUND",
+        message: "Browser session not found",
+        solution: "Check browserId or launch a new browser first",
+      },
+      {
+        code: "RAW_HEADERS_NOT_ALLOWED",
+        message: "includeRaw requires BROOKLYN_FULL_HEADER_SUPPORT=true",
+        solution:
+          "Set the BROOKLYN_FULL_HEADER_SUPPORT=true environment variable to enable raw header access",
+      },
+    ],
+  },
+  {
+    name: "paginate_table",
+    category: "content-capture",
+    description:
+      "Automatically paginate through a multi-page table by repeatedly clicking a 'next' button, extracting data from each page, and merging results. Deduplicates rows by content. Requires an explicit nextButton selector (no auto-detect in v0.3.3).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        browserId: {
+          type: "string",
+          description:
+            "ID of the browser instance. Required — must be a browser with an already-loaded page containing the table.",
+        },
+        tableSelector: {
+          type: "string",
+          description: "CSS selector for the table element to extract from each page",
+        },
+        nextButton: {
+          type: "string",
+          description: "CSS selector for the 'next page' button. Must be provided explicitly.",
+        },
+        maxPages: {
+          type: "number",
+          description: "Maximum number of pages to paginate through",
+          default: 10,
+          minimum: 1,
+          maximum: 100,
+        },
+      },
+      required: ["browserId", "tableSelector", "nextButton"],
+    },
+    examples: [
+      {
+        description: "Paginate through a dashboard table",
+        input: {
+          browserId: "browser-123",
+          tableSelector: "table.results",
+          nextButton: "button.next-page",
+          maxPages: 5,
+        },
+        expectedOutput: {
+          success: true,
+          allData: [
+            { Name: "Item 1", Value: "100" },
+            { Name: "Item 2", Value: "200" },
+          ],
+          headers: ["Name", "Value"],
+          pages: 3,
+          totalRows: 2,
+        },
+      },
+    ],
+    errors: [
+      {
+        code: "BROWSER_NOT_FOUND",
+        message: "Browser session not found",
+        solution: "Check browserId or launch a new browser first",
+      },
+      {
+        code: "ELEMENT_NOT_FOUND",
+        message: "Table or next button element not found",
+        solution: "Verify the CSS selectors for the table and next button",
+      },
+      {
+        code: "MAX_PAGES_REACHED",
+        message: "Reached maximum page limit",
+        solution: "Increase maxPages if more data is needed",
       },
     ],
   },
