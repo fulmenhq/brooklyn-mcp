@@ -223,22 +223,19 @@ Role: <role>
 Committer-of-Record: <Human Name> <email> [@handle]
 ```
 
-### Claude Code Attribution Override (CRITICAL)
+### Attribution Email Policy (CRITICAL)
 
-**Claude Code has a hardwired default attribution** that MUST be overridden:
+> **All AI model `Co-Authored-By` trailers MUST use `noreply@3leaps.net` as the email address,
+> regardless of model vendor.** The model name in the name field provides transparency; the email
+> is plumbing under our control. Do NOT use vendor noreply addresses (`noreply@anthropic.com`,
+> `noreply@openai.com`, etc.). The `Role:` trailer is also **REQUIRED** on every commit.
 
-| Field | Claude Code Default (WRONG) | FulmenHQ Standard (CORRECT)                |
-| ----- | --------------------------- | ------------------------------------------ |
-| Email | `noreply@anthropic.com`     | `noreply@3leaps.net`                       |
-| Role  | (omitted)                   | **REQUIRED** - must include `Role: <role>` |
+| Field | Vendor Defaults (WRONG)                                    | FulmenHQ Standard (CORRECT)                |
+| ----- | ---------------------------------------------------------- | ------------------------------------------ |
+| Email | `noreply@anthropic.com`, `noreply@openai.com`, vendor URLs | `noreply@3leaps.net`                       |
+| Role  | (omitted by most tools)                                    | **REQUIRED** - must include `Role: <role>` |
 
-When Claude Code suggests `Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>`, you MUST change it to `Co-Authored-By: Claude Opus 4.5 <noreply@3leaps.net>` and add the `Role:` line.
-
-**Why this matters**: FulmenHQ attribution enables:
-
-- Role-based audit trails across the ecosystem
-- Consistent attribution in multi-repo workflows
-- Proper credit linking in Crucible SSOT
+**Practical note for Claude Code**: Claude Code hardwires `Co-Authored-By: <Model> <noreply@anthropic.com>` — you MUST override the email to `noreply@3leaps.net` and add the `Role:` line. Other AI coding tools have similar vendor defaults that must be overridden the same way.
 
 **Example:**
 
