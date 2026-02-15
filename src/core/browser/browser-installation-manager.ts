@@ -9,6 +9,7 @@ import { access, constants, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { getLogger } from "../../shared/pino-logger.js";
+import { importPlaywright, resolvePlaywrightCliJs } from "../../shared/playwright-runtime.js";
 import { InstallationProgressTracker } from "./installation-progress-tracker.js";
 import { getSystemBrowserDetector } from "./system-browser-detector.js";
 import {
@@ -320,7 +321,7 @@ export class BrowserInstallationManager {
       const { join } = await import("node:path");
       const { existsSync } = await import("node:fs");
       // Try to leverage Playwright's own API to get the executable path
-      const { chromium, firefox, webkit } = await import("playwright");
+      const { chromium, firefox, webkit } = await importPlaywright();
       const candidate =
         type === "chromium"
           ? chromium.executablePath()
@@ -379,17 +380,27 @@ export class BrowserInstallationManager {
     ensureLogger().info("Downloading browser via Playwright", { type });
 
     // Import playwright dynamically to avoid bundling browsers
-    const playwright = await import("playwright");
+    const playwright = await importPlaywright();
 
-    // Install specific browser using Playwright's CLI
+    // Install specific browser using the resolved Playwright CLI.
+    // NOTE: We avoid inheriting stdio here to keep MCP stdio transport stdout-pure.
     const { spawnSync } = await import("node:child_process");
+    const { join } = await import("node:path");
 
-    // Use local node_modules playwright to match MCP server version
-    const playwrightBin = join(process.cwd(), "node_modules", ".bin", "playwright");
-    const result = spawnSync(playwrightBin, ["install", type], {
+    const cliJs = resolvePlaywrightCliJs();
+    const cmd = cliJs
+      ? process.execPath
+      : join(process.cwd(), "node_modules", ".bin", "playwright");
+    const args = cliJs ? [cliJs, "install", type] : ["install", type];
+
+    const env = { ...process.env };
+    delete env["PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD"];
+
+    const result = spawnSync(cmd, args, {
       stdio: "pipe",
       encoding: "utf8",
       timeout: BROWSER_INSTALL_TIMEOUT,
+      env,
     });
 
     if (result.error) {
@@ -431,7 +442,7 @@ export class BrowserInstallationManager {
       await access(executablePath, constants.X_OK);
 
       // Try to launch the browser to verify it works
-      const { chromium, firefox, webkit } = await import("playwright");
+      const { chromium, firefox, webkit } = await importPlaywright();
       let browser: unknown;
 
       switch (type) {

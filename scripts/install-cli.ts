@@ -7,7 +7,15 @@
  * It's the simpler version of the bootstrap script - just installs the CLI.
  */
 
-import { chmodSync, copyFileSync, existsSync, mkdirSync } from "node:fs";
+import {
+  chmodSync,
+  copyFileSync,
+  cpSync,
+  existsSync,
+  mkdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { homedir, platform } from "node:os";
 import { join } from "node:path";
 
@@ -75,6 +83,43 @@ function installCLI(): void {
   chmodSync(paths.cliTargetPath, 0o755);
 
   log.success(`CLI installed: ${paths.cliTargetPath}`);
+
+  // Install runtime Node module deps so the CLI works from any CWD.
+  // Brooklyn is built with Playwright externalized; without this, module resolution
+  // depends on being run from a repo that has node_modules/playwright.
+  try {
+    const runtimeDir = join(paths.homeDir, ".brooklyn", "runtime");
+    const runtimeNodeModulesDir = join(runtimeDir, "node_modules");
+    if (!existsSync(runtimeNodeModulesDir)) {
+      mkdirSync(runtimeNodeModulesDir, { recursive: true });
+    }
+
+    // Stamp a small marker for troubleshooting.
+    const markerPath = join(runtimeDir, "README.txt");
+    writeFileSync(
+      markerPath,
+      "Brooklyn runtime dependencies. Safe to delete; re-run 'make install' to restore.\n",
+      { encoding: "utf8" },
+    );
+
+    const deps = ["playwright", "playwright-core"];
+    for (const dep of deps) {
+      const src = join(process.cwd(), "node_modules", dep);
+      const dest = join(runtimeNodeModulesDir, dep);
+      if (!existsSync(src)) {
+        log.warn(`Runtime dep not found in repo node_modules: ${dep}`);
+        continue;
+      }
+      rmSync(dest, { recursive: true, force: true });
+      cpSync(src, dest, { recursive: true });
+    }
+
+    log.success(`Runtime deps installed: ${join(runtimeDir, "node_modules")}`);
+  } catch (error) {
+    log.warn(
+      `Failed to install runtime deps (CLI may require running from repo): ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
 
   // Check if in PATH
   const pathEnv = process.env["PATH"] || "";

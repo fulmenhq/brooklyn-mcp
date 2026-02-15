@@ -46,9 +46,12 @@ function getExpectedBrowserRevisions(): Map<string, string> {
 }
 
 /**
- * Get installed browser revisions from Playwright cache
+ * Get installed browser revisions from Playwright cache.
+ *
+ * Multiple revisions can exist simultaneously (e.g. after upgrading Playwright).
+ * For dev ergonomics we treat that as OK as long as the expected revision exists.
  */
-function getInstalledBrowserRevisions(): Map<string, string> {
+function getInstalledBrowserRevisions(): Map<string, Set<string>> {
   const cacheBase =
     process.platform === "darwin"
       ? join(homedir(), "Library", "Caches")
@@ -63,7 +66,7 @@ function getInstalledBrowserRevisions(): Map<string, string> {
   }
 
   const entries = readdirSync(playwrightCache);
-  const revisions = new Map<string, string>();
+  const revisions = new Map<string, Set<string>>();
 
   // Pattern: browserName-revision or browserName_suffix-revision
   const browserPattern = /^(chromium|firefox|webkit|chromium_headless_shell|ffmpeg)-(\d+)$/;
@@ -76,7 +79,9 @@ function getInstalledBrowserRevisions(): Map<string, string> {
       if (browserName && revision) {
         // Normalize chromium_headless_shell to chromium-headless-shell for comparison
         const normalizedName = browserName.replace("_", "-");
-        revisions.set(normalizedName, revision);
+        const existing = revisions.get(normalizedName) || new Set<string>();
+        existing.add(revision);
+        revisions.set(normalizedName, existing);
       }
     }
   }
@@ -125,7 +130,8 @@ describe("Browser Version Consistency", () => {
       return;
     }
 
-    expect(installedChromium).toBe(expectedChromium);
+    expect(expectedChromium).toBeDefined();
+    expect(installedChromium.has(expectedChromium as string)).toBe(true);
   });
 
   it("should have chromium-headless-shell installed with correct revision", () => {
@@ -148,7 +154,7 @@ describe("Browser Version Consistency", () => {
       return;
     }
 
-    expect(installedRevision).toBe(expectedRevision);
+    expect(installedRevision.has(expectedRevision)).toBe(true);
   });
 
   it("should report version mismatch details for debugging", () => {
@@ -159,8 +165,9 @@ describe("Browser Version Consistency", () => {
 
     for (const [name, expectedRev] of expected) {
       const installedRev = installed.get(name);
-      if (installedRev && installedRev !== expectedRev) {
-        mismatches.push(`${name}: installed=${installedRev}, expected=${expectedRev}`);
+      if (installedRev && !installedRev.has(expectedRev)) {
+        const installedList = Array.from(installedRev).sort().join(",");
+        mismatches.push(`${name}: installed=${installedList}, expected=${expectedRev}`);
       }
     }
 

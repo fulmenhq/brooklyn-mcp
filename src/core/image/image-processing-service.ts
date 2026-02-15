@@ -6,6 +6,7 @@
 import { readFile, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, join } from "node:path";
 import { getLogger } from "../../shared/pino-logger.js";
+import { importPlaywright } from "../../shared/playwright-runtime.js";
 import { NativeDependencyManager } from "../native-deps/dependency-manager.js";
 import { ProcessedAssetManager } from "./processed-asset-manager.js";
 import type {
@@ -223,7 +224,7 @@ export class ImageProcessingService {
       const options = args.options || {};
 
       // Use Playwright to render SVG to PNG
-      const { chromium } = await import("playwright");
+      const { chromium } = await importPlaywright();
       const browser = await chromium.launch({ headless: true });
       const context = await browser.newContext();
       const page = await context.newPage();
@@ -470,7 +471,7 @@ export class ImageProcessingService {
       // Process each size via headless rendering
       for (const size of args.sizes) {
         try {
-          const { chromium } = await import("playwright");
+          const { chromium } = await importPlaywright();
           const browser = await chromium.launch({ headless: true });
           const context = await browser.newContext();
           const page = await context.newPage();

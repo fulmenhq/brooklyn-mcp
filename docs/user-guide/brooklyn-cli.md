@@ -61,8 +61,13 @@ bun run install
     ├── Create ~/.local/bin/ if needed
     ├── copyFileSync() - overwrites existing
     ├── chmod +x
+    ├── Stage runtime deps to ~/.brooklyn/runtime/node_modules/
+    │   ├── playwright
+    │   └── playwright-core
     └── Test with --version
 ```
+
+The runtime deps staging ensures `brooklyn` works from any directory, not just the repo root. Playwright is externalized from the binary to keep it small (~0.41MB), so the resolver searches `~/.brooklyn/runtime/` when `node_modules/playwright` isn't available in the current working directory.
 
 ### Missing Features (Future Enhancements)
 

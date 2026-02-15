@@ -80,6 +80,8 @@ bun install
 # Build and install CLI
 bun run build && bun run install
 
+# After install, brooklyn can run from any directory (Playwright runtime deps are staged under ~/.brooklyn/runtime)
+
 # Start Brooklyn HTTP server (auth required by default)
 brooklyn web start --port 3000 --auth-mode required --daemon
 

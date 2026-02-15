@@ -16,8 +16,10 @@ Executable doesn't exist at /path/to/ms-playwright/chromium_headless_shell-1208/
 | ---------------------------- | ------------------------------------------------------------- |
 | Check installed versions     | `brooklyn browser info`                                       |
 | Validate version consistency | `bun run test tests/unit/browser-version-consistency.test.ts` |
-| Install/update browsers      | `bunx playwright install --force`                             |
+| Install/update browsers      | `brooklyn setup` (preferred) or `bunx playwright install --force` |
 | Update Playwright package    | `bun update playwright playwright-core`                       |
+
+> **Note**: `brooklyn setup` uses the same Playwright version that Brooklyn resolves at runtime (via `~/.brooklyn/runtime/` or local `node_modules/`), avoiding version mismatches between the install CLI and the running server. It also retries with `--force` automatically if browser validation fails after the initial install.
 
 ## Version Components
 
@@ -146,7 +148,7 @@ bun run test:integration:browser
 These tests:
 
 - Read expected revisions from `browsers.json`
-- Compare against installed revisions in the Playwright cache
+- Compare against installed revisions in the Playwright cache (multiple revisions may coexist, e.g. after a Playwright upgrade — the test passes as long as the expected revision is present)
 - Report mismatches with actionable fix commands
 
 ## Troubleshooting

@@ -4,8 +4,8 @@
  */
 
 import type { Browser, LaunchOptions } from "playwright";
-import { chromium, firefox, webkit } from "playwright";
 import { getLogger } from "../../shared/pino-logger.js";
+import { importPlaywright } from "../../shared/playwright-runtime.js";
 import { BrowserInstallationManager } from "./browser-installation-manager.js";
 import { BrowserInstance, type BrowserInstanceConfig } from "./browser-instance.js";
 import { MCPBrowserManager } from "./mcp-browser-manager.js";
@@ -120,6 +120,7 @@ export class BrowserFactory {
    */
   private async launchBrowser(config: BrowserInstanceConfig): Promise<Browser> {
     const launchOptions = this.buildLaunchOptions(config);
+    const { chromium, firefox, webkit } = await importPlaywright();
 
     logger.debug("Launching browser", {
       browserType: config.browserType,

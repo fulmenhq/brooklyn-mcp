@@ -12,7 +12,7 @@
  */
 
 // Version embedded at build time from VERSION file
-const VERSION = "0.3.2";
+const VERSION = "0.3.3";
 
 import { existsSync, readFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
@@ -21,6 +21,7 @@ import { HELP_TEXT } from "../generated/help/index.js";
 import { type AgentClientKey, agentDrivers, resolvePathFor } from "../shared/agent-drivers.js";
 // buildConfig import removed - not used in CLI entry point
 import { getLogger, initializeLogging } from "../shared/pino-logger.js";
+import { importPlaywright, resolvePlaywrightCliJs } from "../shared/playwright-runtime.js";
 
 // Create minimal config that matches BrooklynConfig structure
 // For CLI commands, use pretty format for better readability
@@ -1752,6 +1753,7 @@ function setupSetupCommand(program: Command): void {
         }
 
         logger.info("Brooklyn setup completed", { options });
+        process.exit(0);
       } catch (error) {
         const logger = getLogger("brooklyn-cli");
         logger.error("Setup failed", {
@@ -1766,8 +1768,11 @@ function setupSetupCommand(program: Command): void {
 /**
  * Check browser installation status
  */
-async function checkBrowserInstallation(browserType?: string): Promise<void> {
-  const { chromium, firefox, webkit } = await import("playwright");
+async function checkBrowserInstallation(
+  browserType?: string,
+  options?: { exitOnFailure?: boolean },
+): Promise<void> {
+  const { chromium, firefox, webkit } = await importPlaywright();
   const logger = getLogger("brooklyn-setup");
 
   const browsersToCheck = browserType ? [browserType] : ["chromium", "firefox", "webkit"];
@@ -1825,7 +1830,15 @@ async function checkBrowserInstallation(browserType?: string): Promise<void> {
   } else {
     logger.info("💡 Run 'brooklyn setup' to install missing browsers");
     logger.warn("Browser validation failed", { results });
-    process.exit(1);
+    if (options?.exitOnFailure !== false) {
+      process.exit(1);
+    }
+
+    const failures = Object.entries(results)
+      .filter(([, r]) => !r.installed)
+      .map(([b, r]) => `${b}${r.error ? `: ${r.error}` : ""}`)
+      .join("; ");
+    throw new Error(`Browser validation failed: ${failures}`);
   }
 }
 
@@ -1870,7 +1883,7 @@ function setupDoctorCommand(program: Command): void {
       const projectRoot = process.cwd();
       const home = homedir();
 
-      const claudePath =
+      const claudeDesktopPath =
         process.platform === "win32"
           ? join(
               process.env["APPDATA"] || join(home, "AppData", "Roaming"),
@@ -1956,8 +1969,9 @@ function setupDoctorCommand(program: Command): void {
 
       const projectCfg = readJSON(projectMcpPath);
       const kilocodeCfg = readJSON(kilocodePath);
-      const claudeCfg = readJSON(claudePath);
+      const claudeDesktopCfg = readJSON(claudeDesktopPath);
       const claudeProjectCfg = readJSON(claudeProjectPath);
+      const claudeCliCfg = readJSON(claudeCliPath);
       // Minimal TOML detection: check for [mcp_servers] and brooklyn section
       const readCodexToml = (path: string): any | undefined => {
         try {
@@ -2234,7 +2248,8 @@ function setupDoctorCommand(program: Command): void {
           kilocodeUserAll: kilocodeUserConfigs.map((x) =>
             rep(`kilocode user (${x.product})`, x.path, x.cfg),
           ),
-          claude: rep("claude-code user-wide", claudePath, claudeCfg),
+          claudeCli: rep("claude-cli user-wide", claudeCliPath, claudeCliCfg),
+          claudeDesktop: rep("claude-desktop user-wide", claudeDesktopPath, claudeDesktopCfg),
           claudeProject: rep(
             "claude-code project .claude_mcp.json",
             claudeProjectPath,
@@ -2258,6 +2273,34 @@ function setupDoctorCommand(program: Command): void {
         result.suggestions.push(
           "Add project .mcp.json for Codex/Cursor (repo includes a template).",
         );
+      }
+
+      // OpenCode config precedence: project opencode.json overrides user-wide opencode.json
+      try {
+        const ocUser: any = (result.configs as any).opencodeUser;
+        const ocProject: any = (result.configs as any).opencodeProject;
+        const userHas = Boolean(ocUser?.exists && ocUser?.hasBrooklyn);
+        const projectHas = Boolean(ocProject?.exists && ocProject?.hasBrooklyn);
+
+        if (userHas && projectHas) {
+          const userEntry = ocUser?.brooklyn;
+          const projectEntry = ocProject?.brooklyn;
+          const same = JSON.stringify(userEntry) === JSON.stringify(projectEntry);
+          const effective = projectEntry
+            ? `project (${projectEntry.type || "unknown"})`
+            : "project (unknown)";
+          const driftNote = same
+            ? ""
+            : `; user=${JSON.stringify(userEntry)} project=${JSON.stringify(projectEntry)}`;
+
+          result.suggestions.push(
+            `OpenCode precedence: when running in this repo, ${opencodeProjectPath} overrides ${opencodeUserPath}; effective=${effective}${driftNote}. ` +
+              `To avoid drift: run OpenCode from another directory, delete/rename ${opencodeProjectPath}, or align project config: ` +
+              `brooklyn config agent --client opencode --scope project --transport http --host 127.0.0.1 --port 3000 --apply`,
+          );
+        }
+      } catch {
+        // Non-critical diagnostic hint; ignore
       }
 
       // Suggest switching Cline to stdio if HTTP (url) detected in cline configs
@@ -2290,7 +2333,7 @@ function setupDoctorCommand(program: Command): void {
           );
         }
       }
-      if (!result.configs.claude.exists) {
+      if (!(result.configs as any).claudeCli?.exists) {
         result.suggestions.push(
           "Configure Claude Code MCP (user): claude mcp add -s user -t stdio brooklyn -- brooklyn mcp start",
         );
@@ -2354,39 +2397,55 @@ async function setupBrowsers(browserType?: string): Promise<void> {
   logger.info("Installing browsers for Brooklyn automation...");
 
   try {
-    const { execSync } = await import("node:child_process");
+    const { spawnSync, execSync } = await import("node:child_process");
     const { existsSync } = await import("node:fs");
+    const { join } = await import("node:path");
 
-    // Determine how to run playwright install
-    // Priority: 1) local node_modules (if in repo), 2) bunx, 3) npx
-    const localPlaywright = join(process.cwd(), "node_modules", ".bin", "playwright");
-    let playwrightCmd: string;
+    const browsersToInstall = browserType
+      ? browserType === "chromium"
+        ? ["chromium", "chromium-headless-shell"]
+        : [browserType]
+      : [];
 
-    if (existsSync(localPlaywright)) {
-      logger.info("Using local node_modules playwright...");
-      playwrightCmd = `"${localPlaywright}"`;
+    // Prefer the exact Playwright that Brooklyn will resolve at runtime.
+    // This avoids version mismatches between the Playwright dependency and cached browser revisions.
+    const playwrightCliJs = resolvePlaywrightCliJs();
+
+    // Build command + args
+    let cmd = "";
+    let args: string[] = [];
+    if (playwrightCliJs) {
+      logger.info("Using resolved Playwright CLI (cli.js)...");
+      cmd = process.execPath;
+      args = [playwrightCliJs, "install", ...browsersToInstall];
     } else {
-      // Detect available package runner (bunx or npx)
-      let useBunx = false;
-      try {
-        execSync("bunx --version", { stdio: "ignore" });
-        useBunx = true;
-      } catch {
-        // bunx not available, will try npx
-      }
-
-      if (useBunx) {
-        logger.info("Using bunx to run playwright...");
-        playwrightCmd = "bunx playwright";
+      // Determine how to run playwright install
+      // Priority: 1) local node_modules (if in repo), 2) bunx, 3) npx
+      const localPlaywright = join(process.cwd(), "node_modules", ".bin", "playwright");
+      if (existsSync(localPlaywright)) {
+        logger.info("Using local node_modules playwright...");
+        cmd = localPlaywright;
+        args = ["install", ...browsersToInstall];
       } else {
-        logger.info("Using npx to run playwright...");
-        playwrightCmd = "npx playwright";
+        let useBunx = false;
+        try {
+          execSync("bunx --version", { stdio: "ignore" });
+          useBunx = true;
+        } catch {
+          // bunx not available, will try npx
+        }
+
+        if (useBunx) {
+          logger.info("Using bunx to run playwright...");
+          cmd = "bunx";
+          args = ["playwright", "install", ...browsersToInstall];
+        } else {
+          logger.info("Using npx to run playwright...");
+          cmd = "npx";
+          args = ["playwright", "install", ...browsersToInstall];
+        }
       }
     }
-
-    const installCmd = browserType
-      ? `${playwrightCmd} install ${browserType}`
-      : `${playwrightCmd} install`;
 
     if (browserType) {
       logger.info(`Installing ${browserType}...`);
@@ -2394,12 +2453,48 @@ async function setupBrowsers(browserType?: string): Promise<void> {
       logger.info("Installing all browsers (chromium, firefox, webkit)...");
     }
 
-    execSync(installCmd, { stdio: "inherit" });
+    const env = { ...process.env };
+    // Playwright respects this env var for both postinstall and install CLI.
+    // If it is set (often in CI environments), installs appear to be a silent no-op.
+    delete env["PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD"];
+
+    const result = spawnSync(cmd, args, { stdio: "inherit", env });
+    if (result.error) {
+      throw result.error;
+    }
+    if (result.status !== 0) {
+      throw new Error(`Playwright install failed (exit ${result.status ?? "unknown"})`);
+    }
 
     logger.info("\n✅ Browser installation completed!");
 
-    // Verify installation
-    await checkBrowserInstallation(browserType);
+    // Verify installation; retry with --force when we still can't launch.
+    try {
+      await checkBrowserInstallation(browserType, { exitOnFailure: false });
+    } catch (verifyError) {
+      logger.warn("Browser validation failed after install; retrying with --force", {
+        error: verifyError instanceof Error ? verifyError.message : String(verifyError),
+      });
+
+      const forceArgs = playwrightCliJs
+        ? [playwrightCliJs, "install", "--force", ...browsersToInstall]
+        : args[0] === "playwright"
+          ? ["playwright", "install", "--force", ...browsersToInstall]
+          : ["install", "--force", ...browsersToInstall];
+      const forceCmd = playwrightCliJs ? process.execPath : cmd;
+
+      const forceResult = spawnSync(forceCmd, forceArgs, { stdio: "inherit", env });
+      if (forceResult.error) {
+        throw forceResult.error;
+      }
+      if (forceResult.status !== 0) {
+        throw new Error(
+          `Playwright install --force failed (exit ${forceResult.status ?? "unknown"})`,
+        );
+      }
+
+      await checkBrowserInstallation(browserType, { exitOnFailure: false });
+    }
 
     logger.info("Browser setup completed", { browserType });
   } catch (error) {
