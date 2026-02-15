@@ -900,6 +900,10 @@ export class BrooklynEngine {
       "get_bounding_box",
       "is_visible",
       "is_enabled",
+      // v0.3.3: Table extraction, network inspection, pagination
+      "extract_table_data",
+      "inspect_network",
+      "paginate_table",
       // JavaScript execution (UX automation)
       "execute_script",
       "evaluate_expression",
