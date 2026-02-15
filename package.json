@@ -41,7 +41,7 @@
     "// === 🔧 CODE QUALITY ===": "",
     "format": "bun run format:code && bun run format:docs",
     "format:code": "biome format --write .",
-    "format:docs": "prettier --write \"**/*.{json,md,yaml,yml,html}\"",
+    "format:docs": "prettier --write \"**/*.{json,md,html}\"",
     "lint": "goneat assess --categories lint --fail-on high",
     "lint:fix": "goneat assess --categories lint --fix",
     "typecheck": "tsc --noEmit",

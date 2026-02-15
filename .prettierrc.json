@@ -21,12 +21,6 @@
         "parser": "markdown",
         "proseWrap": "preserve"
       }
-    },
-    {
-      "files": ["*.yaml", "*.yml"],
-      "options": {
-        "parser": "yaml"
-      }
     }
   ]
 }
