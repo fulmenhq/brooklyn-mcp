@@ -11,6 +11,7 @@ import { MCPBrowserRouter } from "./browser/mcp-browser-router.js";
 import { MCPRequestContextFactory } from "./browser/mcp-request-context.js";
 import { BrowserPoolManager } from "./browser-pool-manager.js";
 import type { BrooklynConfig } from "./config.js";
+import { redactHeaders } from "./config.js";
 import { ToolDiscoveryService } from "./discovery/tool-discovery-service.js";
 import { BrooklynDocsService } from "./documentation/brooklyn-docs-service.js";
 import type { DocumentationQueryArgs } from "./documentation/types.js";
@@ -608,7 +609,7 @@ export class BrooklynEngine {
           transport: context.transport,
           correlationId: context.correlationId,
           tool: name,
-          args,
+          args: this.sanitizeArgsForLog(args as Record<string, unknown>),
         });
       } catch {}
 
@@ -680,7 +681,7 @@ export class BrooklynEngine {
           transport: transportName,
           correlationId,
           tool: name,
-          args,
+          args: this.sanitizeArgsForLog(args as Record<string, unknown>),
         });
       } catch {}
 
@@ -1782,5 +1783,22 @@ export class BrooklynEngine {
    */
   private generateCorrelationId(): string {
     return `brooklyn-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+  }
+
+  /**
+   * Sanitize tool call args for safe logging. Redacts known sensitive fields
+   * (e.g. extraHttpHeaders) to prevent header values leaking into debug logs.
+   */
+  private sanitizeArgsForLog(
+    args: Record<string, unknown> | undefined,
+  ): Record<string, unknown> | undefined {
+    if (!args) return args;
+    const headers = args["extraHttpHeaders"];
+    if (!headers) return args;
+    if (typeof headers !== "object" || headers === null) return args;
+    return {
+      ...args,
+      extraHttpHeaders: redactHeaders(headers as Record<string, string>),
+    };
   }
 }

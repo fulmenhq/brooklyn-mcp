@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-02-15
+
+### Added
+
+- **Auth-Gated Browsing**: `extraHttpHeaders` parameter on `launch_browser` injects custom HTTP headers (Authorization, API keys) into every browser request for accessing authenticated SaaS dashboards and enterprise apps
+- **Environment Variable Fallback**: `BROOKLYN_HTTP_HEADERS` env var (JSON string) provides process-local header injection without passing secrets via MCP params
+- **`inspect_network` Tool**: Captures and inspects recent HTTP requests/responses with sensitive header redaction. Supports URL pattern and method filtering. Raw header access gated behind `BROOKLYN_FULL_HEADER_SUPPORT=true` env var with audit logging
+- **`extract_table_data` Tool**: Extracts structured data from HTML tables into JSON or CSV, handling `rowspan`/`colspan` merging
+- **`paginate_table` Tool**: Automatically paginates multi-page tables by clicking a next button, collecting and deduplicating rows across pages
+- **npm OIDC Publish Workflow**: GitHub Actions workflow for keyless npm publishing via OpenID Connect
+
+### Fixed
+
+- **Tool Dispatch Registration**: Added `extract_table_data`, `inspect_network`, and `paginate_table` to `isCoreTools` dispatch gate. Tools were defined and routed but missing from the gate array, causing "Tool not found" errors via HTTP transport
+
+### Security
+
+- **Header Redaction**: Baseline redaction of Authorization, Cookie, Set-Cookie, Proxy-Authorization, X-API-Key, and X-Auth-Token in all `inspect_network` output and log output
+- **Debug Log Sanitization**: Tool call args containing `extraHttpHeaders` are sanitized before writing to debug logs, preventing header value leakage at any log level
+
+### Documentation
+
+- **Auth-Gated Browsing Guide**: New `docs/user-guide/auth-headers.md` covering header injection, env var setup, inspect_network verification, and authbolt integration
+- **Hello Brooklyn Update**: Added auth-gated browsing quick start section and updated tool inventory for v0.3.3
+
 ## [0.3.2] - 2026-02-01
 
 ### Security

@@ -164,6 +164,40 @@ List screenshots from today tagged 'example'
 Close the browser
 ```
 
+## 🔐 **Browsing Auth-Gated Sites** (v0.3.3)
+
+Brooklyn can access authenticated dashboards and SaaS platforms by injecting HTTP headers into every browser request.
+
+```bash
+# Launch a browser with auth headers
+Launch a chromium browser with extraHttpHeaders:
+  Authorization: "Bearer <your-token>"
+
+# Navigate to an authenticated dashboard
+Navigate to https://dashboard.example.com
+
+# Verify the auth headers are being sent
+Inspect network requests filtered by "/api/"
+
+# Extract data from a dashboard table
+Extract table data from selector "table.metrics"
+
+# Paginate through results
+Paginate the table at "table.results" using next button ".btn-next"
+
+# Clean up
+Close the browser
+```
+
+For env-based configuration (no tokens in MCP history):
+
+```bash
+export BROOKLYN_HTTP_HEADERS='{"Authorization":"Bearer eyJhbGciOi..."}'
+brooklyn web start --daemon
+```
+
+See the full guide: **[Auth-Gated Browsing](user-guide/auth-headers.md)**
+
 ## ⚡ Quick Start: Layout + Cascade
 
 Use this lightning sequence when a UI looks “off” and you’re not sure why:
@@ -187,7 +221,7 @@ Use this lightning sequence when a UI looks “off” and you’re not sure why:
 
 - `apply_css_override(<selector>, { ... })` → validate → `revert_css_changes(overrideId)`
 
-## 🧰 Tool Inventory (v1.6.4)
+## 🧰 Tool Inventory (v0.3.3)
 
 Brooklyn groups tools by category. Use `brooklyn_list_tools` to see everything and `brooklyn_tool_help <name>` for details and examples.
 
@@ -195,7 +229,7 @@ Brooklyn groups tools by category. Use `brooklyn_list_tools` to see everything a
 - navigation: navigate_to_url, go_back, wait_for_url, wait_for_navigation, wait_for_network_idle
 - interaction: click_element, fill_text, wait_for_element, get_text_content, validate_element_presence, find_elements, focus_element, hover_element, select_option, clear_element, drag_and_drop, generate_selector, scroll_into_view, scroll_to, scroll_by, highlight_element_bounds, show_layout_grid, remove_overlay
 - styling: apply_css_override, revert_css_changes, simulate_css_change, why_style_not_applied, get_applicable_rules, get_effective_computed
-- content-capture: take_screenshot, list_screenshots, get_screenshot, get_html, describe_html, get_attribute, get_bounding_box, is_visible, is_enabled, get_layout_tree, measure_whitespace, find_layout_containers, extract_css, get_computed_styles, diff_css, analyze_specificity
+- content-capture: take_screenshot, list_screenshots, get_screenshot, get_html, describe_html, get_attribute, get_bounding_box, is_visible, is_enabled, extract_table_data, inspect_network, paginate_table, get_layout_tree, measure_whitespace, find_layout_containers, extract_css, get_computed_styles, diff_css, analyze_specificity
 - javascript: execute_script, evaluate_expression, get_console_messages, add_script_tag
 - rendering: render_pdf
 - image-processing: compress_svg, analyze_svg, convert_svg_to_png, convert_svg_to_multi_png, list_processed_assets, get_processed_asset, purge_processed_assets
