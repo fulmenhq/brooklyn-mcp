@@ -83,14 +83,6 @@
     "server:cleanup": "bun scripts/server-management.ts cleanup",
     "server:logs": "bun scripts/server-management.ts logs",
     "server:logs:recent": "bun scripts/server-management.ts logs --recent",
-    "// === 🛠️  DEVELOPMENT TOOLS ===": "",
-    "dev:start": "bun scripts/dev-brooklyn.ts start",
-    "dev:stop": "bun scripts/dev-brooklyn.ts stop",
-    "dev:restart": "bun scripts/dev-brooklyn.ts restart",
-    "dev:status": "bun scripts/dev-brooklyn.ts status",
-    "dev:logs": "bun scripts/dev-brooklyn.ts logs",
-    "dev:cleanup": "bun scripts/dev-brooklyn.ts cleanup",
-    "dev:test": "bun scripts/dev-brooklyn.ts test",
     "// === 🧹 CLEANUP ===": "",
     "clean": "bun scripts/clean.ts",
     "clean:build": "bun scripts/clean.ts --build",
@@ -168,14 +160,7 @@
     "brooklyn": "./src/cli/brooklyn.ts",
     "brooklyn-mcp": "./src/cli/brooklyn.ts"
   },
-  "files": [
-    "src",
-    "configs",
-    "schemas",
-    "README.md",
-    "LICENSE",
-    "CHANGELOG.md"
-  ],
+  "files": ["src", "configs", "schemas", "README.md", "LICENSE", "CHANGELOG.md"],
   "overrides": {
     "qs": ">=6.14.1",
     "body-parser": ">=2.2.1",

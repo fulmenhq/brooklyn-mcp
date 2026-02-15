@@ -85,7 +85,7 @@ describe.sequential("Architecture Committee: MCP Stdout Purity Tests", () => {
 
       if (processes.length > 0) {
         throw new Error(
-          `\n\nExisting Brooklyn server processes detected after cleanup. Please clean up manually:\n${processes.join("\n")}\n\nRun one of:\n  - bun run server:cleanup  (for production server)\n  - bun run dev:brooklyn:cleanup  (for dev mode)\n  - pkill -f 'brooklyn mcp'  (manual cleanup)\n\n`,
+          `\n\nExisting Brooklyn server processes detected after cleanup. Please clean up manually:\n${processes.join("\n")}\n\nRun one of:\n  - bun run server:cleanup  (for production server)\n  - bun run mcp-dev:cleanup  (for MCP dev mode)\n  - pkill -f 'brooklyn mcp'  (manual cleanup)\n\n`,
         );
       }
     } catch (error) {

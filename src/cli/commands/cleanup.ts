@@ -538,7 +538,6 @@ async function cleanupDevMode(): Promise<void> {
 
   await cleanupBrooklynProcessesByPattern("brooklyn.*dev-start", false);
   await cleanupBrooklynProcessesByPattern("brooklyn.*dev-mode", false);
-  await cleanupBrooklynProcessesByPattern("bun.*scripts/dev-brooklyn", false);
 }
 
 /**
