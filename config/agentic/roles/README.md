@@ -18,30 +18,30 @@ Local roles take precedence. When a role is added to tsfulmen upstream, the loca
 
 These roles are needed by Brooklyn but not yet available in the `@fulmenhq/tsfulmen` package:
 
-| Role                                            | Slug           | Category   | Source    | Purpose                                |
-| ----------------------------------------------- | -------------- | ---------- | --------- | -------------------------------------- |
-| [Delivery Lead](deliverylead.yaml)              | `deliverylead` | governance | crucible  | Sprint coordination, timeline tracking |
-| [Dispatch Coordinator](dispatch.yaml)           | `dispatch`     | governance | crucible  | Session handoff, task routing          |
-| [Release Engineering](releng.yaml)              | `releng`       | automation | crucible  | Versioning, releases, CI/CD validation |
-| [CXO Tech](cxotech.yaml)                       | `cxotech`      | governance | crucible  | Strategic product-architecture calls   |
-| [Product Strategist](prodstrat.yaml)            | `prodstrat`    | consulting | handbook  | Product strategy, roadmaps             |
+| Role                                  | Slug           | Category   | Source   | Purpose                                |
+| ------------------------------------- | -------------- | ---------- | -------- | -------------------------------------- |
+| [Delivery Lead](deliverylead.yaml)    | `deliverylead` | governance | crucible | Sprint coordination, timeline tracking |
+| [Dispatch Coordinator](dispatch.yaml) | `dispatch`     | governance | crucible | Session handoff, task routing          |
+| [Release Engineering](releng.yaml)    | `releng`       | automation | crucible | Versioning, releases, CI/CD validation |
+| [CXO Tech](cxotech.yaml)              | `cxotech`      | governance | crucible | Strategic product-architecture calls   |
+| [Product Strategist](prodstrat.yaml)  | `prodstrat`    | consulting | handbook | Product strategy, roadmaps             |
 
 ## Roles from tsfulmen (no local copy needed)
 
 These roles are available from the installed `@fulmenhq/tsfulmen` package:
 
-| Role                 | Slug       | Category   |
-| -------------------- | ---------- | ---------- |
-| Development Lead     | `devlead`  | agentic    |
-| Development Reviewer | `devrev`   | review     |
-| UX Developer         | `uxdev`    | agentic    |
-| Quality Assurance    | `qa`       | review     |
-| Product Marketing    | `prodmktg` | marketing  |
-| Security Review      | `secrev`   | review     |
-| CI/CD Automation     | `cicd`     | automation |
-| Information Architect| `infoarch` | agentic    |
-| Enterprise Architect | `entarch`  | governance |
-| Data Engineering     | `dataeng`  | agentic    |
+| Role                  | Slug       | Category   |
+| --------------------- | ---------- | ---------- |
+| Development Lead      | `devlead`  | agentic    |
+| Development Reviewer  | `devrev`   | review     |
+| UX Developer          | `uxdev`    | agentic    |
+| Quality Assurance     | `qa`       | review     |
+| Product Marketing     | `prodmktg` | marketing  |
+| Security Review       | `secrev`   | review     |
+| CI/CD Automation      | `cicd`     | automation |
+| Information Architect | `infoarch` | agentic    |
+| Enterprise Architect  | `entarch`  | governance |
+| Data Engineering      | `dataeng`  | agentic    |
 
 ## Lifecycle
 
@@ -51,9 +51,9 @@ These roles are available from the installed `@fulmenhq/tsfulmen` package:
 
 ## Provenance
 
-| Source   | Repository                                                      | Notes                              |
-| -------- | --------------------------------------------------------------- | ---------------------------------- |
-| crucible | [3leaps/crucible](https://github.com/3leaps/crucible)           | Baseline roles for all 3leaps work |
-| handbook | [3leaps/handbook](https://github.com/3leaps/handbook)           | Consulting-specific roles          |
-| tsfulmen | [fulmenhq/tsfulmen](https://github.com/fulmenhq/tsfulmen)      | FulmenHQ ecosystem roles           |
-| local    | This repo                                                       | Brooklyn-specific roles            |
+| Source   | Repository                                                | Notes                              |
+| -------- | --------------------------------------------------------- | ---------------------------------- |
+| crucible | [3leaps/crucible](https://github.com/3leaps/crucible)     | Baseline roles for all 3leaps work |
+| handbook | [3leaps/handbook](https://github.com/3leaps/handbook)     | Consulting-specific roles          |
+| tsfulmen | [fulmenhq/tsfulmen](https://github.com/fulmenhq/tsfulmen) | FulmenHQ ecosystem roles           |
+| local    | This repo                                                 | Brooklyn-specific roles            |

@@ -49,19 +49,19 @@
 
 Agents operate in role contexts. Each role has defined scope.
 
-| Role           | Slug           | Focus                                        | Source   |
-| -------------- | -------------- | -------------------------------------------- | -------- |
-| Dev Lead       | `devlead`      | Implementation, architecture, feature work   | tsfulmen |
-| Dev Review     | `devrev`       | Code review, four-eyes audit                 | tsfulmen |
-| UX Dev         | `uxdev`        | Frontend interfaces, CLI UX                  | tsfulmen |
-| QA             | `qa`           | Testing, validation, coverage                | tsfulmen |
-| Prod Mktg      | `prodmktg`     | Messaging, documentation, branding           | tsfulmen |
-| Security       | `secrev`       | Security analysis, vulnerability review      | tsfulmen |
-| Delivery Lead  | `deliverylead` | Sprint coordination, timeline orchestration  | local    |
-| Dispatch       | `dispatch`     | Session handoff, task routing                | local    |
-| Release Eng    | `releng`       | Versioning, releases, CI/CD validation       | local    |
-| CXO Tech       | `cxotech`      | Strategic product-architecture decisions      | local    |
-| Prod Strategy  | `prodstrat`    | Product strategy, roadmaps, prioritization   | local    |
+| Role          | Slug           | Focus                                       | Source   |
+| ------------- | -------------- | ------------------------------------------- | -------- |
+| Dev Lead      | `devlead`      | Implementation, architecture, feature work  | tsfulmen |
+| Dev Review    | `devrev`       | Code review, four-eyes audit                | tsfulmen |
+| UX Dev        | `uxdev`        | Frontend interfaces, CLI UX                 | tsfulmen |
+| QA            | `qa`           | Testing, validation, coverage               | tsfulmen |
+| Prod Mktg     | `prodmktg`     | Messaging, documentation, branding          | tsfulmen |
+| Security      | `secrev`       | Security analysis, vulnerability review     | tsfulmen |
+| Delivery Lead | `deliverylead` | Sprint coordination, timeline orchestration | local    |
+| Dispatch      | `dispatch`     | Session handoff, task routing               | local    |
+| Release Eng   | `releng`       | Versioning, releases, CI/CD validation      | local    |
+| CXO Tech      | `cxotech`      | Strategic product-architecture decisions    | local    |
+| Prod Strategy | `prodstrat`    | Product strategy, roadmaps, prioritization  | local    |
 
 When assigned a role, constrain actions to that scope.
 
