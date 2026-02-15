@@ -49,14 +49,19 @@
 
 Agents operate in role contexts. Each role has defined scope.
 
-| Role       | Slug       | Focus                                      |
-| ---------- | ---------- | ------------------------------------------ |
-| Dev Lead   | `devlead`  | Implementation, architecture, feature work |
-| Dev Review | `devrev`   | Code review, four-eyes audit               |
-| UX Dev     | `uxdev`    | Frontend interfaces, CLI UX                |
-| QA         | `qa`       | Testing, validation, coverage              |
-| Prod Mktg  | `prodmktg` | Messaging, documentation, branding         |
-| Security   | `secrev`   | Security analysis, vulnerability review    |
+| Role           | Slug           | Focus                                        | Source   |
+| -------------- | -------------- | -------------------------------------------- | -------- |
+| Dev Lead       | `devlead`      | Implementation, architecture, feature work   | tsfulmen |
+| Dev Review     | `devrev`       | Code review, four-eyes audit                 | tsfulmen |
+| UX Dev         | `uxdev`        | Frontend interfaces, CLI UX                  | tsfulmen |
+| QA             | `qa`           | Testing, validation, coverage                | tsfulmen |
+| Prod Mktg      | `prodmktg`     | Messaging, documentation, branding           | tsfulmen |
+| Security       | `secrev`       | Security analysis, vulnerability review      | tsfulmen |
+| Delivery Lead  | `deliverylead` | Sprint coordination, timeline orchestration  | local    |
+| Dispatch       | `dispatch`     | Session handoff, task routing                | local    |
+| Release Eng    | `releng`       | Versioning, releases, CI/CD validation       | local    |
+| CXO Tech       | `cxotech`      | Strategic product-architecture decisions      | local    |
+| Prod Strategy  | `prodstrat`    | Product strategy, roadmaps, prioritization   | local    |
 
 When assigned a role, constrain actions to that scope.
 
@@ -64,15 +69,23 @@ When assigned a role, constrain actions to that scope.
 
 **You MUST read your role's full prompt YAML before starting work.** The inline descriptions above are summaries only.
 
-**Lookup order** (try each in sequence until found):
+**Lookup order** (local-first, ecosystem-fallback — try each in sequence until found):
 
-1. **Installed package**: `node_modules/@fulmenhq/tsfulmen/config/crucible-ts/agentic/roles/<slug>.yaml`
-2. **Fallback (dev)**: `../tsfulmen/config/crucible-ts/agentic/roles/<slug>.yaml`
+1. **Local (project-specific)**: `config/agentic/roles/<slug>.yaml`
+2. **Installed package (fulmen-wide)**: `node_modules/@fulmenhq/tsfulmen/config/crucible-ts/agentic/roles/<slug>.yaml`
+3. **Fallback (dev)**: `../tsfulmen/config/crucible-ts/agentic/roles/<slug>.yaml`
 
-**Example for devlead role:**
+**Example for deliverylead role** (local):
 
 ```bash
-# Primary - from installed tsfulmen package (after bun install)
+# Found locally - no tsfulmen dependency needed
+config/agentic/roles/deliverylead.yaml
+```
+
+**Example for devlead role** (tsfulmen):
+
+```bash
+# Not in config/agentic/roles/, so fall through to tsfulmen
 node_modules/@fulmenhq/tsfulmen/config/crucible-ts/agentic/roles/devlead.yaml
 
 # Fallback - if node_modules not available (dev environment)
@@ -87,7 +100,7 @@ node_modules/@fulmenhq/tsfulmen/config/crucible-ts/agentic/roles/devlead.yaml
 
 The role YAML contains critical information: scope boundaries, mindset principles, escalation rules, and commit examples. Operating without it risks scope violations.
 
-**Note**: Role YAMLs are provided by the `@fulmenhq/tsfulmen` package (library-first consumption pattern). No local sync required.
+**Local vs tsfulmen roles**: Local roles in `config/agentic/roles/` are project-specific additions not yet available in tsfulmen. When tsfulmen publishes a role upstream, the local copy can be removed. See [`config/agentic/roles/README.md`](config/agentic/roles/README.md) for the full catalog and provenance.
 
 **Clarification on dependencies**: The devlead role principle "prefer standard library over dependencies" applies to arbitrary external packages. FulmenHQ ecosystem libraries (`tsfulmen`, `gofulmen`, `pyfulmen`) are infrastructure, not discretionary dependencies - they provide standardized patterns, observability, and Crucible SSOT access that would otherwise require duplication.
 
@@ -132,6 +145,36 @@ The role YAML contains critical information: scope boundaries, mindset principle
 - **Scope**: Security analysis, vulnerability assessment, auth/crypto review
 - **Responsibilities**: Security audit, threat modeling, compliance validation
 - **Escalates to**: Maintainers for security incidents, disclosure decisions
+
+### deliverylead - Delivery Lead (local)
+
+- **Scope**: Project lifecycle, sprint coordination, timeline orchestration
+- **Responsibilities**: Projectbook governance, WIP limits, capacity planning, delivery forecasts
+- **Escalates to**: cxotech for priority conflicts, maintainers for resource constraints
+
+### dispatch - Dispatch Coordinator (local)
+
+- **Scope**: Cross-session coordination, context handoff, task routing
+- **Responsibilities**: Session context preservation, role-based task routing, blocker tracking
+- **Escalates to**: Maintainers for unresolvable blockers, priority conflicts
+
+### releng - Release Engineering (local)
+
+- **Scope**: Version management, changelog, release coordination, CI/CD validation
+- **Responsibilities**: Semantic versioning, release notes, workflow validation, platform matrix
+- **Escalates to**: Maintainers for major releases, secrev for credential handling
+
+### cxotech - CXO Tech (local)
+
+- **Scope**: Strategic product-architecture decisions, feature brief approval
+- **Responsibilities**: ADRs, cross-role conflict resolution, pattern evaluation, roadmap sequencing
+- **Escalates to**: Maintainers for breaking strategic changes, entarch for ecosystem implications
+
+### prodstrat - Product Strategist (local)
+
+- **Scope**: Product vision, roadmap development, feature prioritization
+- **Responsibilities**: Strategy development, RICE scoring, success criteria, stakeholder alignment
+- **Escalates to**: Maintainers for major direction decisions, architect for feasibility
 
 ## Session Protocol
 
