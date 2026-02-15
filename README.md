@@ -17,7 +17,7 @@
 ### Project Status
 
 - **Lifecycle**: Alpha ([maturity details](docs/standards/lifecycle-maturity.md))
-- **Current Release**: [v0.3.0](RELEASE_NOTES.md) - HTTP Transport Hardening & Multi-Client Support
+- **Current Release**: [v0.3.3](RELEASE_NOTES.md) - SaaS Dashboard Unlock: Auth Headers + Analyst Extraction
 
 ---
 
@@ -208,6 +208,22 @@ See:
 ---
 
 ## 🎯 **Core Capabilities**
+
+### **v0.3.3: Unlock Auth-Gated SaaS Dashboards**
+
+Brooklyn now accesses authenticated enterprise apps (Stripe Dashboard, Mixpanel, Amplitude) via persistent HTTP headers on every request. **Analyst agents** extract structured table data and paginate dashboards for reports, planning, and bulk analysis - no custom scrapers needed.
+
+**Benefits for AI Teams**:
+
+- **Analysts**: Pull JSON/CSV from auth-gated tables for competitive intel
+- **Developers**: Test Stripe webhooks, dashboard integrations without API keys
+- **Scale**: Headers persist across sessions; inspect requests (redacted) for debug
+
+**Personas Served**:
+
+> **AI Analyst**: "Extract Mixpanel retention tables → Generate churn reduction playbook"
+
+See [Auth Headers Guide](docs/user-guide/auth-headers.md) for Stripe/Mixpanel examples.
 
 ### **AI-First Browser Automation**
 

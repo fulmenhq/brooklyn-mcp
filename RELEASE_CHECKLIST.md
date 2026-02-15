@@ -65,7 +65,7 @@ Decision records location: [`docs/decisions/`](docs/decisions/README.md)
 
 - [ ] **README Updated**: Installation and usage instructions current
 - [ ] **User Guide**: All features documented
-- [ ] **MCP Tools**: All 79 tools documented with examples
+- [ ] **MCP Tools**: All 82 tools documented with examples
 - [ ] **Release Notes**: docs/releases/v<version>.md complete
 
 ### Licensing Compliance
@@ -179,6 +179,27 @@ BROOKLYN_RELEASE_TAG=$BROOKLYN_RELEASE_TAG make release-notes
 BROOKLYN_RELEASE_TAG=$BROOKLYN_RELEASE_TAG make release-upload
 ```
 
+### 6. Publish to npm (OIDC)
+
+After upload, verify the GitHub Release is **undrafted** (signing + upload undrafts it), then trigger npm publish:
+
+```bash
+# Verify release is live (not draft)
+gh release view v<version> --json isDraft --jq '.isDraft'
+# Must return "false"
+
+# Trigger npm OIDC publish (keyless — no npm tokens needed)
+gh workflow run typescript-npm-publish.yml --ref v<version>
+
+# Monitor the publish workflow
+gh run list --workflow=typescript-npm-publish.yml --limit 1
+
+# Optional: dry run first
+gh workflow run typescript-npm-publish.yml --ref v<version> -f dry_run=true
+```
+
+The workflow validates: tag ref, VERSION/package.json alignment, release is signed, quality gates pass. Then publishes via npm OIDC trusted publishing.
+
 ### Signing Workflow One-Liner
 
 ```bash
@@ -190,6 +211,9 @@ make release-clean && \
   make release-export-keys release-verify-keys && \
   BROOKLYN_RELEASE_TAG=$BROOKLYN_RELEASE_TAG make release-notes && \
   BROOKLYN_RELEASE_TAG=$BROOKLYN_RELEASE_TAG make release-upload
+
+# After upload completes and release is undrafted:
+gh workflow run typescript-npm-publish.yml --ref $BROOKLYN_RELEASE_TAG
 ```
 
 > **Ghostty Terminal Note**: If minisign prompts fail on macOS with Ghostty,
@@ -214,10 +238,16 @@ make release-clean && \
   gpg --verify SHA256SUMS.asc SHA256SUMS
   ```
 
+### npm Publication
+
+- [ ] **npm Publish**: `gh workflow run typescript-npm-publish.yml` completed successfully
+- [ ] **npm Verify**: `npm view brooklyn-mcp@<version> version` returns correct version
+- [ ] **Install Test**: `npm install -g brooklyn-mcp@<version> && brooklyn --version`
+
 ### MCP Integration Testing
 
 - [ ] **MCP Server Startup**: `brooklyn mcp start` works
-- [ ] **Tool Discovery**: All 79 MCP tools discoverable
+- [ ] **Tool Discovery**: All 82 MCP tools discoverable
 - [ ] **Claude Code Integration**: Successfully integrates with Claude Code
 - [ ] **Cross-Platform**: MCP server works on all target platforms
 
@@ -358,6 +388,6 @@ After a complete release (CI + signing), the GitHub Release should contain:
 
 ---
 
-**Document Version**: 3.1 (FulmenHQ Signing Pattern)
-**Last Updated**: 2026-01-21
+**Document Version**: 3.2 (npm OIDC Publishing)
+**Last Updated**: 2026-02-15
 **Next Review**: With each major release or significant process change

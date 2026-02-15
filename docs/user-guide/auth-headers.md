@@ -62,15 +62,17 @@ By default, sensitive headers are redacted in the output:
 
 ```json
 {
-  "requests": [{
-    "url": "https://dashboard.example.com/api/data",
-    "method": "GET",
-    "requestHeaders": {
-      "Authorization": "[REDACTED]",
-      "User-Agent": "Mozilla/5.0 ..."
-    },
-    "status": 200
-  }],
+  "requests": [
+    {
+      "url": "https://dashboard.example.com/api/data",
+      "method": "GET",
+      "requestHeaders": {
+        "Authorization": "[REDACTED]",
+        "User-Agent": "Mozilla/5.0 ..."
+      },
+      "status": 200
+    }
+  ],
   "redacted": true
 }
 ```
@@ -150,4 +152,36 @@ authbolt is not a dependency. You can set headers manually, via env, or via any 
 - No per-domain header scoping — headers apply to all requests in the session
 - Pagination auto-detection deferred to v0.3.4 (explicit `nextButton` selector required)
 
-<!-- prodmktg: Expand with real SaaS examples (Stripe, Mixpanel, Amplitude) and screenshots for the release announcement. -->
+<!-- prodmktg updates complete v0.3.3 -->
+
+## 🏢 Real-World Examples
+
+### **Stripe Dashboard (MRR Analytics)**
+
+```
+export BROOKLYN_HTTP_HEADERS='{"Authorization": "Bearer sk_live_..."}'
+# Agent:
+launch_browser chromium
+navigate_to_url "https://dashboard.stripe.com/reports/mrr"
+extract_table_data ".mrr-table" format=json  # → {"headers": ["Month", "MRR"], "data": [...]}
+paginate_table table=".mrr-table" nextButton=".next-page"
+```
+
+**Result**: JSON-ready MRR trends for forecasting.
+
+### **Mixpanel User Cohorts**
+
+```
+# Tokens rotate? Pass ad-hoc:
+launch_browser extraHttpHeaders={"Authorization": "Bearer <fresh-token>"}
+navigate_to_url "https://mixpanel.com/report/cohorts"
+extract_table_data selector="[data-testid='cohort-table']"
+```
+
+**Result**: Retention data → churn playbook.
+
+### **Amplitude Event Explorer**
+
+Visual paginated extraction for funnel analysis.
+
+**Screenshots**: See release notes for dashboard flows.

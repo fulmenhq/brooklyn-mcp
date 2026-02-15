@@ -2,6 +2,29 @@
 
 Latest releases for Brooklyn MCP. For full history, see [CHANGELOG.md](CHANGELOG.md).
 
+## [0.3.3] - 2026-02-15
+
+**Release Type**: Feature Release - SaaS Dashboard Unlock
+
+### Highlights
+
+- **Auth-Gated Browsing**: `extraHttpHeaders` on `launch_browser` injects Authorization, API keys, and custom headers into every browser request. Env var fallback via `BROOKLYN_HTTP_HEADERS`
+- **Network Inspector**: `inspect_network` captures recent HTTP requests/responses with sensitive header redaction by default. Raw access gated behind env flag + audit log
+- **Table Extraction**: `extract_table_data` parses HTML tables into JSON/CSV with rowspan/colspan handling
+- **Paginated Collection**: `paginate_table` auto-clicks through multi-page tables, collecting and deduplicating rows
+- **npm OIDC Publishing**: Keyless npm publish via GitHub Actions OIDC trusted publishing (no npm tokens)
+- **Security**: Debug log sanitization prevents header value leakage at any log level
+
+### Quality Metrics
+
+- **Tests**: 799 passing, 13 skipped
+- **Tools**: 82 (3 new + 1 schema extension)
+- **Lint Health**: 100%
+
+[Full Release Notes](docs/releases/v0.3.3.md)
+
+---
+
 ## [0.3.2] - 2026-02-01
 
 **Release Type**: Patch Release - Security & Test Stability
@@ -60,25 +83,6 @@ Latest releases for Brooklyn MCP. For full history, see [CHANGELOG.md](CHANGELOG
 - `brooklyn web start` now defaults to `--auth-mode required`. Use `--auth-mode localhost` for local development or `--auth-mode disabled` for CI.
 
 [Full Release Notes](docs/releases/v0.3.0.md)
-
----
-
-## [0.2.3] - 2025-11-19
-
-**Release Type**: Minor Release - Dependency Updates & Protocol Compliance
-
-### Highlights
-
-- **Logging Stack**: Upgraded pino v9 → v10.1.0 and pino-pretty v11 → v13.1.2
-- **CLI Tooling**: Upgraded inquirer v9 → v13.0.1
-- **Protocol Compliance**: Pinned dotenv to v16.6.1 (v17.x violates MCP stdout purity)
-
-### Quality Metrics
-
-- **Tests**: 768 total (755 passing)
-- **MCP Stdout Purity**: 4/4 passing
-
-[Full Release Notes](docs/releases/v0.2.3.md)
 
 ---
 

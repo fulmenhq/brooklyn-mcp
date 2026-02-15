@@ -162,6 +162,17 @@ See the Assisted Configuration section in the User Guide for step-by-step comman
 
 ## 🎨 Common Use Cases
 
+### **Analyst Teams (NEW v0.3.3)**
+
+> **Persona**: AI Analyst extracting dashboard insights for planning/reports.
+
+- Auth-gated access: Stripe MRR tables, Mixpanel cohorts
+- Table extraction: HTML → JSON/CSV
+- Pagination: Multi-page data collection
+- Example: `extract_table_data` on `.metrics-table` → churn analysis playbook
+
+**Benefits**: Structured data without scrapers/APIs. From screenshot to spreadsheet-ready.
+
 ### For AI Developers
 
 - **Smart Web Scraping** - Let Claude navigate and extract data
