@@ -12,12 +12,14 @@ on:
         type: boolean
         default: false
 permissions:
-  id-token: write  # Required for OIDC trusted publishing
+  # Required for OIDC trusted publishing
+  id-token: write
   contents: read
 jobs:
   publish:
     runs-on: ubuntu-latest
-    environment: publish-npm  # Required for npm OIDC
+    # Required for npm OIDC
+    environment: publish-npm
     steps:
       - uses: actions/checkout@v4
         with:
@@ -26,6 +28,26 @@ jobs:
         with:
           node-version: "20"
           registry-url: "https://registry.npmjs.org"
+      - name: Install goneat via sfetch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          curl -sSfL https://github.com/3leaps/sfetch/releases/latest/download/install-sfetch.sh | bash
+          ~/.local/bin/sfetch -repo fulmenhq/goneat -tag v0.5.3 -install
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Verify goneat installation (minimum v0.5.3)
+        run: |
+          set -euo pipefail
+          goneat --version
+          GONEAT_VERSION=$(goneat --version 2>&1 | head -n1 | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          REQUIRED_VERSION="v0.5.3"
+          OLDEST=$(printf '%s\n' "$REQUIRED_VERSION" "$GONEAT_VERSION" | sort -V | head -n1)
+          if [ "$OLDEST" != "$REQUIRED_VERSION" ]; then
+            echo "::error::goneat $GONEAT_VERSION is below minimum required $REQUIRED_VERSION"
+            exit 1
+          fi
+          echo "goneat $GONEAT_VERSION meets minimum requirement ($REQUIRED_VERSION)"
       - name: Ensure npm supports OIDC
         run: |
           npm install -g npm@11.5.1
