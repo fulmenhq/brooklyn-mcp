@@ -43,17 +43,26 @@ async function runBuildSteps(): Promise<void> {
   const binaryName = isWindows ? "brooklyn.exe" : "brooklyn";
   const binaryPath = path.join(rootDir, "dist", binaryName);
 
-  console.log(`📦 Building binary for ${process.platform}: ${binaryName}`);
-  const buildCmd = [
+  console.log(`📦 Building standalone binary for ${process.platform}: ${binaryName}`);
+
+  // Use --compile to create a true standalone executable
+  // External modules (playwright, etc.) are expected to be installed at runtime
+  const buildArgs = [
     "bun build src/cli/brooklyn.ts",
+    "--compile",
     `--outfile ${binaryPath}`,
-    "--target node",
     "--external playwright",
     "--external @playwright/test",
+    "--external playwright-core",
     "--external electron",
     "--external svgo",
     "--external xml2js",
-  ].join(" ");
+  ];
+
+  // Note: Windows metadata flags (--windows-title, --windows-description) are available
+  // but can fail with "FailedToCommit" on some systems. Omitting for reliability.
+
+  const buildCmd = buildArgs.join(" ");
   execSync(buildCmd, { cwd: rootDir, stdio: "inherit" });
 
   // Step 5: Make binary executable (Unix-like systems only)

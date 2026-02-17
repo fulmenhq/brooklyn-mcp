@@ -39,11 +39,34 @@ const log = {
 };
 
 /**
+ * Get the appropriate bin directory for the current platform.
+ * Windows: Prefer a standard per-user install location (%LOCALAPPDATA%\Programs\Brooklyn\bin)
+ * Unix: Use ~/.local/bin (standard user bin path)
+ */
+function getGlobalBinPath(): string {
+  const homeDir = homedir();
+  const isWindows = platform() === "win32";
+
+  // Allow explicit override (useful for CI, managed installs, or custom layouts)
+  const override = process.env["BROOKLYN_BIN_DIR"];
+  if (override && override.trim().length > 0) return override.trim();
+
+  if (isWindows) {
+    // Standard Windows per-user programs location
+    const localAppData = process.env["LOCALAPPDATA"] || join(homeDir, "AppData", "Local");
+    return join(localAppData, "Programs", "Brooklyn", "bin");
+  }
+
+  // Unix: ~/.local/bin
+  return join(homeDir, ".local", "bin");
+}
+
+/**
  * Get installation paths
  */
 function getInstallPaths() {
   const homeDir = homedir();
-  const globalBinPath = join(homeDir, ".local", "bin");
+  const globalBinPath = getGlobalBinPath();
   const isWindows = platform() === "win32";
   const binaryName = isWindows ? "brooklyn.exe" : "brooklyn";
   const cliSourcePath = join(process.cwd(), "dist", binaryName);
@@ -80,7 +103,12 @@ function installCLI(): void {
 
   // Copy CLI to target
   copyFileSync(paths.cliSourcePath, paths.cliTargetPath);
-  chmodSync(paths.cliTargetPath, 0o755);
+  // chmod is best-effort; on Windows it is unnecessary and may be a no-op.
+  try {
+    chmodSync(paths.cliTargetPath, 0o755);
+  } catch {
+    // ignore
+  }
 
   log.success(`CLI installed: ${paths.cliTargetPath}`);
 
@@ -125,13 +153,32 @@ function installCLI(): void {
   const pathEnv = process.env["PATH"] || "";
   if (!pathEnv.includes(paths.globalBinPath)) {
     log.warn(`${paths.globalBinPath} is not in your PATH`);
-    console.log(`
+    const isWindows = platform() === "win32";
+    if (isWindows) {
+      console.log(`
+${colors.yellow}To use brooklyn globally, add this directory to your user PATH:${colors.reset}
+${colors.cyan}${paths.globalBinPath}${colors.reset}
+
+${colors.bold}PowerShell (user PATH):${colors.reset}
+${colors.cyan}setx PATH "$env:PATH;${paths.globalBinPath}"${colors.reset}
+
+${colors.bold}cmd.exe (user PATH):${colors.reset}
+${colors.cyan}setx PATH "%PATH%;${paths.globalBinPath}"${colors.reset}
+
+${colors.yellow}Open a new terminal after running setx.${colors.reset}
+
+${colors.bold}Or run commands with full path:${colors.reset}
+${colors.cyan}${paths.cliTargetPath} mcp start${colors.reset}
+`);
+    } else {
+      console.log(`
 ${colors.yellow}To use brooklyn globally, add this to your shell profile:${colors.reset}
 ${colors.cyan}export PATH="$PATH:${paths.globalBinPath}"${colors.reset}
 
 ${colors.bold}Or run commands with full path:${colors.reset}
 ${colors.cyan}${paths.cliTargetPath} mcp start${colors.reset}
 `);
+    }
   } else {
     log.success("CLI is ready to use globally!");
   }
