@@ -21,13 +21,13 @@ Brooklyn MCP supports building and running on multiple platforms through careful
 
 Bun can cross-compile standalone binaries from any host to most targets, but not all. The table below shows what `bun run build:all` can produce from a single machine versus what requires a native CI runner.
 
-| Target Binary             | Cross-compile (`build:all`) | Native CI (`release.yml`) | Native CI (separate workflow)                    |
-| ------------------------- | --------------------------- | ------------------------- | ------------------------------------------------ |
-| brooklyn-linux-amd64      | ✅ Yes                      | ✅ ubuntu-latest          | —                                                |
-| brooklyn-linux-arm64      | ✅ Yes                      | ✅ ubuntu-latest-arm64-s  | —                                                |
-| brooklyn-darwin-arm64     | ✅ Yes                      | ✅ macos-15               | —                                                |
-| brooklyn-windows-amd64    | ✅ Yes                      | ✅ windows-latest         | —                                                |
-| brooklyn-windows-arm64    | ❌ No (Bun limitation)      | ✅ windows-latest-arm64-s | `release-windows-arm64.yml` (manual dispatch)    |
+| Target Binary          | Cross-compile (`build:all`) | Native CI (`release.yml`) | Native CI (separate workflow)                 |
+| ---------------------- | --------------------------- | ------------------------- | --------------------------------------------- |
+| brooklyn-linux-amd64   | ✅ Yes                      | ✅ ubuntu-latest          | —                                             |
+| brooklyn-linux-arm64   | ✅ Yes                      | ✅ ubuntu-latest-arm64-s  | —                                             |
+| brooklyn-darwin-arm64  | ✅ Yes                      | ✅ macos-15               | —                                             |
+| brooklyn-windows-amd64 | ✅ Yes                      | ✅ windows-latest         | —                                             |
+| brooklyn-windows-arm64 | ❌ No (Bun limitation)      | ✅ windows-latest-arm64-s | `release-windows-arm64.yml` (manual dispatch) |
 
 **Local development on any platform**: `bun run build:local` compiles a standalone binary for the current host. This works on all platforms including Windows ARM64 (Bun natively targets the host architecture).
 
