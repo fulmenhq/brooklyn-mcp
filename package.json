@@ -160,14 +160,7 @@
     "brooklyn": "./src/cli/brooklyn.ts",
     "brooklyn-mcp": "./src/cli/brooklyn.ts"
   },
-  "files": [
-    "src",
-    "configs",
-    "schemas",
-    "README.md",
-    "LICENSE",
-    "CHANGELOG.md"
-  ],
+  "files": ["src", "configs", "schemas", "README.md", "LICENSE", "CHANGELOG.md"],
   "overrides": {
     "qs": ">=6.14.1",
     "body-parser": ">=2.2.1",

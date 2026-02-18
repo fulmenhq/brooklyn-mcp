@@ -15,9 +15,9 @@ This guide provides step-by-step instructions for publishing brooklyn-mcp to npm
 
 Brooklyn MCP has two distribution channels:
 
-1. **GitHub Releases** (Primary): Pre-compiled binaries for all platforms
-   - darwin-amd64, darwin-arm64
+1. **GitHub Releases** (Primary): Pre-compiled standalone binaries for all platforms
    - linux-amd64, linux-arm64
+   - darwin-arm64 (Intel Mac dropped in v0.3.4)
    - windows-amd64, windows-arm64
    - Signed with minisign + GPG
 

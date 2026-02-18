@@ -8,11 +8,14 @@ Brooklyn MCP supports building and running on multiple platforms through careful
 
 ## Platform Support Matrix
 
-| Platform | Architecture | Status       | CI/CD          | Notes                          |
-| -------- | ------------ | ------------ | -------------- | ------------------------------ |
-| Windows  | x64, ARM64   | ✅ Supported | GitHub Actions | Requires special path handling |
-| macOS    | x64, ARM64   | ✅ Supported | GitHub Actions | Primary development platform   |
-| Linux    | x64, ARM64   | ✅ Supported | GitHub Actions | Container-friendly             |
+| Platform | Architecture | Status       | CI Runner              | Notes                          |
+| -------- | ------------ | ------------ | ---------------------- | ------------------------------ |
+| Linux    | x64          | ✅ Supported | ubuntu-latest          | Container-friendly             |
+| Linux    | ARM64        | ✅ Supported | ubuntu-latest-arm64-s  | Native ARM64 runner            |
+| macOS    | ARM64        | ✅ Supported | macos-15               | Primary development platform   |
+| Windows  | x64          | ✅ Supported | windows-latest         | Requires special path handling |
+| Windows  | ARM64        | ✅ Supported | windows-latest-arm64-s | Native ARM64 runner            |
+| macOS    | x64 (Intel)  | ❌ Dropped   | —                      | Removed in v0.3.4              |
 
 ## Cross-Platform Build Challenges & Solutions
 
@@ -227,11 +230,13 @@ sudo pacman -S zip unzip coreutils
 
 **GitHub Actions Platform Support:**
 
-| Platform         | `zip`                | `tar`            | `shasum`             | Additional Setup Required       |
-| ---------------- | -------------------- | ---------------- | -------------------- | ------------------------------- |
-| `ubuntu-latest`  | ✅ Pre-installed     | ✅ Pre-installed | ✅ Pre-installed     | None                            |
-| `macos-latest`   | ✅ Pre-installed     | ✅ Pre-installed | ✅ Pre-installed     | None                            |
-| `windows-latest` | ❌ **Not available** | ✅ Pre-installed | ❌ **Not available** | **Scoop installation required** |
+| Runner                   | `zip`                | `tar`            | `shasum`             | Additional Setup Required       |
+| ------------------------ | -------------------- | ---------------- | -------------------- | ------------------------------- |
+| `ubuntu-latest`          | ✅ Pre-installed     | ✅ Pre-installed | ✅ Pre-installed     | None                            |
+| `ubuntu-latest-arm64-s`  | ✅ Pre-installed     | ✅ Pre-installed | ✅ Pre-installed     | None                            |
+| `macos-15`               | ✅ Pre-installed     | ✅ Pre-installed | ✅ Pre-installed     | None                            |
+| `windows-latest`         | ❌ **Not available** | ✅ Pre-installed | ❌ **Not available** | **Scoop installation required** |
+| `windows-latest-arm64-s` | ❌ **Not available** | ✅ Pre-installed | ❌ **Not available** | **Scoop installation required** |
 
 **Windows CI Setup (Required):**
 Our GitHub Actions workflow automatically installs missing tools on Windows runners using Scoop:
@@ -302,7 +307,8 @@ The packaging pipeline requires these tools in `PATH`:
 ### macOS
 
 - **Primary development platform**: Most permissive file system operations
-- **ARM64 (M1/M2)**: Native support with proper architecture detection
+- **ARM64 only (M1/M2/M3/M4)**: Native support with proper architecture detection
+- **Intel (x64) dropped**: No longer built or tested as of v0.3.4
 - **Permissions**: Generally more lenient than Windows
 
 ### Linux (CI/CD)
@@ -330,11 +336,12 @@ bun run build:all
 
 ### CI/CD Validation
 
-The release workflow validates across all platforms:
+The release workflow uses native matrix builds across all platforms:
 
-1. **Validate Release Readiness** (Ubuntu)
-2. **Build and Release** (Windows, macOS, Linux)
-3. **Post-Release Validation** (Ubuntu)
+1. **Validate Release Readiness** (ubuntu-latest)
+2. **Build** (5 native runners in parallel — each compiles its own standalone binary)
+3. **Collect and Release** (ubuntu-latest — packages, checksums, draft release)
+4. **Post-Release Validation** (ubuntu-latest)
 
 ## Troubleshooting
 

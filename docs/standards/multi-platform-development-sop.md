@@ -13,11 +13,14 @@ This document establishes standard operating procedures for developing TypeScrip
 
 ## Platform Support Matrix
 
-| Platform           | Node.js | Bun      | Testing | CI/CD             | Primary Use Case       |
-| ------------------ | ------- | -------- | ------- | ----------------- | ---------------------- |
-| **Windows 11**     | ✅ v18+ | ✅ v1.1+ | ✅ Full | ✅ GitHub Actions | Developer workstations |
-| **macOS**          | ✅ v18+ | ✅ v1.1+ | ✅ Full | ✅ GitHub Actions | Developer workstations |
-| **Linux (Ubuntu)** | ✅ v18+ | ✅ v1.1+ | ✅ Full | ✅ GitHub Actions | CI/CD, production      |
+| Platform           | Arch  | Bun      | Testing | CI Runner              | Primary Use Case       |
+| ------------------ | ----- | -------- | ------- | ---------------------- | ---------------------- |
+| **Linux (Ubuntu)** | x64   | ✅ v1.1+ | ✅ Full | ubuntu-latest          | CI/CD, production      |
+| **Linux (Ubuntu)** | ARM64 | ✅ v1.1+ | ✅ Full | ubuntu-latest-arm64-s  | CI/CD, production      |
+| **macOS**          | ARM64 | ✅ v1.1+ | ✅ Full | macos-15               | Developer workstations |
+| **Windows 11**     | x64   | ✅ v1.1+ | ✅ Full | windows-latest         | Developer workstations |
+| **Windows 11**     | ARM64 | ✅ v1.1+ | ✅ Full | windows-latest-arm64-s | Developer workstations |
+| **macOS (Intel)**  | x64   | —        | —       | —                      | ❌ Dropped in v0.3.4   |
 
 ## Git Configuration Standards
 
@@ -292,24 +295,21 @@ function getCacheDirectory(): string {
 
 ### Cross-Platform Build Targets
 
-**Package.json scripts:**
+Standalone binaries are compiled with `bun build --compile` for each platform. The release pipeline uses native matrix builds — each platform compiles on its own runner rather than cross-compiling.
 
-```json
-{
-  "scripts": {
-    "build": "bun run build:all",
-    "build:all": "bun run build:linux && bun run build:darwin && bun run build:win32",
-    "build:linux": "bun build --target=bun-linux-x64 --outfile=dist/brooklyn-linux-x64",
-    "build:darwin": "bun build --target=bun-darwin-x64 --outfile=dist/brooklyn-darwin-x64",
-    "build:win32": "bun build --target=bun-windows-x64 --outfile=dist/brooklyn-win32-x64.exe"
-  }
-}
-```
+**Build targets (5 platforms):**
+
+| Platform      | Binary Name                | Runner                 |
+| ------------- | -------------------------- | ---------------------- |
+| Linux x64     | brooklyn-linux-amd64       | ubuntu-latest          |
+| Linux ARM64   | brooklyn-linux-arm64       | ubuntu-latest-arm64-s  |
+| macOS ARM64   | brooklyn-darwin-arm64      | macos-15               |
+| Windows x64   | brooklyn-windows-amd64.exe | windows-latest         |
+| Windows ARM64 | brooklyn-windows-arm64.exe | windows-latest-arm64-s |
 
 ### Archive Format Standards
 
-- **Windows:** `.zip` archives
-- **macOS/Linux:** `.tar.gz` archives
+- **All platforms:** Both `.zip` and `.tar.gz` archives are generated
 
 ## CI/CD Platform Matrix
 
@@ -319,22 +319,33 @@ function getCacheDirectory(): string {
 
 ```yaml
 strategy:
+  fail-fast: false
   matrix:
-    os: [ubuntu-latest, macos-latest, windows-latest]
-    node-version: [18, 20]
-    bun-version: [1.1.0]
+    include:
+      - os: ubuntu-latest
+        name: linux-x64
+      - os: ubuntu-latest-arm64-s
+        name: linux-arm64
+      - os: macos-15
+        name: darwin-arm64
+      - os: windows-latest
+        name: windows-x64
+      - os: windows-latest-arm64-s
+        name: windows-arm64
+runs-on: ${{ matrix.os }}
+defaults:
+  run:
+    shell: bash
 
 steps:
-  - name: Install platform-specific dependencies (Windows)
-    if: runner.os == 'Windows'
-    run: |
-      scoop install zip shasum
-
   - name: Run cross-platform tests
     run: |
       bun run test
       bun run test:integration
 ```
+
+> **Note**: Custom runner labels (`ubuntu-latest-arm64-s`, `windows-latest-arm64-s`) are
+> whitelisted in `.github/actionlint.yaml`.
 
 ## Error Handling
 

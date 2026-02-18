@@ -54,11 +54,11 @@ Decision records location: [`docs/decisions/`](docs/decisions/README.md)
 
 ### Cross-Platform Builds
 
-- [ ] **All Platforms Build**: `make build-all` produces binaries for:
+- [ ] **All Platforms Build**: Native matrix builds produce standalone binaries for:
   - Linux AMD64/ARM64
-  - macOS AMD64/ARM64
+  - macOS ARM64 (Intel dropped in v0.3.4)
   - Windows AMD64/ARM64
-- [ ] **Binary Size**: Reasonable size (< 15MB each, target: ~12MB)
+- [ ] **Binary Size**: Standalone compiled binaries (~60-120MB each, compiled with `bun build --compile`)
 - [ ] **Distribution Optimization**: No browser binaries included
 
 ### Documentation
@@ -109,9 +109,9 @@ git push origin v<version>
 After pushing the tag, GitHub Actions will:
 
 1. Validate release readiness
-2. Build all platform binaries (cross-compilation on Ubuntu)
-3. Generate license inventory
-4. Create distribution archives
+2. Build standalone binaries on 5 native runners in parallel
+3. Collect artifacts, generate license inventory
+4. Create distribution archives (zip + tar.gz)
 5. Upload to GitHub Release:
    - Binary archives (`.zip`, `.tar.gz`)
    - Checksums (`SHA256SUMS`, `SHA512SUMS`)
@@ -332,7 +332,7 @@ echo "previous-version" > VERSION
 - **MCP Integration**: Seamless Claude Code integration
 - **Performance**: No significant regressions
 - **Compatibility**: Backward compatibility maintained
-- **Binary Size**: < 15MB per platform binary
+- **Binary Size**: ~60-120MB per standalone binary (compiled with `bun build --compile`)
 
 ---
 
@@ -340,9 +340,10 @@ echo "previous-version" > VERSION
 
 After a complete release (CI + signing), the GitHub Release should contain:
 
-**Binaries** (12 files):
+**Binaries** (10 files):
 
-- `brooklyn-{darwin,linux,windows}-{amd64,arm64}.{tar.gz,zip}`
+- `brooklyn-{linux,windows}-{amd64,arm64}.{tar.gz,zip}`
+- `brooklyn-darwin-arm64.{tar.gz,zip}`
 
 **Checksums** (2 files):
 
@@ -369,7 +370,7 @@ After a complete release (CI + signing), the GitHub Release should contain:
 - `RELEASE.md` (CI-generated)
 - `release-notes-v<version>.md` (copied from docs/releases/)
 
-**Total**: 24 files for a fully signed release
+**Total**: 22 files for a fully signed release
 
 ---
 
