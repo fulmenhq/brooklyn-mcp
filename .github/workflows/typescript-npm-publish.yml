@@ -28,6 +28,13 @@ jobs:
         with:
           node-version: "20"
           registry-url: "https://registry.npmjs.org"
+      # sudo apt-get is safe here: this job is pinned to
+      # ubuntu-latest (standard GH runner with full sudo).
+      - name: Install minisign for signature verification
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq minisign
+          minisign -v
       - name: Install goneat via sfetch
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
