@@ -2,6 +2,28 @@
 
 Latest releases for Brooklyn MCP. For full history, see [CHANGELOG.md](CHANGELOG.md).
 
+## [0.3.4] - 2026-02-17
+
+**Release Type**: Patch Release - Windows Support & Standalone Binaries
+
+### Highlights
+
+- **Standalone Binaries**: Release assets are now self-contained executables (~60-120MB) compiled with `bun build --compile`. No Bun runtime required
+- **Windows Fix**: Previous releases shipped ~3MB JS bundles that required Bun to run. Now produces real PE32+ executables that work out of the box
+- **Native Matrix Builds**: 5-platform parallel CI builds on native runners (no cross-compilation)
+- **Platform Changes**: Dropped Darwin Intel (x64). Added Windows ARM64 and Linux ARM64 native runners
+- **Test Isolation**: Integration tests no longer kill the developer's running MCP server
+
+### Quality Metrics
+
+- **Tests**: 799 passing, 13 skipped
+- **Tools**: 82
+- **Lint Health**: 98% (1 info-level shellcheck note)
+
+[Full Release Notes](docs/releases/v0.3.4.md)
+
+---
+
 ## [0.3.3] - 2026-02-15
 
 **Release Type**: Feature Release - SaaS Dashboard Unlock

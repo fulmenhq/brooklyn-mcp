@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-02-17
+
+### Changed
+
+- **Standalone Binary Builds**: Release binaries are now self-contained executables compiled with `bun build --compile` (~60-120MB). No Bun runtime required at install time
+- **Native Matrix Builds**: Release pipeline uses 5 native runners (one per platform) instead of single-runner cross-compilation. Each platform compiles its own binary natively
+- **Platform Support**: Dropped Darwin Intel (x64). macOS builds are ARM64 (Apple Silicon) only
+
+### Fixed
+
+- **Windows Standalone Executable**: `bun build --compile` produces a real PE32+ executable that runs without Bun installed. Previous releases shipped ~3MB JS bundles requiring Bun runtime
+- **Windows Browser Detection**: Support Playwright 1.57+ `chrome-win64` directory layout (was `chrome-win`) in browser setup script
+- **Test Isolation**: `BROOKLYN_TEST_MODE=true` skips PID file checks and writes, preventing integration tests from killing the developer's running MCP server
+- **Formatter Scope**: Prettier limited to markdown, JSON, and HTML to avoid conflicts with yamllint double-space comment rules
+
+### Added
+
+- **Windows ARM64 Runner**: Native builds on `windows-latest-arm64-s` for ARM64 Windows devices
+- **Linux ARM64 Runner**: Native builds on `ubuntu-latest-arm64-s` for ARM64 Linux
+- **actionlint Config**: `.github/actionlint.yaml` whitelists custom self-hosted runner labels
+- **npm OIDC Publish**: GitHub Actions workflow installs goneat for pre-publish validation
+
+### Documentation
+
+- **Platform Support Matrix**: Updated across all docs to reflect 5-platform native builds and Darwin Intel removal
+- **Integration Test Guide**: Documented `BROOKLYN_TEST_MODE` test isolation behavior
+- **Release Checklist**: Updated binary size expectations (~60-120MB) and asset counts (22 files)
+
 ## [0.3.3] - 2026-02-15
 
 ### Added
