@@ -229,14 +229,14 @@ async function validateBinaries(): Promise<ValidationResult[]> {
     const distDir = path.join(rootDir, "dist");
     const releaseDir = path.join(distDir, "release");
 
-    // Check if binaries exist
+    // Binaries that can be cross-compiled from any host (Bun limitation).
+    // darwin-x64 (Intel): dropped in v0.3.4
+    // windows-arm64: built natively via .github/workflows/release-windows-arm64.yml
     const expectedBinaries = [
       "brooklyn-linux-amd64",
       "brooklyn-linux-arm64",
-      "brooklyn-darwin-amd64",
       "brooklyn-darwin-arm64",
       "brooklyn-windows-amd64.exe",
-      "brooklyn-windows-arm64.exe",
     ];
 
     let foundBinaries = 0;
@@ -249,12 +249,12 @@ async function validateBinaries(): Promise<ValidationResult[]> {
         foundBinaries++;
         totalSize += stats.size;
 
-        // Check size limit (15MB)
-        if (stats.size > 15 * 1024 * 1024) {
+        // Standalone compiled binaries are ~60-120MB
+        if (stats.size > 150 * 1024 * 1024) {
           results.push({
             name: `Binary Size (${binary})`,
             success: false,
-            message: `Size ${(stats.size / 1024 / 1024).toFixed(2)}MB exceeds 15MB limit`,
+            message: `Size ${(stats.size / 1024 / 1024).toFixed(2)}MB exceeds 150MB limit`,
           });
         }
       } catch {

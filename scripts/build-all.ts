@@ -2,7 +2,22 @@
 
 /**
  * Cross-platform build script for Brooklyn MCP
- * Builds binaries for all supported platforms and architectures
+ *
+ * Builds standalone binaries via `bun build --compile` for every target
+ * that Bun can cross-compile from the current host. As of Bun 1.x the
+ * cross-compile matrix is:
+ *
+ *   From any host  →  bun-linux-x64, bun-linux-arm64,
+ *                      bun-darwin-arm64, bun-windows-x64
+ *
+ * Targets that CANNOT be cross-compiled (e.g. bun-windows-arm64) are
+ * excluded from this script. They are built natively on dedicated CI
+ * runners — see .github/workflows/release-windows-arm64.yml.
+ *
+ * If you are developing on a host whose arch is not in the list above
+ * (e.g. Windows ARM64), use `bun run build:local` to compile a binary
+ * for the current platform. Cross-compiling *from* that host to other
+ * targets is subject to the same Bun limitation.
  */
 
 import { execSync } from "node:child_process";
@@ -52,13 +67,10 @@ const BUILD_TARGETS: BuildTarget[] = [
     target: "bun-windows-x64",
     binaryName: "brooklyn-windows-amd64.exe",
   },
-  {
-    os: "win32",
-    arch: "arm64",
-    platform: "win32-arm64",
-    target: "bun-windows-arm64",
-    binaryName: "brooklyn-windows-arm64.exe",
-  },
+  // windows-arm64: Bun cannot cross-compile to this target.
+  // Built natively via .github/workflows/release-windows-arm64.yml
+  // on the windows-latest-arm64-s runner.
+  // For local builds on Windows ARM64, use: bun run build:local
 ];
 
 interface BuildResult {

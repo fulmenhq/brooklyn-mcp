@@ -41,11 +41,9 @@ const PACKAGE_TARGETS: PackageTarget[] = [
     binaryName: "brooklyn-windows-amd64.exe",
     archiveName: "brooklyn-windows-amd64",
   },
-  {
-    platform: "windows-arm64",
-    binaryName: "brooklyn-windows-arm64.exe",
-    archiveName: "brooklyn-windows-arm64",
-  },
+  // windows-arm64: not cross-compiled — packaged in CI collect job
+  // after native build on windows-latest-arm64-s runner.
+  // See .github/workflows/release-windows-arm64.yml
 ];
 
 interface PackageResult {
