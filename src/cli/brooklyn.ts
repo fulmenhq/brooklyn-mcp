@@ -12,7 +12,7 @@
  */
 
 // Version embedded at build time from VERSION file
-const VERSION = "0.3.4";
+const VERSION = "0.3.5";
 
 import { existsSync, readFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
