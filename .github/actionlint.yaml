@@ -1,0 +1,7 @@
+# Custom self-hosted runner labels for native matrix builds.
+# These runners provide ARM64 and other architectures that GitHub
+# does not offer as standard hosted runners.
+self-hosted-runner:
+  labels:
+    - ubuntu-latest-arm64-s
+    - windows-latest-arm64-s

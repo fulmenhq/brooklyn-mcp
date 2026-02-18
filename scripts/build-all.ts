@@ -18,16 +18,47 @@ interface BuildTarget {
   os: string;
   arch: string;
   platform: string;
+  /** Bun cross-compile target (e.g. "bun-linux-x64") */
+  target: string;
   binaryName: string;
 }
 
 const BUILD_TARGETS: BuildTarget[] = [
-  { os: "linux", arch: "amd64", platform: "linux-x64", binaryName: "brooklyn-linux-amd64" },
-  { os: "linux", arch: "arm64", platform: "linux-arm64", binaryName: "brooklyn-linux-arm64" },
-  { os: "darwin", arch: "amd64", platform: "darwin-x64", binaryName: "brooklyn-darwin-amd64" },
-  { os: "darwin", arch: "arm64", platform: "darwin-arm64", binaryName: "brooklyn-darwin-arm64" },
-  { os: "win32", arch: "amd64", platform: "win32-x64", binaryName: "brooklyn-windows-amd64.exe" },
-  { os: "win32", arch: "arm64", platform: "win32-arm64", binaryName: "brooklyn-windows-arm64.exe" },
+  {
+    os: "linux",
+    arch: "amd64",
+    platform: "linux-x64",
+    target: "bun-linux-x64",
+    binaryName: "brooklyn-linux-amd64",
+  },
+  {
+    os: "linux",
+    arch: "arm64",
+    platform: "linux-arm64",
+    target: "bun-linux-arm64",
+    binaryName: "brooklyn-linux-arm64",
+  },
+  {
+    os: "darwin",
+    arch: "arm64",
+    platform: "darwin-arm64",
+    target: "bun-darwin-arm64",
+    binaryName: "brooklyn-darwin-arm64",
+  },
+  {
+    os: "win32",
+    arch: "amd64",
+    platform: "win32-x64",
+    target: "bun-windows-x64",
+    binaryName: "brooklyn-windows-amd64.exe",
+  },
+  {
+    os: "win32",
+    arch: "arm64",
+    platform: "win32-arm64",
+    target: "bun-windows-arm64",
+    binaryName: "brooklyn-windows-arm64.exe",
+  },
 ];
 
 interface BuildResult {
@@ -63,13 +94,15 @@ async function buildForTarget(target: BuildTarget): Promise<BuildResult> {
   try {
     console.log(chalk.blue(`🔨 Building ${target.platform}...`));
 
-    // Build command with platform-specific settings
+    // Build standalone executable via cross-compilation
     const buildCmd = [
       "bun build src/cli/brooklyn.ts",
+      "--compile",
+      `--target=${target.target}`,
       `--outfile dist/${target.binaryName}`,
-      "--target node",
       "--external playwright",
       "--external @playwright/test",
+      "--external playwright-core",
       "--external electron",
       "--external svgo",
       "--external xml2js",
@@ -139,10 +172,10 @@ async function verifyBuilds(results: BuildResult[]): Promise<void> {
     throw new Error(`${failed.length} builds failed`);
   }
 
-  // Check binary sizes
-  const oversized = successful.filter((r) => r.size && r.size > 15 * 1024 * 1024); // 15MB limit
+  // Check binary sizes (standalone compiled binaries are ~120MB)
+  const oversized = successful.filter((r) => r.size && r.size > 150 * 1024 * 1024); // 150MB limit
   if (oversized.length > 0) {
-    console.log(chalk.yellow(`⚠️  ${oversized.length} binaries exceed size limit (15MB):`));
+    console.log(chalk.yellow(`⚠️  ${oversized.length} binaries exceed size limit (150MB):`));
     for (const result of oversized) {
       const sizeMB = ((result.size ?? 0) / 1024 / 1024).toFixed(2);
       console.log(chalk.yellow(`   - ${result.target.platform}: ${sizeMB}MB`));

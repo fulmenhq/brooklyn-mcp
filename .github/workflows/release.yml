@@ -67,12 +67,34 @@ jobs:
           bun run release:validate
           echo "ready=true" >> "$GITHUB_OUTPUT"
 
-  # Build job - single runner, all platforms (Bun cross-compiles)
-  build-and-release:
-    name: Build and Release
-    runs-on: ubuntu-latest
+  # Native matrix build — each platform compiles its own standalone binary
+  build:
+    name: Build (${{ matrix.name }})
     needs: validate-release
     if: needs.validate-release.result == 'success'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: linux-x64
+            binary: brooklyn-linux-amd64
+          - os: ubuntu-latest-arm64-s
+            name: linux-arm64
+            binary: brooklyn-linux-arm64
+          - os: macos-15
+            name: darwin-arm64
+            binary: brooklyn-darwin-arm64
+          - os: windows-latest
+            name: windows-x64
+            binary: brooklyn-windows-amd64.exe
+          - os: windows-latest-arm64-s
+            name: windows-arm64
+            binary: brooklyn-windows-arm64.exe
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -85,24 +107,70 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Build standalone binary
+        run: bun run build:local
+
+      - name: Rename binary for release
+        run: |
+          if [ -f dist/brooklyn.exe ]; then
+            mv dist/brooklyn.exe "dist/${{ matrix.binary }}"
+          else
+            mv dist/brooklyn "dist/${{ matrix.binary }}"
+          fi
+          ls -lh "dist/${{ matrix.binary }}"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.name }}
+          path: dist/${{ matrix.binary }}
+          retention-days: 1
+
+  # Collect all platform binaries, package, and create draft release
+  collect:
+    name: Collect and Release
+    runs-on: ubuntu-latest
+    needs: [validate-release, build]
+    if: needs.validate-release.result == 'success' && needs.build.result == 'success'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: binary-*
+          path: dist/
+          merge-multiple: true
+
+      - name: Verify downloaded binaries
+        run: |
+          echo "Downloaded binaries:"
+          ls -lh dist/brooklyn-*
+          echo ""
+          echo "Expected 5 binaries (linux-x64, linux-arm64, darwin-arm64, windows-x64, windows-arm64)"
+          BINARY_COUNT=$(ls dist/brooklyn-* | wc -l)
+          echo "Found: ${BINARY_COUNT}"
+          if [ "${BINARY_COUNT}" -lt 5 ]; then
+            echo "⚠️  Warning: expected 5 binaries, found ${BINARY_COUNT}"
+          fi
+
       - name: Generate License Inventory
         run: |
           echo "Generating license inventory..."
           bun run license:scan
 
-      - name: Build Local Binary (Required for Tests)
-        run: |
-          echo "Building local binary for test dependencies..."
-          bun run build:local
-
-      - name: Build All Platforms
-        run: |
-          echo "Building all platform binaries (cross-compilation)..."
-          bun run build:all
-
       - name: Package All Artifacts
         run: |
-          echo "Creating distribution artifacts..."
+          echo "Creating distribution artifacts (zip + tar.gz)..."
           bun run package:all
 
       - name: License Compliance Check
@@ -169,8 +237,8 @@ jobs:
   post-release-validation:
     name: Post-Release Validation
     runs-on: ubuntu-latest
-    needs: [validate-release, build-and-release]
-    if: needs.validate-release.result == 'success' && needs.build-and-release.result == 'success'
+    needs: [validate-release, collect]
+    if: needs.validate-release.result == 'success' && needs.collect.result == 'success'
     steps:
       - name: Checkout
         uses: actions/checkout@v4

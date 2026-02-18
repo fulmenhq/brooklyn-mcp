@@ -32,11 +32,6 @@ const PACKAGE_TARGETS: PackageTarget[] = [
     archiveName: "brooklyn-linux-arm64",
   },
   {
-    platform: "darwin-amd64",
-    binaryName: "brooklyn-darwin-amd64",
-    archiveName: "brooklyn-darwin-amd64",
-  },
-  {
     platform: "darwin-arm64",
     binaryName: "brooklyn-darwin-arm64",
     archiveName: "brooklyn-darwin-arm64",
@@ -292,15 +287,15 @@ async function verifyPackages(results: PackageResult[]): Promise<void> {
     throw new Error(`${failed.length} packages failed`);
   }
 
-  // Check package sizes
+  // Check package sizes (compressed standalone binaries are ~40-50MB)
   const oversized = successful.filter(
     (r) =>
-      (r.zipSize && r.zipSize > 20 * 1024 * 1024) || // 20MB limit
-      (r.tarSize && r.tarSize > 20 * 1024 * 1024),
+      (r.zipSize && r.zipSize > 100 * 1024 * 1024) || // 100MB limit
+      (r.tarSize && r.tarSize > 100 * 1024 * 1024),
   );
 
   if (oversized.length > 0) {
-    console.log(chalk.yellow(`⚠️  ${oversized.length} packages exceed size limit (20MB):`));
+    console.log(chalk.yellow(`⚠️  ${oversized.length} packages exceed size limit (100MB):`));
     for (const result of oversized) {
       const zipMB = result.zipSize ? (result.zipSize / 1024 / 1024).toFixed(2) : "N/A";
       const tarMB = result.tarSize ? (result.tarSize / 1024 / 1024).toFixed(2) : "N/A";

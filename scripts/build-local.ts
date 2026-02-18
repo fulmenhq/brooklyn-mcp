@@ -44,14 +44,15 @@ async function buildLocal() {
       stdio: "inherit",
     });
 
-    // Step 4: Build binary with correct name
-    console.log(`🔨 Building binary: ${binaryName}`);
+    // Step 4: Build standalone binary with correct name
+    console.log(`🔨 Building standalone binary: ${binaryName}`);
     const buildCommand = [
       "bun build src/cli/brooklyn.ts",
+      "--compile",
       `--outfile ${binaryPath}`,
-      "--target node",
       "--external playwright",
       "--external @playwright/test",
+      "--external playwright-core",
       "--external electron",
       "--external svgo",
       "--external xml2js",
