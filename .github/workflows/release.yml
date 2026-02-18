@@ -88,9 +88,8 @@ jobs:
           - os: windows-latest
             name: windows-x64
             binary: brooklyn-windows-amd64.exe
-          - os: windows-latest-arm64-s
-            name: windows-arm64
-            binary: brooklyn-windows-arm64.exe
+    # windows-arm64: Bun setup action has no ARM64 binary (404).
+    # Built natively via release-windows-arm64.yml (manual dispatch).
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -156,11 +155,12 @@ jobs:
           echo "Downloaded binaries:"
           ls -lh dist/brooklyn-*
           echo ""
-          echo "Expected 5 binaries (linux-x64, linux-arm64, darwin-arm64, windows-x64, windows-arm64)"
+          echo "Expected 4 binaries (linux-x64, linux-arm64, darwin-arm64, windows-x64)"
+          echo "Note: windows-arm64 is built separately via release-windows-arm64.yml"
           BINARY_COUNT=$(ls dist/brooklyn-* | wc -l)
           echo "Found: ${BINARY_COUNT}"
-          if [ "${BINARY_COUNT}" -lt 5 ]; then
-            echo "⚠️  Warning: expected 5 binaries, found ${BINARY_COUNT}"
+          if [ "${BINARY_COUNT}" -lt 4 ]; then
+            echo "⚠️  Warning: expected 4 binaries, found ${BINARY_COUNT}"
           fi
 
       - name: Generate License Inventory
