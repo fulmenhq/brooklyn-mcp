@@ -339,6 +339,27 @@ describe("ProcessedAssetManager", () => {
       expect(result.tasks).toHaveLength(2);
     });
 
+    it("should bound adversarial glob evaluation", async () => {
+      const longTaskId = `${"a".repeat(180)}c`;
+      await assetManager.saveAsset(testBuffer, "adversarial.png", {
+        taskId: longTaskId,
+        teamId: "team-a",
+        sourceFileName: "adversarial.png",
+        processingType: "converted",
+      });
+
+      const startedAt = performance.now();
+      const result = await assetManager.listAssets({
+        teamId: "team-a",
+        pattern: `${"*a".repeat(24)}*b`,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.tasks).toHaveLength(0);
+      expect(result.error).toContain("too complex");
+      expect(performance.now() - startedAt).toBeLessThan(1_000);
+    });
+
     it("should handle empty team directory", async () => {
       const result = await assetManager.listAssets({ teamId: "non-existent-team" });
 

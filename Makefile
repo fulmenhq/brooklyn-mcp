@@ -12,10 +12,8 @@ VERSION := $(shell cat VERSION 2>/dev/null || echo "0.0.0")
 BINARY_NAME := brooklyn
 
 # DX Tooling (trust anchor pattern)
-# goneat is installed via sfetch -latest if not already present
-# Minimum version for full feature support (typecheck requires v0.5.0+)
-# NOTE: This is documentation only - bootstrap-dx installs latest if missing
-MIN_GONEAT_VERSION := v0.5.0
+# Exact reviewed version installed by bootstrap-dx when goneat is missing.
+GONEAT_VERSION ?= v0.5.15
 
 # User-space bin dir (overridable with BINDIR=...)
 # Defaults: macOS/Linux: $HOME/.local/bin, Windows: $USERPROFILE/bin
@@ -186,15 +184,15 @@ bootstrap-dx: ## Install DX tools via trust anchor (sfetch -> goneat)
 	fi
 	@echo "→ sfetch self-verify (trust anchor):"
 	@$(SFETCH_RESOLVE); $$SFETCH --self-verify
-	@echo "→ Checking goneat installation (minimum v0.5.2)..."
+	@echo "→ Checking goneat installation (minimum $(GONEAT_VERSION))..."
 	@$(SFETCH_RESOLVE); \
-	REQUIRED_VERSION="v0.5.2"; \
+	REQUIRED_VERSION="$(GONEAT_VERSION)"; \
 	if [ "$(FORCE)" = "1" ] || [ "$(FORCE)" = "true" ]; then \
 		echo "→ Force reinstall requested, installing goneat..."; \
-		$$SFETCH -repo fulmenhq/goneat -latest -install; \
+		$$SFETCH -repo fulmenhq/goneat -tag "$(GONEAT_VERSION)" -install; \
 	elif ! command -v goneat >/dev/null 2>&1; then \
-		echo "→ goneat not found, installing latest..."; \
-		$$SFETCH -repo fulmenhq/goneat -latest -install; \
+		echo "→ goneat not found, installing $(GONEAT_VERSION)..."; \
+		$$SFETCH -repo fulmenhq/goneat -tag "$(GONEAT_VERSION)" -install; \
 	else \
 		echo "→ goneat already installed: $$(goneat --version 2>&1 | head -n1)"; \
 	fi; \
@@ -262,7 +260,12 @@ typecheck: ## Run TypeScript type checking
 
 check-all: ## Run all quality checks (lint, typecheck, test)
 	@echo "Running all quality checks..."
-	@bun run check-all
+	@$(GONEAT_RESOLVE); \
+	if [ -z "$$GONEAT" ]; then \
+		echo "❌ goneat not found (run: make bootstrap-dx)"; \
+		exit 1; \
+	fi; \
+	GONEAT_BIN="$$GONEAT" GONEAT_VERSION="$(GONEAT_VERSION)" bun run check-all
 	@echo "✅ All quality checks passed"
 
 quality: check-all build ## Run quality checks and build

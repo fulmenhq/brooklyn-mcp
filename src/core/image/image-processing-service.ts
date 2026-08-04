@@ -226,7 +226,8 @@ export class ImageProcessingService {
       // Use Playwright to render SVG to PNG
       const { chromium } = await importPlaywright();
       const browser = await chromium.launch({ headless: true });
-      const context = await browser.newContext();
+      // SVG conversion is a rendering operation, not a script execution surface.
+      const context = await browser.newContext({ javaScriptEnabled: false });
       const page = await context.newPage();
 
       const width = options.width || 512;
@@ -295,10 +296,9 @@ export class ImageProcessingService {
    */
   // biome-ignore lint/suspicious/noExplicitAny: Dynamic SVGO configuration
   private buildSVGOConfig(_options?: SVGCompressionOptions): any {
-    // For now, use a simple preset configuration for basic optimization
-    // This provides good compression while maintaining visual fidelity
+    // Compress while stripping executable SVG content supplied by MCP clients.
     return {
-      plugins: ["preset-default"],
+      plugins: ["preset-default", "removeScripts"],
     };
   }
 

@@ -377,6 +377,10 @@ export class ProcessedAssetManager {
       // Apply pattern filtering
       if (query.pattern) {
         const pattern = query.pattern;
+        const globMetacharacters = pattern.match(/[*?[\]{}()]/g)?.length ?? 0;
+        if (pattern.length > 128 || globMetacharacters > 4) {
+          throw new Error("Glob pattern is too complex");
+        }
         taskIds = taskIds.filter((taskId) => minimatch(taskId, pattern));
       }
 

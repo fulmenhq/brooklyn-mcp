@@ -243,9 +243,7 @@ export class MCPDevManager {
         this.logger = loggerModule.getLogger("brooklyn-mcp-dev");
       } catch (_error) {
         // Fallback if logger not available
-        this.logger = {
-          /* console.error fallback */
-        };
+        this.logger = {/* console.error fallback */};
       }
     }
     return this.logger;

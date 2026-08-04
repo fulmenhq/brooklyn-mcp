@@ -20,7 +20,7 @@ Brooklyn is a Model Context Protocol (MCP) server that provides powerful browser
 
 Before using Brooklyn, ensure you have:
 
-- Node.js 18+ or Bun 1.0+
+- Node.js 22.13+ or Bun 1.0+
 - Network access to target websites
 - Sufficient system resources (2GB+ RAM recommended)
 

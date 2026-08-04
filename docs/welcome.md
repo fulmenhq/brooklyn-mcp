@@ -15,7 +15,7 @@ Brooklyn is a Model Context Protocol (MCP) server that bridges the gap between A
 Before getting started, ensure you have:
 
 - **Bun** (>= 1.0.0) - [Install Bun](https://bun.sh)
-- **Node.js** (>= 18.0.0) - For compatibility
+- **Node.js** (>= 22.13.0) - For compatibility
 - **Claude Code** - [Install Claude Code](https://claude.ai/code)
 - **2GB+ RAM** - For browser automation
 
@@ -370,7 +370,7 @@ If you've recovered Brooklyn onto a new machine or after a disk failure, follow 
 
 ```bash
 # 1. Verify your environment
-node --version    # Should be >= 18.0.0
+node --version    # Should be >= 22.13.0
 bun --version     # Should be >= 1.0.0
 
 # 2. Navigate to your Brooklyn directory
@@ -487,7 +487,7 @@ ls -la screenshots/ 2>/dev/null || echo "Screenshots directory will be created o
 
 ### Recovery Checklist ✅
 
-- [ ] **Environment**: Node.js ≥18, Bun ≥1.0 installed
+- [ ] **Environment**: Node.js ≥22.13, Bun ≥1.0 installed
 - [ ] **Dependencies**: `bun install` completed successfully
 - [ ] **Browsers**: `bun run setup:browsers` completed
 - [ ] **Assets**: `bun run setup:assets` completed

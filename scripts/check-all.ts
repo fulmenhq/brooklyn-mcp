@@ -11,8 +11,11 @@
  * - Performance monitoring for each step
  */
 
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { performance } from "node:perf_hooks";
+
+const GONEAT_COMMAND = process.env["GONEAT_BIN"] || "goneat";
+const REQUIRED_GONEAT_VERSION = process.env["GONEAT_VERSION"] || "v0.5.15";
 
 interface CheckStep {
   name: string;
@@ -51,8 +54,8 @@ const CHECK_STEPS: CheckStep[] = [
   },
   {
     name: "lint",
-    command: "bun",
-    args: ["run", "lint"],
+    command: GONEAT_COMMAND,
+    args: ["assess", "--categories", "lint", "--fail-on", "high"],
     timeoutMs: 90000, // 1.5 minutes
     description: "Code linting validation",
     required: true,
@@ -98,6 +101,29 @@ const CHECK_STEPS: CheckStep[] = [
     required: true,
   },
 ];
+
+function verifyGoneatVersion(): void {
+  const result = spawnSync(GONEAT_COMMAND, ["--version"], {
+    encoding: "utf8",
+    shell: process.platform === "win32",
+  });
+
+  if (result.error || result.status !== 0) {
+    throw new Error(
+      `Unable to execute reviewed goneat binary '${GONEAT_COMMAND}'. Run 'make bootstrap-dx' first.`,
+    );
+  }
+
+  const output = `${result.stdout || ""}\n${result.stderr || ""}`.trim();
+  const actualVersion = output.match(/v\d+\.\d+\.\d+/)?.[0];
+  if (actualVersion !== REQUIRED_GONEAT_VERSION) {
+    throw new Error(
+      `goneat ${REQUIRED_GONEAT_VERSION} is required, but '${GONEAT_COMMAND}' reported ${actualVersion || "an unknown version"}.`,
+    );
+  }
+
+  console.log(`🔒 goneat gate: ${actualVersion} (${GONEAT_COMMAND})`);
+}
 
 interface StepResult {
   name: string;
@@ -326,6 +352,7 @@ process.on("SIGTERM", () => {
 // Main execution
 async function main() {
   try {
+    verifyGoneatVersion();
     const runner = new QualityGateRunner();
     await runner.runAllChecks();
   } catch (error) {

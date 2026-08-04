@@ -394,7 +394,7 @@ bun run format:docs
 
 - Windows Terminal or PowerShell 7+
 - Git for Windows with proper line ending configuration
-- Node.js 18+ and Bun 1.1+
+- Node.js 22.13+ and Bun 1.1+
 - Visual Studio Code with platform-aware extensions
 
 **Optional but Recommended:**

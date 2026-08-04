@@ -118,4 +118,4 @@ languages:
   - language: typescript
     paths:
       - package.json
-      - bun.lockb
+      - bun.lock

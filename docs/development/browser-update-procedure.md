@@ -104,7 +104,7 @@ The CI workflow uses `hashFiles('bun.lock')` as part of the cache key:
 
 ```yaml
 - name: Cache Playwright browsers
-  uses: actions/cache@v4
+  uses: actions/cache@v5
   with:
     path: ~/.cache/ms-playwright
     key: playwright-${{ runner.os }}-${{ hashFiles('bun.lock') }}

@@ -190,12 +190,12 @@ describe.skip("MCP Browser E2E Tests", () => {
         // Find initialize response
         const initResponse = responses.find((r) => r.id === 0);
         expect(initResponse?.result).toBeDefined();
-        expect((initResponse?.result as any).protocolVersion).toBe("2025-11-25");
+        expect((initResponse!.result as any).protocolVersion).toBe("2025-11-25");
 
         // Find tools list response
         const toolsResponse = responses.find((r) => r.id === 1);
         expect(toolsResponse?.result).toBeDefined();
-        const tools = (toolsResponse?.result as any).tools;
+        const tools = (toolsResponse!.result as any).tools;
         expect(Array.isArray(tools)).toBe(true);
 
         // Verify all browser tools are available
@@ -208,9 +208,9 @@ describe.skip("MCP Browser E2E Tests", () => {
         // Find launch browser response
         const launchResponse = responses.find((r) => r.id === 2);
         expect(launchResponse?.result).toBeDefined();
-        const browserId = (launchResponse?.result as any).browserId;
+        const browserId = (launchResponse!.result as any).browserId;
         expect(browserId).toBeTruthy();
-        expect((launchResponse?.result as any).status).toBe("launched");
+        expect((launchResponse!.result as any).status).toBe("launched");
 
         // Browser should be launched successfully
         // The full flow test would need to be written differently to handle dynamic browser IDs
@@ -356,11 +356,11 @@ describe.skip("MCP Browser E2E Tests", () => {
 
         const navResponse = responses.find((r) => r.id === 2);
         expect(navResponse?.result).toBeDefined();
-        expect((navResponse?.result as any).success).toBe(true);
+        expect((navResponse!.result as any).success).toBe(true);
 
         const closeResponse = responses.find((r) => r.id === 3);
         expect(closeResponse?.result).toBeDefined();
-        expect((closeResponse?.result as any).success).toBe(true);
+        expect((closeResponse!.result as any).success).toBe(true);
       },
       TEST_TIMEOUT,
     );

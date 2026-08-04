@@ -142,7 +142,7 @@ export class HttpAuthGuard {
       return undefined;
     }
     const [scheme, value] = rawValue.trim().split(/\s+/);
-    if (!scheme || scheme.toLowerCase() !== "bearer") {
+    if (scheme?.toLowerCase() !== "bearer") {
       return undefined;
     }
     return value;
