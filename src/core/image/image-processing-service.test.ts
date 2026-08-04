@@ -19,17 +19,21 @@ vi.mock("svgo", () => ({
   optimize: vi.fn(),
 }));
 
+const { mockNewContext } = vi.hoisted(() => ({
+  mockNewContext: vi.fn(async () => ({
+    newPage: async () => ({
+      setViewportSize: async () => {},
+      setContent: async () => {},
+      screenshot: async () => Buffer.from("fake-png-data"),
+    }),
+  })),
+}));
+
 // Mock Playwright
 vi.mock("playwright", () => ({
   chromium: {
     launch: vi.fn(async () => ({
-      newContext: async () => ({
-        newPage: async () => ({
-          setViewportSize: async () => {},
-          setContent: async () => {},
-          screenshot: async () => Buffer.from("fake-png-data"),
-        }),
-      }),
+      newContext: mockNewContext,
       close: async () => {},
     })),
   },
@@ -206,6 +210,7 @@ describe("ImageProcessingService", () => {
       expect(result.dimensions.width).toBe(100);
       expect(result.dimensions.height).toBe(100);
       expect(mockWriteFile).toHaveBeenCalled();
+      expect(mockNewContext).toHaveBeenCalledWith({ javaScriptEnabled: false });
     });
 
     it("should handle SVG to PNG conversion errors gracefully", async () => {

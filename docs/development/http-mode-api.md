@@ -546,10 +546,10 @@ jobs:
   browser-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+        uses: oven-sh/setup-bun@v2
 
       - name: Install dependencies
         run: bun install
@@ -618,7 +618,7 @@ brooklyn mcp dev-http-stop --all
 ### Docker Integration
 
 ```dockerfile
-FROM node:18-slim
+FROM node:22-slim
 
 # Install Brooklyn
 RUN npm install -g brooklyn
