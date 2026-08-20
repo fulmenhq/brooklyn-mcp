@@ -328,8 +328,8 @@ See [ADR-0002: Tool Inventory Generation](docs/decisions/adr/ADR-0002-tool-inven
 Brooklyn supports two MCP transports. Exercise them like this:
 
 - **HTTP (canonical, scales to many agents)**: `brooklyn web start --port 3000 --host 127.0.0.1 --auth-mode localhost`, then MCP JSON-RPC at `http://127.0.0.1:3000/mcp` (health at `/health`). In the Cloud Agent environment this server is auto-started by `start`. To debug a clean instance, `brooklyn web stop --port 3000` (or use another `--port`).
-- **stdio (single-agent)**: run from source via `bun run start` (i.e. `bun run src/cli/brooklyn.ts mcp start`) and speak newline-delimited JSON-RPC over stdin/stdout.
-  - **Caveat**: the compiled binary's `brooklyn mcp start` currently crashes on tool calls under the Bun single-file executable (pino `thread-stream` worker cannot resolve `real-require`). Use the source entrypoint above for stdio debugging until this is fixed. HTTP is unaffected.
+- **stdio (single-agent)**: `brooklyn mcp start` (compiled binary) or `bun run start` (i.e. `bun run src/cli/brooklyn.ts mcp start`, source) — both speak newline-delimited JSON-RPC over stdin/stdout. Logs are written to a file under `~/.brooklyn/logs/` to keep stdout pure; set `BROOKLYN_MCP_STDERR=true` to also mirror logs to stderr.
+  - MCP-mode logging uses in-process `pino.destination`/`multistream` (never `pino.transport`, which spawns a `thread-stream` worker that cannot run inside the Bun single-file executable). Keep it that way. Verified by `tests/integration/compiled-binary-stdio.test.ts`.
 
 ## AGENTS.local.md Pattern
 

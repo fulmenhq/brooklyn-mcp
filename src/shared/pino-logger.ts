@@ -8,7 +8,7 @@ import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
-import type { LoggerOptions, Logger as PinoLogger } from "pino";
+import type { LoggerOptions, Logger as PinoLogger, StreamEntry } from "pino";
 import pino from "pino";
 import type { BrooklynConfig } from "../core/config.js";
 
@@ -210,40 +210,35 @@ function getPinoLevel(level: string): string {
 async function configureMCPFileLogging(): Promise<void> {
   if (!globalConfig.mcpLogPath) return;
 
-  // Create new root logger with file target for MCP mode
-  const targets: Array<{ level: string; target: string; options: Record<string, unknown> }> = [
+  // Build in-process destinations for MCP mode.
+  //
+  // IMPORTANT: do NOT use pino.transport() here. pino.transport() always runs
+  // the target in a worker thread via `thread-stream`, whose worker cannot
+  // resolve its dependencies (e.g. `real-require`) inside the Bun single-file
+  // executable (`brooklyn mcp start`). That crashes the stdio server on the
+  // first tool call that logs. pino.destination()/multistream() write in the
+  // main process instead, keeping stdout pure without spawning any worker.
+  const streams: StreamEntry[] = [
     {
       level: "info",
-      target: "pino/file",
-      options: {
-        destination: globalConfig.mcpLogPath,
-        sync: false, // Async for better performance
+      stream: pino.destination({
+        dest: globalConfig.mcpLogPath,
+        sync: false, // Non-blocking file writes (SonicBoom, no worker thread)
         mkdir: true,
-      },
+      }),
     },
   ];
 
-  // In test mode with BROOKLYN_MCP_STDERR, output to stderr for purity tests
+  // In test mode with BROOKLYN_MCP_STDERR, mirror everything to stderr for
+  // purity tests; otherwise mirror only errors when stderr is explicitly
+  // allowed. stdout is never used for logs in MCP mode.
   if (process.env.NODE_ENV === "test" && globalConfig.allowStderr) {
-    targets.push({
-      level: "info",
-      target: "pino/file",
-      options: { destination: 2 },
-    });
+    streams.push({ level: "info", stream: pino.destination({ dest: 2, sync: true }) });
   } else if (globalConfig.allowStderr) {
-    targets.push({
-      level: "error",
-      target: "pino/file",
-      options: { destination: 2 },
-    });
+    streams.push({ level: "error", stream: pino.destination({ dest: 2, sync: true }) });
   }
 
-  // Use multistream for MCP mode
-  const transport = pino.transport({
-    targets,
-  });
-
-  // Replace global logger instance
+  // Replace global logger instance with an in-process multistream logger
   const newLogger = pino(
     {
       level: "info",
@@ -252,7 +247,7 @@ async function configureMCPFileLogging(): Promise<void> {
         error: pino.stdSerializers.err,
       },
     },
-    transport,
+    pino.multistream(streams),
   ) as Logger;
 
   // Update the root logger reference
