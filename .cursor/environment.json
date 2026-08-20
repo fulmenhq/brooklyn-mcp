@@ -1,0 +1,6 @@
+{
+  "name": "Brooklyn MCP",
+  "install": "bash scripts/setup-cloud-dev.sh",
+  "start": "export PATH=\"$HOME/.bun/bin:$HOME/.local/bin:$PATH\"\nbrooklyn web start --port 3000 --host 127.0.0.1 --auth-mode localhost",
+  "ports": [3000]
+}

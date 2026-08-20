@@ -117,8 +117,9 @@ AGENTS.local.md
 windsurf.config.json
 
 # Cursor
-.cursor/
-!.cursor/rules/PROJECT.md
+.cursor/*
+!.cursor/environment.json
+!.cursor/rules/
 .cursorignore
 cursor.json
 
