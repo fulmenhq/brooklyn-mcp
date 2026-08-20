@@ -323,6 +323,14 @@ See [ADR-0002: Tool Inventory Generation](docs/decisions/adr/ADR-0002-tool-inven
 - All logging must go to stderr in stdio mode
 - Run `bun run test:integration:process` to verify
 
+### Testing Transports (HTTP vs stdio)
+
+Brooklyn supports two MCP transports. Exercise them like this:
+
+- **HTTP (canonical, scales to many agents)**: `brooklyn web start --port 3000 --host 127.0.0.1 --auth-mode localhost`, then MCP JSON-RPC at `http://127.0.0.1:3000/mcp` (health at `/health`). In the Cloud Agent environment this server is auto-started by `start`. To debug a clean instance, `brooklyn web stop --port 3000` (or use another `--port`).
+- **stdio (single-agent)**: run from source via `bun run start` (i.e. `bun run src/cli/brooklyn.ts mcp start`) and speak newline-delimited JSON-RPC over stdin/stdout.
+  - **Caveat**: the compiled binary's `brooklyn mcp start` currently crashes on tool calls under the Bun single-file executable (pino `thread-stream` worker cannot resolve `real-require`). Use the source entrypoint above for stdio debugging until this is fixed. HTTP is unaffected.
+
 ## AGENTS.local.md Pattern
 
 Create `AGENTS.local.md` (gitignored) for tactical session guidance. This file is for transient, session-specific notes that would otherwise cause churn in the main AGENTS.md.
