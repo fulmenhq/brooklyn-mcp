@@ -9,6 +9,10 @@ import { getLogger } from "../../shared/pino-logger.js";
 import { importPlaywright } from "../../shared/playwright-runtime.js";
 import { NativeDependencyManager } from "../native-deps/dependency-manager.js";
 import { ProcessedAssetManager } from "./processed-asset-manager.js";
+import {
+  abortNonLocalPlaywrightRequests,
+  wrapSvgForIsolatedRender,
+} from "./svg-render-isolation.js";
 import type {
   AnalyzeSVGArgs,
   CompressSVGArgs,
@@ -224,28 +228,14 @@ export class ImageProcessingService {
       const options = args.options || {};
 
       // Use Playwright to render SVG to PNG
-      const { chromium } = await importPlaywright();
-      const browser = await chromium.launch({ headless: true });
-      // SVG conversion is a rendering operation, not a script execution surface.
-      const context = await browser.newContext({ javaScriptEnabled: false });
-      const page = await context.newPage();
-
       const width = options.width || 512;
       const height = options.height || 512;
-      await page.setViewportSize({ width, height });
-
-      const bgStyle = options.backgroundColor
-        ? `background:${options.backgroundColor};`
-        : "background:transparent;";
-      const svgContent = svgBuffer.toString("utf-8");
-      const html = `<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;${bgStyle}">${svgContent}</body></html>`;
-      await page.setContent(html, { waitUntil: "load" });
-
-      const outputBuffer = await page.screenshot({
-        type: "png",
-        omitBackground: !options.backgroundColor,
-      });
-      await browser.close();
+      const outputBuffer = await this.renderSvgToPngBuffer(
+        svgBuffer.toString("utf-8"),
+        width,
+        height,
+        options.backgroundColor,
+      );
 
       const outputPath = args.outputPath || this.generatePNGPath(args.svgPath);
       await writeFile(outputPath, outputBuffer);
@@ -471,22 +461,12 @@ export class ImageProcessingService {
       // Process each size via headless rendering
       for (const size of args.sizes) {
         try {
-          const { chromium } = await importPlaywright();
-          const browser = await chromium.launch({ headless: true });
-          const context = await browser.newContext();
-          const page = await context.newPage();
-          await page.setViewportSize({ width: size, height: size });
-          const bgStyle = args.options?.backgroundColor
-            ? `background:${args.options.backgroundColor};`
-            : "background:transparent;";
-          const svgContent = svgBuffer.toString("utf-8");
-          const html = `<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;${bgStyle}">${svgContent}</body></html>`;
-          await page.setContent(html, { waitUntil: "load" });
-          const outputBuffer = await page.screenshot({
-            type: "png",
-            omitBackground: !args.options?.backgroundColor,
-          });
-          await browser.close();
+          const outputBuffer = await this.renderSvgToPngBuffer(
+            svgBuffer.toString("utf-8"),
+            size,
+            size,
+            args.options?.backgroundColor,
+          );
 
           // Generate filename using pattern
           const fileName = args.outputNamePattern
@@ -622,6 +602,36 @@ export class ImageProcessingService {
       dryRun: args.dryRun !== false, // Default to true for safety
       confirm: args.confirm,
     });
+  }
+
+  /**
+   * Render SVG markup to PNG with JS disabled, CSP, and no outbound fetches.
+   */
+  private async renderSvgToPngBuffer(
+    svgContent: string,
+    width: number,
+    height: number,
+    backgroundColor?: string,
+  ): Promise<Buffer> {
+    const { chromium } = await importPlaywright();
+    const browser = await chromium.launch({ headless: true });
+    try {
+      const context = await browser.newContext({ javaScriptEnabled: false });
+      const page = await context.newPage();
+      await abortNonLocalPlaywrightRequests(page);
+      await page.setViewportSize({ width, height });
+      const bgStyle = backgroundColor
+        ? `background:${backgroundColor};`
+        : "background:transparent;";
+      const html = wrapSvgForIsolatedRender(svgContent, bgStyle);
+      await page.setContent(html, { waitUntil: "domcontentloaded" });
+      return await page.screenshot({
+        type: "png",
+        omitBackground: !backgroundColor,
+      });
+    } finally {
+      await browser.close();
+    }
   }
 
   /**
