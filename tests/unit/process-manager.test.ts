@@ -4,7 +4,6 @@
  */
 
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { type BrooklynProcess, BrooklynProcessManager } from "../../src/shared/process-manager.js";
@@ -21,9 +20,9 @@ vi.mock("node:fs", () => ({
   unlinkSync: vi.fn(),
 }));
 
-vi.mock("node:path", () => ({
-  join: vi.fn(),
-}));
+vi.mock("node:path", async () => {
+  return await vi.importActual("node:path");
+});
 
 // Mock process.kill for PID checking
 const originalKill = process.kill;
@@ -173,17 +172,16 @@ describe("BrooklynProcessManager", () => {
       // Mock file system operations
       vi.mocked(existsSync).mockReturnValue(true);
       vi.mocked(readFileSync).mockReturnValue(mockPid);
-      vi.mocked(join).mockReturnValue(mockPidPath);
 
       // Mock process running and command check
       vi.spyOn(BrooklynProcessManager, "isProcessRunning").mockResolvedValue(true);
       vi.spyOn(BrooklynProcessManager, "getProcessCommand").mockResolvedValue(
-        "brooklyn dev-http --port 8080",
+        "brooklyn mcp dev-http --port 8080",
       );
 
       const process = await (BrooklynProcessManager as any).processPidFile(
         mockPidFile,
-        "/test/path",
+        mockPidPath,
       );
 
       expect(process).not.toBeNull();
@@ -200,17 +198,16 @@ describe("BrooklynProcessManager", () => {
       // Mock file system operations
       vi.mocked(existsSync).mockReturnValue(true);
       vi.mocked(readFileSync).mockReturnValue(mockPid);
-      vi.mocked(join).mockReturnValue(mockPidPath);
 
       // Mock process running and command check
       vi.spyOn(BrooklynProcessManager, "isProcessRunning").mockResolvedValue(true);
       vi.spyOn(BrooklynProcessManager, "getProcessCommand").mockResolvedValue(
-        "brooklyn dev-http --port 8080",
+        "brooklyn web start --port 8080",
       );
 
       const process = await (BrooklynProcessManager as any).processPidFile(
         mockPidFile,
-        "/test/path",
+        mockPidPath,
       );
 
       expect(process).not.toBeNull();
@@ -225,14 +222,13 @@ describe("BrooklynProcessManager", () => {
 
       vi.mocked(existsSync).mockReturnValue(true);
       vi.mocked(readFileSync).mockReturnValue("12345");
-      vi.mocked(join).mockReturnValue(mockPidPath);
 
       // Mock process not running
       vi.spyOn(BrooklynProcessManager, "isProcessRunning").mockResolvedValue(false);
 
       const process = await (BrooklynProcessManager as any).processPidFile(
         mockPidFile,
-        "/test/path",
+        mockPidPath,
       );
 
       expect(process).toBeNull();
@@ -246,7 +242,7 @@ describe("BrooklynProcessManager", () => {
 
       const process = await (BrooklynProcessManager as any).processPidFile(
         mockPidFile,
-        "/test/path",
+        `/test/path/${mockPidFile}`,
       );
 
       expect(process).toBeNull();

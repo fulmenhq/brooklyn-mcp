@@ -3,8 +3,7 @@
  */
 
 import { exec } from "node:child_process";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
 import { promisify } from "node:util";
 
 import type { ProcessInfo } from "@3leaps/sysprims";
@@ -135,20 +134,13 @@ export class BrooklynProcessManager {
    */
   static async findProcessesFromPidFiles(): Promise<BrooklynProcess[]> {
     const processes: BrooklynProcess[] = [];
-    const cwd = process.cwd();
 
     try {
-      const files = readdirSync(cwd);
-      const pidFiles = files.filter(
-        (file) =>
-          (file.startsWith(".brooklyn-http-") || file.startsWith(".brooklyn-web-")) &&
-          file.endsWith(".pid"),
-      );
-
-      for (const pidFile of pidFiles) {
-        const process = await BrooklynProcessManager.processPidFile(pidFile, cwd);
-        if (process) {
-          processes.push(process);
+      const { listDaemonPidFiles } = await import("./pid-files.js");
+      for (const pidFile of listDaemonPidFiles()) {
+        const found = await BrooklynProcessManager.processPidFile(pidFile.name, pidFile.path);
+        if (found) {
+          processes.push(found);
         }
       }
     } catch {
@@ -163,9 +155,8 @@ export class BrooklynProcessManager {
    */
   private static async processPidFile(
     pidFile: string,
-    cwd: string,
+    pidPath: string,
   ): Promise<BrooklynProcess | null> {
-    const pidPath = join(cwd, pidFile);
     if (!existsSync(pidPath)) return null;
 
     try {
@@ -195,9 +186,13 @@ export class BrooklynProcessManager {
     pidPath: string,
   ): Promise<BrooklynProcess | null> {
     const processInfo = await BrooklynProcessManager.getProcessCommand(pidNum);
-    if (processInfo?.includes("dev-http")) {
-      // Extract port from filename: .brooklyn-http-8080.pid or .brooklyn-web-8080.pid -> 8080
-      const portMatch = pidFile.match(/\.(?:brooklyn-http|brooklyn-web)-(\d+)\.pid$/);
+    if (
+      processInfo?.includes("dev-http") ||
+      processInfo?.includes("web start") ||
+      processInfo?.includes("web-start")
+    ) {
+      // Extract port from filename: brooklyn-web-8080.pid or .brooklyn-http-8080.pid
+      const portMatch = pidFile.match(/(?:^|\.)brooklyn-(?:http|web)-(\d+)\.pid$/);
       const port = portMatch?.[1] ? Number.parseInt(portMatch[1], 10) : undefined;
 
       return {

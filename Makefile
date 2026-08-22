@@ -58,7 +58,7 @@ GONEAT_RESOLVE = \
 	if [ -x "$$BINDIR/goneat" ]; then GONEAT="$$BINDIR/goneat"; fi; \
 	if [ -z "$$GONEAT" ]; then GONEAT="$$(command -v goneat 2>/dev/null || true)"; fi
 
-.PHONY: all help bootstrap bootstrap-force bootstrap-dx hooks-ensure tools sync lint fmt test build build-all clean
+.PHONY: all help bootstrap bootstrap-force bootstrap-dx hooks-ensure tools sync lint fmt test build build-all clean install
 .PHONY: version version-set version-sync version-bump-major version-bump-minor version-bump-patch
 .PHONY: typecheck check-all quality precommit prepush
 .PHONY: release-check release-prepare release-build release-clean
@@ -311,6 +311,11 @@ build-all: ## Build multi-platform binaries
 
 install: ## Build and install CLI globally
 	@echo "Building and installing $(BINARY_NAME)..."
+	@$(BINDIR_RESOLVE); \
+	if [ "$$(uname -s)" = "Darwin" ] && [ -e "$$BINDIR/$(BINARY_NAME)" ]; then \
+		echo "Removing existing $$BINDIR/$(BINARY_NAME) before overwrite (macOS)"; \
+		rm -f "$$BINDIR/$(BINARY_NAME)"; \
+	fi
 	@bun run install
 	@echo "✅ Installation complete"
 
