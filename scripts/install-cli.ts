@@ -7,17 +7,11 @@
  * It's the simpler version of the bootstrap script - just installs the CLI.
  */
 
-import {
-  chmodSync,
-  copyFileSync,
-  cpSync,
-  existsSync,
-  mkdirSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { chmodSync, cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, platform } from "node:os";
 import { join } from "node:path";
+
+import { replaceInstalledBinary } from "../src/shared/install-binary.js";
 
 // ANSI color codes
 const colors = {
@@ -101,8 +95,8 @@ function installCLI(): void {
     log.info(`Created directory: ${paths.globalBinPath}`);
   }
 
-  // Copy CLI to target
-  copyFileSync(paths.cliSourcePath, paths.cliTargetPath);
+  // Replace dest inode (macOS cannot reliably overwrite a mapped Mach-O in place).
+  replaceInstalledBinary(paths.cliSourcePath, paths.cliTargetPath);
   // chmod is best-effort; on Windows it is unnecessary and may be a no-op.
   try {
     chmodSync(paths.cliTargetPath, 0o755);

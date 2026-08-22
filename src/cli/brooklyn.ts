@@ -20,6 +20,14 @@ import { join } from "node:path";
 import { HELP_TEXT } from "../generated/help/index.js";
 import { type AgentClientKey, agentDrivers, resolvePathFor } from "../shared/agent-drivers.js";
 // buildConfig import removed - not used in CLI entry point
+import { spawnDetachedCli, waitForLocalHealth } from "../shared/cli-spawn.js";
+import {
+  canonicalDaemonPidPath,
+  ensurePidDir,
+  findDaemonPidFile,
+  getBrooklynHome,
+  listDaemonPidFiles,
+} from "../shared/pid-files.js";
 import { getLogger, initializeLogging } from "../shared/pino-logger.js";
 import { importPlaywright, resolvePlaywrightCliJs } from "../shared/playwright-runtime.js";
 
@@ -566,7 +574,6 @@ function setupMCPDevCommands(mcpCmd: Command): void {
         const resolvedAuthMode = (options.authMode as HTTPAuthMode | undefined) ?? "disabled";
         // Default to background mode for AI-friendly operation
         if (!options.foreground) {
-          const { spawn } = await import("node:child_process");
           const args = [
             "mcp",
             "dev-http-daemon", // Use internal daemon command
@@ -583,20 +590,34 @@ function setupMCPDevCommands(mcpCmd: Command): void {
           if (options.pidFile) args.push("--pid-file", options.pidFile);
           if (options.authMode) args.push("--auth-mode", options.authMode);
 
-          // Spawn detached process
+          const { join } = await import("node:path");
+          const logPath = join(getBrooklynHome(), "logs", `brooklyn-http-${options.port}.log`);
+          const child = spawnDetachedCli(args, { logPath });
 
-          const child = spawn(process.execPath, [process.argv[1], ...args], {
-            detached: true,
-            stdio: ["ignore", "ignore", "ignore"],
-          });
+          const healthy = await waitForLocalHealth(
+            Number.parseInt(String(options.port), 10) || 8080,
+          );
+          if (!healthy) {
+            if (child.pid) {
+              try {
+                process.kill(child.pid, "SIGTERM");
+              } catch {
+                // already gone
+              }
+            }
+            console.error(
+              `Failed to start Brooklyn HTTP server on port ${options.port}. See ${logPath}`,
+            );
+            process.exit(1);
+          }
 
-          child.unref(); // Allow parent to exit
+          child.unref();
 
           console.log(
             `Brooklyn HTTP server started in background (PID: ${child.pid}, Port: ${options.port})`,
           );
           console.log(`Use 'brooklyn mcp dev-http-status' to check status`);
-          process.exit(0); // Exit to return control to terminal
+          process.exit(0);
         }
 
         const { BrooklynHTTP } = await import("../core/brooklyn-http.js");
@@ -761,17 +782,10 @@ function setupMCPDevCommands(mcpCmd: Command): void {
   }
 
   async function stopDevHttpFromPidFiles(port?: string, force?: boolean): Promise<void> {
-    const { readFileSync, existsSync, unlinkSync, readdirSync } = await import("node:fs");
-    const cwd = process.cwd();
+    const { readFileSync, existsSync, unlinkSync } = await import("node:fs");
 
     const pidFileForPort = (p: string) => {
-      // Prefer the canonical dev-http PID file name.
-      const canonical = `${cwd}/.brooklyn-http-${p}.pid`;
-      if (existsSync(canonical)) return canonical;
-      // Backward/forward compatibility if naming drifted.
-      const alt = `${cwd}/.brooklyn-web-${p}.pid`;
-      if (existsSync(alt)) return alt;
-      return canonical;
+      return findDaemonPidFile("http", p) ?? canonicalDaemonPidPath("http", p);
     };
 
     if (port) {
@@ -795,14 +809,9 @@ function setupMCPDevCommands(mcpCmd: Command): void {
         process.exit(1);
       }
     } else {
-      // Stop all PID file servers in current directory
+      // Stop all PID file servers (app home, then leftover CWD files)
       try {
-        const files = readdirSync(cwd);
-        const pidFiles = files.filter(
-          (f) =>
-            (f.startsWith(".brooklyn-http-") || f.startsWith(".brooklyn-web-")) &&
-            f.endsWith(".pid"),
-        );
+        const pidFiles = listDaemonPidFiles(process.cwd(), { kind: "http" });
 
         if (pidFiles.length === 0) {
           console.log("No dev-http servers running (no PID files found)");
@@ -813,8 +822,8 @@ function setupMCPDevCommands(mcpCmd: Command): void {
         let stopped = 0;
 
         for (const pidFile of pidFiles) {
-          const port = pidFile.match(/\.(?:brooklyn-http|brooklyn-web)-(\d+)\.pid$/)?.[1];
-          const pidPath = `${cwd}/${pidFile}`;
+          const port = String(pidFile.port);
+          const pidPath = pidFile.path;
           const pid = Number.parseInt(readFileSync(pidPath, "utf8").trim(), 10);
 
           const success = await stopHttpProcess(pid, force, port);
@@ -1154,26 +1163,46 @@ Assisted Configuration:
 
         // If daemon mode, spawn detached process and exit
         if (options.daemon) {
-          const { spawn } = await import("node:child_process");
           const args = ["web", "start", "--port", options.port, "--host", resolvedHost];
 
           if (options.teamId) args.push("--team-id", options.teamId);
           if (options.logLevel) args.push("--log-level", options.logLevel);
           if (cliAuthMode) args.push("--auth-mode", cliAuthMode);
 
-          // Spawn detached process
-          const child = spawn(process.execPath, [process.argv[1], ...args], {
-            detached: true,
-            stdio: ["ignore", "ignore", "ignore"],
+          const { writeFileSync } = await import("node:fs");
+          const { join } = await import("node:path");
+          const logPath = join(getBrooklynHome(), "logs", `brooklyn-web-${options.port}.log`);
+          const child = spawnDetachedCli(args, {
+            logPath,
             env: {
               ...process.env,
-              BROOKLYN_WEB_DAEMON: "true", // Mark as daemon child
+              BROOKLYN_WEB_DAEMON: "true",
             },
           });
 
-          child.unref(); // Allow parent to exit
+          const portNum = Number.parseInt(String(options.port), 10) || 3000;
+          const healthy = await waitForLocalHealth(portNum);
+          if (!healthy) {
+            if (child.pid) {
+              try {
+                process.kill(child.pid, "SIGTERM");
+              } catch {
+                // already gone
+              }
+            }
+            await initializeLogging(config);
+            const logger = getLogger("brooklyn-cli");
+            logger.error("Web server daemon failed to become healthy", {
+              port: options.port,
+              host: resolvedHost,
+              pid: child.pid,
+              logPath,
+            });
+            process.exit(1);
+          }
 
-          // Initialize logging briefly to show success message
+          child.unref();
+
           await initializeLogging(config);
           const logger = getLogger("brooklyn-cli");
 
@@ -1189,19 +1218,17 @@ Assisted Configuration:
             url: `http://${resolvedHost}:${options.port}`,
             pid: child.pid,
             authMode: resolvedAuthMode,
+            pidFile: canonicalDaemonPidPath("web", options.port),
           });
 
           logger.info("OAuth endpoints ready", {
             discovery: `http://${resolvedHost}:${options.port}/.well-known/oauth-authorization-server`,
           });
 
-          // Write PID file for tracking
-          const { writeFileSync } = await import("node:fs");
-          const { join } = await import("node:path");
-          const pidFile = join(process.cwd(), `.brooklyn-web-${options.port}.pid`);
-          writeFileSync(pidFile, String(child.pid), "utf8");
+          ensurePidDir();
+          writeFileSync(canonicalDaemonPidPath("web", options.port), String(child.pid), "utf8");
 
-          process.exit(0); // Exit parent, return control to shell
+          process.exit(0);
         }
 
         // Non-daemon mode or daemon child process continues here
@@ -1265,8 +1292,9 @@ Assisted Configuration:
           if (process.env["BROOKLYN_WEB_DAEMON"]) {
             try {
               const { unlinkSync } = await import("node:fs");
-              const { join } = await import("node:path");
-              const pidFile = join(process.cwd(), `.brooklyn-web-${options.port}.pid`);
+              const pidFile =
+                findDaemonPidFile("web", options.port) ??
+                canonicalDaemonPidPath("web", options.port);
               unlinkSync(pidFile);
             } catch {
               // Ignore PID file cleanup errors
@@ -1304,13 +1332,12 @@ Assisted Configuration:
     .option("--force", "Force kill with SIGKILL if graceful stop fails")
     .action(async (options) => {
       const { existsSync, readFileSync, unlinkSync } = await import("node:fs");
-      const cwd = process.cwd();
-      const localPidFile = `${cwd}/.brooklyn-web-${options.port}.pid`;
+      const localPidFile = findDaemonPidFile("web", options.port);
 
       const portNum = Number.parseInt(String(options.port), 10);
 
-      // First, check for local PID file (from `web start --daemon`)
-      if (existsSync(localPidFile)) {
+      // First, check for PID file (app home, then legacy CWD)
+      if (localPidFile && existsSync(localPidFile)) {
         try {
           const pid = Number.parseInt(readFileSync(localPidFile, "utf8").trim(), 10);
           if (Number.isFinite(pid) && pid > 0) {

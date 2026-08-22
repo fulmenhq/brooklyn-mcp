@@ -5,12 +5,12 @@
 
 import { existsSync, unlinkSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import { join } from "node:path";
 import { parse } from "node:url";
 import type { CallToolRequestParams, Tool } from "@modelcontextprotocol/sdk/types.js";
 
 import { negotiateHandshake } from "../shared/mcp-handshake.js";
 import { createCallToolRequest } from "../shared/mcp-request.js";
+import { canonicalDaemonPidPath, ensurePidDir, findDaemonPidFile } from "../shared/pid-files.js";
 import { getLogger } from "../shared/pino-logger.js";
 import { type BrooklynContext, BrooklynEngine } from "./brooklyn-engine.js";
 import { loadConfig } from "./config.js";
@@ -175,9 +175,16 @@ export class BrooklynHTTP {
     }
   }
 
+  private resolvePidFilePath(): string {
+    if (this.options.pidFile) return this.options.pidFile;
+    const existing = findDaemonPidFile("http", this.options.port ?? 8080);
+    if (existing) return existing;
+    ensurePidDir();
+    return canonicalDaemonPidPath("http", this.options.port ?? 8080);
+  }
+
   private writePidFile(): void {
-    const pidFile =
-      this.options.pidFile || join(process.cwd(), `.brooklyn-http-${this.options.port}.pid`);
+    const pidFile = this.resolvePidFilePath();
     try {
       writeFileSync(pidFile, process.pid.toString(), "utf8");
       this.logger.info("PID file written", { pidFile, pid: process.pid });
@@ -187,8 +194,7 @@ export class BrooklynHTTP {
   }
 
   private cleanupPidFile(): void {
-    const pidFile =
-      this.options.pidFile || join(process.cwd(), `.brooklyn-http-${this.options.port}.pid`);
+    const pidFile = this.resolvePidFilePath();
     try {
       if (existsSync(pidFile)) {
         unlinkSync(pidFile);
