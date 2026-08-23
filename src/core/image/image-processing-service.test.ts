@@ -19,15 +19,24 @@ vi.mock("svgo", () => ({
   optimize: vi.fn(),
 }));
 
-const { mockNewContext } = vi.hoisted(() => ({
-  mockNewContext: vi.fn(async () => ({
+const { mockNewContext, mockRoute, mockSetContent } = vi.hoisted(() => {
+  type RouteHandler = (route: {
+    request(): { url(): string };
+    continue(): Promise<unknown>;
+    abort(errorCode?: string): Promise<unknown>;
+  }) => Promise<unknown> | unknown;
+  const mockRoute = vi.fn<(url: string, handler: RouteHandler) => Promise<void>>(async () => {});
+  const mockSetContent = vi.fn<(html: string, options?: unknown) => Promise<void>>(async () => {});
+  const mockNewContext = vi.fn(async () => ({
     newPage: async () => ({
       setViewportSize: async () => {},
-      setContent: async () => {},
+      setContent: mockSetContent,
       screenshot: async () => Buffer.from("fake-png-data"),
+      route: mockRoute,
     }),
-  })),
-}));
+  }));
+  return { mockNewContext, mockRoute, mockSetContent };
+});
 
 // Mock Playwright
 vi.mock("playwright", () => ({
@@ -211,6 +220,51 @@ describe("ImageProcessingService", () => {
       expect(result.dimensions.height).toBe(100);
       expect(mockWriteFile).toHaveBeenCalled();
       expect(mockNewContext).toHaveBeenCalledWith({ javaScriptEnabled: false });
+      expect(mockRoute).toHaveBeenCalledWith("**/*", expect.any(Function));
+      const html = mockSetContent.mock.calls[0]?.[0];
+      expect(html).toBeDefined();
+      expect(html).toContain("Content-Security-Policy");
+      expect(html).toContain("default-src 'none'");
+    });
+
+    it("aborts outbound SVG image/filter fetches and allows data URLs", async () => {
+      const hostileSvg =
+        Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10">
+  <image href="https://evil.example/exfil.png" width="10" height="10"/>
+  <rect width="10" height="10" fill="url(https://evil.example/filter)"/>
+</svg>`);
+      mockReadFile.mockResolvedValue(hostileSvg);
+
+      await service.convertSVGToPNG({
+        svgPath: "/test/hostile.svg",
+        outputPath: "/test/hostile.png",
+      });
+
+      const handler = mockRoute.mock.calls[0]?.[1];
+      expect(handler).toBeTypeOf("function");
+      if (!handler) {
+        throw new Error("expected page.route handler");
+      }
+
+      const abort = vi.fn(async () => {});
+      const cont = vi.fn(async () => {});
+      await handler({
+        request: () => ({ url: () => "https://evil.example/exfil.png" }),
+        continue: cont,
+        abort,
+      });
+      expect(abort).toHaveBeenCalledWith("blockedbyclient");
+      expect(cont).not.toHaveBeenCalled();
+
+      abort.mockClear();
+      cont.mockClear();
+      await handler({
+        request: () => ({ url: () => "data:image/png;base64,AAAA" }),
+        continue: cont,
+        abort,
+      });
+      expect(cont).toHaveBeenCalled();
+      expect(abort).not.toHaveBeenCalled();
     });
 
     it("should handle SVG to PNG conversion errors gracefully", async () => {
